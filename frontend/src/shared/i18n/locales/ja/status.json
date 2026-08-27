@@ -1,0 +1,13 @@
+{
+  "itemStatus": {
+    "NEW": "通常",
+    "DISCON": "廃番",
+    "DISCON_STK": "廃番在庫あり",
+    "ON_HOLD": "発注停止",
+    "RETURNIDw/opage": "掲載保留"
+  },
+  "dataSource": {
+    "DEMO_LEGACY": "Demo Data（Legacy互換）",
+    "LEGACY": "Legacy実データ"
+  }
+}

@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: gsys-portal-backend
+  # Default DataSource autoconfiguration is disabled - two explicit DataSources
+  # (legacy READ ONLY, prototype READ/WRITE) are configured by hand in
+  # com.glv.gsysportal.config.LegacyDataSourceConfig / PrototypeDataSourceConfig.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: false # re-enabled once Prototype business tables are introduced (not this Step)
+
+# Legacy G-SYS Adapter datasource.
+# In this Step this points at the disposable Legacy Demo Instance started via
+# docker-compose.yml (legacy-demo-mysql), NOT the real/shared Legacy G-SYS database.
+# See docs/G-SYS_Online-Ordering_Prototype_Technical_Design.md 6.2 and the
+# Legacy Demo Instance decision recorded for this implementation session.
+app:
+  legacy:
+    datasource:
+      jdbc-url: jdbc:mysql://localhost:33061/legacy_demo?useSSL=false&zeroDateTimeBehavior=convertToNull&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&allowPublicKeyRetrieval=true
+      username: gsys_portal_ro
+      password: gsys_portal_ro_demo_pw
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      # SELECT-only pool: read-only enforced at DB-user level (see demo-data/03-readonly-user.sql)
+      # AND at connection-pool level (Layer 2/3 of the READ ONLY guarantee).
+      read-only: true
+      maximum-pool-size: 5
+  prototype:
+    datasource:
+      jdbc-url: jdbc:postgresql://localhost:54321/gsys_portal
+      username: gsys_portal
+      password: gsys_portal_demo_pw
+      driver-class-name: org.postgresql.Driver
+      maximum-pool-size: 5
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.glv.gsysportal: INFO

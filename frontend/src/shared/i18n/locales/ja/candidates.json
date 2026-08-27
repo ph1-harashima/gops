@@ -1,0 +1,28 @@
+{
+  "title": "発注候補一覧",
+  "filter": {
+    "brand": "ブランド",
+    "supplier": "メーカー",
+    "keyword": "SKU / 商品名",
+    "keywordPlaceholder": "SKUまたは商品名で検索",
+    "all": "すべて"
+  },
+  "table": {
+    "select": "選択",
+    "sku": "SKU",
+    "itemName": "商品名",
+    "brand": "ブランド",
+    "supplier": "メーカー",
+    "currentStock": "現在庫",
+    "safetyStock": "安全在庫",
+    "openPo": "発注残",
+    "monthlySales": "当月販売数",
+    "leadTime": "リードタイム",
+    "recommendedQty": "推奨発注数",
+    "itemStatus": "商品状態",
+    "unitPrice": "単価"
+  },
+  "empty": "発注候補が見つかりませんでした。",
+  "resultCount": "{{count}}件の発注候補",
+  "notAvailable": "—"
+}

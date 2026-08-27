@@ -1,0 +1,58 @@
+# G-SYS Online Ordering Prototype - local infrastructure.
+#
+# legacy-demo-mysql : Prototype-only, disposable, Legacy-compatible MySQL instance.
+#                      This is NOT the shared/real Legacy G-SYS database. See
+#                      docs/G-SYS_Online-Ordering_Prototype_Technical_Design.md 6.2
+#                      and the Legacy Demo Instance decision recorded in this
+#                      implementation session. The real Legacy G-SYS is never
+#                      started, connected to, or modified by this compose file.
+# prototype-postgres : Prototype DB (Draft/Workflow/Supplier Response/Audit).
+#                      Started now for dual-DataSource wiring; no business tables
+#                      are created in this Step (Order Candidate List slice only).
+services:
+  legacy-demo-mysql:
+    image: mysql:8.0
+    container_name: gsys-legacy-demo-mysql
+    restart: unless-stopped
+    # Force utf8mb4 as the server AND handshake default - without this, mysql:8.0's
+    # default client/connection/results charset can negotiate down to latin1 for
+    # sessions that don't explicitly request utf8mb4, corrupting Japanese text
+    # read back over JDBC even though the DB/table charset is utf8mb4 (found and
+    # fixed during this implementation session).
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: root_demo_pw
+      MYSQL_DATABASE: legacy_demo
+    ports:
+      - "33061:3306"
+    volumes:
+      - ./demo-data:/docker-entrypoint-initdb.d:ro
+      - legacy-demo-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_demo_pw"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  prototype-postgres:
+    image: postgres:16
+    container_name: gsys-prototype-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gsys_portal
+      POSTGRES_USER: gsys_portal
+      POSTGRES_PASSWORD: gsys_portal_demo_pw
+    ports:
+      - "54321:5432"
+    volumes:
+      - ./db-init/postgres:/docker-entrypoint-initdb.d:ro
+      - prototype-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gsys_portal -d gsys_portal"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  legacy-demo-mysql-data:
+  prototype-postgres-data:

@@ -1,7 +1,7 @@
 # G-SYS Online Ordering Modernization
 ## 9/17 Prototype 要件・設計方針書
 
-更新日：2026-08-26
+更新日：2026-08-27（Phase 0.5 Legacy Source Audit確定結果を反映）
 ステータス：Draft
 対象：Gulliver G-SYS
 目的：2026年9月17日 顧客レビュー用 Prototype
@@ -114,6 +114,8 @@ Database
 
 `[PROTOTYPE DECISION]` PrototypeではLegacy G-SYS / Sample Databaseを原則READ ONLYとし、新Portalから発生する更新データを既存MySQLへ書き込まない。
 
+`[CONFIRMED]`（Phase 0.5 Source Review確定）既存G-SYSとの接続方式は、Legacy Applicationを変更せず、Legacy MySQLへREAD ONLY接続する方式で確定した。詳細は3.2および30.2を参照。
+
 ---
 
 # 3. Architecture方針
@@ -154,6 +156,34 @@ Domain / Service API
 G-SYS Business Logic / Modernized Services
 
 へ発展可能な構造とする。
+
+## 3.1.1 Legacy Adapter接続方式（Phase 0.5 Source Review確定）
+
+`[CONFIRMED]` 9/17 Prototypeにおける「Legacy Adapter」は以下の方式で確定した。
+
+- Legacy Application（Java 8 / Spring Boot 1.5.15）は**変更しない**（コード変更・新規REST API追加を含む）。
+- New Service APIは、**Legacy MySQLへREAD ONLYで直接接続**する。
+- Legacy既存REST API（`AllUsersRestController`等）は、認証方式・レスポンス形式が画面専用であるため**再利用しない**。
+- Recommended Qty計算に必要な列のみに絞ったRead Queryを、既存`MsStkRepositoryImpl.getBaseStockList()` / `getStockListOrder()`のJOIN条件・倉庫除外条件・Formula取得条件を**変更せずに根拠として**New Service側へ実装する。
+- Recommended Qty計算ロジックは、Legacyの`OrderQuantityCalculator` / `StockCalculationHelper` / `FormulaParser`を可能な限りそのまま再利用する（独自の再実装は行わない）。
+- FrontendからLegacy DB・Prototype DBへ直接接続しない（必ずNew Service API経由）。
+
+```text
+React Frontend
+        │
+        ▼
+New Service API
+        │
+        ▼
+Legacy Adapter（Legacy MySQL READ ONLY接続 + Legacy計算ロジック再利用）
+        │
+        ▼
+Legacy MySQL（READ ONLY）
+
+        ＋
+
+Prototype DB（Draft / Workflow / Supplier Response / Audit、READ / WRITE）
+```
 
 ## 3.2 Prototype専用Database
 
@@ -338,6 +368,29 @@ PO Preview
 実ソースコード受領後、
 実際の計算経路を確認する。
 
+## Source Review確定事項（Phase 0.5）
+
+`[CONFIRMED]` Recommended Qtyの実計算経路は実ソースで完全に追跡済みである。
+
+```
+Repository層（MsStkRepositoryImpl.getBaseStockList / getStockListOrder）の生SQLで
+  AT = MS_STK.STK_STANDARD（在庫標準数）
+  AR = LOGICAL_QTY（物理在庫合算＋Open PO＋出荷中数量のSQL計算列）
+  Open PO合計 = PO_QTY_1〜20、Arrival合計 = ARR_QTY_1〜10
+  FORMULA_11〜14 = MS_FORMULA（LEFT JOIN ON ID = ITEM_CD、未設定時はハードコードDefault式）
+を取得し、
+StockCalculationHelper.calculateAllCalcs() → OrderQuantityCalculator.calc1〜calc4（および calc1Alt〜calc4Alt）
+で計算する。
+```
+
+`[PROTOTYPE DECISION]`（Phase 0.5 Source Review確定）**Legacyの`calc4`を、PrototypeのRecommended Qty（推奨発注数）として採用する。**
+
+- Legacy UI（Handsontableグリッド）上では、`calc4`は列ラベル `[V] PO Qty`、`calc4Alt`は `[V2] PO Qty Alt` として**両方が同格で常時表示**されている（日本語ラベルは存在しない）。
+- Prototypeでは `calc4` → `Recommended Qty / 推奨発注数` として画面表示する。
+- `calc4Alt`を新Portalでどう扱うか（通常画面に出すか、根拠詳細でのみ参照可能にするか）は `[TBD - CUSTOMER REVIEW]` として残す（9/17確認事項に追記）。
+
+`[PROTOTYPE DECISION]`（Phase 0.5 Source Review確定）Recommended Qty取得のArchitectureは3.1.1 / 30.2の通り、**Legacy MySQL READ ONLY接続＋Legacy計算ロジック（OrderQuantityCalculator / StockCalculationHelper / FormulaParser）の再利用**で確定した。Legacy側への新規REST API追加は9/17 Prototypeでは行わない。
+
 ## 9/17での顧客確認
 
 9/17では、
@@ -349,6 +402,8 @@ PO Preview
 
 計算式変更の要望があれば、
 本開発要件として整理する。
+
+`[TBD - CUSTOMER REVIEW]`（Phase 0.5追加）「新Portalでは`calc4`を標準の推奨発注数として扱い、`calc4Alt`を通常画面では表示しない方針でよいか」を合わせて確認する。
 
 ---
 
@@ -380,7 +435,24 @@ G-SYSのサンプルデータを利用する。
 Recent Salesについては、
 実ソースから取得元・保持期間・粒度を確認する。
 
+`[CONFIRMED]`（Phase 0.5 Source Review確定）Recent Salesの実体は`MS_STK.SOLD_QTY`であり、**Tempostar受注CSVを基にした「当月累計出荷数量」**である。処理概要：
+
+```
+Tempostar CSV（受注データ、基準日はCSV内のORDR_DATE）
+  ↓ 日次集計
+  ↓ 月次累計（当月分の日次集計を合算）
+MS_STK.SOLD_QTYを全クリア
+  ↓
+当月累計値を再設定（WH_CD='XX'の主/仮想倉庫行のみ）
+```
+
+日次/直近N日の時系列データは存在せず、月が変わるとその月の累計へ洗い替えされるため過去月トレンドも保持されない。
+
+`[PROTOTYPE DECISION]`（Phase 0.5 Source Review確定）Prototype UIでは「直近販売数」「Recent Sales」「直近N日販売数」とは表示しない。日本語UIの基本表示は**「当月販売数」**とする。説明表示が必要な場合は「**Tempostarから取得した当月累計出荷数量**」とする。過去月トレンド表示は現行Legacyデータから取得できないため、9/17 Prototype Scope外とする。
+
 `[PROTOTYPE DECISION]` Legacy / Sample G-SYSから取得した参照データと、新Portalで作成・更新するデータを分離する。参照データはLegacy / Sample G-SYSからREADし、Draft、Workflow、Prototype PO、Supplier Response、Attention、Audit Trail等はPrototype専用DatabaseでREAD / WRITEする。
+
+`[CONFIRMED]`（Phase 0.5 Source Review確定）`goo_dummy_dumpfile.sql`のみでは9/17の自然なデモを構成できないことが確認された（Item 2件のみ、実質1 Brand、Formula 0件、PO履歴なし、多くの値がPlaceholder、Supplierとの実用的な関連なし）。したがって、Legacy DBはREAD ONLYのまま維持しつつ、**Prototype側にDemo用データを準備する**。Demo DataとLegacy実データは混同せず、画面または内部データ上でデータソースを識別可能な構造とする。実ソースコード・実業務ロジックは必ず利用するという方針自体は変更しない（変更されるのは「サンプルデータの充足を前提にしない」という点のみ）。
 
 ---
 
@@ -441,6 +513,8 @@ Brandを選択すると、
 
 具体的な更新日時取得方法は要ソース確認。
 
+`[CONFIRMED]`（Phase 0.5 Source Review確定）`MS_STK.UPDATE_DATETIME`はSales（SOLD_QTY更新）、PO（PO_QTY更新）、Arrival（ARR_QTY更新）等の複数処理で共通に更新されるため、**「販売データ最終更新日時」と断定して使用しない**。9/17 Prototypeでは誤解を招くFreshness表示は原則行わず、必要な場合は「**G-SYSデータ更新日時**」等の限定的な表現とする。Sales更新日時とStock更新日時の厳密な分離は将来検討事項とする。
+
 ## Action / Operation Cockpit
 
 `[PROTOTYPE DECISION]` Dashboardは分析画面ではなく、「今日、どのブランド・商品について何を処理すべきか」を把握し、そのまま業務へ遷移するAction / Operation Cockpitとして設計する。
@@ -459,6 +533,8 @@ Brandを選択すると、
 Brand別一覧にはBrand、Candidates、OOS、Long-term OOS、Draft、Awaiting Supplier、Attentionを表示する。Brand名または件数から、Brandと条件を引き継いで次画面へ遷移可能とする。
 
 Data Freshnessとして在庫データ更新日時と販売実績更新日を表示可能とし、古い場合は`DATA_OUTDATED`をAttentionとして扱う。正確な更新日時取得元は`[TBD - SOURCE REVIEW]`とする。
+
+`[CONFIRMED]`（Phase 0.5 Source Review確定）在庫データ更新日時と販売実績更新日時を`MS_STK.UPDATE_DATETIME`のみで厳密に分離することはできない（同一列が両方の更新で書き換わるため）。9/17 Prototypeでは「G-SYSデータ更新日時」という統合表現に留め、Sales/Stock個別のFreshness表示は行わない。
 
 ## 要確認一覧
 
@@ -499,7 +575,11 @@ Dashboard下部に、数量変更あり、納期変更あり、一部回答、�
 
 Recommended Qty：
 
-既存G-SYS Formulaによる計算値。
+既存G-SYS Formulaによる計算値。`[CONFIRMED]`（Phase 0.5確定）実体はLegacyの`OrderQuantityCalculator.calc4`。日本語表示は「推奨発注数」とする。
+
+Recent Sales：
+
+`[CONFIRMED]`（Phase 0.5確定）実体は`MS_STK.SOLD_QTY`（当月累計出荷数量、Tempostar基準）。表示は「当月販売数」とする（詳細は8章参照）。
 
 Order Qty：
 
@@ -577,7 +657,9 @@ Inventoryには最低限、Current Stock、Safety Stock、Open PO、Arrival Qty�
 
 Salesは実ソースで取得可能な粒度を優先し、直近30 / 60 / 90日、または当月 / 前月 / 前々月等を表示する。採用する粒度はSalesデータ構造確認後に確定する。販売推移グラフは実データが取得可能な場合の実装候補とし、必須とはしない。
 
-RecommendationではRecommended Qtyを大きく表示し、「現行G-SYSの発注数量計算に基づく推奨値」であることを明示する。算出根拠は実Formulaの入力項目を確認後に確定し、推測した根拠を表示しない。
+`[CONFIRMED]`（Phase 0.5 Source Review確定）Legacyには`SOLD_QTY`（当月累計出荷数量、Tempostar基準）という単一値のみが存在し、日次/直近N日/前月/前々月に相当するデータ構造は存在しない。したがって上記の「直近30/60/90日」「当月/前月/前々月」表示、および販売推移グラフは**9/17 Prototype Scope外**とする。SKU Detailでの表示は「当月販売数」の単一値表示に限定する。
+
+RecommendationではRecommended Qtyを大きく表示し、「現行G-SYSの発注数量計算に基づく推奨値」であることを明示する。算出根拠は実Formulaの入力項目を確認後に確定し、推測した根拠を表示しない。`[CONFIRMED]`（Phase 0.5確定）Recommended Qtyの実体はLegacyの`calc4`である（7章参照）。
 
 Lead Timeの取得元およびBrand / Supplierとの関係は`[TBD - SOURCE REVIEW]`とする。
 
@@ -598,7 +680,7 @@ Open PO / Arrivalでは、取得可能であれば以下を表示する。
 
 | 項目 | 編集 | 必須 | 要件・取得元 |
 |---|:---:|:---:|---|
-| Draft No. | × | ○ | `[PROTOTYPE DECISION]` 新Portal側で採番 |
+| Draft No. | × | ○ | `[PROTOTYPE DECISION]` 新Portal側で採番。`[CONFIRMED]`（Phase 0.5確定）Legacy PO NumberはG-SYSで自動採番されず、Excel側で作成されG-SYSが読込・検証するのみ（構造：Supplier Code 4文字＋Brand Code 3文字＋ID Code 2文字＋その他文字列）。9/17 PrototypeではLegacy POへ正式登録しないため、Prototype独自番号を利用してよい。本番化時にはLegacy PO Numberとの整合方式を別途設計する（`[TBD - CUSTOMER REVIEW]`） |
 | Supplier | 原則× | ○ | G-SYSデータから取得。`[TBD - SOURCE REVIEW]` 正確な取得元 |
 | Brand | × | ○ | G-SYSデータから取得 |
 | Order Date | ○ | ○ | 初期値は当日 |
@@ -615,9 +697,9 @@ Open PO / Arrivalでは、取得可能であれば以下を表示する。
 | Item Name | × | 商品名 |
 | Current Stock | × | 現在庫 |
 | Open PO | × | 未入荷発注残 |
-| Recent Sales | × | `[TBD - SOURCE REVIEW]` 取得元・期間・粒度 |
+| Recent Sales | × | `[CONFIRMED]`（Phase 0.5確定）`MS_STK.SOLD_QTY`＝当月累計出荷数量（Tempostar基準）。表示は「当月販売数」 |
 | Lead Time | × | `[TBD - SOURCE REVIEW]` 取得元 |
-| Recommended Qty | × | 既存Formulaによる推奨値 |
+| Recommended Qty | × | 既存Formulaによる推奨値。`[CONFIRMED]`（Phase 0.5確定）実体はLegacyの`calc4` |
 | Order Qty | ○ | ユーザーが変更可能 |
 | Unit Price | × | `[TBD - SOURCE REVIEW]` 取得元 |
 | Amount | × | `Order Qty × Unit Price`で自動計算 |
@@ -751,6 +833,10 @@ PO Previewが表示できる状態とする。
 - Body
 - Attachment
 - Send
+
+`[CONFIRMED]`（Phase 0.5 Source Review確定）Legacy G-SYSには**POをSupplierへ送信するメール機能は存在しない**。既存`SYS_SEND_MAIL`は社内通知用途（ETA更新通知、Arrival取込通知等）でのみ使用されており、PO発注メールの再利用元にはならない。したがって、**Supplier Mail / PO SendはNew Portalの新規機能**として扱う。
+
+`[PROTOTYPE DECISION]`（Phase 0.5 Source Review確定）9/17 Prototypeでは実メール送信を禁止し、Demo Sendのみ実装する。PO PreviewではTo / CC / Subject / Body / Attachmentを表示可能とするが、**Prototypeではデモ用設定値を利用する**（Legacyから取得した実データではない）。本番仕様（実際の送信システム、宛先データ取得元、Attachment運用等）は`[TBD - CUSTOMER REVIEW]`とする。
 
 `[CONFIRMED]` 9/17 Prototypeでは実メール送信を行わない。Send操作はDemo Modeとし、`Demo Mode - No email was actually sent.` 等のメッセージを表示する。
 
@@ -1416,6 +1502,21 @@ Prototype専用Databaseを使用する方針および保存対象は確定済み
 
 実ソースを確認してから決定する。
 
+## Phase 0.5 Source Review確定状況
+
+`[CONFIRMED]` 上記リストのうち、Phase 0.5 Legacy Source Auditにより以下がRESOLVEDとなった（詳細は27.3も参照）。
+
+- **4. Recent Sales取得元** → RESOLVED（`MS_STK.SOLD_QTY`＝当月累計出荷数量、Tempostar基準。8章参照）
+- **5. Recommended Qtyの正確な計算経路** → RESOLVED（7章「Source Review確定事項」参照）
+- **15. Recent Salesの期間・粒度** → RESOLVED（月次単一値のみ、日次/直近N日granularityは存在しない）
+- **17. PO Number採番方式** → RESOLVED（Legacy側は自動採番なし。Excel入力＋G-SYS側検証。構造：Supplier4桁+Brand3桁+ID2桁+α。13章参照）
+- **20. メーカーMail Address取得元** → RESOLVED（Supplier向けMail機能自体がLegacyに存在しない。14章参照）
+- **25. Sample Databaseで9/17デモに必要なデータが揃うか** → RESOLVED（揃わない。8章参照、Prototype側でDemo Data準備）
+- **28. Recommended Qty計算ロジックの再利用方式** → RESOLVED（Legacy MySQL READ ONLY接続＋Legacy計算ロジック再利用。3.1.1 / 30.2章参照）
+- **33. SKU Detailで取得可能なSales粒度** → RESOLVED（4/15と同じ結論。月次単一値のみ）
+
+上記以外の項目（1〜3, 6〜14, 16, 18〜24, 26〜27, 29〜32, 34〜38）は、Phase 0.5時点でも`[TBD - SOURCE REVIEW]`または`[TBD - CUSTOMER REVIEW]`として残存する。ただし、これらは9/17 Prototype実装開始のBLOCKERではない（33章参照）。
+
 ---
 
 # 24. 9/17 顧客確認事項
@@ -1567,6 +1668,13 @@ History
 - 数量・納期変更のOld Value / New ValueをAudit Trailへ保存する
 - Order Draftを人が最終発注内容を決定する画面とする
 - Order HistoryをAudit / Business Historyの参照画面とする
+- （Phase 0.5追加）SOLD_QTYは「当月累計出荷数量」（Tempostar基準）であり、Recent Salesは「当月販売数」と表示する。日次/直近N日/過去月トレンドは表示しない
+- （Phase 0.5追加）Legacy G-SYSにはPOをSupplierへ送信するメール機能が存在しない（Supplier MailはNew Portalの新規機能）
+- （Phase 0.5追加）Legacy PO NumberはG-SYSで自動採番されず、Excel側で作成されG-SYSが読込・検証するのみである
+- （Phase 0.5追加）`goo_dummy_dumpfile.sql`のみでは9/17の自然なデモを構成できない
+- （Phase 0.5追加）`MS_STK.UPDATE_DATETIME`はSales / PO / Arrival等複数処理で更新されるため、「販売データ最終更新日時」と断定して使用しない
+- （Implementation Step 0/1追加）`OrderQuantityCalculator` / `FormulaParser`はJava 21で追加依存なく再利用可能、`StockCalculationHelper`はjson-simple依存追加のみで再利用可能であることを実コンパイルで確認した。計算式は一字一句変更していない
+- （Implementation Step 0/1追加）Legacy READ ONLY保証（DBユーザーSELECT権限のみ／HikariCP readOnly=true／`@Transactional(readOnly=true)`）は、INSERT/UPDATE/DELETE/DDLがすべて拒否されることをIntegration Testで実証した（4件PASS）
 
 ## 27.2 `[PROTOTYPE DECISION]`
 
@@ -1592,7 +1700,7 @@ History
 - Prototype専用Databaseには新Portal固有のWorkflow / Operation StateおよびAudit情報を保存する
 - 発注判断時点の在庫・販売実績等をSnapshotとして保存する
 - Frontendから各Databaseへ直接アクセスさせず、New Service APIを経由する
-- Legacy Adapterは既存REST API、READ ONLY DB接続、必要最小限のロジック利用・移植の順で検討する
+- Legacy Adapterは既存REST API、READ ONLY DB接続、必要最小限のロジック利用・移植の順で検討する（`[CONFIRMED]`Phase 0.5にて「READ ONLY DB接続＋ロジック再利用」に確定済み。3.1.1章・30.2章参照。本行は検討当初の記述として残すが、現行方針はREST API検討を経ずREAD ONLY DB接続を採用している）
 - 汎用Status変更APIを原則作成しない
 - APIは内部Codeを返し、日本語表示はFrontend i18n Resourceで行う
 - DashboardをAction / Operation Cockpitとして設計する
@@ -1604,34 +1712,45 @@ History
 - Supplier Responseを複数回保存・更新可能とする
 - AttentionにACTIVEと確認済み状態を持たせ、確認操作をAuditする
 - History画面を原則READ ONLYとする
+- （Phase 0.5追加）Legacyの`calc4`をPrototypeのRecommended Qty（推奨発注数）として採用する
+- （Phase 0.5追加）Recommended Qty取得は、Legacy MySQLへREAD ONLY接続し、既存SQL（getBaseStockList / getStockListOrder）のJOIN条件・倉庫除外条件・Formula取得条件を根拠とした縮小Read Queryを新Service側に実装し、Legacy計算ロジック（OrderQuantityCalculator / StockCalculationHelper / FormulaParser）を再利用する。Legacy側への新規REST API追加は9/17 Prototypeでは行わない
+- （Phase 0.5追加）9/17 PrototypeはPrototype側にDemo Dataを用意し、Legacy実データと明確に識別可能な構造とする
+- （Phase 0.5追加）Data FreshnessはSales / Stockを厳密に分離せず、「G-SYSデータ更新日時」等の限定的な表現とする
+- （Phase 0.5追加）Prototype PO NumberはLegacy形式に依存せず独自採番してよい（本番化時の整合方式は別途設計）
+- （Phase 0.5追加）PO PreviewのTo / CC / Subject / Body / Attachmentは、Legacyに再利用可能な元データが無いため、9/17はデモ用設定値を利用する
+- （Implementation Step 0/1追加）Legacy Demo Instanceのスキーマは`goo_dummy_dumpfile.sql`のDDLではなく、現行JPA Entity（`MsItem.java`/`MsStk.java`等）の`@Column`定義を根拠に構築する
+- （Implementation Step 0/1追加）MS_ITEMにSupplier情報が存在しないため、Prototype Step 0/1では暫定的にTR_PO / TR_PO_DTLの最新PO履歴からSupplierを導出する。これはSource Reviewで判明した事実（27.3参照）とは別の、Prototype固有の暫定設計判断である
+- （Implementation Step 0/1追加）Legacy DataSourceとPrototype DataSourceが同一アプリケーション内に共存する構成では、`@Primary`のみに依存せず、Legacy Adapter側の全DataSource注入箇所に明示的な`@Qualifier`を付与することを必須のSafety Ruleとする（未修飾の場合、`@Primary`側（Prototype）へ誤接続する事故が実装中に実際に発生したため）
 
 ## 27.3 `[TBD - SOURCE REVIEW]`
 
 - Legacyとの具体的な接続方式およびMySQL直接Readの可否
-- Brand / SupplierのEntityおよびMaster構造
-- Currency、Unit Price、Recent Sales、Lead Timeの取得元
-- Recommended Qtyの実計算経路
-- PO Number採番方式
+- Brand / SupplierのEntityおよびMaster構造（`[TBD - SOURCE REVIEW]`のまま。Implementation Step 0/1ではPrototype側の暫定回避策としてTR_PO / TR_PO_DTL最新PO履歴からSupplierを導出しているが、これはLegacyに正式なSupplier Master / Entityが存在することを意味しない。正式なMaster構造は引き続き未確定）
+- Currency、Unit Price、Lead Timeの取得元
 - PO Excel Templateおよびメーカー別Templateの有無
-- メーカーMail Address取得元
 - PO Status遷移の実装箇所
 - Supplier Response相当機能の有無
 - Arrival / Stockへの反映タイミング
-- Sample Databaseのデモデータ充足状況
 - `COMPLETED`へのLegacy PO / Arrival / Stock連動条件
 - Legacy既存REST APIの再利用可能範囲
-- Legacy MySQL READ ONLY接続の可否
-- Recommended Qty計算ロジックの再利用方式
 - Legacy Business Serviceを外部から安全に利用可能か
 - 発注判断時Snapshotとして保存すべき実データ項目
 - PrototypeのAuthentication方式
 - 1 PO / Draftに許容されるSupplier単位
-- SKU Detailで取得可能なSales粒度
 - SKU Detailで表示可能なLegacy PO / Arrival履歴
 - Recommended Qty算出根拠として実際に表示可能な項目
 - Supplier Responseの既存Legacy相当機能
 - Supplier Response Version管理に利用可能な既存構造
-- メールアドレス / PO Template取得元
+- PO Template取得元
+- 実際の発注数量入力列とTR_PO_DTL.QTY_POへの反映経路（Phase 0.5追加）
+- Stock-in時の物理STK_QTY更新詳細（Phase 0.5追加）
+- PO NumberのID Code以降（9〜11文字目より後）の意味（Phase 0.5追加）
+- Spring Batch Metadata（BATCH_JOB_EXECUTION等）の利用可否（Phase 0.5追加）
+- Logizero ImportのMS_STK更新経路（Phase 0.5追加）
+- Sample DataのMS_STK各列完全マッピング（Phase 0.5追加）
+- `MS_ITEM.STK_QTY_STATUS`の意味（Phase 0.5追加）
+
+`[CONFIRMED]`（Phase 0.5確定）以下はRESOLVEDとなったため本リストから除外した：Recent Sales取得元・期間粒度、Recommended Qtyの実計算経路および再利用方式、PO Number採番方式、メーカーMail Address取得元、Sample Databaseのデモデータ充足状況、SKU Detailで取得可能なSales粒度（詳細は23章「Phase 0.5 Source Review確定状況」を参照）。
 
 ## 27.4 `[TBD - CUSTOMER REVIEW]`
 
@@ -1653,6 +1772,8 @@ History
 - Attentionを誰が確認・解消するか
 - READY_TO_ORDERからDraftへ戻す正式運用
 - 発注確定とメーカー送信の間に承認Workflowが必要か
+- （Phase 0.5追加）新Portalでは`calc4`を標準の推奨発注数として扱い、`calc4Alt`を通常画面では表示しない方針でよいか
+- （Phase 0.5追加）Supplier Mail（PO Send）の本番仕様（送信システム、宛先データ取得元、Attachment運用等）
 
 ---
 
@@ -1976,13 +2097,22 @@ Existing G-SYS       Prototype DB
 
 ## 30.2 Legacy Adapter接続方式
 
-`[TBD - SOURCE REVIEW]` 実ソース確認後、以下の優先順位で接続方式を判断する。
+`[CONFIRMED]`（Phase 0.5 Source Review確定）Legacy Adapter接続方式は以下の通り確定した。
 
-1. 既存REST API利用
-2. Legacy MySQLへのREAD ONLY接続
-3. 必要最小限の既存Business Logicを新Backend側で利用・移植
+```
+New Service API
+        ↓
+Legacy Adapter
+        ↓
+Legacy MySQL READ ONLY
+```
 
-原則として1から3の順で検討し、Legacy Business Ruleを新Service側へ安易に二重実装しない。特にRecommended Qtyは既存Formulaの実計算経路を確認してから方式を確定する。
+- Legacy Application（Java 8 / Spring Boot 1.5.15）には**一切変更を加えない**。
+- Legacy側への**新規REST API追加は行わない**（既存REST APIは画面専用の認証・レスポンス形式のため再利用しない）。
+- New Service APIは、**Legacy MySQLへREAD ONLYで直接接続**する。
+- Recommended Qtyは、既存SQL（`MsStkRepositoryImpl.getBaseStockList()` / `getStockListOrder()`）のJOIN条件・倉庫除外条件・Formula取得条件を根拠とした縮小Read Queryと、Legacy計算ロジック（`OrderQuantityCalculator` / `StockCalculationHelper` / `FormulaParser`）の可能な限りの再利用によって算出する。独自の計算式再実装は行わない。
+
+詳細な技術設計（DataSource構成、Repository構造、Java 21移植方式等）は`docs/G-SYS_Online-Ordering_Prototype_Technical_Design.md`を参照。
 
 ## 30.3 Dashboard API
 
@@ -2178,3 +2308,89 @@ AWAITING_SUPPLIER → SUPPLIER_CONFIRMED
 ```
 
 各段階で必要なValidationを適用し、業務操作とStatus遷移を明確に対応させる。
+
+---
+
+# 32. Phase 0.5 Legacy Source Audit 確定事項サマリ
+
+`[CONFIRMED]` 2026-08-27実施のPhase 0.5 Legacy Source Auditにより、以下がSOURCE REVIEW CONFIRMEDとして確定した。実ソース根拠は各テーマの本文（7章、8章、10章、11章、12章、13章、14章、23章、27章）を参照。
+
+| # | テーマ | 確定結果 |
+|---|---|---|
+| 1 | SOLD_QTY / Recent Sales | `MS_STK.SOLD_QTY`＝Tempostar受注CSV基準の**当月累計出荷数量**。日次/直近N日/過去月トレンドは存在しない。UI表示は「当月販売数」 |
+| 2 | Recommended Qty | Legacyの**`calc4`**をPrototypeのRecommended Qty（推奨発注数）として採用。`calc4Alt`の扱いはCUSTOMER REVIEW |
+| 3 | Recommended Qty取得Architecture | Legacy Applicationは変更せず、**Legacy MySQLへREAD ONLY接続**。既存SQL（getBaseStockList / getStockListOrder）を根拠とした縮小Read Query＋Legacy計算ロジック（OrderQuantityCalculator / StockCalculationHelper / FormulaParser）再利用。Legacy側への新規REST API追加は行わない |
+| 4 | Supplier Mail | Legacy G-SYSに**POをSupplierへ送信するメール機能は存在しない**。Supplier Mail / PO SendはNew Portalの新規機能。9/17はDemo Sendのみ、デモ用設定値を使用 |
+| 5 | PO Number | Legacy PO Numberは**G-SYSで自動採番されない**（Excel側で作成、G-SYSは読込・検証のみ）。構造：Supplier Code(4) + Brand Code(3) + ID Code(2) + その他。9/17 PrototypeはPrototype独自採番でよい |
+| 6 | Sample / Demo Data | `goo_dummy_dumpfile.sql`のみでは**9/17の自然なデモを構成できない**（Item 2件、実質1 Brand、Formula 0件、PO履歴なし、Placeholder値多数、Supplierとの実用的関連なし）。Legacy DBはREAD ONLYを維持しつつ、Prototype側にDemo Dataを準備し、Legacy実データと明確に識別可能な構造とする |
+| 7 | Data Freshness | `MS_STK.UPDATE_DATETIME`はSales / PO / Arrival等複数処理で共通更新されるため、「販売データ最終更新日時」と断定使用しない。表示は「G-SYSデータ更新日時」等の限定的表現に留める |
+| 8 | Legacy Demo Schema（Implementation Step 0/1追加） | `goo_dummy_dumpfile.sql`のCREATE TABLE文は**現行JPA Entity（`MsItem.java`/`MsStk.java`）と一致しない旧Schema**であることが実装検証で判明（BRAND_CD/LEAD_TIME/STK_STANDARD/SOLD_QTY等が存在しない）。以後、`goo_dummy_dumpfile.sql`を現行Schemaの正本として扱わない。Legacy Demo Instanceのスキーマは実Entityの`@Column`定義を根拠に構築する（34章参照） |
+
+---
+
+# 33. Prototype Implementation Readiness
+
+`[CONFIRMED]`（Phase 0.5確定）
+
+```
+Status： GO WITH CONDITIONS → IMPLEMENTATION READY
+```
+
+以下の条件を守る限り、9/17 Prototypeの実装開始を許可する。
+
+- Legacyは**READ ONLY**（コード変更・設定変更・DB書込みを行わない）
+- Recommended Qtyは**`calc4`**を採用する
+- Legacy Read Queryは**既存SQL（getBaseStockList / getStockListOrder）を根拠**として構築する（Legacy Business Rule、JOIN条件、倉庫除外条件、Formula取得条件を独自に変更・再実装しない）
+- Demo Dataは**Prototype側**に用意し、Legacy実データと混同しない（データソースを識別可能な構造とする）
+- **実メール送信は行わない**（Demo Sendのみ）
+- **Legacy PO（`TrPo` / `TrPoDtl`）への正式登録は行わない**
+- **Legacy Stock / Arrival（`MS_STK` / `TR_ARR`等）の更新は行わない**
+
+上記条件を前提として、9/17 Prototype実装フェーズへ移行してよい。ただし本書の実装は今回のMD更新作業には含まれず、別指示にて開始する。
+
+---
+
+# 34. Implementation Step 0/1 確定事項（Baseline）
+
+`[CONFIRMED]`（Implementation Step 0/1で実証済み）2026-08-27、Order Candidate List（Legacy Formula → Demo Legacy Data → Legacy Adapter → API → 日本語画面）のVertical Sliceを実装・動作確認した。詳細はTechnical Design MD 17章を参照。
+
+## A. calc4再利用
+
+- `OrderQuantityCalculator` / `FormulaParser`はJava 21で追加依存なくverbatim再利用可能、`StockCalculationHelper`はjson-simple依存追加のみで再利用可能（実コンパイルで確認）。計算式は一字一句変更していない。
+- **訂正**：Legacyの`FormulaTest.java`は全体がコメントアウトされ、かつcalc4ではなく別クラス（`Formula.java`の価格計算）のテストであり、**calc4のTestとして利用不可**であることが判明した（前回Technical Designの「既存Testを移植する」という前提は実行不可能だった）。
+- 独立検証済みの期待値によるGolden Testを新規作成し、**9件PASS**。
+
+## B. Legacy Demo Schema
+
+- `goo_dummy_dumpfile.sql`のCREATE TABLE文は現行JPA Entity（`MsItem.java`/`MsStk.java`）と一致しない旧Schemaであり、BRAND_CD/LEAD_TIME/STK_STANDARD/SOLD_QTY等が存在しないことを確認した。
+- 以後、`goo_dummy_dumpfile.sql`を現行Schemaの正本として扱わない。
+- Legacy Demo Instanceのスキーマは実Entityの`@Column`定義を根拠に、必要最小限の列で新規構築した。
+
+## C. Demo Data
+
+- 19 SKU × 3 Brand × 3 Supplier。
+- Recommended Qty自体はSeedしていない。Formula入力値（STK_STANDARD/PO_QTY/ARR_QTY/SOLD_QTY等）のみSeedし、実行時にcalc4で算出する構造とした。
+- Default Formula経路（18 SKU）とItem個別Formula経路（1 SKU、`MS_FORMULA`使用）の両方を実データで検証済み。
+- `dataSource = "DEMO_LEGACY"`でAPI応答上識別可能。
+
+## D. Legacy READ ONLY
+
+- SELECT権限のみのDBユーザー、HikariCP `readOnly=true`、`@Transactional(readOnly=true)`の3層で保証。
+- INSERT/UPDATE/DELETE/DDLが実際に拒否されることをIntegration Testで実証（4件PASS）。
+
+## E. DataSource Safety（Architecture上の必須ルール）
+
+- Legacy DataSourceとPrototype DataSourceが同一アプリケーション内に共存する構成では、`@Primary`のみに依存すると誤接続するリスクがあることが実装中に実際に発生し確認された。
+- **Legacy Adapter側の全DataSource注入箇所に明示的な`@Qualifier`を付与することを必須のSafety Ruleとする。**
+- `[TBD - 未実装]` ユーザー指示（Critical Safety Rules）により、Application起動時にLegacy DB接続先を検証し、localhost/127.0.0.1/Docker Compose内部Service名以外を検出した場合に起動失敗させるSafety Guardの実装が要求されている。**本Baseline確定時点では未実装**であり、次Step以降でLegacy Write経路や本番接続を扱う前に実装する必要がある（残存Riskとして明記）。
+
+## F. Character Encoding
+
+- Demo MySQL初期化時、`docker-entrypoint-initdb.d`のmysqlクライアントがデフォルトでUTF-8以外に解釈し、Seed投入時点で日本語が二重エンコード破損する事象を確認した。
+- Seed Scriptの先頭に`SET NAMES utf8mb4;`を追加することで解決した。
+
+## G. Supplier
+
+- MS_ITEMにはSupplier情報が存在しない（Phase 0監査で確認済みの事実）。
+- Prototype Step 0/1では、TR_PO / TR_PO_DTLの最新PO履歴からSupplierを導出する暫定設計判断を採用した。
+- Supplierの正式なMaster / Entity構造は引き続き`[TBD - SOURCE REVIEW]`（27.3章）のまま残す。
