@@ -45,4 +45,32 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleInvalidOrderQty(InvalidOrderQtyException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_ORDER_QTY"));
     }
+
+    @ExceptionHandler(NoOrderableItemsException.class)
+    public ResponseEntity<Map<String, Object>> handleNoOrderableItems(NoOrderableItemsException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "NO_ORDERABLE_ITEMS"));
+    }
+
+    @ExceptionHandler(MissingUnitPriceException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingUnitPrice(MissingUnitPriceException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("errorCode", "MISSING_UNIT_PRICE");
+        body.put("skus", ex.skus());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(InvalidOrderStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidOrderStatus(InvalidOrderStatusException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_ORDER_STATUS"));
+    }
+
+    @ExceptionHandler(InvalidStatusTransitionException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidStatusTransition(InvalidStatusTransitionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "INVALID_STATUS_TRANSITION"));
+    }
+
+    @ExceptionHandler(OrderNotEditableException.class)
+    public ResponseEntity<Map<String, Object>> handleOrderNotEditable(OrderNotEditableException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "ORDER_NOT_EDITABLE"));
+    }
 }

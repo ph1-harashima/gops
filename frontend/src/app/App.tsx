@@ -11,6 +11,7 @@ import Box from '@mui/material/Box'
 
 import { CandidateListPage } from '../features/candidates/CandidateListPage'
 import { OrderDraftPage } from '../features/drafts/OrderDraftPage'
+import { PoPreviewPage } from '../features/drafts/PoPreviewPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { useAuth } from '../features/auth/AuthContext'
 
@@ -56,6 +57,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<CandidateListPage />} />
           <Route path="/orders/drafts/:id" element={<OrderDraftPage />} />
+          <Route path="/orders/drafts/:id/preview" element={<PoPreviewPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       )}

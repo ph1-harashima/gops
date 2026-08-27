@@ -1723,6 +1723,10 @@ History
 - （Implementation Step 0/1追加）Legacy DataSourceとPrototype DataSourceが同一アプリケーション内に共存する構成では、`@Primary`のみに依存せず、Legacy Adapter側の全DataSource注入箇所に明示的な`@Qualifier`を付与することを必須のSafety Ruleとする（未修飾の場合、`@Primary`側（Prototype）へ誤接続する事故が実装中に実際に発生したため）
 - （Implementation Step 2追加）Prototype Authentication方式はSpring Security セッションベースForm Login＋Prototype DB `portal_user`テーブルに確定した。Legacyの認証情報・権限体系には依存しない
 - （Implementation Step 2追加）Application起動時、Legacy/Prototype接続先ホスト・DB名・実行Profileをallowlist検証し、許可されないものを検出した場合はApplication起動自体を失敗させるSafety Guardを実装する。警告のみでの継続は行わない
+- （Implementation Step 3追加）`prototype_po_no`はConfirm Order時のみPostgres SEQUENCEで採番し、`PO-DEMO-<yyyyMMdd>-<seq>`形式とする。Return to Draftおよび再Confirmでは既存値を再利用し、削除・再採番しない（29.2参照）
+- （Implementation Step 3追加）PO Preview API（`POST /api/orders/drafts/{id}/preview`）はDRAFTおよびREADY_TO_ORDERの両Statusで許可する。Confirm Order直後にFrontendが同じ画面をREADY_TO_ORDER状態のまま再取得する必要があるための拡張であり、Techlead/顧客確認事項として27.4へ追加した
+- （Implementation Step 3追加）Confirm Order（`DRAFT → READY_TO_ORDER`）はDRAFT以外からの呼び出しを`409 INVALID_STATUS_TRANSITION`として拒否し、新PO No.採番・Audit追加を行わないことで冪等性を保証する
+- （Implementation Step 3追加）Save Draft（`PUT /api/orders/drafts/{id}`）はStatus = DRAFTの場合のみ許可し、READY_TO_ORDER中は`409 ORDER_NOT_EDITABLE`として拒否する
 
 ## 27.3 `[TBD - SOURCE REVIEW]`
 
@@ -1775,6 +1779,7 @@ History
 - 発注確定とメーカー送信の間に承認Workflowが必要か
 - （Phase 0.5追加）新Portalでは`calc4`を標準の推奨発注数として扱い、`calc4Alt`を通常画面では表示しない方針でよいか
 - （Phase 0.5追加）Supplier Mail（PO Send）の本番仕様（送信システム、宛先データ取得元、Attachment運用等）
+- （Implementation Step 3追加）PO Preview APIをDRAFTだけでなくREADY_TO_ORDERでも許可する実装判断（30.7参照）の妥当性。本番仕様として、Confirm済みOrderのPreview再表示を同一Endpointで行ってよいか、専用の参照Endpointを別途設けるべきか
 
 ---
 
@@ -1946,6 +1951,8 @@ portal_order
 
 `[PROTOTYPE DECISION]` `ORDER_CANDIDATE`は原則として保存状態ではなく、Legacyデータと既存Formula等から導出される状態として扱う。発注候補からCreate Draftされた時点でPrototype Databaseへの永続化を開始する。
 
+`[PROTOTYPE DECISION]`（Implementation Step 3で確定）`prototype_po_no`はConfirm Order時にのみPostgres SEQUENCE（`prototype_po_no_seq`）から採番し、`PO-DEMO-<yyyyMMdd>-<seq、4桁以上0埋め>`の形式とする（例：`PO-DEMO-20260827-0001`）。「-DEMO-」を含めることでLegacy PO Numberの形式（13章参照）とは明確に区別し、模倣しない。SEQUENCEの`nextval()`はPostgresが同時実行下でも重複しない値を返すため、Confirm Orderの同時実行下でもCollisionしない。Draft中（Status = DRAFT、未Confirm）は`NULL`。一度採番された`prototype_po_no`は、Return to Draft（30.7）で`READY_TO_ORDER → DRAFT`に戻しても削除・再採番せず、同一Orderに対する再Confirm時も既存値を再利用する（Audit/Tracking上、同一Orderを同一PO No.で追跡可能にするため）。
+
 ## 29.3 `portal_order_detail`
 
 主な項目：
@@ -2056,6 +2063,10 @@ Workflow Statusとは独立して管理し、1 Order / Detailに複数Attention�
 - `DELIVERY_CHANGED`
 - `ATTENTION_ADDED`
 - `ATTENTION_RESOLVED`
+- `REQUESTED_DELIVERY_CHANGED`（Implementation Step 2で追加。Save Draft時、希望納期変更を記録）
+- `REMARK_CHANGED`（Implementation Step 2で追加。Save Draft時、備考変更を記録）
+- `ORDER_DATE_CHANGED`（Implementation Step 2で追加。Save Draft時、発注日変更を記録）
+- `ORDER_RETURNED_TO_DRAFT`（Implementation Step 3で追加。Return to Draft、`STATUS_CHANGED`と併記）
 
 `audit_event`をOrder History / Timelineのデータソースとして利用する。
 
@@ -2180,17 +2191,36 @@ Product、Inventory、Sales、Open PO、Arrival、Lead Time、Recommendation、H
 
 Draft作成時に、Legacyから取得した発注判断時点の情報をSnapshot保存する。Order Qty変更時はRecommended Qtyを変更せず、ユーザー入力値としてOrder Qtyを保存する。
 
-## 30.7 PO Preview / Confirm API
+## 30.7 PO Preview / Confirm / Return to Draft API
+
+`[PROTOTYPE DECISION]`（Implementation Step 3で確定）Endpoint名を以下に確定した。
 
 ### `POST /api/orders/drafts/{draftId}/preview`
 
-Preview時に以下をValidationする。
+Preview時に以下をValidationする（Backend内部Errorコード）。
 
-- Order Qty > 0の商品が1件以上存在すること
-- 必要なHeader情報
-- Unit Price等の必要データ
+- Orderが存在する（`DRAFT_NOT_FOUND`）
+- Order Qty > 0の商品（is_removed=false）が1件以上存在すること（`NO_ORDERABLE_ITEMS`）
+- 該当商品全てにUnit Priceが存在すること（`MISSING_UNIT_PRICE`）。Unit Priceを取得できない商品がある場合、価格を生成せずPreviewをBlockする
+- Status（`INVALID_ORDER_STATUS`）：`[PROTOTYPE DECISION]` DRAFTおよびREADY_TO_ORDERの両方を許可する。Confirm成功直後にFrontendが同じPreview画面をREADY_TO_ORDER状態のまま再取得する必要があるため（31.3の一連の流れ参照）。DRAFT限定という早期の想定から実装時に拡張したもので、Techlead/顧客確認事項として残す
 
-Preview表示のみではStatusを変更しない。正式なConfirm操作によって`DRAFT → READY_TO_ORDER`へ遷移させる。Confirm用Endpointの具体名は実装設計時に決定する。
+リクエストBodyは持たない。常にPrototype DBの保存済みDraftを正本として使用し、Frontendから送信された値は一切使用しない。
+
+Response（抜粋）：Header（draftId/draftNo/prototypePoNo/supplier/brand/orderDate/requestedDelivery/currency/remark/status）、Detail（lineNo/sku/itemName/orderQty/unitPrice/amount）、Summary（skuCount/totalQty/totalAmount、Order Qty > 0の行のみを対象にBackendで再計算）、Manufacturer Communication（to/cc/subject/body/attachment、9/17はDemo固定値。宛先には実在しない`.invalid`ドメインを使用し、実Supplier Mail Addressの取得・外部Mail送信は一切行わない）、`demoMode: true`。Recommended Qty / Current Stock / Safety Stock / 当月販売数 / Formula等の社内判断情報は含まない（31.2）。
+
+Preview表示のみではStatusを変更しない。
+
+### `POST /api/orders/drafts/{draftId}/confirm`
+
+`DRAFT → READY_TO_ORDER`。Preview と同じValidationを再実行し、Prototype PO No.を採番（29.2/30.8注記参照）してStatusを変更、`ORDER_READY`と`STATUS_CHANGED`をAudit Trailへ保存する。
+
+DRAFT以外から呼び出された場合（既にREADY_TO_ORDER等）は`409 Conflict / INVALID_STATUS_TRANSITION`とし、新しいPO No.採番やAudit追加を一切行わない（二重Confirmに対する冪等性）。
+
+### `POST /api/orders/{id}/return-to-draft`
+
+`READY_TO_ORDER → DRAFT`のみ許可（それ以外からは`409 Conflict / INVALID_STATUS_TRANSITION`）。`prototype_po_no`は削除・再採番せず維持する（29.2参照）。`STATUS_CHANGED`と`ORDER_RETURNED_TO_DRAFT`をAudit Trailへ保存する。
+
+Return to Draft成功後、`PUT /api/orders/drafts/{id}`によるSave Draftが再び許可される。READY_TO_ORDER中のSave Draftは`409 Conflict / ORDER_NOT_EDITABLE`とする。
 
 ## 30.8 Demo Send API
 

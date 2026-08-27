@@ -98,6 +98,7 @@ public class OrderDraftService {
         return new OrderDraftResponse(
                 order.getId(),
                 order.getDraftNo(),
+                order.getPrototypePoNo(),
                 order.getSupplierCode(),
                 order.getSupplierNameSnapshot(),
                 order.getBrandCode(),

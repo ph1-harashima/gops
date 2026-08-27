@@ -23,6 +23,7 @@ import Divider from '@mui/material/Divider'
 import { useOrderDraft, useUpdateDraft } from './api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
+import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
 
 /** Mirrors OrderDraftService.warningCodes on the backend, for immediate
@@ -144,6 +145,12 @@ export function OrderDraftPage() {
       ? updateMutation.error.response?.data?.errorCode
       : null
 
+  // Implementation instructions 16章: Save Draft (PUT) is Backend-rejected
+  // (409 ORDER_NOT_EDITABLE) unless Status = DRAFT - mirrored here so the
+  // Frontend also read-only's the form, not just relying on the Backend
+  // guard to reject an attempted Save.
+  const isEditable = draft.status === 'DRAFT'
+
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
@@ -151,8 +158,13 @@ export function OrderDraftPage() {
         <Typography variant="h5" component="h1">
           {t('drafts:title')} - {draft.draftNo}
         </Typography>
-        <Chip size="small" label={draft.status} />
+        <OrderStatusChip status={draft.status} />
         <DataSourceBadge dataSource={draft.dataSource} />
+        {draft.prototypePoNo && (
+          <Typography variant="body2" color="text.secondary">
+            {t('drafts:prototypePoNo')}: {draft.prototypePoNo}
+          </Typography>
+        )}
       </Stack>
 
       {updateMutation.isSuccess && (
@@ -193,7 +205,7 @@ export function OrderDraftPage() {
             size="small"
             value={orderDate}
             onChange={(e) => setOrderDate(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
+            slotProps={{ inputLabel: { shrink: true }, input: { readOnly: !isEditable } }}
           />
           <TextField
             label={t('drafts:requestedDelivery')}
@@ -201,7 +213,7 @@ export function OrderDraftPage() {
             size="small"
             value={requestedDelivery}
             onChange={(e) => setRequestedDelivery(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
+            slotProps={{ inputLabel: { shrink: true }, input: { readOnly: !isEditable } }}
           />
         </Stack>
         <TextField
@@ -213,6 +225,7 @@ export function OrderDraftPage() {
           fullWidth
           size="small"
           sx={{ mt: 2 }}
+          slotProps={{ input: { readOnly: !isEditable } }}
         />
       </Paper>
 
@@ -251,7 +264,10 @@ export function OrderDraftPage() {
                       value={qty}
                       onChange={(e) => handleQtyChange(d.id, e.target.value)}
                       error={invalid}
-                      slotProps={{ htmlInput: { min: 0, step: 1, style: { textAlign: 'right', width: 80 } } }}
+                      slotProps={{
+                        htmlInput: { min: 0, step: 1, style: { textAlign: 'right', width: 80 } },
+                        input: { readOnly: !isEditable },
+                      }}
                     />
                   </TableCell>
                   <TableCell align="right">{d.unitPrice != null ? `¥${d.unitPrice.toLocaleString()}` : t('drafts:notAvailable')}</TableCell>
@@ -282,20 +298,18 @@ export function OrderDraftPage() {
             {t('drafts:summary.totalAmount')}: <strong>¥{summary.totalAmount.toLocaleString()}</strong>
           </Typography>
           <Divider orientation="vertical" flexItem />
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={!isDirty || invalidQty || updateMutation.isPending}
-          >
-            {updateMutation.isPending ? <CircularProgress size={20} /> : t('drafts:saveDraft')}
+          {isEditable && (
+            <Button
+              variant="contained"
+              onClick={handleSave}
+              disabled={!isDirty || invalidQty || updateMutation.isPending}
+            >
+              {updateMutation.isPending ? <CircularProgress size={20} /> : t('drafts:saveDraft')}
+            </Button>
+          )}
+          <Button variant="outlined" onClick={() => navigate(`/orders/drafts/${draftId}/preview`)}>
+            {t('drafts:preview')}
           </Button>
-          <Tooltip title={t('drafts:previewNotAvailable')}>
-            <span>
-              <Button variant="outlined" disabled>
-                {t('drafts:preview')}
-              </Button>
-            </span>
-          </Tooltip>
         </Stack>
       </Paper>
     </Box>

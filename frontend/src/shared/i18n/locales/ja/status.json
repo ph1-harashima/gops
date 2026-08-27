@@ -9,5 +9,9 @@
   "dataSource": {
     "DEMO_LEGACY": "Demo Data（Legacy互換）",
     "LEGACY": "Legacy実データ"
+  },
+  "orderStatus": {
+    "DRAFT": "下書き",
+    "READY_TO_ORDER": "発注準備完了"
   }
 }

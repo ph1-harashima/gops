@@ -22,6 +22,7 @@ export interface OrderDraftDetail {
 export interface OrderDraft {
   id: number
   draftNo: string
+  prototypePoNo: string | null
   supplierCode: string | null
   supplierName: string | null
   brandCode: string | null

@@ -29,6 +29,15 @@ public class AuditEvent {
     public static final String REQUESTED_DELIVERY_CHANGED = "REQUESTED_DELIVERY_CHANGED";
     public static final String REMARK_CHANGED = "REMARK_CHANGED";
     public static final String ORDER_DATE_CHANGED = "ORDER_DATE_CHANGED";
+    /** Confirm Order (implementation instructions 8章): written together with
+     * {@link #STATUS_CHANGED} in the same transaction - a Status change with
+     * no matching Audit row is never allowed to occur. */
+    public static final String ORDER_READY = "ORDER_READY";
+    public static final String STATUS_CHANGED = "STATUS_CHANGED";
+    /** Return to Draft (implementation instructions 15章): written together
+     * with {@link #STATUS_CHANGED}, mirroring the ORDER_READY/STATUS_CHANGED
+     * pairing above. */
+    public static final String ORDER_RETURNED_TO_DRAFT = "ORDER_RETURNED_TO_DRAFT";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

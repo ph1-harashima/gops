@@ -7,6 +7,7 @@ import com.glv.gsysportal.dto.request.CreateDraftRequest;
 import com.glv.gsysportal.dto.request.UpdateDraftRequest;
 import com.glv.gsysportal.exception.DraftNotFoundException;
 import com.glv.gsysportal.exception.InvalidOrderQtyException;
+import com.glv.gsysportal.exception.OrderNotEditableException;
 import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
@@ -134,6 +135,14 @@ public class OrderDraftPersistenceService {
     @Transactional(transactionManager = "prototypeTransactionManager")
     public PortalOrder update(Long id, UpdateDraftRequest request, String performedBy) {
         PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
+
+        // Implementation instructions 16章: Save Draft is only permitted while
+        // Status = DRAFT. Checked first, before touching any field, so a
+        // rejected save never partially applies.
+        if (!PortalOrder.STATUS_DRAFT.equals(order.getStatus())) {
+            throw new OrderNotEditableException(order.getStatus());
+        }
+
         OffsetDateTime now = OffsetDateTime.now();
         List<AuditEvent> events = new ArrayList<>();
 

@@ -318,7 +318,7 @@ READ ONLYの保証は**三段構え**とする（4章冒頭の「絶対条件」
 |---|---|---|
 | id | BIGSERIAL | PK |
 | draft_no | VARCHAR(30) | NOT NULL, UNIQUE |
-| prototype_po_no | VARCHAR(30) | UNIQUE（部分Index `WHERE prototype_po_no IS NOT NULL`）。DRAFT中はNULL、Confirm Order時に採番 |
+| prototype_po_no | VARCHAR(30) | UNIQUE（部分Index `WHERE prototype_po_no IS NOT NULL`）。DRAFT中はNULL、Confirm Order時に採番。`[PROTOTYPE DECISION]`（Implementation Step 3で確定）Postgres SEQUENCE `prototype_po_no_seq`から`nextval()`で採番し、`PO-DEMO-<yyyyMMdd>-<seq、4桁以上0埋め>`形式とする（同時実行下でもCollisionしない）。Return to Draft／再Confirmでは既存値を再利用し、削除・再採番しない |
 | supplier_code | VARCHAR(10) | NOT NULL |
 | supplier_name_snapshot | VARCHAR(200) | NOT NULL |
 | brand_code | VARCHAR(10) | NOT NULL |
@@ -419,7 +419,7 @@ Unique：`(supplier_response_id, portal_order_detail_id)`。
 | id | BIGSERIAL | PK |
 | portal_order_id | BIGINT | NOT NULL, FK→portal_order(id) |
 | portal_order_detail_id | BIGINT | NULL, FK→portal_order_detail(id) |
-| event_type | VARCHAR(30) | NOT NULL, CHECK IN ('ORDER_DRAFT_CREATED','ORDER_QTY_CHANGED','ORDER_READY','DEMO_SENT','STATUS_CHANGED','SUPPLIER_RESPONSE_RECEIVED','QUANTITY_CHANGED','DELIVERY_CHANGED','ATTENTION_ADDED','ATTENTION_RESOLVED') |
+| event_type | VARCHAR(30) | NOT NULL, CHECK IN ('ORDER_DRAFT_CREATED','ORDER_QTY_CHANGED','ORDER_READY','DEMO_SENT','STATUS_CHANGED','SUPPLIER_RESPONSE_RECEIVED','QUANTITY_CHANGED','DELIVERY_CHANGED','ATTENTION_ADDED','ATTENTION_RESOLVED','REQUESTED_DELIVERY_CHANGED','REMARK_CHANGED','ORDER_DATE_CHANGED','ORDER_RETURNED_TO_DRAFT')（Implementation Step 2でSave Draft用の3種、Step 3でReturn to Draft用の`ORDER_RETURNED_TO_DRAFT`を追加。実装は`V6__po_preview_and_confirm.sql`でCHECK制約をALTER） |
 | field_name | VARCHAR(50) | NULL |
 | old_value | VARCHAR(500) | NULL |
 | new_value | VARCHAR(500) | NULL |
@@ -536,6 +536,35 @@ New Service APIの`legacy.datasource.url`設定を、環境（プロファイル
 - Response: `201 Created` + Draft詳細
 - Error: `400`（Order Qty不正、Supplier混在）、`404`（SKU不明）
 
+### `POST /api/orders/drafts/{id}/preview`（Implementation Step 3で確定）
+
+- Requestなし（Bodyを持たない）。Prototype DBの保存済み`portal_order`/`portal_order_detail`のみを正本として使用し、Frontendから送られた値は一切参照しない。
+- Validation（Error時は内部Codeのみ返し、日本語文言はFrontend i18nで解決）：
+
+  | Error Code | HTTP | 条件 |
+  |---|---|---|
+  | `DRAFT_NOT_FOUND` | 404 | 対象Order不在 |
+  | `NO_ORDERABLE_ITEMS` | 400 | is_removed=falseかつorder_qty > 0の行が0件 |
+  | `MISSING_UNIT_PRICE` | 400 | 上記のorderable行にunit_priceがNULLの行が1件以上 |
+  | `INVALID_ORDER_STATUS` | 400 | Status が `DRAFT`/`READY_TO_ORDER` 以外 |
+
+  `[PROTOTYPE DECISION]`（実装時に確定、要件MD 27.4へ確認事項として追加）Status = `DRAFT`のみを許可する当初想定から、`READY_TO_ORDER`も許可する形へ拡張した。Confirm Order成功直後、FrontendがStatus/Prototype PO No.を反映した同じPreview画面を再取得する必要があるため（31.3の一連の流れ、この直後の「READY_TO_ORDER」表示要件を参照）。
+- 処理：is_removed=falseかつorder_qty > 0の行のみを抽出し、`amount = unit_price × order_qty`をService層で計算、`skuCount`/`totalQty`/`totalAmount`をこの抽出行から再計算（`portal_order`の保存済み合計は全行対象のため信用しない）。
+- Response DTO（`PoPreviewResponse`）はCandidate/Draft DTOを再利用せず専用に新規作成し、Recommended Qty・Current Stock・Safety Stock・当月販売数・Formula・Item Status等の社内判断情報を一切含めない（要件MD 31.2）。Manufacturer Communication（to/cc/subject/body/attachment）は9/17は固定Demo値のみ（`DemoManufacturerCommunicationFactory`）で、`to`/`cc`はRFC 2606の`.invalid`ドメインを使用し実在しないアドレスとする。`demoMode: true`を常に含める。
+
+### `POST /api/orders/drafts/{id}/confirm`（Implementation Step 3で確定）
+
+- Requestなし。`DRAFT → READY_TO_ORDER`。
+- Validation：Statusが`DRAFT`であること（それ以外は`409 INVALID_STATUS_TRANSITION` - 二重Confirmに対する冪等性の要）。上記PO PreviewのValidationを同一実装（`PoPreviewValidator`）で再実行する。
+- 処理：`prototype_po_no`が未採番（NULL）の場合のみPostgres SEQUENCE `prototype_po_no_seq`から新規採番。既に採番済み（過去にConfirm→Return to Draftを経た再Confirm）の場合は既存値をそのまま再利用し、新規採番しない（5.1参照）。Statusを`READY_TO_ORDER`へ更新し、`audit_event(ORDER_READY)` + `audit_event(STATUS_CHANGED, old=DRAFT, new=READY_TO_ORDER)`を同一トランザクションで保存。
+- Response：`{ id, draftNo, prototypePoNo, status, updatedBy, updatedAt }`（`OrderStatusChangeResponse`）。Frontendは成功後にPO Previewを再取得して画面を更新する。
+
+### `POST /api/orders/{id}/return-to-draft`（Implementation Step 3で確定）
+
+- Requestなし。`READY_TO_ORDER → DRAFT`のみ許可（それ以外は`409 INVALID_STATUS_TRANSITION`）。
+- 処理：`prototype_po_no`は変更しない（削除・再採番しない）。Statusを`DRAFT`へ戻し、`audit_event(STATUS_CHANGED, old=READY_TO_ORDER, new=DRAFT)` + `audit_event(ORDER_RETURNED_TO_DRAFT)`を同一トランザクションで保存。
+- 副作用：以後`PUT /api/orders/drafts/{id}`（Save Draft）が再び許可される。`READY_TO_ORDER`中のSave Draftは`409 ORDER_NOT_EDITABLE`。
+
 ### `PUT /api/orders/{id}/supplier-response`
 
 - Request: `{ "responseDate": "2026-09-18", "lines": [ { "portalOrderDetailId": 1, "confirmedQty": 9, "confirmedDelivery": "2026-09-26" }, { "portalOrderDetailId": 2, "confirmedQty": null } ] }`
@@ -580,7 +609,8 @@ Step B: 取得したSnapshotを引数に、Prototype側の書込みトランザ�
 |---|---|
 | Create Draft | portal_order INSERT + portal_order_detail INSERT(複数) + audit_event(ORDER_DRAFT_CREATED) |
 | Save Draft | portal_order/detail UPDATE + audit_event(ORDER_QTY_CHANGED等、変更フィールドごと) |
-| Confirm Order | status更新 + prototype_po_no採番 + audit_event(ORDER_READY) |
+| Confirm Order | status更新 + prototype_po_no採番（初回のみ、既存値があれば再利用） + audit_event(ORDER_READY, STATUS_CHANGED) |
+| Return to Draft | status更新（prototype_po_noは変更しない） + audit_event(STATUS_CHANGED, ORDER_RETURNED_TO_DRAFT) |
 | Demo Send | status更新(SENT→AWAITING_SUPPLIER 一括) + audit_event(DEMO_SENT, STATUS_CHANGED) |
 | Save Supplier Response | supplier_response upsert + order_attention upsert + audit_event(複数) |
 | Confirm Supplier Response | response_status更新 + portal_order.status更新 + audit_event(複数) |

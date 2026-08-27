@@ -8,6 +8,7 @@ import java.util.List;
 public record OrderDraftResponse(
         Long id,
         String draftNo,
+        String prototypePoNo,
         String supplierCode,
         String supplierName,
         String brandCode,

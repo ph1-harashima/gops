@@ -4,6 +4,7 @@
   "notFound": "指定されたドラフトが見つかりませんでした。",
   "supplier": "メーカー",
   "brand": "ブランド",
+  "prototypePoNo": "Prototype PO No.",
   "orderDate": "発注日",
   "requestedDelivery": "希望納期",
   "remark": "備考",
