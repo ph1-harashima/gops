@@ -1,0 +1,12 @@
+# phasep-gulliver は独自の .git を持つ別リポジトリのため、ルートリポジトリの管理対象外とする
+phasep-gulliver/
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 一時ファイル
+*.tmp
+~$*
