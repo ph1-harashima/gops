@@ -192,7 +192,9 @@ Also: PO-number parsing (→ supplier / brand / ID code), credit-PO/credit-invoi
 - Tariff totals.
 - Stock/order **recommendation** from stock standard, lead time, and open quantities; safety-stock and logical-stock totals.
 
-Supporting helpers: `FormulaParser`, `OrderQuantityCalculator`, `StockCalculationHelper`, `ExcelUtil`, `ObjectMerger`, `SortJsonArray`, `ExportCSVFiles`. Unit-tested in `FormulaTest.java`.
+Supporting helpers: `FormulaParser`, `OrderQuantityCalculator`, `StockCalculationHelper`, `ExcelUtil`, `ObjectMerger`, `SortJsonArray`, `ExportCSVFiles`.
+
+**Correction (confirmed during G-SYS Online Ordering Prototype Implementation Step 0/1, 2026-08-27):** despite its name, `FormulaTest.java` does NOT unit-test order recommendation / `OrderQuantityCalculator`. On inspection, the entire file body is commented out, and the test cases it contains exercise a *different* class (`Formula.java`'s `PRC_LIST`/`PRC_SELL`/`PRC_SALE` price-formula methods above), not `FormulaParser`/`OrderQuantityCalculator`/`StockCalculationHelper`. Legacy has **no existing automated test** for the stock/order recommendation logic. A new Golden Test (`OrderQuantityCalculatorGoldenTest.java`, 9 cases, independently-verified expected values) was created on the Prototype side instead. See `docs/G-SYS_Online-Ordering_Prototype_Technical_Design.md` §17 and `docs/G-SYS_Online-Ordering_Prototype_Requirements.md` §34 for details. This correction is documentation-only; no Legacy source code was modified.
 
 ---
 
@@ -412,7 +414,7 @@ UI emphasis: fast list search, inline grid edits, Excel-oriented output, and sta
 
 ## 15. Testing & Seed Data
 
-- `GulliverApplicationTests.java` (context load), `FormulaTest.java` (pricing/order math).
+- `GulliverApplicationTests.java` (context load), `FormulaTest.java` (pricing math for `Formula.java` only - entire file commented out; NOT a test of order recommendation/`OrderQuantityCalculator`, see §5.2 correction).
 - Seed/fixtures: `goo_dummy_dumpfile.sql`, `gulliver/testfile/*`, template Excel/CSV for stock, arrival, price list, and external-system imports.
 - DB backups in repo: `goo_20251126.dmp`, `database(goo_local).7z`.
 

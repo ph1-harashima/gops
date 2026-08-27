@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -15,8 +16,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * Requires the Legacy Demo Instance and Prototype Postgres to be running
  * (docker compose up -d) with the READ ONLY user provisioned by
  * demo-data/03-readonly-user.sql.
+ *
+ * "test" is on the Safety Gate's profile allowlist (Step 2 0.3) - the
+ * application now refuses to start under the default (no-profile) case.
  */
 @SpringBootTest
+@ActiveProfiles("test")
 class LegacyReadOnlyIntegrationTest {
 
     @Autowired

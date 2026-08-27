@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import axios from 'axios'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Paper from '@mui/material/Paper'
@@ -18,17 +20,21 @@ import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 
 import { useOrderCandidates } from './api'
+import { useCreateDraft } from '../drafts/api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
 import type { OrderCandidateFilter } from '../../shared/types/orderCandidate'
+import type { ApiErrorBody } from '../../shared/types/orderDraft'
 
 export function CandidateListPage() {
   const { t } = useTranslation(['candidates', 'common'])
+  const navigate = useNavigate()
   const [filter, setFilter] = useState<OrderCandidateFilter>({})
   const [keywordInput, setKeywordInput] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { data, isLoading, isError, refetch } = useOrderCandidates(filter)
+  const createDraftMutation = useCreateDraft()
 
   const brandOptions = useMemo(() => {
     const map = new Map<string, string>()
@@ -58,6 +64,23 @@ export function CandidateListPage() {
   function applyKeyword() {
     setFilter((prev) => ({ ...prev, keyword: keywordInput || undefined }))
   }
+
+  function handleCreateDraft() {
+    createDraftMutation.mutate(
+      { skus: Array.from(selected) },
+      {
+        onSuccess: (draft) => {
+          setSelected(new Set())
+          navigate(`/orders/drafts/${draft.id}`)
+        },
+      },
+    )
+  }
+
+  const createDraftErrorCode =
+    createDraftMutation.isError && axios.isAxiosError<ApiErrorBody>(createDraftMutation.error)
+      ? createDraftMutation.error.response?.data?.errorCode
+      : null
 
   return (
     <Box sx={{ p: 3 }}>
@@ -108,7 +131,32 @@ export function CandidateListPage() {
           onKeyDown={(e) => e.key === 'Enter' && applyKeyword()}
           onBlur={applyKeyword}
         />
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        <Button
+          variant="contained"
+          disabled={selected.size === 0 || createDraftMutation.isPending}
+          onClick={handleCreateDraft}
+        >
+          {createDraftMutation.isPending ? (
+            <CircularProgress size={20} />
+          ) : (
+            t('candidates:createDraft', { count: selected.size })
+          )}
+        </Button>
       </Stack>
+
+      {createDraftErrorCode === 'MIXED_SUPPLIER_NOT_ALLOWED' && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {t('candidates:createDraftMixedSupplier')}
+        </Alert>
+      )}
+      {createDraftErrorCode && createDraftErrorCode !== 'MIXED_SUPPLIER_NOT_ALLOWED' && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {t('candidates:createDraftFailed', { code: createDraftErrorCode })}
+        </Alert>
+      )}
 
       {isLoading && (
         <Stack direction="row" spacing={1} sx={{ my: 4, alignItems: 'center' }}>

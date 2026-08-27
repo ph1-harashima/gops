@@ -1,3 +1,12 @@
+# CRITICAL SAFETY GATE (implementation instructions 0.3 Profile Guard):
+# This application NEVER starts without an explicitly active Spring profile.
+# No "spring.profiles.active" default is set here on purpose - the operator
+# must pass one of local/demo/test explicitly, e.g.:
+#   mvn spring-boot:run -Dspring-boot.run.profiles=local
+#   SPRING_PROFILES_ACTIVE=local java -jar gsys-portal-backend.jar
+# Any other profile (or none at all) is rejected by
+# com.glv.gsysportal.safety.SafetyGuardEnvironmentPostProcessor before any
+# DataSource bean is created. See that class for the full Safety Gate.
 spring:
   application:
     name: gsys-portal-backend
@@ -7,12 +16,14 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      # Flyway is wired explicitly and exclusively to prototypeDataSource in
+      # com.glv.gsysportal.config.PrototypeFlywayConfig - autoconfiguration is
+      # excluded so there is no implicit dual-DataSource ambiguity (Step 2 2章).
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: none
-  flyway:
-    enabled: false # re-enabled once Prototype business tables are introduced (not this Step)
 
 # Legacy G-SYS Adapter datasource.
 # In this Step this points at the disposable Legacy Demo Instance started via

@@ -1188,7 +1188,7 @@ Detail LinesにはSKU、Item Name、Recommended Qty、Ordered Qty、Confirmed Qt
 
 TimelineではDraft Created、Order Qty Changed、Requested Delivery Changed、Order Ready、Demo Sent、Supplier Response Received、Quantity Changed、Delivery Changed、Supplier Confirmed、Attention Acknowledged等を時系列表示する。
 
-`performed_by`により、Draft作成者、数量変更者、発注内容確定者、Demo Send実行者、Supplier Response登録者・確定者、Attention確認者を追跡可能とする。Authentication方式は`[TBD - SOURCE REVIEW]`とする。
+`performed_by`により、Draft作成者、数量変更者、発注内容確定者、Demo Send実行者、Supplier Response登録者・確定者、Attention確認者を追跡可能とする。Authentication方式は`[PROTOTYPE DECISION]`（Spring Security Session Form Login＋Prototype DB `portal_user`）に確定済み（29.8章参照）。
 
 最新値だけでなくSupplier Responseの過去の変更履歴もTimelineで確認可能とする。
 
@@ -1376,7 +1376,6 @@ Order History / Audit Trail
 
 - Excel PO生成
 - Data Freshness Alert
-- Sales Trend Chart
 - Mail Preview
 
 ## 今回実施しない
@@ -1390,6 +1389,7 @@ Order History / Audit Trail
 - Spring Boot 1.5 Upgrade
 - Full DB Migration
 - AI Agent
+- Sales Trend Chart（`[CONFIRMED]`Implementation Step 2で整理：Legacyには当月`SOLD_QTY`単一値のみ存在し、時系列Sales履歴が存在しないため実装不可。「可能であれば実装」から本項へ移動）
 
 ---
 
@@ -1721,10 +1721,11 @@ History
 - （Implementation Step 0/1追加）Legacy Demo Instanceのスキーマは`goo_dummy_dumpfile.sql`のDDLではなく、現行JPA Entity（`MsItem.java`/`MsStk.java`等）の`@Column`定義を根拠に構築する
 - （Implementation Step 0/1追加）MS_ITEMにSupplier情報が存在しないため、Prototype Step 0/1では暫定的にTR_PO / TR_PO_DTLの最新PO履歴からSupplierを導出する。これはSource Reviewで判明した事実（27.3参照）とは別の、Prototype固有の暫定設計判断である
 - （Implementation Step 0/1追加）Legacy DataSourceとPrototype DataSourceが同一アプリケーション内に共存する構成では、`@Primary`のみに依存せず、Legacy Adapter側の全DataSource注入箇所に明示的な`@Qualifier`を付与することを必須のSafety Ruleとする（未修飾の場合、`@Primary`側（Prototype）へ誤接続する事故が実装中に実際に発生したため）
+- （Implementation Step 2追加）Prototype Authentication方式はSpring Security セッションベースForm Login＋Prototype DB `portal_user`テーブルに確定した。Legacyの認証情報・権限体系には依存しない
+- （Implementation Step 2追加）Application起動時、Legacy/Prototype接続先ホスト・DB名・実行Profileをallowlist検証し、許可されないものを検出した場合はApplication起動自体を失敗させるSafety Guardを実装する。警告のみでの継続は行わない
 
 ## 27.3 `[TBD - SOURCE REVIEW]`
 
-- Legacyとの具体的な接続方式およびMySQL直接Readの可否
 - Brand / SupplierのEntityおよびMaster構造（`[TBD - SOURCE REVIEW]`のまま。Implementation Step 0/1ではPrototype側の暫定回避策としてTR_PO / TR_PO_DTL最新PO履歴からSupplierを導出しているが、これはLegacyに正式なSupplier Master / Entityが存在することを意味しない。正式なMaster構造は引き続き未確定）
 - Currency、Unit Price、Lead Timeの取得元
 - PO Excel Templateおよびメーカー別Templateの有無
@@ -1732,10 +1733,8 @@ History
 - Supplier Response相当機能の有無
 - Arrival / Stockへの反映タイミング
 - `COMPLETED`へのLegacy PO / Arrival / Stock連動条件
-- Legacy既存REST APIの再利用可能範囲
 - Legacy Business Serviceを外部から安全に利用可能か
 - 発注判断時Snapshotとして保存すべき実データ項目
-- PrototypeのAuthentication方式
 - 1 PO / Draftに許容されるSupplier単位
 - SKU Detailで表示可能なLegacy PO / Arrival履歴
 - Recommended Qty算出根拠として実際に表示可能な項目
@@ -1751,6 +1750,8 @@ History
 - `MS_ITEM.STK_QTY_STATUS`の意味（Phase 0.5追加）
 
 `[CONFIRMED]`（Phase 0.5確定）以下はRESOLVEDとなったため本リストから除外した：Recent Sales取得元・期間粒度、Recommended Qtyの実計算経路および再利用方式、PO Number採番方式、メーカーMail Address取得元、Sample Databaseのデモデータ充足状況、SKU Detailで取得可能なSales粒度（詳細は23章「Phase 0.5 Source Review確定状況」を参照）。
+
+`[CONFIRMED]`（Implementation Step 2確定）以下もRESOLVEDとなったため本リストから除外した：**Legacyとの具体的接続方式**（Legacy Applicationは変更せず、Legacy MySQLへREAD ONLY直接接続すると確定）、**Legacy API再利用可否 / Legacy既存REST APIの再利用可能範囲**（既存REST APIは画面専用の認証・レスポンス形式のため不使用と確定）、**MySQL直接Read可否**（READ ONLY専用DBユーザーでの直接接続を採用し、Step 0/1で実装・READ ONLY保証テストにより実証済み）、**PrototypeのAuthentication方式**（Spring Security Session Form Login＋Prototype DB `portal_user`に確定、Step 2で実装）。詳細は3.1.1章・7章・30.2章を参照。
 
 ## 27.4 `[TBD - CUSTOMER REVIEW]`
 
@@ -2072,6 +2073,8 @@ Workflow Statusとは独立して管理し、1 Order / Detailに複数Attention�
 - Tempostar連携Master
 
 `[TBD - SOURCE REVIEW]` User / Authenticationは、9/17 Prototypeの実行方式を確認し、必要最小限の方式を別途決定する。
+
+`[PROTOTYPE DECISION]`（Technical Design確定、Implementation Step 2でRequirements側にも反映）Prototype Authentication方式は**Spring Security セッションベースForm Login＋Prototype DB内`portal_user`テーブル**に確定した。Legacyの`MS_USER`／JDBC認証は再利用しない（認証はNew Portal固有の新規要件のため）。SSO/OAuth/JWT等は9/17には過剰と判断し不採用。詳細はTechnical Design MD 7章参照。
 
 ---
 

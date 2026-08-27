@@ -1,0 +1,36 @@
+{
+  "title": "発注ドラフト",
+  "back": "一覧へ戻る",
+  "notFound": "指定されたドラフトが見つかりませんでした。",
+  "supplier": "メーカー",
+  "brand": "ブランド",
+  "orderDate": "発注日",
+  "requestedDelivery": "希望納期",
+  "remark": "備考",
+  "saveDraft": "ドラフトを保存",
+  "preview": "PO プレビュー",
+  "previewNotAvailable": "この機能は今後のStepで実装予定です（今回は未実装）。",
+  "saveSuccess": "保存しました。",
+  "saveFailed": "保存に失敗しました（{{code}}）。",
+  "unsavedChangesBanner": "保存されていない変更があります。",
+  "unsavedChangesConfirm": "保存されていない変更があります。破棄して戻りますか？",
+  "notAvailable": "—",
+  "warning": "要確認",
+  "warningOrderQtyDiffers": "発注数が推奨発注数から大きく乖離しています。",
+  "table": {
+    "sku": "SKU",
+    "itemName": "商品名",
+    "currentStock": "現在庫",
+    "leadTime": "リードタイム",
+    "recommendedQty": "推奨発注数",
+    "orderQty": "発注数",
+    "unitPrice": "単価",
+    "amount": "金額",
+    "itemStatus": "商品状態",
+    "warning": "警告"
+  },
+  "summary": {
+    "totalQty": "合計数量",
+    "totalAmount": "合計金額"
+  }
+}

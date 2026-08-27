@@ -35,6 +35,23 @@ public class LegacyStockReadRepository {
         this.sql = loadSql();
     }
 
+    /**
+     * Used by Create Draft (implementation instructions 4章): the Frontend
+     * sends only SKU identifiers, and the Backend re-fetches the current
+     * Legacy candidate context for exactly those SKUs here, rather than
+     * trusting any Recommended Qty/Stock/Sales/Price value the Frontend may
+     * have sent. Reuses {@link #findOrderCandidates} (no filter) and filters
+     * in Java rather than adding a second, slightly-different SQL surface -
+     * acceptable for this Demo Instance's small row count (Technical Design 17章).
+     */
+    @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
+    public List<LegacyStockRow> findBySkus(java.util.Collection<String> skus) {
+        java.util.Set<String> requested = new java.util.HashSet<>(skus);
+        return findOrderCandidates(null, null, null).stream()
+                .filter(row -> requested.contains(row.itemCd()))
+                .toList();
+    }
+
     @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
     public List<LegacyStockRow> findOrderCandidates(String brandCode, String supplierCode, String keyword) {
         MapSqlParameterSource params = new MapSqlParameterSource()
