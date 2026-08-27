@@ -49,3 +49,21 @@ export function useReturnToDraft(draftId: number) {
     },
   })
 }
+
+/** READY_TO_ORDER -> SENT -> AWAITING_SUPPLIER (implementation instructions
+ * 3章). No real email is sent - this call never touches any mail transport. */
+async function demoSend(draftId: number): Promise<OrderStatusChange> {
+  const { data } = await apiClient.post<OrderStatusChange>(`/orders/${draftId}/demo-send`)
+  return data
+}
+
+export function useDemoSend(draftId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => demoSend(draftId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['po-preview', draftId] })
+      void queryClient.invalidateQueries({ queryKey: ['order-draft', draftId] })
+    },
+  })
+}

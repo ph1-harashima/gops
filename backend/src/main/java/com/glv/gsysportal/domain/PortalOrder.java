@@ -32,6 +32,13 @@ public class PortalOrder {
 
     public static final String STATUS_DRAFT = "DRAFT";
     public static final String STATUS_READY_TO_ORDER = "READY_TO_ORDER";
+    /** Intermediate Status within the single Demo Send transaction
+     * (implementation instructions 3章/4章) - persisted for Audit/History
+     * accuracy, but the user always sees {@link #STATUS_AWAITING_SUPPLIER}
+     * as the resting state; Demo Send never leaves an Order sitting in SENT. */
+    public static final String STATUS_SENT = "SENT";
+    public static final String STATUS_AWAITING_SUPPLIER = "AWAITING_SUPPLIER";
+    public static final String STATUS_SUPPLIER_CONFIRMED = "SUPPLIER_CONFIRMED";
 
     /** Matches com.glv.gsysportal.service.OrderCandidateService.DATA_SOURCE_CODE. */
     public static final String DATA_SOURCE_DEMO_LEGACY = "DEMO_LEGACY";

@@ -1,0 +1,50 @@
+{
+  "title": "メーカー回答",
+  "back": "戻る",
+  "notFound": "指定された発注が見つかりませんでした。",
+  "errorInvalidOrderStatus": "現在のStatusではメーカー回答を表示できません。",
+  "errorGeneric": "処理に失敗しました。",
+  "errorIncomplete": "未回答のSKUがあるため確定できません。全SKUの回答数量を入力してください。",
+  "errorInvalidStatusTransition": "現在のStatusではこの操作を実行できません。",
+  "header": {
+    "prototypePoNo": "Prototype PO No.",
+    "supplier": "メーカー",
+    "brand": "ブランド",
+    "orderDate": "発注日",
+    "totalOrderedQty": "発注数量合計",
+    "totalAmount": "発注金額"
+  },
+  "responseHeader": {
+    "responseDate": "回答日",
+    "responseNote": "回答メモ"
+  },
+  "table": {
+    "sku": "SKU",
+    "itemName": "商品名",
+    "orderedQty": "発注数量",
+    "confirmedQty": "回答数量",
+    "requestedDelivery": "希望納期",
+    "confirmedDelivery": "回答納期",
+    "responseNote": "回答理由・メモ",
+    "attention": "確認事項"
+  },
+  "unanswered": "未回答",
+  "summary": {
+    "title": "回答状況",
+    "answered": "回答済みSKU数",
+    "quantityChanged": "数量変更SKU数",
+    "deliveryChanged": "納期変更SKU数",
+    "zeroQty": "回答数量0 SKU数",
+    "unanswered": "未回答SKU数"
+  },
+  "saveResponse": "回答を保存",
+  "saveSuccess": "回答を保存しました。",
+  "saveFailed": "保存に失敗しました（{{code}}）。",
+  "confirmResponse": "メーカー回答を確定",
+  "confirmDialogTitle": "メーカー回答を確定しますか？",
+  "confirmDialogBody": "全SKUの回答を確定します。確定後は編集できません。",
+  "confirmDialogCancel": "キャンセル",
+  "confirmDialogConfirm": "確定する",
+  "confirmSuccess": "メーカー回答を確定しました。",
+  "viewHistory": "履歴を見る"
+}

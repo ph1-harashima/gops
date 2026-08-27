@@ -1727,6 +1727,11 @@ History
 - （Implementation Step 3追加）PO Preview API（`POST /api/orders/drafts/{id}/preview`）はDRAFTおよびREADY_TO_ORDERの両Statusで許可する。Confirm Order直後にFrontendが同じ画面をREADY_TO_ORDER状態のまま再取得する必要があるための拡張であり、Techlead/顧客確認事項として27.4へ追加した
 - （Implementation Step 3追加）Confirm Order（`DRAFT → READY_TO_ORDER`）はDRAFT以外からの呼び出しを`409 INVALID_STATUS_TRANSITION`として拒否し、新PO No.採番・Audit追加を行わないことで冪等性を保証する
 - （Implementation Step 3追加）Save Draft（`PUT /api/orders/drafts/{id}`）はStatus = DRAFTの場合のみ許可し、READY_TO_ORDER中は`409 ORDER_NOT_EDITABLE`として拒否する
+- （Implementation Step 4追加）Demo Send（`POST /api/orders/{id}/demo-send`）は`READY_TO_ORDER → SENT → AWAITING_SUPPLIER`を単一Transactionで実行し、`SENT`はAudit/History専用の中間StatusとしてユーザーへはAWAITING_SUPPLIERのみ表示する。実メール送信機能は一切追加しない
+- （Implementation Step 4追加）Supplier Response確定の暫定完了条件は「全非削除明細でconfirmedQtyが非null」のみとし、Confirmed Deliveryは必須としない。正式条件は引き続き顧客確認事項とする（30.9参照）
+- （Implementation Step 4追加）`PARTIAL_CONFIRMATION`はSystem-generatedのTransient Attentionとして全回答完了時に自動解消するが、`QUANTITY_CHANGED`/`DELIVERY_CHANGED`はユーザーがAcknowledgeするまでACTIVEを維持する
+- （Implementation Step 4追加）Supplier Responseは「1 Order = 1 current-state header」方式（Technical Design 5.3）で実装し、変更履歴は`audit_event`から再構成する。version管理用の別Tableは追加しない
+- （Implementation Step 4追加）Order History Detail（`GET /api/orders/{id}`）はRecommended → Ordered → Confirmedの3段階を1画面に並べて表示し、Timeline（`GET /api/orders/{id}/events`）はaudit_eventを時系列表示する。History画面群は原則READ ONLYとする
 
 ## 27.3 `[TBD - SOURCE REVIEW]`
 
@@ -1757,6 +1762,8 @@ History
 
 `[CONFIRMED]`（Implementation Step 2確定）以下もRESOLVEDとなったため本リストから除外した：**Legacyとの具体的接続方式**（Legacy Applicationは変更せず、Legacy MySQLへREAD ONLY直接接続すると確定）、**Legacy API再利用可否 / Legacy既存REST APIの再利用可能範囲**（既存REST APIは画面専用の認証・レスポンス形式のため不使用と確定）、**MySQL直接Read可否**（READ ONLY専用DBユーザーでの直接接続を採用し、Step 0/1で実装・READ ONLY保証テストにより実証済み）、**PrototypeのAuthentication方式**（Spring Security Session Form Login＋Prototype DB `portal_user`に確定、Step 2で実装）。詳細は3.1.1章・7章・30.2章を参照。
 
+`[CONFIRMED]`（Implementation Step 4確定）**PO Preview APIの許可Status範囲**（Step 3実装時点では「本番仕様として要検討」としていたが、READ ONLYであり業務要件ではなくPrototype Technical Decisionであるため、Step 4で顧客確認事項リストから除外し、Technical Design側の確定事項として整理した）もRESOLVEDとなったため本リストから除外した。DRAFT / READY_TO_ORDERの両Statusから同一Endpoint（`POST /api/orders/drafts/{id}/preview`）を利用可能とし、Status変更・Audit追加・PO No.再採番・DB更新は一切行わない。詳細は30.7章を参照。
+
 ## 27.4 `[TBD - CUSTOMER REVIEW]`
 
 - Requested Deliveryの必須 / 任意
@@ -1779,7 +1786,6 @@ History
 - 発注確定とメーカー送信の間に承認Workflowが必要か
 - （Phase 0.5追加）新Portalでは`calc4`を標準の推奨発注数として扱い、`calc4Alt`を通常画面では表示しない方針でよいか
 - （Phase 0.5追加）Supplier Mail（PO Send）の本番仕様（送信システム、宛先データ取得元、Attachment運用等）
-- （Implementation Step 3追加）PO Preview APIをDRAFTだけでなくREADY_TO_ORDERでも許可する実装判断（30.7参照）の妥当性。本番仕様として、Confirm済みOrderのPreview再表示を同一Endpointで行ってよいか、専用の参照Endpointを別途設けるべきか
 
 ---
 
@@ -2202,7 +2208,7 @@ Preview時に以下をValidationする（Backend内部Errorコード）。
 - Orderが存在する（`DRAFT_NOT_FOUND`）
 - Order Qty > 0の商品（is_removed=false）が1件以上存在すること（`NO_ORDERABLE_ITEMS`）
 - 該当商品全てにUnit Priceが存在すること（`MISSING_UNIT_PRICE`）。Unit Priceを取得できない商品がある場合、価格を生成せずPreviewをBlockする
-- Status（`INVALID_ORDER_STATUS`）：`[PROTOTYPE DECISION]` DRAFTおよびREADY_TO_ORDERの両方を許可する。Confirm成功直後にFrontendが同じPreview画面をREADY_TO_ORDER状態のまま再取得する必要があるため（31.3の一連の流れ参照）。DRAFT限定という早期の想定から実装時に拡張したもので、Techlead/顧客確認事項として残す
+- Status（`INVALID_ORDER_STATUS`）：`[PROTOTYPE DECISION]`（Step 4で確定）DRAFTおよびREADY_TO_ORDERの両方を許可する。Confirm成功直後にFrontendが同じPreview画面をREADY_TO_ORDER状態のまま再取得する必要があるため（31.3の一連の流れ参照）。本Endpointは常にREAD ONLY（Status変更・Audit追加・PO No.再採番・DB更新を一切行わない）であり、業務要件ではなくPrototype Technical Decisionであるため、顧客確認事項リストからは除外した（27.3参照）
 
 リクエストBodyは持たない。常にPrototype DBの保存済みDraftを正本として使用し、Frontendから送信された値は一切使用しない。
 
@@ -2232,25 +2238,39 @@ UIには以下のような日本語メッセージを表示する。
 
 > デモモードのため、実際のメールは送信されていません。
 
-## 30.9 Supplier Response API
+## 30.9 Demo Send / Supplier Response API
 
-- `GET /api/orders/{orderId}/supplier-response`
-- `PUT /api/orders/{orderId}/supplier-response`
+`[PROTOTYPE DECISION]`（Implementation Step 4で確定）
 
-Confirmed Qty、Confirmed Delivery、Response Noteを保存し、Original値との差分をBackendで判定する。
+### `POST /api/orders/{id}/demo-send`
 
-回答の一時保存と回答確定は別の業務操作として扱う。Endpointを分離するか、明示的なActionを持たせるかは実装設計時に決定する。確定操作では必要回答の完了条件をValidationする。
+`READY_TO_ORDER`のみ許可（それ以外は`409 Conflict / INVALID_STATUS_TRANSITION`）。`READY_TO_ORDER → SENT → AWAITING_SUPPLIER`を同一Transaction内で実行し、`STATUS_CHANGED`（×2）と`DEMO_SENT`をAudit Trailへ保存する。`SENT`はAudit/History上のみ意味を持つ中間Statusとし、ユーザーには常に最終状態`AWAITING_SUPPLIER`（メーカー回答待ち）のみを見せる。実メールは一切送信しない（SMTP Client / JavaMail等を利用しない）。
 
-`confirmedQty: 0`と`confirmedQty: null`をAPI上でも区別する。
+同一Transaction内で、`portal_order_detail`の各非削除行から`supplier_response` / `supplier_response_detail`を初期化する（`ordered_qty`＝Demo Send時点の`order_qty`、`requested_delivery`＝Demo Send時点の`portal_order.requested_delivery`をSnapshot、`confirmed_qty`はNULLで初期化）。
+
+### `GET /api/orders/{id}/supplier-response` / `PUT /api/orders/{id}/supplier-response`
+
+`AWAITING_SUPPLIER`（GETは`SUPPLIER_CONFIRMED`も可）以降のOrderで利用可能。PUTは`AWAITING_SUPPLIER`のみ許可（`SUPPLIER_CONFIRMED`は`409 Conflict / INVALID_STATUS_TRANSITION`で編集を拒否）。Confirmed Qty、Confirmed Delivery、Response Noteを保存し、Original値との差分をBackendで判定する。
+
+回答の一時保存（PUT）と回答確定（POST confirm）は別の業務操作として分離した。確定操作では必要回答の完了条件をValidationする。
+
+`confirmedQty: 0`と`confirmedQty: null`をAPI・DTO・DB（`confirmed_qty INTEGER`、DEFAULTなし）の全層で区別する。
 
 | 条件 | Backend処理 |
 |---|---|
-| Confirmed Qty != Ordered Qty | `QUANTITY_CHANGED` |
-| Confirmed Delivery != Requested Delivery | `DELIVERY_CHANGED` |
-| 一部SKUのみ回答 | `PARTIAL_CONFIRMATION`を設定し、`AWAITING_SUPPLIER`を維持 |
-| 必要回答が全て揃った | `SUPPLIER_CONFIRMED`へ遷移 |
+| Confirmed Qty != Ordered Qty（Confirmed Qtyが非null） | `QUANTITY_CHANGED` Attention生成＋Audit記録。Confirmed Qty > Ordered Qtyの場合は追加で`CONFIRMED_QTY_EXCEEDS_ORDERED_QTY` Warning Code（Errorにしない） |
+| Confirmed Delivery != Requested Delivery（Confirmed Deliveryが非null） | `DELIVERY_CHANGED` Attention生成＋Audit記録。Confirmed DeliveryがNULLの場合は差分扱いしない |
+| 一部SKUのみ回答 | Order単位の`PARTIAL_CONFIRMATION` Attentionを設定し、`AWAITING_SUPPLIER`を維持 |
+| 全SKUが回答済みになった | `PARTIAL_CONFIRMATION`を自動解消（`ATTENTION_RESOLVED`）。`QUANTITY_CHANGED`/`DELIVERY_CHANGED`はユーザーがAcknowledgeするまでACTIVEを維持し、自動解消しない |
+| 同一値での再保存 | Auditを追加しない（実際に値が変化したSaveのみAudit記録） |
 
-`[TBD - CUSTOMER REVIEW]` 「必要回答が全て揃った」の正式定義は顧客確認後に確定する。
+`QUANTITY_CHANGED`/`DELIVERY_CHANGED`/`PARTIAL_CONFIRMATION`のACTIVE重複防止は、`order_attention`の部分Unique Index（Technical Design 5.5）で保証する。
+
+### `POST /api/orders/{id}/supplier-response/confirm`
+
+`[PROTOTYPE DECISION]`（Implementation Step 4確定）暫定完了条件は「非削除の全明細で`confirmedQty`が非null」のみとし、Confirmed Deliveryは必須としない。`AWAITING_SUPPLIER`以外からの呼び出しおよび未完了時の呼び出しはそれぞれ`409 Conflict / INVALID_STATUS_TRANSITION`・`400 / SUPPLIER_RESPONSE_INCOMPLETE`で拒否する。成功時は`response_status: PARTIAL → CONFIRMED`、`portal_order.status: AWAITING_SUPPLIER → SUPPLIER_CONFIRMED`、`SUPPLIER_RESPONSE_RECEIVED`＋`STATUS_CHANGED`をAudit Trailへ同一Transactionで保存する。
+
+`[TBD - CUSTOMER REVIEW]` 「必要回答が全て揃った」の正式な完了条件（Confirmed Delivery必須化を含む）は顧客確認後に確定する。9/17 Prototypeの上記暫定Ruleはあくまで最小要件であり、本番仕様を先取りするものではない。
 
 ## 30.10 Order History API
 
@@ -2266,7 +2286,7 @@ Filter：
 - Status
 - Order Date
 
-`audit_event`をOrder History / Timelineのデータソースとして利用する。
+`audit_event`をOrder History / Timelineのデータソースとして利用する。Detail（`GET /api/orders/{orderId}`）はRecommended Qty（`portal_order_detail.recommended_qty`）→ Ordered Qty（`order_qty`）→ Confirmed Qty（`supplier_response_detail.confirmed_qty`、Supplier Response未着手の場合はnull）の3段階を1画面で並べて表示する。History画面は原則READ ONLY（31.2）とし、編集はOrder Draft / Supplier Response画面へのLinkから行う。
 
 ## 30.11 Status変更APIの禁止
 

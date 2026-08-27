@@ -45,5 +45,13 @@
   "confirmDialogCancel": "キャンセル",
   "confirmDialogConfirm": "確定する",
   "confirmSuccess": "発注内容を確定しました。",
-  "returnToDraftFailed": "Order Draftへの変更に失敗しました。"
+  "returnToDraftFailed": "Order Draftへの変更に失敗しました。",
+  "demoSend": "メーカーへ送信",
+  "demoSendDialogTitle": "デモモードで発注処理を実行しますか？",
+  "demoSendDialogBody": "デモモードで発注処理を実行します。\n実際のメールは送信されません。",
+  "demoSendDialogCancel": "キャンセル",
+  "demoSendDialogConfirm": "Demo Send",
+  "demoSendSuccess": "発注処理を記録しました。デモモードのため、実際のメールは送信されていません。",
+  "demoSendFailed": "処理に失敗しました。",
+  "goToSupplierResponse": "メーカー回答を確認する"
 }

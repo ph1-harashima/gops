@@ -12,6 +12,35 @@
   },
   "orderStatus": {
     "DRAFT": "下書き",
-    "READY_TO_ORDER": "発注準備完了"
+    "READY_TO_ORDER": "発注準備完了",
+    "SENT": "送信済み",
+    "AWAITING_SUPPLIER": "メーカー回答待ち",
+    "SUPPLIER_CONFIRMED": "メーカー確定済み"
+  },
+  "attentionType": {
+    "QUANTITY_CHANGED": "数量変更あり",
+    "DELIVERY_CHANGED": "納期変更あり",
+    "PARTIAL_CONFIRMATION": "一部回答",
+    "DATA_OUTDATED": "データ更新が必要",
+    "OTHER_ATTENTION": "確認事項あり"
+  },
+  "warningCode": {
+    "CONFIRMED_QTY_EXCEEDS_ORDERED_QTY": "回答数量が発注数量を超えています"
+  },
+  "eventType": {
+    "ORDER_DRAFT_CREATED": "ドラフト作成",
+    "ORDER_QTY_CHANGED": "発注数量変更",
+    "ORDER_DATE_CHANGED": "発注日変更",
+    "REQUESTED_DELIVERY_CHANGED": "希望納期変更",
+    "REMARK_CHANGED": "備考変更",
+    "ORDER_READY": "発注内容確定（PO番号採番）",
+    "ORDER_RETURNED_TO_DRAFT": "下書きへ差し戻し",
+    "STATUS_CHANGED": "Status変更",
+    "DEMO_SENT": "デモ送信",
+    "SUPPLIER_RESPONSE_RECEIVED": "メーカー回答確定",
+    "QUANTITY_CHANGED": "回答数量変更",
+    "DELIVERY_CHANGED": "回答納期変更",
+    "ATTENTION_ADDED": "確認事項の発生",
+    "ATTENTION_RESOLVED": "確認事項の解消"
   }
 }

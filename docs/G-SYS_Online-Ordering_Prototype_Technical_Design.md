@@ -410,7 +410,7 @@ Unique：`(supplier_response_id, portal_order_detail_id)`。
 | acknowledged_at | TIMESTAMPTZ | NULL |
 | note | TEXT | NULL |
 
-**重複ACTIVE防止**：`CREATE UNIQUE INDEX ON order_attention (portal_order_id, portal_order_detail_id, attention_type) WHERE is_active = true;`（部分Unique Indexで、同一Order/Detail/Typeの二重ACTIVE行を防止しつつ、解消後の再発生は新規行として許容する）。
+**重複ACTIVE防止**：`CREATE UNIQUE INDEX ON order_attention (portal_order_id, COALESCE(portal_order_detail_id, -1), attention_type) WHERE is_active = true;`（部分Unique Indexで、同一Order/Detail/Typeの二重ACTIVE行を防止しつつ、解消後の再発生は新規行として許容する）。`[CONFIRMED]`（Implementation Step 4実装時に判明・修正）`portal_order_detail_id`を`COALESCE`せず素の列のまま部分Unique Indexに含めると、PostgresはNULLを「互いに異なる値」として扱うため、`portal_order_detail_id IS NULL`のOrder単位Attention（`PARTIAL_CONFIRMATION`）については同一Order・同一Typeで複数ACTIVE行が重複挿入され得るという正当性上の欠陥が当初案にあった。`COALESCE(portal_order_detail_id, -1)`でNULLを固定値に正規化することでOrder単位のAttentionも正しく重複防止される（`V7__supplier_response_and_attention.sql`）。
 
 ## 5.6 `audit_event`
 
@@ -519,12 +519,15 @@ New Service APIの`legacy.datasource.url`設定を、環境（プロファイル
 | 10 | **Confirm Order** | POST | `/api/orders/drafts/{id}/confirm` | Prototype Write | `DRAFT`→`READY_TO_ORDER` |
 | 11 | **Return to Draft** | POST | `/api/orders/{id}/return-to-draft` | Prototype Write | `READY_TO_ORDER`→`DRAFT` |
 | 12 | **Demo Send** | POST | `/api/orders/{id}/demo-send` | Prototype Write | `READY_TO_ORDER`→`SENT`→`AWAITING_SUPPLIER` |
+| 12a | Supplier Response取得 | GET | `/api/orders/{id}/supplier-response` | Prototype Read | - |
 | 13 | **Save Supplier Response** | PUT | `/api/orders/{id}/supplier-response` | Prototype Write | `AWAITING_SUPPLIER`維持 |
 | 14 | **Confirm Supplier Response** | POST | `/api/orders/{id}/supplier-response/confirm` | Prototype Write | `AWAITING_SUPPLIER`→`SUPPLIER_CONFIRMED` |
-| 15 | **Acknowledge Attention** | POST | `/api/attentions/{id}/acknowledge` | Prototype Write | Attention `ACTIVE`→解消 |
+| 15 | Acknowledge Attention | POST | `/api/attentions/{id}/acknowledge` | Prototype Write | Attention `ACTIVE`→解消 |
 | 16 | Order History一覧 | GET | `/api/orders/history` | Prototype Read | - |
 | 17 | Order詳細 | GET | `/api/orders/{id}` | Prototype Read | - |
 | 18 | Order Event(Timeline) | GET | `/api/orders/{id}/events` | Prototype Read | - |
+
+Implementation Step 4で#1-4（Dashboard/SKU発注コンテキスト）・#7-8（Add Item/Remove Item）・#15（Acknowledge Attention）を除く全Actionを実装・実証済み（13章Test Strategy参照）。#15は要件MD 28章の通りCore Workflow完成を優先し9/17は見送った（`QUANTITY_CHANGED`/`DELIVERY_CHANGED`はACTIVEのまま残り、History/Supplier Response画面でBadge表示のみ行う）。
 
 ## 8.1 代表エンドポイント詳細
 
@@ -548,7 +551,7 @@ New Service APIの`legacy.datasource.url`設定を、環境（プロファイル
   | `MISSING_UNIT_PRICE` | 400 | 上記のorderable行にunit_priceがNULLの行が1件以上 |
   | `INVALID_ORDER_STATUS` | 400 | Status が `DRAFT`/`READY_TO_ORDER` 以外 |
 
-  `[PROTOTYPE DECISION]`（実装時に確定、要件MD 27.4へ確認事項として追加）Status = `DRAFT`のみを許可する当初想定から、`READY_TO_ORDER`も許可する形へ拡張した。Confirm Order成功直後、FrontendがStatus/Prototype PO No.を反映した同じPreview画面を再取得する必要があるため（31.3の一連の流れ、この直後の「READY_TO_ORDER」表示要件を参照）。
+  `[PROTOTYPE DECISION]`（Step 3実装時に拡張、Step 4で確定事項として整理）Status = `DRAFT`のみを許可する当初想定から、`READY_TO_ORDER`も許可する形へ拡張した。Confirm Order成功直後、FrontendがStatus/Prototype PO No.を反映した同じPreview画面を再取得する必要があるため（31.3の一連の流れ、この直後の「READY_TO_ORDER」表示要件を参照）。本Endpointは常にREAD ONLYであり（Status変更・Audit追加・PO No.再採番・DB更新を一切行わない）、業務要件ではなくPrototype固有のTechnical Decisionであるため、要件MD 27.4の顧客確認事項リストからは除外した（要件MD 27.3のRESOLVED一覧を参照）。
 - 処理：is_removed=falseかつorder_qty > 0の行のみを抽出し、`amount = unit_price × order_qty`をService層で計算、`skuCount`/`totalQty`/`totalAmount`をこの抽出行から再計算（`portal_order`の保存済み合計は全行対象のため信用しない）。
 - Response DTO（`PoPreviewResponse`）はCandidate/Draft DTOを再利用せず専用に新規作成し、Recommended Qty・Current Stock・Safety Stock・当月販売数・Formula・Item Status等の社内判断情報を一切含めない（要件MD 31.2）。Manufacturer Communication（to/cc/subject/body/attachment）は9/17は固定Demo値のみ（`DemoManufacturerCommunicationFactory`）で、`to`/`cc`はRFC 2606の`.invalid`ドメインを使用し実在しないアドレスとする。`demoMode: true`を常に含める。
 
@@ -565,18 +568,31 @@ New Service APIの`legacy.datasource.url`設定を、環境（プロファイル
 - 処理：`prototype_po_no`は変更しない（削除・再採番しない）。Statusを`DRAFT`へ戻し、`audit_event(STATUS_CHANGED, old=READY_TO_ORDER, new=DRAFT)` + `audit_event(ORDER_RETURNED_TO_DRAFT)`を同一トランザクションで保存。
 - 副作用：以後`PUT /api/orders/drafts/{id}`（Save Draft）が再び許可される。`READY_TO_ORDER`中のSave Draftは`409 ORDER_NOT_EDITABLE`。
 
-### `PUT /api/orders/{id}/supplier-response`
+### `POST /api/orders/{id}/demo-send`（Implementation Step 4で確定）
 
-- Request: `{ "responseDate": "2026-09-18", "lines": [ { "portalOrderDetailId": 1, "confirmedQty": 9, "confirmedDelivery": "2026-09-26" }, { "portalOrderDetailId": 2, "confirmedQty": null } ] }`
-- **`confirmedQty: null`は明示的な「未回答へクリア」、フィールド省略は「変更なし」として扱う**（5.4節DTO設計参照）。
-- 処理：`supplier_response`/`supplier_response_detail`をUpsert → Original値との差分から`QUANTITY_CHANGED`/`DELIVERY_CHANGED`を判定し`order_attention`をUpsert → 全行の差分を`audit_event`へ記録。
-- Validation：`confirmedQty >= 0`。`confirmedQty > orderedQty`は警告のみ許可（拒否しない、要件MD 15章）。
-- Status：`AWAITING_SUPPLIER`のまま（一部回答時は`PARTIAL_CONFIRMATION`Attentionを設定）。
+- Requestなし。`READY_TO_ORDER`のみ許可（それ以外は`409 INVALID_STATUS_TRANSITION`）。
+- 処理：同一Transaction内で`READY_TO_ORDER → SENT`（`STATUS_CHANGED`）→`DEMO_SENT`→`SENT → AWAITING_SUPPLIER`（`STATUS_CHANGED`）の順にAuditを記録し、`portal_order.status`を最終的に`AWAITING_SUPPLIER`へ更新。続けて`supplier_response`（1件）＋`supplier_response_detail`（非削除明細ごとに1件）を初期化する：`ordered_qty`＝この時点の`order_qty`、`requested_delivery`＝この時点の`portal_order.requested_delivery`をSnapshotし、`confirmed_qty`はNULLのまま（初期化のみで`audit_event`は発生させない）。
+- SMTP Client / JavaMail等の外部Mail送信コードはこのメソッド、および本アプリケーション全体に一切存在しない。
 
-### `POST /api/orders/{id}/supplier-response/confirm`
+### `GET /api/orders/{id}/supplier-response`（Implementation Step 4で確定）
 
-- Validation：全明細に`confirmedQty`（および`[TBD - CUSTOMER REVIEW]`次第でconfirmedDeliveryも）が設定されていること。未充足なら`409 Conflict`。
-- 処理：`supplier_response.response_status = 'CONFIRMED'`、`portal_order.status: AWAITING_SUPPLIER → SUPPLIER_CONFIRMED`、`audit_event`記録。
+- `AWAITING_SUPPLIER`または`SUPPLIER_CONFIRMED`のみ許可（それ以外は`400 INVALID_ORDER_STATUS`）。
+- Response（`SupplierResponseView`）：Header（orderId/draftNo/prototypePoNo/supplier/brand/orderDate/status/totalOrderedQty/totalAmount）、Response Header（responseDate/responseNote/responseStatus）、Detail（`detailId`＝`supplier_response_detail.id`、sku/itemName/orderedQty/confirmedQty/requestedDelivery/confirmedDelivery/responseNote/isConfirmed/attentionTypes/warningCodes）、Order-level`orderAttentionTypes`、`summary`（totalCount/answeredCount/unansweredCount/quantityChangedCount/deliveryChangedCount/zeroQtyCount、Backendで都度再計算）。
+
+### `PUT /api/orders/{id}/supplier-response`（Implementation Step 4で確定）
+
+- Request: `{ "responseDate": "2026-09-18", "responseNote": "...", "details": [ { "detailId": 1, "confirmedQty": 9, "confirmedDelivery": "2026-09-26", "responseNote": "..." }, { "detailId": 2, "confirmedQty": null, "confirmedDelivery": null } ] }`（`detailId`は`supplier_response_detail.id`。当初案の`portalOrderDetailId`ではなく、GET/PUTで一貫してこのidを使う）
+- `AWAITING_SUPPLIER`のみ許可（`SUPPLIER_CONFIRMED`は`409 INVALID_STATUS_TRANSITION`で編集拒否）。
+- **`details`に含まれない行は変更しない（Partial Save）。含まれる行の`confirmedQty`は常にその行の完全な意図値**：`null`＝明示的に未回答（クリア）、任意の整数（0含む）＝実回答。フィールド省略ではなく値そのもので意味を持たせる（実装は`SaveSupplierResponseRequest.LineUpdate`が両フィールドとも必須で受け取る設計）。
+- 処理：行ごとに旧値と比較し、`confirmedQty`が変化していれば`audit_event(QUANTITY_CHANGED)`、`confirmedDelivery`が変化していれば`audit_event(DELIVERY_CHANGED)`を記録（値が変化していないSaveはAuditを追加しない）。`confirmedQty`が非nullかつ`orderedQty`と異なる場合、`order_attention(QUANTITY_CHANGED)`をACTIVEで作成（既にACTIVEなら重複作成しない、部分Unique Indexで保証）。`confirmedDelivery`が非nullかつ`requestedDelivery`と異なる場合も同様に`order_attention(DELIVERY_CHANGED)`。全行の`confirmedQty`が非nullになったら`order_attention(PARTIAL_CONFIRMATION)`を自動解消（`audit_event(ATTENTION_RESOLVED)`）、そうでなければ未作成時のみ新規作成（`audit_event(ATTENTION_ADDED)`）。
+- Validation：`confirmedQty >= 0`（`400 INVALID_CONFIRMED_QTY`）。`confirmedQty > orderedQty`はErrorにせず、Response側で`CONFIRMED_QTY_EXCEEDS_ORDERED_QTY` Warning Codeを返す（要件MD 12章）。
+- Status：`AWAITING_SUPPLIER`のまま。
+
+### `POST /api/orders/{id}/supplier-response/confirm`（Implementation Step 4で確定）
+
+- `AWAITING_SUPPLIER`のみ許可（それ以外は`409 INVALID_STATUS_TRANSITION` - 二重Confirmに対する冪等性の要）。
+- Validation：`[PROTOTYPE DECISION]`暫定完了条件は「非削除の全`supplier_response_detail`で`confirmedQty`が非null」のみ。`confirmedDelivery`は必須としない。未充足なら`400 SUPPLIER_RESPONSE_INCOMPLETE`。正式条件は`[TBD - CUSTOMER REVIEW]`（要件MD 27.4）。
+- 処理：`supplier_response.response_status: PARTIAL → CONFIRMED`、`portal_order.status: AWAITING_SUPPLIER → SUPPLIER_CONFIRMED`、`audit_event(SUPPLIER_RESPONSE_RECEIVED)` + `audit_event(STATUS_CHANGED)`を同一Transactionで記録。
 
 ---
 
@@ -611,10 +627,10 @@ Step B: 取得したSnapshotを引数に、Prototype側の書込みトランザ�
 | Save Draft | portal_order/detail UPDATE + audit_event(ORDER_QTY_CHANGED等、変更フィールドごと) |
 | Confirm Order | status更新 + prototype_po_no採番（初回のみ、既存値があれば再利用） + audit_event(ORDER_READY, STATUS_CHANGED) |
 | Return to Draft | status更新（prototype_po_noは変更しない） + audit_event(STATUS_CHANGED, ORDER_RETURNED_TO_DRAFT) |
-| Demo Send | status更新(SENT→AWAITING_SUPPLIER 一括) + audit_event(DEMO_SENT, STATUS_CHANGED) |
-| Save Supplier Response | supplier_response upsert + order_attention upsert + audit_event(複数) |
-| Confirm Supplier Response | response_status更新 + portal_order.status更新 + audit_event(複数) |
-| Acknowledge Attention | order_attention更新 + audit_event(ATTENTION_RESOLVED) |
+| Demo Send | status更新(READY_TO_ORDER→SENT→AWAITING_SUPPLIER) + supplier_response/supplier_response_detail初期化 + audit_event(STATUS_CHANGED×2, DEMO_SENT) |
+| Save Supplier Response | supplier_response_detail更新（差分がある行のみ） + order_attention作成/自動解消（重複防止） + audit_event(変更フィールドごとにQUANTITY_CHANGED/DELIVERY_CHANGED、ATTENTION_ADDED/ATTENTION_RESOLVED) |
+| Confirm Supplier Response | supplier_response.response_status更新 + portal_order.status更新 + audit_event(SUPPLIER_RESPONSE_RECEIVED, STATUS_CHANGED) |
+| Acknowledge Attention | `[Step 4未実装]` order_attention更新 + audit_event(ATTENTION_RESOLVED) - Core Workflow完成を優先し9/17は見送り |
 
 ---
 

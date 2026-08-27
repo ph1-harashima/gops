@@ -4,5 +4,7 @@
   "loading": "読み込み中...",
   "errorGeneric": "データの取得に失敗しました。時間をおいて再度お試しください。",
   "retry": "再読み込み",
-  "logout": "ログアウト"
+  "logout": "ログアウト",
+  "navCandidates": "発注候補",
+  "navHistory": "発注履歴"
 }

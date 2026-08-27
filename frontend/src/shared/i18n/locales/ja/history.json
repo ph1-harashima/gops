@@ -1,0 +1,52 @@
+{
+  "listTitle": "発注履歴",
+  "backToList": "履歴一覧へ戻る",
+  "notFound": "指定された発注が見つかりませんでした。",
+  "filter": {
+    "supplier": "メーカー",
+    "brand": "ブランド",
+    "status": "Status",
+    "all": "すべて"
+  },
+  "table": {
+    "poNo": "PO No.",
+    "orderDate": "発注日",
+    "supplier": "メーカー",
+    "brand": "ブランド",
+    "skuCount": "SKU数",
+    "totalOrderedQty": "発注数量合計",
+    "totalAmount": "発注金額",
+    "status": "Status",
+    "attention": "確認事項",
+    "updatedAt": "更新日時"
+  },
+  "empty": "該当する発注が見つかりませんでした。",
+  "resultCount": "{{count}}件の発注",
+  "detailTitle": "発注詳細",
+  "detail": {
+    "supplier": "メーカー",
+    "brand": "ブランド",
+    "orderDate": "発注日",
+    "requestedDelivery": "希望納期",
+    "currency": "通貨",
+    "remark": "備考",
+    "totalQty": "合計数量",
+    "totalAmount": "合計金額"
+  },
+  "detailTable": {
+    "sku": "SKU",
+    "itemName": "商品名",
+    "recommendedQty": "推奨発注数",
+    "orderedQty": "発注数量",
+    "confirmedQty": "回答数量",
+    "requestedDelivery": "希望納期",
+    "confirmedDelivery": "回答納期",
+    "attention": "確認事項"
+  },
+  "notAvailable": "—",
+  "goToSupplierResponse": "メーカー回答画面へ",
+  "goToPreview": "PO プレビューへ",
+  "timelineTitle": "履歴（Audit Timeline）",
+  "timelineEmpty": "履歴がありません。",
+  "timelineFieldOldNew": "{{old}} → {{new}}"
+}

@@ -2,6 +2,7 @@ package com.glv.gsysportal.service;
 
 import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.PortalOrder;
+import com.glv.gsysportal.domain.SupplierResponse;
 import com.glv.gsysportal.dto.request.CreateDraftRequest;
 import com.glv.gsysportal.dto.response.OrderDraftResponse;
 import com.glv.gsysportal.exception.DraftNotFoundException;
@@ -9,6 +10,7 @@ import com.glv.gsysportal.exception.InvalidStatusTransitionException;
 import com.glv.gsysportal.exception.NoOrderableItemsException;
 import com.glv.gsysportal.exception.OrderNotEditableException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
+import com.glv.gsysportal.repository.prototype.SupplierResponseRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,6 +47,8 @@ class OrderStatusTransitionServiceIntegrationTest {
     private OrderStatusTransitionService statusTransitionService;
     @Autowired
     private AuditEventRepository auditEventRepository;
+    @Autowired
+    private SupplierResponseRepository supplierResponseRepository;
 
     private OrderDraftResponse createDraft(String... skus) {
         return orderDraftService.createDraft(new CreateDraftRequest(List.of(skus), null, null, null), "tester01");
@@ -174,5 +178,76 @@ class OrderStatusTransitionServiceIntegrationTest {
         );
 
         assertEquals("editable again", updated.remark());
+    }
+
+    // ---- Demo Send (implementation instructions 3章/4章/5章) --------------
+
+    private PortalOrder createReadyToOrderOrder(String... skus) {
+        OrderDraftResponse draft = createDraft(skus);
+        return statusTransitionService.confirm(draft.id(), "tester01");
+    }
+
+    @Test
+    void demoSendTransitionsReadyToOrderToAwaitingSupplier() {
+        PortalOrder ready = createReadyToOrderOrder(SKU_TENT_1);
+
+        PortalOrder sent = statusTransitionService.demoSend(ready.getId(), "tester01");
+
+        assertEquals(PortalOrder.STATUS_AWAITING_SUPPLIER, sent.getStatus(),
+                "user always sees the resting state, never the transient SENT status");
+    }
+
+    @Test
+    void demoSendWritesSentThenAwaitingSupplierAuditInOrder() {
+        PortalOrder ready = createReadyToOrderOrder(SKU_TENT_1);
+
+        statusTransitionService.demoSend(ready.getId(), "tester01");
+
+        List<AuditEvent> events = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(ready.getId());
+        List<AuditEvent> statusChanges = events.stream().filter(e -> e.getEventType().equals(AuditEvent.STATUS_CHANGED)).toList();
+        assertEquals(3, statusChanges.size(), "DRAFT->READY_TO_ORDER (Confirm) + READY_TO_ORDER->SENT + SENT->AWAITING_SUPPLIER");
+        assertEquals("READY_TO_ORDER", statusChanges.get(1).getOldValue());
+        assertEquals("SENT", statusChanges.get(1).getNewValue());
+        assertEquals("SENT", statusChanges.get(2).getOldValue());
+        assertEquals("AWAITING_SUPPLIER", statusChanges.get(2).getNewValue());
+        assertTrue(events.stream().anyMatch(e -> e.getEventType().equals(AuditEvent.DEMO_SENT)));
+    }
+
+    @Test
+    void demoSendOnNonReadyToOrderOrderIsRejected() {
+        OrderDraftResponse draft = createDraft(SKU_TENT_1); // still DRAFT
+
+        assertThrows(InvalidStatusTransitionException.class, () -> statusTransitionService.demoSend(draft.id(), "tester01"));
+    }
+
+    @Test
+    void duplicateDemoSendIsRejectedAndWritesNoExtraAudit() {
+        PortalOrder ready = createReadyToOrderOrder(SKU_TENT_1);
+        statusTransitionService.demoSend(ready.getId(), "tester01");
+        int eventsAfterFirstSend = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(ready.getId()).size();
+
+        assertThrows(InvalidStatusTransitionException.class, () -> statusTransitionService.demoSend(ready.getId(), "tester02"));
+
+        assertEquals(eventsAfterFirstSend, auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(ready.getId()).size(),
+                "rejected duplicate Demo Send must not write any Audit rows");
+    }
+
+    @Test
+    void demoSendInitializesSupplierResponseWithOrderedQtySnapshotAndNullConfirmedQty() {
+        PortalOrder ready = createReadyToOrderOrder(SKU_TENT_1);
+
+        statusTransitionService.demoSend(ready.getId(), "tester01");
+
+        SupplierResponse response = supplierResponseRepository.findByPortalOrderId(ready.getId()).orElseThrow();
+        assertEquals(SupplierResponse.STATUS_PARTIAL, response.getResponseStatus());
+        assertEquals(1, response.getDetails().size());
+        var detail = response.getDetails().get(0);
+        assertEquals(3, detail.getOrderedQty(), "ordered_qty snapshot must equal order_qty at Demo Send time");
+        assertEquals(null, detail.getConfirmedQty(), "confirmedQty starts unanswered (null), never 0");
+    }
+
+    @Test
+    void demoSendOnUnknownOrderThrowsNotFound() {
+        assertThrows(DraftNotFoundException.class, () -> statusTransitionService.demoSend(-1L, "tester01"));
     }
 }

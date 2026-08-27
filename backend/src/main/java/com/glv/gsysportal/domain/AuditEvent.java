@@ -39,6 +39,22 @@ public class AuditEvent {
      * pairing above. */
     public static final String ORDER_RETURNED_TO_DRAFT = "ORDER_RETURNED_TO_DRAFT";
 
+    // --- Step 4 ---
+    /** Demo Send (implementation instructions 4章): written once per Demo
+     * Send, alongside two STATUS_CHANGED rows (READY_TO_ORDER->SENT and
+     * SENT->AWAITING_SUPPLIER) in the same transaction. */
+    public static final String DEMO_SENT = "DEMO_SENT";
+    /** Supplier Response confirmed (implementation instructions 21章). */
+    public static final String SUPPLIER_RESPONSE_RECEIVED = "SUPPLIER_RESPONSE_RECEIVED";
+    /** confirmedQty changed on a line (old/new = previous/new confirmedQty,
+     * as strings - "null" is a valid old_value meaning "was not yet
+     * answered", implementation instructions 12章/16章). */
+    public static final String QUANTITY_CHANGED = "QUANTITY_CHANGED";
+    /** confirmedDelivery changed on a line (implementation instructions 13章). */
+    public static final String DELIVERY_CHANGED = "DELIVERY_CHANGED";
+    public static final String ATTENTION_ADDED = "ATTENTION_ADDED";
+    public static final String ATTENTION_RESOLVED = "ATTENTION_RESOLVED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -73,4 +73,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleOrderNotEditable(OrderNotEditableException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "ORDER_NOT_EDITABLE"));
     }
+
+    @ExceptionHandler(InvalidConfirmedQtyException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidConfirmedQty(InvalidConfirmedQtyException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_CONFIRMED_QTY"));
+    }
+
+    @ExceptionHandler(SupplierResponseIncompleteException.class)
+    public ResponseEntity<Map<String, Object>> handleSupplierResponseIncomplete(SupplierResponseIncompleteException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "SUPPLIER_RESPONSE_INCOMPLETE"));
+    }
 }

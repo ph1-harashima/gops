@@ -35,7 +35,8 @@ class PrototypeFlywayMigrationTest {
         List<String> versions = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank", String.class);
         // V6 (Step 3): prototype_po_no_seq + ORDER_RETURNED_TO_DRAFT event type.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6"), versions);
+        // V7 (Step 4): supplier_response / supplier_response_detail / order_attention.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7"), versions);
     }
 
     @Test
@@ -43,7 +44,8 @@ class PrototypeFlywayMigrationTest {
         JdbcTemplate jdbc = new JdbcTemplate(prototypeDataSource);
         List<String> tables = jdbc.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name", String.class);
-        for (String expected : List.of("portal_order", "portal_order_detail", "audit_event", "portal_user")) {
+        for (String expected : List.of("portal_order", "portal_order_detail", "audit_event", "portal_user",
+                "supplier_response", "supplier_response_detail", "order_attention")) {
             assertTrue(tables.contains(expected), "Expected table missing: " + expected + ", got: " + tables);
         }
     }

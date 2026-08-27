@@ -2,10 +2,14 @@ package com.glv.gsysportal.service;
 
 import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.PortalOrder;
+import com.glv.gsysportal.domain.PortalOrderDetail;
+import com.glv.gsysportal.domain.SupplierResponse;
+import com.glv.gsysportal.domain.SupplierResponseDetail;
 import com.glv.gsysportal.exception.DraftNotFoundException;
 import com.glv.gsysportal.exception.InvalidStatusTransitionException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import com.glv.gsysportal.repository.prototype.SupplierResponseRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,15 +31,18 @@ public class OrderStatusTransitionService {
 
     private final PortalOrderRepository portalOrderRepository;
     private final AuditEventRepository auditEventRepository;
+    private final SupplierResponseRepository supplierResponseRepository;
     private final PoPreviewValidator validator;
     private final PrototypePoNoGenerator poNoGenerator;
 
     public OrderStatusTransitionService(PortalOrderRepository portalOrderRepository,
                                          AuditEventRepository auditEventRepository,
+                                         SupplierResponseRepository supplierResponseRepository,
                                          PoPreviewValidator validator,
                                          PrototypePoNoGenerator poNoGenerator) {
         this.portalOrderRepository = portalOrderRepository;
         this.auditEventRepository = auditEventRepository;
+        this.supplierResponseRepository = supplierResponseRepository;
         this.validator = validator;
         this.poNoGenerator = poNoGenerator;
     }
@@ -119,5 +126,75 @@ public class OrderStatusTransitionService {
         ));
 
         return saved;
+    }
+
+    /**
+     * READY_TO_ORDER -> SENT -> AWAITING_SUPPLIER, all in one transaction
+     * (implementation instructions 3章/4章). SENT is persisted as a genuine
+     * intermediate Status for Audit/History accuracy, but the user is always
+     * shown the resting state AWAITING_SUPPLIER - no caller ever observes an
+     * Order sitting in SENT. No real email is ever sent; nothing in this
+     * method touches any mail transport (implementation instructions 3章).
+     *
+     * Also initializes the Supplier Response aggregate ({@link SupplierResponse}
+     * + one {@link SupplierResponseDetail} per non-removed line) here, at the
+     * one point where "what the Supplier was actually told" needs to be
+     * Snapshotted (orderedQty/requestedDelivery), since Save Supplier
+     * Response (implementation instructions 10章) only ever updates the
+     * Supplier's answer, never these Original values.
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public PortalOrder demoSend(Long id, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
+
+        if (!PortalOrder.STATUS_READY_TO_ORDER.equals(order.getStatus())) {
+            throw new InvalidStatusTransitionException(order.getStatus(), PortalOrder.STATUS_READY_TO_ORDER);
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        List<AuditEvent> events = new ArrayList<>();
+
+        events.add(new AuditEvent(order.getId(), null, AuditEvent.STATUS_CHANGED, "status",
+                PortalOrder.STATUS_READY_TO_ORDER, PortalOrder.STATUS_SENT, performedBy, now));
+        events.add(new AuditEvent(order.getId(), null, AuditEvent.DEMO_SENT, null, null, null, performedBy, now));
+        events.add(new AuditEvent(order.getId(), null, AuditEvent.STATUS_CHANGED, "status",
+                PortalOrder.STATUS_SENT, PortalOrder.STATUS_AWAITING_SUPPLIER, performedBy, now));
+
+        order.setStatus(PortalOrder.STATUS_AWAITING_SUPPLIER);
+        order.setUpdatedBy(performedBy);
+        order.setUpdatedAt(now);
+
+        initializeSupplierResponse(order, now);
+
+        PortalOrder saved = portalOrderRepository.save(order);
+        auditEventRepository.saveAll(events);
+
+        return saved;
+    }
+
+    private void initializeSupplierResponse(PortalOrder order, OffsetDateTime now) {
+        SupplierResponse response = new SupplierResponse();
+        response.setPortalOrderId(order.getId());
+        response.setResponseStatus(SupplierResponse.STATUS_PARTIAL);
+        response.setCreatedAt(now);
+        response.setUpdatedAt(now);
+
+        for (PortalOrderDetail line : order.getDetails()) {
+            if (line.isRemoved()) {
+                continue;
+            }
+            SupplierResponseDetail detail = new SupplierResponseDetail();
+            detail.setSupplierResponse(response);
+            detail.setPortalOrderDetail(line);
+            // Original values the Supplier was actually told - snapshotted
+            // here, once, and never changed afterwards.
+            detail.setOrderedQty(line.getOrderQty());
+            detail.setRequestedDelivery(order.getRequestedDelivery());
+            detail.setCreatedAt(now);
+            detail.setUpdatedAt(now);
+            response.getDetails().add(detail);
+        }
+
+        supplierResponseRepository.save(response);
     }
 }

@@ -23,7 +23,7 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogContentText from '@mui/material/DialogContentText'
 import DialogActions from '@mui/material/DialogActions'
 
-import { usePoPreview, useConfirmOrder, useReturnToDraft } from './poPreviewApi'
+import { usePoPreview, useConfirmOrder, useReturnToDraft, useDemoSend } from './poPreviewApi'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
 
@@ -52,7 +52,9 @@ export function PoPreviewPage() {
   const { data: preview, isLoading, isError, error, refetch } = usePoPreview(draftId)
   const confirmMutation = useConfirmOrder(draftId)
   const returnMutation = useReturnToDraft(draftId)
+  const demoSendMutation = useDemoSend(draftId)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [demoSendDialogOpen, setDemoSendDialogOpen] = useState(false)
 
   function handleEditOrder() {
     if (preview?.status === 'DRAFT') {
@@ -70,6 +72,20 @@ export function PoPreviewPage() {
   function handleConfirmOrder() {
     confirmMutation.mutate(undefined, {
       onSuccess: () => setConfirmDialogOpen(false),
+    })
+  }
+
+  function handleDemoSend() {
+    demoSendMutation.mutate(undefined, {
+      onSuccess: () => {
+        setDemoSendDialogOpen(false)
+        // AWAITING_SUPPLIER is outside Preview's Status scope (DRAFT/
+        // READY_TO_ORDER only - implementation instructions 1章), so unlike
+        // Confirm Order this screen cannot just stay and re-fetch - move on
+        // to Supplier Response, the natural next screen, carrying the
+        // success message implementation instructions 6章 asks for.
+        navigate(`/orders/${draftId}/supplier-response`, { state: { demoSendSuccess: true } })
+      },
     })
   }
 
@@ -143,6 +159,20 @@ export function PoPreviewPage() {
           {t('returnToDraftFailed')}
         </Alert>
       )}
+      {demoSendMutation.isSuccess && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {t('demoSendSuccess')}
+        </Alert>
+      )}
+      {demoSendMutation.isError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {(() => {
+            const code = errorCodeOf(demoSendMutation.error)
+            if (code === 'INVALID_STATUS_TRANSITION') return t('errorInvalidStatusTransition')
+            return t('demoSendFailed')
+          })()}
+        </Alert>
+      )}
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" spacing={4} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
@@ -214,9 +244,11 @@ export function PoPreviewPage() {
       <Divider sx={{ my: 2 }} />
 
       <Stack direction="row" spacing={2}>
-        <Button variant="outlined" onClick={handleEditOrder} disabled={returnMutation.isPending}>
-          {returnMutation.isPending ? <CircularProgress size={20} /> : t('editOrder')}
-        </Button>
+        {(preview.status === 'DRAFT' || preview.status === 'READY_TO_ORDER') && (
+          <Button variant="outlined" onClick={handleEditOrder} disabled={returnMutation.isPending}>
+            {returnMutation.isPending ? <CircularProgress size={20} /> : t('editOrder')}
+          </Button>
+        )}
         {preview.status === 'DRAFT' && (
           <Button
             variant="contained"
@@ -224,6 +256,21 @@ export function PoPreviewPage() {
             disabled={confirmMutation.isPending}
           >
             {t('confirmOrder')}
+          </Button>
+        )}
+        {preview.status === 'READY_TO_ORDER' && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => setDemoSendDialogOpen(true)}
+            disabled={demoSendMutation.isPending}
+          >
+            {demoSendMutation.isPending ? <CircularProgress size={20} /> : t('demoSend')}
+          </Button>
+        )}
+        {(preview.status === 'AWAITING_SUPPLIER' || preview.status === 'SUPPLIER_CONFIRMED') && (
+          <Button variant="contained" onClick={() => navigate(`/orders/${draftId}/supplier-response`)}>
+            {t('goToSupplierResponse')}
           </Button>
         )}
       </Stack>
@@ -239,6 +286,21 @@ export function PoPreviewPage() {
           </Button>
           <Button variant="contained" onClick={handleConfirmOrder} disabled={confirmMutation.isPending}>
             {confirmMutation.isPending ? <CircularProgress size={20} /> : t('confirmDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={demoSendDialogOpen} onClose={() => setDemoSendDialogOpen(false)}>
+        <DialogTitle>{t('demoSendDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('demoSendDialogBody')}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDemoSendDialogOpen(false)} disabled={demoSendMutation.isPending}>
+            {t('demoSendDialogCancel')}
+          </Button>
+          <Button variant="contained" onClick={handleDemoSend} disabled={demoSendMutation.isPending}>
+            {demoSendMutation.isPending ? <CircularProgress size={20} /> : t('demoSendDialogConfirm')}
           </Button>
         </DialogActions>
       </Dialog>
