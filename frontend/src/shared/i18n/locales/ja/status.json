@@ -42,6 +42,6 @@
     "QUANTITY_CHANGED": "回答数量変更",
     "DELIVERY_CHANGED": "回答納期変更",
     "ATTENTION_ADDED": "確認事項の発生",
-    "ATTENTION_RESOLVED": "確認事項の解消"
+    "ATTENTION_RESOLVED": "差異を確認済み"
   }
 }

@@ -42,6 +42,6 @@
     "QUANTITY_CHANGED": "Confirmed Quantity Changed",
     "DELIVERY_CHANGED": "Confirmed Delivery Changed",
     "ATTENTION_ADDED": "Attention Raised",
-    "ATTENTION_RESOLVED": "Attention Resolved"
+    "ATTENTION_RESOLVED": "Difference Acknowledged"
   }
 }
