@@ -36,7 +36,7 @@
     "REMARK_CHANGED": "備考変更",
     "ORDER_READY": "発注内容確定（PO番号採番）",
     "ORDER_RETURNED_TO_DRAFT": "下書きへ差し戻し",
-    "STATUS_CHANGED": "Status変更",
+    "STATUS_CHANGED": "ステータス変更",
     "DEMO_SENT": "デモ送信",
     "SUPPLIER_RESPONSE_RECEIVED": "メーカー回答確定",
     "QUANTITY_CHANGED": "回答数量変更",

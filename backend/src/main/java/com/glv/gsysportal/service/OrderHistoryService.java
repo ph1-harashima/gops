@@ -1,5 +1,6 @@
 package com.glv.gsysportal.service;
 
+import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.OrderAttention;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.PortalOrderDetail;
@@ -9,15 +10,18 @@ import com.glv.gsysportal.dto.response.AuditEventView;
 import com.glv.gsysportal.dto.response.OrderHistoryDetailLineView;
 import com.glv.gsysportal.dto.response.OrderHistoryDetailResponse;
 import com.glv.gsysportal.dto.response.OrderHistorySummaryResponse;
+import com.glv.gsysportal.domain.PortalUser;
 import com.glv.gsysportal.exception.DraftNotFoundException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OrderAttentionRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import com.glv.gsysportal.repository.prototype.PortalUserRepository;
 import com.glv.gsysportal.repository.prototype.SupplierResponseRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -35,15 +39,18 @@ public class OrderHistoryService {
     private final SupplierResponseRepository supplierResponseRepository;
     private final OrderAttentionRepository orderAttentionRepository;
     private final AuditEventRepository auditEventRepository;
+    private final PortalUserRepository portalUserRepository;
 
     public OrderHistoryService(PortalOrderRepository portalOrderRepository,
                                 SupplierResponseRepository supplierResponseRepository,
                                 OrderAttentionRepository orderAttentionRepository,
-                                AuditEventRepository auditEventRepository) {
+                                AuditEventRepository auditEventRepository,
+                                PortalUserRepository portalUserRepository) {
         this.portalOrderRepository = portalOrderRepository;
         this.supplierResponseRepository = supplierResponseRepository;
         this.orderAttentionRepository = orderAttentionRepository;
         this.auditEventRepository = auditEventRepository;
+        this.portalUserRepository = portalUserRepository;
     }
 
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
@@ -93,10 +100,26 @@ public class OrderHistoryService {
         if (!portalOrderRepository.existsById(id)) {
             throw new DraftNotFoundException(id);
         }
-        return auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(id).stream()
+        List<AuditEvent> rows = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(id);
+
+        // i18n localization audit: resolve each event's performedBy (Login
+        // ID, as persisted - never rewritten) to the current
+        // portal_user.display_name for READ-time display only. One lookup
+        // per distinct Login ID in this Timeline, not per row.
+        // (Collectors.toMap rejects null values, and no matching portal_user
+        // - e.g. a since-removed account - is an expected case here, so this
+        // builds the map manually instead.)
+        Map<String, String> displayNameByUsername = new HashMap<>();
+        rows.stream().map(AuditEvent::getPerformedBy).distinct().forEach(username ->
+                displayNameByUsername.put(username, portalUserRepository.findByUsername(username)
+                        .map(PortalUser::getDisplayName)
+                        .orElse(null)));
+
+        return rows.stream()
                 .map(e -> new AuditEventView(
                         e.getEventType(), e.getPortalOrderDetailId(), e.getFieldName(),
-                        e.getOldValue(), e.getNewValue(), e.getPerformedBy(), e.getPerformedAt()))
+                        e.getOldValue(), e.getNewValue(), e.getPerformedBy(),
+                        displayNameByUsername.get(e.getPerformedBy()), e.getPerformedAt()))
                 .toList();
     }
 

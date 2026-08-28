@@ -57,5 +57,9 @@ export interface AuditEventItem {
   oldValue: string | null
   newValue: string | null
   performedBy: string
+  /** Read-time lookup of performedBy's current display name; null if no
+   * matching portal_user account exists (e.g. removed account) - fall back
+   * to performedBy (the Login ID) for display in that case. */
+  performedByDisplayName: string | null
   performedAt: string
 }

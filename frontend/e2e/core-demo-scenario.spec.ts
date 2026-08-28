@@ -113,7 +113,7 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Confirm -> Demo Send 
   await expect(page).toHaveURL(new RegExp(`/orders/${draftId}$`))
 
   // ---- Timeline確認 ----
-  await expect(page.getByText('履歴（Audit Timeline）')).toBeVisible()
+  await expect(page.getByText('操作履歴')).toBeVisible()
   await expect(page.getByText('ドラフト作成')).toBeVisible()
   await expect(page.getByText('発注内容確定（PO番号採番）')).toBeVisible()
   await expect(page.getByText('デモ送信')).toBeVisible()

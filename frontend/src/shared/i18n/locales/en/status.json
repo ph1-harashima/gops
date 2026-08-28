@@ -1,0 +1,47 @@
+{
+  "itemStatus": {
+    "NEW": "New",
+    "DISCON": "Discontinued",
+    "DISCON_STK": "Discontinued (In Stock)",
+    "ON_HOLD": "On Hold",
+    "RETURNIDw/opage": "Listing Withheld"
+  },
+  "dataSource": {
+    "DEMO_LEGACY": "Demo Data (Legacy-compatible)",
+    "LEGACY": "Legacy Live Data"
+  },
+  "orderStatus": {
+    "DRAFT": "Draft",
+    "READY_TO_ORDER": "Ready to Order",
+    "SENT": "Sent",
+    "AWAITING_SUPPLIER": "Awaiting Supplier Response",
+    "SUPPLIER_CONFIRMED": "Supplier Confirmed"
+  },
+  "attentionType": {
+    "QUANTITY_CHANGED": "Quantity Changed",
+    "DELIVERY_CHANGED": "Delivery Changed",
+    "PARTIAL_CONFIRMATION": "Partially Answered",
+    "DATA_OUTDATED": "Data Update Needed",
+    "OTHER_ATTENTION": "Needs Attention"
+  },
+  "warningCode": {
+    "CONFIRMED_QTY_EXCEEDS_ORDERED_QTY": "Confirmed quantity exceeds ordered quantity"
+  },
+  "acknowledgeAttention": "Mark as Acknowledged",
+  "eventType": {
+    "ORDER_DRAFT_CREATED": "Draft Created",
+    "ORDER_QTY_CHANGED": "Order Quantity Changed",
+    "ORDER_DATE_CHANGED": "Order Date Changed",
+    "REQUESTED_DELIVERY_CHANGED": "Requested Delivery Changed",
+    "REMARK_CHANGED": "Remark Changed",
+    "ORDER_READY": "Order Confirmed (PO Number Assigned)",
+    "ORDER_RETURNED_TO_DRAFT": "Returned to Draft",
+    "STATUS_CHANGED": "Status Changed",
+    "DEMO_SENT": "Demo Sent",
+    "SUPPLIER_RESPONSE_RECEIVED": "Supplier Response Confirmed",
+    "QUANTITY_CHANGED": "Confirmed Quantity Changed",
+    "DELIVERY_CHANGED": "Confirmed Delivery Changed",
+    "ATTENTION_ADDED": "Attention Raised",
+    "ATTENTION_RESOLVED": "Attention Resolved"
+  }
+}

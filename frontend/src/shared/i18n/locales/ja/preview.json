@@ -13,6 +13,7 @@
   "requestedDelivery": "希望納期",
   "currency": "通貨",
   "remark": "備考",
+  "demoModeChip": "デモモード",
   "prototypePoNo": "Prototype PO No.",
   "prototypePoNoUnassigned": "未採番",
   "statusDraft": "下書き",

@@ -18,6 +18,25 @@ import Divider from '@mui/material/Divider'
 import { useOrderHistoryDetail, useOrderEvents } from './api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
+import type { TFunction } from 'i18next'
+
+/** Audit Timeline i18n audit: oldValue/newValue are raw strings on the wire
+ * for every event type (implementation instructions - internal Code exposure
+ * audit). Only two (fieldName, value) shapes are actually Codes that need
+ * translating - "status" (Workflow Status: DRAFT/READY_TO_ORDER/...) and
+ * "attentionType" (QUANTITY_CHANGED/DELIVERY_CHANGED/PARTIAL_CONFIRMATION/...)
+ * - both verified against the actual AuditEvent construction sites in
+ * OrderStatusTransitionService/SupplierResponseService/AttentionService.
+ * Every other fieldName (orderQty/confirmedQty/orderDate/remark/
+ * confirmedDelivery/prototypePoNo/draftNo/...) is a genuine data value
+ * (a number, a date, free text, an identifier) and must never be routed
+ * through a Code i18n table - it is rendered as-is. */
+function resolveTimelineValue(t: TFunction, fieldName: string | null, value: string | null): string | null {
+  if (value === null) return null
+  if (fieldName === 'status') return t(`status:orderStatus.${value}`, { defaultValue: value })
+  if (fieldName === 'attentionType') return t(`status:attentionType.${value}`, { defaultValue: value })
+  return value
+}
 
 /** READ ONLY (Requirements MD 31.2) - no Save/Edit control anywhere on this
  * screen. Edits go through the Draft / Supplier Response screens only,
@@ -136,11 +155,14 @@ export function OrderHistoryDetailPage() {
                 </Typography>
                 {(e.oldValue !== null || e.newValue !== null) && (
                   <Typography variant="body2" color="text.secondary">
-                    {t('timelineFieldOldNew', { old: e.oldValue ?? t('notAvailable'), new: e.newValue ?? t('notAvailable') })}
+                    {t('timelineFieldOldNew', {
+                      old: resolveTimelineValue(t, e.fieldName, e.oldValue) ?? t('notAvailable'),
+                      new: resolveTimelineValue(t, e.fieldName, e.newValue) ?? t('notAvailable'),
+                    })}
                   </Typography>
                 )}
                 <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                  {e.performedBy} - {new Date(e.performedAt).toLocaleString('ja-JP')}
+                  {e.performedByDisplayName ?? e.performedBy} - {new Date(e.performedAt).toLocaleString('ja-JP')}
                 </Typography>
               </Stack>
             </Paper>

@@ -12,6 +12,8 @@ import jaHistory from './locales/ja/history.json'
 import jaDashboard from './locales/ja/dashboard.json'
 import jaSkuDetail from './locales/ja/skuDetail.json'
 import enCommon from './locales/en/common.json'
+import enStatus from './locales/en/status.json'
+import enHistory from './locales/en/history.json'
 
 // Japanese is the initial display language (Requirements MD 28.1).
 // Display text is never hardcoded into React components - it always comes
@@ -34,6 +36,8 @@ void i18n.use(initReactI18next).init({
     },
     en: {
       common: enCommon,
+      status: enStatus,
+      history: enHistory,
     },
   },
   interpolation: {

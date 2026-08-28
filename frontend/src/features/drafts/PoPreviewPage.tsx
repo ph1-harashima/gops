@@ -135,7 +135,7 @@ export function PoPreviewPage() {
           {t('title')} - {preview.draftNo}
         </Typography>
         <OrderStatusChip status={preview.status} />
-        <Chip size="small" variant="outlined" color="info" label="Demo Mode" />
+        <Chip size="small" variant="outlined" color="info" label={t('demoModeChip')} />
       </Stack>
 
       {confirmMutation.isSuccess && (

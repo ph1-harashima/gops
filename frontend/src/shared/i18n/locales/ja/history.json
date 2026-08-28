@@ -46,7 +46,7 @@
   "notAvailable": "—",
   "goToSupplierResponse": "メーカー回答画面へ",
   "goToPreview": "PO プレビューへ",
-  "timelineTitle": "履歴（Audit Timeline）",
+  "timelineTitle": "操作履歴",
   "timelineEmpty": "履歴がありません。",
   "timelineFieldOldNew": "{{old}} → {{new}}"
 }

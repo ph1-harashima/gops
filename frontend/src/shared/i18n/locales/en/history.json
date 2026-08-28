@@ -1,0 +1,52 @@
+{
+  "listTitle": "Order History",
+  "backToList": "Back to History List",
+  "notFound": "The requested order could not be found.",
+  "filter": {
+    "supplier": "Supplier",
+    "brand": "Brand",
+    "status": "Status",
+    "all": "All"
+  },
+  "table": {
+    "poNo": "PO No.",
+    "orderDate": "Order Date",
+    "supplier": "Supplier",
+    "brand": "Brand",
+    "skuCount": "SKU Count",
+    "totalOrderedQty": "Total Ordered Qty",
+    "totalAmount": "Total Amount",
+    "status": "Status",
+    "attention": "Attention",
+    "updatedAt": "Updated At"
+  },
+  "empty": "No matching orders found.",
+  "resultCount": "{{count}} order(s)",
+  "detailTitle": "Order Detail",
+  "detail": {
+    "supplier": "Supplier",
+    "brand": "Brand",
+    "orderDate": "Order Date",
+    "requestedDelivery": "Requested Delivery",
+    "currency": "Currency",
+    "remark": "Remark",
+    "totalQty": "Total Qty",
+    "totalAmount": "Total Amount"
+  },
+  "detailTable": {
+    "sku": "SKU",
+    "itemName": "Item Name",
+    "recommendedQty": "Recommended Qty",
+    "orderedQty": "Ordered Qty",
+    "confirmedQty": "Confirmed Qty",
+    "requestedDelivery": "Requested Delivery",
+    "confirmedDelivery": "Confirmed Delivery",
+    "attention": "Attention"
+  },
+  "notAvailable": "—",
+  "goToSupplierResponse": "Go to Supplier Response",
+  "goToPreview": "Go to PO Preview",
+  "timelineTitle": "Activity History",
+  "timelineEmpty": "No history yet.",
+  "timelineFieldOldNew": "{{old}} → {{new}}"
+}
