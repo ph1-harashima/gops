@@ -130,5 +130,21 @@
     },
     "errorForbidden": "You do not have permission to perform this action.",
     "errorGeneric": "The operation failed."
+  },
+  "revisionHistory": {
+    "title": "Order Revision History",
+    "revisionLabel": "Revision {{no}}",
+    "reasonLabel": "Correction Reason",
+    "type": {
+      "INITIAL": "Initial Send",
+      "CORRECTION": "Correction"
+    }
+  },
+  "responseHistory": {
+    "title": "Supplier Response History",
+    "revisionLabel": "Revision {{no}}",
+    "current": "current",
+    "agreedBy": "Agreed by {{by}}",
+    "reopenedBy": "Reopened by {{by}}"
   }
 }

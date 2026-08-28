@@ -26,6 +26,7 @@
     "requestedDelivery": "希望納期",
     "confirmedDelivery": "回答納期",
     "responseNote": "回答理由・メモ",
+    "supplyStatus": "供給状況",
     "attention": "確認事項"
   },
   "unanswered": "未回答",
@@ -44,5 +45,49 @@
   "confirmDialogTitle": "メーカー回答を確定しますか？",
   "confirmDialogBody": "全SKUの回答を確定します。確定後は編集できません。",
   "confirmDialogCancel": "キャンセル",
-  "confirmDialogConfirm": "確定する"
+  "confirmDialogConfirm": "確定する",
+  "differences": {
+    "title": "差異（発注内容 → 回答内容）",
+    "type": {
+      "QUANTITY_CHANGED": "数量変更",
+      "DELIVERY_CHANGED": "納期変更",
+      "UNANSWERED": "未回答"
+    }
+  },
+  "agreement": {
+    "title": "合意",
+    "agreeButton": "合意する",
+    "reopenButton": "合意を取り消す",
+    "adminOnlyIndicator": "この操作は管理者のみ行えます。",
+    "agreedInfo": "{{by}}が合意しました（{{at}}）。",
+    "agreeDialogTitle": "この内容で合意しますか？",
+    "agreeDialogBody": "メーカー回答の内容で合意します。発注内容（Revision）自体は変更されません。差異がある場合も、発注内容の履歴はそのまま保持されます。",
+    "forceAgreeLabel": "未確認の確認事項があっても合意する",
+    "agreeDialogCancel": "キャンセル",
+    "agreeDialogConfirm": "合意する",
+    "errorUnacknowledgedAttention": "未確認の確認事項があります。確認するか、「未確認の確認事項があっても合意する」を選択してください。",
+    "errorForbidden": "この操作を行う権限がありません。",
+    "errorGeneric": "処理に失敗しました。",
+    "reopenDialogTitle": "合意を取り消しますか？",
+    "reopenDialogBody": "取り消す場合は理由を入力してください（必須）。合意した記録自体は削除されず、履歴として保持されます。",
+    "reopenReasonInputLabel": "取り消し理由",
+    "reopenDialogCancel": "キャンセル",
+    "reopenDialogConfirm": "取り消す"
+  },
+  "revision": {
+    "createButton": "修正版を作成",
+    "errorReasonRequired": "修正理由を入力してください。",
+    "createDialogTitle": "修正版を作成しますか？",
+    "createDialogBody": "発注を下書きに戻し、修正できるようにします。現在の発注内容（Revision）はそのまま履歴として保持されます。",
+    "reasonInputLabel": "修正理由",
+    "applyConfirmedValuesLabel": "メーカー回答の回答数量を発注数量に反映する",
+    "createDialogCancel": "キャンセル",
+    "createDialogConfirm": "作成する"
+  },
+  "history": {
+    "title": "回答履歴（Revision別）",
+    "revisionLabel": "Revision {{no}}",
+    "current": "現在",
+    "agreedBy": "{{by}}が合意"
+  }
 }

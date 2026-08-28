@@ -64,7 +64,7 @@ class SupplierResponseServiceIntegrationTest {
     }
 
     private static SaveSupplierResponseRequest.LineUpdate line(Long detailId, Integer confirmedQty, LocalDate delivery) {
-        return new SaveSupplierResponseRequest.LineUpdate(detailId, confirmedQty, delivery, null);
+        return new SaveSupplierResponseRequest.LineUpdate(detailId, confirmedQty, delivery, null, null);
     }
 
     @Test

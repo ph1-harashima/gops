@@ -1,3 +1,93 @@
 {
-  "backToOrderDetail": "Back to Order Detail"
+  "title": "Supplier Response",
+  "backToOrderDetail": "Back to Order Detail",
+  "notFound": "The requested order could not be found.",
+  "errorInvalidOrderStatus": "The Supplier Response cannot be shown in the current Status.",
+  "errorGeneric": "The operation failed.",
+  "errorIncomplete": "Cannot confirm - some SKUs are still unanswered. Enter a confirmed quantity for every SKU.",
+  "errorInvalidStatusTransition": "This action cannot be performed in the current Status.",
+  "header": {
+    "prototypePoNo": "PO No.",
+    "supplier": "Supplier",
+    "brand": "Brand",
+    "orderDate": "Order Date",
+    "totalOrderedQty": "Total Ordered Qty",
+    "totalAmount": "Total Amount"
+  },
+  "responseHeader": {
+    "responseDate": "Response Date",
+    "responseNote": "Response Note"
+  },
+  "table": {
+    "sku": "SKU",
+    "itemName": "Item Name",
+    "orderedQty": "Ordered Qty",
+    "confirmedQty": "Confirmed Qty",
+    "requestedDelivery": "Requested Delivery",
+    "confirmedDelivery": "Confirmed Delivery",
+    "responseNote": "Response Note",
+    "supplyStatus": "Supply Status",
+    "attention": "Attention"
+  },
+  "unanswered": "Not Answered",
+  "summary": {
+    "title": "Response Status",
+    "answered": "Answered SKUs",
+    "quantityChanged": "Quantity-Changed SKUs",
+    "deliveryChanged": "Delivery-Changed SKUs",
+    "zeroQty": "Zero-Qty SKUs",
+    "unanswered": "Unanswered SKUs"
+  },
+  "saveResponse": "Save Response",
+  "saveSuccess": "Response saved.",
+  "saveFailed": "Save failed ({{code}}).",
+  "confirmResponse": "Confirm Supplier Response",
+  "confirmDialogTitle": "Confirm the Supplier Response?",
+  "confirmDialogBody": "Confirms every SKU's response. Cannot be edited afterwards.",
+  "confirmDialogCancel": "Cancel",
+  "confirmDialogConfirm": "Confirm",
+  "differences": {
+    "title": "Differences (Ordered → Response)",
+    "type": {
+      "QUANTITY_CHANGED": "Quantity Changed",
+      "DELIVERY_CHANGED": "Delivery Changed",
+      "UNANSWERED": "Unanswered"
+    }
+  },
+  "agreement": {
+    "title": "Agreement",
+    "agreeButton": "Agree",
+    "reopenButton": "Reopen Agreement",
+    "adminOnlyIndicator": "Only an Administrator can perform this action.",
+    "agreedInfo": "Agreed by {{by}} ({{at}}).",
+    "agreeDialogTitle": "Agree to this content?",
+    "agreeDialogBody": "Agrees to the Supplier Response as-is. The Order Revision itself is not changed - even if there is a difference, the Order's history is preserved exactly as it was.",
+    "forceAgreeLabel": "Agree even though some Attention is not yet acknowledged",
+    "agreeDialogCancel": "Cancel",
+    "agreeDialogConfirm": "Agree",
+    "errorUnacknowledgedAttention": "There is an unacknowledged Attention. Acknowledge it, or select \"Agree even though some Attention is not yet acknowledged\".",
+    "errorForbidden": "You do not have permission to perform this action.",
+    "errorGeneric": "The operation failed.",
+    "reopenDialogTitle": "Reopen this Agreement?",
+    "reopenDialogBody": "Please enter a reason to reopen (required). The original Agreement record is never deleted - it is preserved as history.",
+    "reopenReasonInputLabel": "Reopen Reason",
+    "reopenDialogCancel": "Cancel",
+    "reopenDialogConfirm": "Reopen"
+  },
+  "revision": {
+    "createButton": "Create Corrected Version",
+    "errorReasonRequired": "Please enter a reason for the correction.",
+    "createDialogTitle": "Create a corrected version?",
+    "createDialogBody": "Returns the Order to an editable Draft. The current Order Revision is preserved as history exactly as it is.",
+    "reasonInputLabel": "Correction Reason",
+    "applyConfirmedValuesLabel": "Apply the Supplier Response's confirmed quantities to the Order quantities",
+    "createDialogCancel": "Cancel",
+    "createDialogConfirm": "Create"
+  },
+  "history": {
+    "title": "Supplier Response History",
+    "revisionLabel": "Revision {{no}}",
+    "current": "current",
+    "agreedBy": "Agreed by {{by}}"
+  }
 }

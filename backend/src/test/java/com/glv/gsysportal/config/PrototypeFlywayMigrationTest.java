@@ -41,7 +41,10 @@ class PrototypeFlywayMigrationTest {
         // V9 (Phase 7-C2A): Official PO Integration foundation -
         // portal_order.official_po_no, official_po_integration_request.
         // V10 (Phase 7-C3): Supplier Contact / Mail Template foundation.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), versions);
+        // V11 (Phase 7-C5): Supplier Response Revision / Agreement Workflow -
+        // portal_order_revision(_detail), supplier_response.order_revision_id,
+        // supply_status, Agreement/Reopen fields, AGREED status.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"), versions);
     }
 
     @Test
@@ -50,7 +53,8 @@ class PrototypeFlywayMigrationTest {
         List<String> tables = jdbc.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name", String.class);
         for (String expected : List.of("portal_order", "portal_order_detail", "audit_event", "portal_user",
-                "supplier_response", "supplier_response_detail", "order_attention")) {
+                "supplier_response", "supplier_response_detail", "order_attention",
+                "portal_order_revision", "portal_order_revision_detail")) {
             assertTrue(tables.contains(expected), "Expected table missing: " + expected + ", got: " + tables);
         }
     }

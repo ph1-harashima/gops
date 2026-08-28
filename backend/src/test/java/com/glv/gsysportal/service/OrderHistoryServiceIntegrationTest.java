@@ -70,7 +70,7 @@ class OrderHistoryServiceIntegrationTest {
         PortalOrder sent = statusTransitionService.demoSend(ready.getId(), "tester01");
         Long detailId = supplierResponseService.getSupplierResponse(sent.getId()).details().get(0).detailId();
         supplierResponseService.saveSupplierResponse(sent.getId(),
-                new SaveSupplierResponseRequest(null, null, List.of(new SaveSupplierResponseRequest.LineUpdate(detailId, 2, null, null))),
+                new SaveSupplierResponseRequest(null, null, List.of(new SaveSupplierResponseRequest.LineUpdate(detailId, 2, null, null, null))),
                 "tester01");
 
         OrderHistoryDetailResponse detail = orderHistoryService.detail(sent.getId());

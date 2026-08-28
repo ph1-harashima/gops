@@ -22,12 +22,25 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogContentText from '@mui/material/DialogContentText'
 import DialogActions from '@mui/material/DialogActions'
 import Tooltip from '@mui/material/Tooltip'
+import MenuItem from '@mui/material/MenuItem'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Checkbox from '@mui/material/Checkbox'
 
-import { useSupplierResponse, useSaveSupplierResponse, useConfirmSupplierResponse } from './api'
+import {
+  useSupplierResponse, useSaveSupplierResponse, useConfirmSupplierResponse,
+  useAgreeResponse, useReopenAgreement, useCreateRevision, useResponseHistory,
+} from './api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
 import { withReturnTo } from '../../shared/navigation/returnTo'
+import { useAuth } from '../auth/AuthContext'
+import { ROLE_ADMIN } from '../../shared/types/auth'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
+
+/** Phase 7-C5 7章: candidate values, official per-value business definition
+ * remains [TBD - CUSTOMER REVIEW] (24章). '' (unselected) is rendered
+ * separately (t('unanswered')-equivalent), never added to this list. */
+const SUPPLY_STATUS_OPTIONS = ['AVAILABLE', 'OUT_OF_STOCK', 'LONG_TERM_OUT_OF_STOCK', 'DISCONTINUED', 'WAITING_FOR_ARRIVAL', 'UNKNOWN']
 
 function errorCodeOf(error: unknown): string | null {
   if (axios.isAxiosError<ApiErrorBody>(error)) {
@@ -40,6 +53,7 @@ interface LineEdit {
   confirmedQty: string // '' = null (not yet answered); otherwise a non-negative integer string
   confirmedDelivery: string
   responseNote: string
+  supplyStatus: string // '' = leave unchanged / not yet selected (never auto-inferred, 7-C5 7章)
 }
 
 export function SupplierResponsePage() {
@@ -60,13 +74,27 @@ export function SupplierResponsePage() {
   const backToOrderDetailTarget = withReturnTo(`/orders/${orderId}`, returnTo)
 
   const { data: response, isLoading, isError, error } = useSupplierResponse(orderId)
+  const { data: responseHistory } = useResponseHistory(orderId)
   const saveMutation = useSaveSupplierResponse(orderId)
   const confirmMutation = useConfirmSupplierResponse(orderId)
+  const agreeMutation = useAgreeResponse(orderId)
+  const reopenMutation = useReopenAgreement(orderId)
+  const createRevisionMutation = useCreateRevision(orderId)
+
+  const { user } = useAuth()
+  const isAdmin = user?.role === ROLE_ADMIN
 
   const [responseDate, setResponseDate] = useState('')
   const [responseNote, setResponseNote] = useState('')
   const [lines, setLines] = useState<Record<number, LineEdit>>({})
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [agreeDialogOpen, setAgreeDialogOpen] = useState(false)
+  const [forceAgree, setForceAgree] = useState(false)
+  const [reopenDialogOpen, setReopenDialogOpen] = useState(false)
+  const [reopenReason, setReopenReason] = useState('')
+  const [revisionDialogOpen, setRevisionDialogOpen] = useState(false)
+  const [revisionReason, setRevisionReason] = useState('')
+  const [applyConfirmedValues, setApplyConfirmedValues] = useState(false)
 
   useEffect(() => {
     if (!response) return
@@ -78,6 +106,7 @@ export function SupplierResponsePage() {
         confirmedQty: d.confirmedQty === null ? '' : String(d.confirmedQty),
         confirmedDelivery: d.confirmedDelivery ?? '',
         responseNote: d.responseNote ?? '',
+        supplyStatus: d.supplyStatus ?? '',
       },
     ])))
   }, [response])
@@ -89,6 +118,16 @@ export function SupplierResponsePage() {
     [lines],
   )
 
+  // Phase 7-C5 11章: Agreement's forceAgree checkbox must appear whenever ANY
+  // ACTIVE Attention exists - order-level (response.orderAttentions) OR
+  // line-level (each detail's own attentions, e.g. QUANTITY_CHANGED/
+  // DELIVERY_CHANGED/SUPPLY_STATUS_CHANGED) - matching exactly what the
+  // Backend's agree() checks (orderAttentionRepository...findByPortalOrderIdAndActiveTrue,
+  // which is not scoped to order-level-only).
+  const hasAnyActiveAttention = Boolean(
+    response && (response.orderAttentions.length > 0 || response.details.some((d) => d.attentions.length > 0)),
+  )
+
   function handleQtyChange(detailId: number, raw: string) {
     setLines((prev) => ({ ...prev, [detailId]: { ...prev[detailId], confirmedQty: raw } }))
   }
@@ -97,6 +136,9 @@ export function SupplierResponsePage() {
   }
   function handleNoteChange(detailId: number, raw: string) {
     setLines((prev) => ({ ...prev, [detailId]: { ...prev[detailId], responseNote: raw } }))
+  }
+  function handleSupplyStatusChange(detailId: number, raw: string) {
+    setLines((prev) => ({ ...prev, [detailId]: { ...prev[detailId], supplyStatus: raw } }))
   }
 
   function handleSave() {
@@ -111,8 +153,42 @@ export function SupplierResponsePage() {
           confirmedQty: edit.confirmedQty === '' ? null : Number(edit.confirmedQty),
           confirmedDelivery: edit.confirmedDelivery || null,
           responseNote: edit.responseNote,
+          // '' means "leave unchanged" (Backend convention, 7-C5 7章) - never
+          // send an empty string as if it were a real selection.
+          supplyStatus: edit.supplyStatus === '' ? null : edit.supplyStatus,
         }
       }),
+    })
+  }
+
+  function handleAgree() {
+    if (!response) return
+    agreeMutation.mutate({ responseId: response.responseId, forceAgree }, {
+      onSuccess: () => {
+        setAgreeDialogOpen(false)
+        setForceAgree(false)
+      },
+    })
+  }
+
+  function handleReopen() {
+    if (!response) return
+    reopenMutation.mutate({ responseId: response.responseId, reason: reopenReason }, {
+      onSuccess: () => {
+        setReopenDialogOpen(false)
+        setReopenReason('')
+      },
+    })
+  }
+
+  function handleCreateRevision() {
+    createRevisionMutation.mutate({ reason: revisionReason, applyConfirmedValues }, {
+      onSuccess: () => {
+        setRevisionDialogOpen(false)
+        setRevisionReason('')
+        setApplyConfirmedValues(false)
+        navigate(withReturnTo(`/orders/drafts/${orderId}`, returnTo))
+      },
     })
   }
 
@@ -238,12 +314,13 @@ export function SupplierResponsePage() {
               <TableCell>{t('table.requestedDelivery')}</TableCell>
               <TableCell>{t('table.confirmedDelivery')}</TableCell>
               <TableCell>{t('table.responseNote')}</TableCell>
+              <TableCell>{t('table.supplyStatus')}</TableCell>
               <TableCell>{t('table.attention')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {response.details.map((d) => {
-              const edit = lines[d.detailId] ?? { confirmedQty: '', confirmedDelivery: '', responseNote: '' }
+              const edit = lines[d.detailId] ?? { confirmedQty: '', confirmedDelivery: '', responseNote: '', supplyStatus: '' }
               return (
                 <TableRow key={d.detailId} hover data-testid={`response-row-${d.sku}`}>
                   <TableCell>{d.sku}</TableCell>
@@ -289,6 +366,31 @@ export function SupplierResponsePage() {
                     />
                   </TableCell>
                   <TableCell>
+                    {isEditable ? (
+                      <TextField
+                        select
+                        size="small"
+                        value={edit.supplyStatus}
+                        onChange={(e) => handleSupplyStatusChange(d.detailId, e.target.value)}
+                        data-testid={`supply-status-select-${d.sku}`}
+                        sx={{ minWidth: 160 }}
+                      >
+                        <MenuItem value="">{t('unanswered')}</MenuItem>
+                        {SUPPLY_STATUS_OPTIONS.map((option) => (
+                          <MenuItem key={option} value={option}>
+                            {t(`status:supplyStatus.${option}`, { defaultValue: option })}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    ) : (
+                      <Typography variant="body2">
+                        {d.supplyStatus
+                          ? t(`status:supplyStatus.${d.supplyStatus}`, { defaultValue: d.supplyStatus })
+                          : t('unanswered')}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <AttentionChips attentions={d.attentions} acknowledgeable />
                   </TableCell>
                 </TableRow>
@@ -308,6 +410,119 @@ export function SupplierResponsePage() {
           <Typography variant="body2">{t('summary.zeroQty')}: {response.summary.zeroQtyCount}</Typography>
         </Stack>
       </Paper>
+
+      {/* Phase 7-C5 8章: structured Order Revision vs Response comparison -
+          distinct from Attention (which tracks whether a person has reviewed
+          a difference, not the difference itself). */}
+      {response.differences.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="response-differences-section">
+          <Typography variant="subtitle1" gutterBottom>{t('differences.title')}</Typography>
+          <Stack spacing={0.5}>
+            {response.differences.map((diff, i) => (
+              <Typography key={i} variant="body2" data-testid={`difference-${diff.skuCode}-${diff.type}`}>
+                {diff.skuCode} - {t(`differences.type.${diff.type}`)}:{' '}
+                {diff.orderedValue ?? '—'} → {diff.confirmedValue ?? t('unanswered')}
+              </Typography>
+            ))}
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Phase 7-C5 11章/18章: Agreement - explicit Business Action, never
+          implied by Confirm. ADMIN only (Backend-enforced; hidden here for
+          OPERATOR as UX convenience only, 7-C5 15章/17章's established
+          precedent). */}
+      {response.status === 'SUPPLIER_CONFIRMED' && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="agreement-section">
+          <Typography variant="subtitle1" gutterBottom>{t('agreement.title')}</Typography>
+          {agreeMutation.isError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {(() => {
+                const code = errorCodeOf(agreeMutation.error)
+                if (code === 'UNACKNOWLEDGED_ATTENTION') return t('agreement.errorUnacknowledgedAttention')
+                if (code === 'FORBIDDEN') return t('agreement.errorForbidden')
+                return t('agreement.errorGeneric')
+              })()}
+            </Alert>
+          )}
+          {createRevisionMutation.isError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {(() => {
+                const code = errorCodeOf(createRevisionMutation.error)
+                if (code === 'REVISION_REASON_REQUIRED') return t('revision.errorReasonRequired')
+                if (code === 'FORBIDDEN') return t('agreement.errorForbidden')
+                return t('agreement.errorGeneric')
+              })()}
+            </Alert>
+          )}
+          {isAdmin ? (
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="contained"
+                onClick={() => setAgreeDialogOpen(true)}
+                disabled={agreeMutation.isPending}
+                data-testid="agree-button"
+              >
+                {t('agreement.agreeButton')}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => setRevisionDialogOpen(true)}
+                disabled={createRevisionMutation.isPending}
+                data-testid="create-revision-button"
+              >
+                {t('revision.createButton')}
+              </Button>
+            </Stack>
+          ) : (
+            <Alert severity="info">{t('agreement.adminOnlyIndicator')}</Alert>
+          )}
+        </Paper>
+      )}
+
+      {response.status === 'AGREED' && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="agreed-section">
+          <Typography variant="subtitle1" gutterBottom>{t('agreement.title')}</Typography>
+          <Typography variant="body2" data-testid="agreed-info">
+            {t('agreement.agreedInfo', { by: response.agreedBy, at: response.agreedAt ? new Date(response.agreedAt).toLocaleString('ja-JP') : '' })}
+          </Typography>
+          {isAdmin ? (
+            <Button
+              variant="outlined"
+              color="error"
+              sx={{ mt: 2 }}
+              onClick={() => setReopenDialogOpen(true)}
+              disabled={reopenMutation.isPending}
+              data-testid="reopen-button"
+            >
+              {t('agreement.reopenButton')}
+            </Button>
+          ) : (
+            <Alert severity="info" sx={{ mt: 2 }}>{t('agreement.adminOnlyIndicator')}</Alert>
+          )}
+        </Paper>
+      )}
+
+      {/* Phase 7-C5 20章/21章: Response History (Response1, Response2, ...) -
+          past rows are READ ONLY, only the current one is ever editable. */}
+      {responseHistory && responseHistory.length > 1 && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="response-history-section">
+          <Typography variant="subtitle1" gutterBottom>{t('history.title')}</Typography>
+          <Stack spacing={1}>
+            {responseHistory.map((h) => (
+              <Stack key={h.responseId} direction="row" spacing={2} sx={{ alignItems: 'center' }}
+                     data-testid={`response-history-row-${h.revisionNo}`}>
+                <Typography variant="body2">
+                  {t('history.revisionLabel', { no: h.revisionNo })}
+                  {h.isCurrent ? ` (${t('history.current')})` : ''}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">{h.responseStatus}</Typography>
+                {h.agreedBy && <Typography variant="caption" color="text.secondary">{t('history.agreedBy', { by: h.agreedBy })}</Typography>}
+              </Stack>
+            ))}
+          </Stack>
+        </Paper>
+      )}
 
       {/* Phase 6-C (docs/production-ux-workflow-redesign.md 6章): CTA set is
           Status-driven now - AWAITING_SUPPLIER gets 回答を保存/メーカー回答を確定
@@ -343,6 +558,93 @@ export function SupplierResponsePage() {
           </Button>
           <Button variant="contained" onClick={handleConfirm} disabled={confirmMutation.isPending} data-testid="confirm-response-dialog-confirm">
             {confirmMutation.isPending ? <CircularProgress size={20} /> : t('confirmDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={agreeDialogOpen} onClose={() => setAgreeDialogOpen(false)}>
+        <DialogTitle>{t('agreement.agreeDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap', mb: 1 }}>{t('agreement.agreeDialogBody')}</DialogContentText>
+          {hasAnyActiveAttention && (
+            <FormControlLabel
+              control={<Checkbox checked={forceAgree} onChange={(e) => setForceAgree(e.target.checked)} data-testid="force-agree-checkbox" />}
+              label={t('agreement.forceAgreeLabel')}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAgreeDialogOpen(false)} disabled={agreeMutation.isPending}>
+            {t('agreement.agreeDialogCancel')}
+          </Button>
+          <Button variant="contained" onClick={handleAgree} disabled={agreeMutation.isPending} data-testid="agree-dialog-confirm">
+            {agreeMutation.isPending ? <CircularProgress size={20} /> : t('agreement.agreeDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={reopenDialogOpen} onClose={() => setReopenDialogOpen(false)}>
+        <DialogTitle>{t('agreement.reopenDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{t('agreement.reopenDialogBody')}</DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={2}
+            label={t('agreement.reopenReasonInputLabel')}
+            value={reopenReason}
+            onChange={(e) => setReopenReason(e.target.value)}
+            data-testid="reopen-reason-input"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReopenDialogOpen(false)} disabled={reopenMutation.isPending}>
+            {t('agreement.reopenDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleReopen}
+            disabled={reopenMutation.isPending || reopenReason.trim() === ''}
+            data-testid="reopen-dialog-confirm"
+          >
+            {reopenMutation.isPending ? <CircularProgress size={20} /> : t('agreement.reopenDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={revisionDialogOpen} onClose={() => setRevisionDialogOpen(false)}>
+        <DialogTitle>{t('revision.createDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{t('revision.createDialogBody')}</DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={2}
+            label={t('revision.reasonInputLabel')}
+            value={revisionReason}
+            onChange={(e) => setRevisionReason(e.target.value)}
+            data-testid="revision-reason-input"
+            sx={{ mb: 1 }}
+          />
+          <FormControlLabel
+            control={<Checkbox checked={applyConfirmedValues} onChange={(e) => setApplyConfirmedValues(e.target.checked)} data-testid="apply-confirmed-values-checkbox" />}
+            label={t('revision.applyConfirmedValuesLabel')}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRevisionDialogOpen(false)} disabled={createRevisionMutation.isPending}>
+            {t('revision.createDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleCreateRevision}
+            disabled={createRevisionMutation.isPending || revisionReason.trim() === ''}
+            data-testid="revision-dialog-confirm"
+          >
+            {createRevisionMutation.isPending ? <CircularProgress size={20} /> : t('revision.createDialogConfirm')}
           </Button>
         </DialogActions>
       </Dialog>

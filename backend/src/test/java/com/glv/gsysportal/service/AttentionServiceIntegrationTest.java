@@ -55,7 +55,7 @@ class AttentionServiceIntegrationTest {
         Long detailId = supplierResponseService.getSupplierResponse(sent.getId()).details().get(0).detailId();
         SupplierResponseView view = supplierResponseService.saveSupplierResponse(sent.getId(),
                 new SaveSupplierResponseRequest(null, null, List.of(
-                        new SaveSupplierResponseRequest.LineUpdate(detailId, 1, null, null))),
+                        new SaveSupplierResponseRequest.LineUpdate(detailId, 1, null, null, null))),
                 "tester01");
         return view.details().get(0).attentions().get(0).id();
     }

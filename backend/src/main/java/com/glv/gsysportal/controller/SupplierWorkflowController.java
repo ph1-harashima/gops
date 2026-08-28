@@ -1,18 +1,27 @@
 package com.glv.gsysportal.controller;
 
 import com.glv.gsysportal.domain.PortalOrder;
+import com.glv.gsysportal.dto.request.AgreeResponseRequest;
+import com.glv.gsysportal.dto.request.CreateRevisionRequest;
+import com.glv.gsysportal.dto.request.ReopenAgreementRequest;
 import com.glv.gsysportal.dto.request.SaveSupplierResponseRequest;
+import com.glv.gsysportal.dto.response.OrderRevisionSummary;
 import com.glv.gsysportal.dto.response.OrderStatusChangeResponse;
+import com.glv.gsysportal.dto.response.SupplierResponseHistoryEntry;
 import com.glv.gsysportal.dto.response.SupplierResponseView;
 import com.glv.gsysportal.security.CurrentUserProvider;
+import com.glv.gsysportal.service.OrderRevisionService;
 import com.glv.gsysportal.service.OrderStatusTransitionService;
 import com.glv.gsysportal.service.SupplierResponseService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * Demo Send (implementation instructions 3章) and Supplier Response
@@ -26,13 +35,16 @@ public class SupplierWorkflowController {
 
     private final OrderStatusTransitionService statusTransitionService;
     private final SupplierResponseService supplierResponseService;
+    private final OrderRevisionService orderRevisionService;
     private final CurrentUserProvider currentUserProvider;
 
     public SupplierWorkflowController(OrderStatusTransitionService statusTransitionService,
                                        SupplierResponseService supplierResponseService,
+                                       OrderRevisionService orderRevisionService,
                                        CurrentUserProvider currentUserProvider) {
         this.statusTransitionService = statusTransitionService;
         this.supplierResponseService = supplierResponseService;
+        this.orderRevisionService = orderRevisionService;
         this.currentUserProvider = currentUserProvider;
     }
 
@@ -57,6 +69,58 @@ public class SupplierWorkflowController {
     @PostMapping("/api/orders/{id}/supplier-response/confirm")
     public OrderStatusChangeResponse confirmSupplierResponse(@PathVariable Long id) {
         PortalOrder order = supplierResponseService.confirmSupplierResponse(id, currentUserProvider.currentUsername());
+        return toStatusChangeResponse(order);
+    }
+
+    // --- Phase 7-C5: Supplier Response Revision / Agreement Workflow ---
+
+    /** Order Detail's browsable Revision History (Rev1, Rev2, ...) - any
+     * authenticated user, same visibility as every other read endpoint. */
+    @GetMapping("/api/orders/{id}/revisions")
+    public List<OrderRevisionSummary> getRevisions(@PathVariable Long id) {
+        return orderRevisionService.getRevisionHistory(id);
+    }
+
+    /** "修正版を作成" (7-C5 13章): SUPPLIER_CONFIRMED -> DRAFT. ADMIN only -
+     * mirrors {@link OrderApprovalController}'s existing convention that
+     * every Workflow-moving Business Action beyond plain Draft editing is
+     * ADMIN-gated (7-C5 15章 explicitly reuses, rather than redesigns, the
+     * existing single-stage Approval Workflow for the resulting Draft). */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/orders/{id}/revisions")
+    public OrderStatusChangeResponse createRevision(@PathVariable Long id, @RequestBody CreateRevisionRequest request) {
+        PortalOrder order = orderRevisionService.createCorrection(id, request, currentUserProvider.currentUsername());
+        return toStatusChangeResponse(order);
+    }
+
+    /** Response History (Response1, Response2, ...). */
+    @GetMapping("/api/orders/{id}/responses")
+    public List<SupplierResponseHistoryEntry> getResponses(@PathVariable Long id) {
+        return supplierResponseService.getResponseHistory(id);
+    }
+
+    /** Past, READ ONLY Response for a specific Revision (7-C5 21章). */
+    @GetMapping("/api/orders/{id}/responses/by-revision/{revisionNo}")
+    public SupplierResponseView getResponseByRevision(@PathVariable Long id, @PathVariable int revisionNo) {
+        return supplierResponseService.getSupplierResponseHistory(id, revisionNo);
+    }
+
+    /** SUPPLIER_CONFIRMED -> AGREED (7-C5 11章). ADMIN only. */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/orders/{id}/responses/{responseId}/agree")
+    public OrderStatusChangeResponse agree(@PathVariable Long id, @PathVariable Long responseId,
+                                            @RequestBody(required = false) AgreeResponseRequest request) {
+        AgreeResponseRequest body = request != null ? request : new AgreeResponseRequest(false);
+        PortalOrder order = supplierResponseService.agree(id, responseId, body, currentUserProvider.currentUsername());
+        return toStatusChangeResponse(order);
+    }
+
+    /** AGREED -> SUPPLIER_CONFIRMED with a mandatory reason (7-C5 18章). ADMIN only. */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/orders/{id}/responses/{responseId}/reopen")
+    public OrderStatusChangeResponse reopen(@PathVariable Long id, @PathVariable Long responseId,
+                                             @RequestBody ReopenAgreementRequest request) {
+        PortalOrder order = supplierResponseService.reopenAgreement(id, responseId, request, currentUserProvider.currentUsername());
         return toStatusChangeResponse(order);
     }
 

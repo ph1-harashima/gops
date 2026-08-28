@@ -130,5 +130,21 @@
     },
     "errorForbidden": "この操作を行う権限がありません。",
     "errorGeneric": "処理に失敗しました。"
+  },
+  "revisionHistory": {
+    "title": "発注内容の履歴（Revision）",
+    "revisionLabel": "Revision {{no}}",
+    "reasonLabel": "修正理由",
+    "type": {
+      "INITIAL": "初回送信",
+      "CORRECTION": "修正版"
+    }
+  },
+  "responseHistory": {
+    "title": "回答履歴（Revision別）",
+    "revisionLabel": "Revision {{no}}",
+    "current": "現在",
+    "agreedBy": "{{by}}が合意",
+    "reopenedBy": "{{by}}が取り消し"
   }
 }

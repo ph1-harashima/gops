@@ -148,4 +148,36 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleInvalidTemplateType(InvalidTemplateTypeException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_TEMPLATE_TYPE"));
     }
+
+    // --- Phase 7-C5: Supplier Response Revision / Agreement Workflow ---
+
+    @ExceptionHandler(ResponseNotAgreeableException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseNotAgreeable(ResponseNotAgreeableException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "RESPONSE_NOT_AGREEABLE"));
+    }
+
+    @ExceptionHandler(UnacknowledgedAttentionException.class)
+    public ResponseEntity<Map<String, Object>> handleUnacknowledgedAttention(UnacknowledgedAttentionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "UNACKNOWLEDGED_ATTENTION"));
+    }
+
+    @ExceptionHandler(RevisionCreationNotAllowedException.class)
+    public ResponseEntity<Map<String, Object>> handleRevisionCreationNotAllowed(RevisionCreationNotAllowedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "REVISION_CREATION_NOT_ALLOWED"));
+    }
+
+    @ExceptionHandler(RevisionReasonRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleRevisionReasonRequired(RevisionReasonRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "REVISION_REASON_REQUIRED"));
+    }
+
+    @ExceptionHandler(OrderNotAgreedException.class)
+    public ResponseEntity<Map<String, Object>> handleOrderNotAgreed(OrderNotAgreedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "ORDER_NOT_AGREED"));
+    }
+
+    @ExceptionHandler(ReopenReasonRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleReopenReasonRequired(ReopenReasonRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "REOPEN_REASON_REQUIRED"));
+    }
 }

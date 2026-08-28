@@ -3,21 +3,31 @@ package com.glv.gsysportal.service;
 import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.OrderAttention;
 import com.glv.gsysportal.domain.PortalOrder;
+import com.glv.gsysportal.domain.PortalOrderRevision;
 import com.glv.gsysportal.domain.SupplierResponse;
 import com.glv.gsysportal.domain.SupplierResponseDetail;
+import com.glv.gsysportal.dto.request.AgreeResponseRequest;
+import com.glv.gsysportal.dto.request.ReopenAgreementRequest;
 import com.glv.gsysportal.dto.request.SaveSupplierResponseRequest;
 import com.glv.gsysportal.dto.response.AttentionSummary;
+import com.glv.gsysportal.dto.response.ResponseDifferenceView;
 import com.glv.gsysportal.dto.response.SupplierResponseDetailView;
+import com.glv.gsysportal.dto.response.SupplierResponseHistoryEntry;
 import com.glv.gsysportal.dto.response.SupplierResponseSummary;
 import com.glv.gsysportal.dto.response.SupplierResponseView;
 import com.glv.gsysportal.exception.DraftNotFoundException;
 import com.glv.gsysportal.exception.InvalidConfirmedQtyException;
 import com.glv.gsysportal.exception.InvalidOrderStatusException;
 import com.glv.gsysportal.exception.InvalidStatusTransitionException;
+import com.glv.gsysportal.exception.ReopenReasonRequiredException;
+import com.glv.gsysportal.exception.OrderNotAgreedException;
+import com.glv.gsysportal.exception.ResponseNotAgreeableException;
 import com.glv.gsysportal.exception.SupplierResponseIncompleteException;
+import com.glv.gsysportal.exception.UnacknowledgedAttentionException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OrderAttentionRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import com.glv.gsysportal.repository.prototype.PortalOrderRevisionRepository;
 import com.glv.gsysportal.repository.prototype.SupplierResponseRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,21 +45,32 @@ import java.util.Optional;
  * throughout this class: {@code confirmedQty} is an {@link Integer}, and
  * {@code null} ("not yet answered") is never conflated with {@code 0} (an
  * explicit zero answer) - implementation instructions 11章.
+ *
+ * <p>Phase 7-C5: extended to be Revision-aware (5章) - the "current" Response
+ * is now the one linked to the Order's currently-sent
+ * {@link PortalOrderRevision}, not simply "the Order's one Response" (which
+ * no longer holds once an Order has been corrected and re-sent). Also adds
+ * Agreement (11章) and Reopen (18章), both explicit Business Actions,
+ * neither of which is ever implied by Confirm (10章 "Supplier Response確定
+ * ≠ AGREED").
  */
 @Service
 public class SupplierResponseService {
 
     private final PortalOrderRepository portalOrderRepository;
     private final SupplierResponseRepository supplierResponseRepository;
+    private final PortalOrderRevisionRepository revisionRepository;
     private final OrderAttentionRepository orderAttentionRepository;
     private final AuditEventRepository auditEventRepository;
 
     public SupplierResponseService(PortalOrderRepository portalOrderRepository,
                                     SupplierResponseRepository supplierResponseRepository,
+                                    PortalOrderRevisionRepository revisionRepository,
                                     OrderAttentionRepository orderAttentionRepository,
                                     AuditEventRepository auditEventRepository) {
         this.portalOrderRepository = portalOrderRepository;
         this.supplierResponseRepository = supplierResponseRepository;
+        this.revisionRepository = revisionRepository;
         this.orderAttentionRepository = orderAttentionRepository;
         this.auditEventRepository = auditEventRepository;
     }
@@ -58,8 +79,44 @@ public class SupplierResponseService {
     public SupplierResponseView getSupplierResponse(Long orderId) {
         PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
         validateStatusReadable(order.getStatus());
-        SupplierResponse response = requireResponse(orderId);
-        return buildView(order, response);
+        PortalOrderRevision revision = requireCurrentRevision(order);
+        SupplierResponse response = requireResponse(orderId, revision.getId());
+        return buildView(order, revision, response, true);
+    }
+
+    /** Phase 7-C5 21章: past, READ ONLY Response for a specific Revision - any
+     * authenticated user, same visibility as the current Response GET. The
+     * Order's own current status is irrelevant here (history is always
+     * readable regardless of where the Order has moved on to since). */
+    @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
+    public SupplierResponseView getSupplierResponseHistory(Long orderId, int revisionNo) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        PortalOrderRevision revision = revisionRepository.findByPortalOrderIdAndRevisionNo(orderId, revisionNo)
+                .orElseThrow(() -> new IllegalStateException("Revision " + revisionNo + " not found for Order " + orderId));
+        SupplierResponse response = requireResponse(orderId, revision.getId());
+        boolean isCurrent = Objects.equals(order.getCurrentRevisionNo(), revisionNo);
+        return buildView(order, revision, response, isCurrent);
+    }
+
+    /** Phase 7-C5 20章/21章: browsable Response History list (Response1,
+     * Response2, ...). */
+    @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
+    public List<SupplierResponseHistoryEntry> getResponseHistory(Long orderId) {
+        if (!portalOrderRepository.existsById(orderId)) {
+            throw new DraftNotFoundException(orderId);
+        }
+        List<PortalOrderRevision> revisions = revisionRepository.findByPortalOrderIdOrderByRevisionNoAsc(orderId);
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        List<SupplierResponseHistoryEntry> entries = new ArrayList<>();
+        for (PortalOrderRevision revision : revisions) {
+            supplierResponseRepository.findByPortalOrderIdAndOrderRevisionId(orderId, revision.getId())
+                    .ifPresent(r -> entries.add(new SupplierResponseHistoryEntry(
+                            r.getId(), revision.getRevisionNo(), r.getResponseDate(), r.getResponseStatus(),
+                            Objects.equals(order.getCurrentRevisionNo(), revision.getRevisionNo()),
+                            r.getAgreedBy(), r.getAgreedAt(), r.getReopenedBy(), r.getReopenedAt(), r.getReopenReason()
+                    )));
+        }
+        return entries;
     }
 
     /**
@@ -75,7 +132,8 @@ public class SupplierResponseService {
         if (!PortalOrder.STATUS_AWAITING_SUPPLIER.equals(order.getStatus())) {
             throw new InvalidStatusTransitionException(order.getStatus(), PortalOrder.STATUS_AWAITING_SUPPLIER);
         }
-        SupplierResponse response = requireResponse(orderId);
+        PortalOrderRevision revision = requireCurrentRevision(order);
+        SupplierResponse response = requireResponse(orderId, revision.getId());
 
         OffsetDateTime now = OffsetDateTime.now();
         List<AuditEvent> events = new ArrayList<>();
@@ -102,7 +160,7 @@ public class SupplierResponseService {
             auditEventRepository.saveAll(events);
         }
 
-        return buildView(order, response);
+        return buildView(order, revision, response, true);
     }
 
     /**
@@ -117,7 +175,8 @@ public class SupplierResponseService {
         if (!PortalOrder.STATUS_AWAITING_SUPPLIER.equals(order.getStatus())) {
             throw new InvalidStatusTransitionException(order.getStatus(), PortalOrder.STATUS_AWAITING_SUPPLIER);
         }
-        SupplierResponse response = requireResponse(orderId);
+        PortalOrderRevision revision = requireCurrentRevision(order);
+        SupplierResponse response = requireResponse(orderId, revision.getId());
 
         boolean allAnswered = response.getDetails().stream().allMatch(d -> d.getConfirmedQty() != null);
         if (!allAnswered) {
@@ -139,6 +198,97 @@ public class SupplierResponseService {
         auditEventRepository.saveAll(List.of(
                 new AuditEvent(saved.getId(), null, AuditEvent.SUPPLIER_RESPONSE_RECEIVED, null, null, null, performedBy, now),
                 new AuditEvent(saved.getId(), null, AuditEvent.STATUS_CHANGED, "status", previousStatus, saved.getStatus(), performedBy, now)
+        ));
+
+        return saved;
+    }
+
+    /**
+     * Phase 7-C5 11章: explicit Business Action, ADMIN only (enforced at the
+     * Controller). Preconditions: Order is SUPPLIER_CONFIRMED, {@code responseId}
+     * is the CURRENT Response (never a past, superseded one - 409
+     * RESPONSE_NOT_AGREEABLE otherwise), and every ACTIVE Attention on the
+     * Order has been acknowledged - unless {@code forceAgree} is set (409
+     * UNACKNOWLEDGED_ATTENTION otherwise). Never auto-inferred from Confirm.
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public PortalOrder agree(Long orderId, Long responseId, AgreeResponseRequest request, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        if (!PortalOrder.STATUS_SUPPLIER_CONFIRMED.equals(order.getStatus())) {
+            throw new ResponseNotAgreeableException(orderId, responseId);
+        }
+        PortalOrderRevision revision = requireCurrentRevision(order);
+        SupplierResponse response = requireResponse(orderId, revision.getId());
+        if (!response.getId().equals(responseId)) {
+            throw new ResponseNotAgreeableException(orderId, responseId);
+        }
+
+        boolean hasUnacknowledged = !orderAttentionRepository.findByPortalOrderIdAndActiveTrue(orderId).isEmpty();
+        if (hasUnacknowledged && !request.forceAgree()) {
+            throw new UnacknowledgedAttentionException(orderId);
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        String previousStatus = order.getStatus();
+
+        response.setAgreedBy(performedBy);
+        response.setAgreedAt(now);
+        supplierResponseRepository.save(response);
+
+        order.setStatus(PortalOrder.STATUS_AGREED);
+        order.setUpdatedBy(performedBy);
+        order.setUpdatedAt(now);
+        PortalOrder saved = portalOrderRepository.save(order);
+
+        auditEventRepository.saveAll(List.of(
+                new AuditEvent(orderId, null, AuditEvent.SUPPLIER_RESPONSE_AGREED, null, null, null, performedBy, now),
+                new AuditEvent(orderId, null, AuditEvent.STATUS_CHANGED, "status", previousStatus, saved.getStatus(), performedBy, now)
+        ));
+
+        return saved;
+    }
+
+    /**
+     * Phase 7-C5 18章: AGREED -> SUPPLIER_CONFIRMED with a mandatory reason,
+     * ADMIN only (enforced at the Controller). {@code agreed_by}/
+     * {@code agreed_at} are deliberately never cleared ("履歴を消さない" -
+     * direct data overwrite is forbidden) - {@code reopened_by}/{@code
+     * reopened_at}/{@code reopen_reason} record the most recent Reopen
+     * alongside them instead.
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public PortalOrder reopenAgreement(Long orderId, Long responseId, ReopenAgreementRequest request, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        if (!PortalOrder.STATUS_AGREED.equals(order.getStatus())) {
+            throw new OrderNotAgreedException(orderId, order.getStatus());
+        }
+        if (request.reason() == null || request.reason().isBlank()) {
+            throw new ReopenReasonRequiredException();
+        }
+        PortalOrderRevision revision = requireCurrentRevision(order);
+        SupplierResponse response = requireResponse(orderId, revision.getId());
+        if (!response.getId().equals(responseId)) {
+            throw new ResponseNotAgreeableException(orderId, responseId);
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        String previousStatus = order.getStatus();
+
+        response.setReopenedBy(performedBy);
+        response.setReopenedAt(now);
+        response.setReopenReason(request.reason().trim());
+        supplierResponseRepository.save(response);
+
+        order.setStatus(PortalOrder.STATUS_SUPPLIER_CONFIRMED);
+        order.setUpdatedBy(performedBy);
+        order.setUpdatedAt(now);
+        PortalOrder saved = portalOrderRepository.save(order);
+
+        AuditEvent reopened = new AuditEvent(orderId, null, AuditEvent.AGREEMENT_REOPENED, null, null, null, performedBy, now);
+        reopened.setNote(request.reason().trim());
+        auditEventRepository.saveAll(List.of(
+                reopened,
+                new AuditEvent(orderId, null, AuditEvent.STATUS_CHANGED, "status", previousStatus, saved.getStatus(), performedBy, now)
         ));
 
         return saved;
@@ -181,6 +331,13 @@ public class SupplierResponseService {
         if (lineUpdate.responseNote() != null) {
             detail.setResponseNote(lineUpdate.responseNote());
         }
+        // Phase 7-C5 7章: explicitly selected only, NEVER derived from
+        // confirmedQty - a null supplyStatus in the request means "leave
+        // unchanged" (same "included line, field-level intent" convention as
+        // responseNote above), not "clear it".
+        if (lineUpdate.supplyStatus() != null) {
+            detail.setSupplyStatus(lineUpdate.supplyStatus());
+        }
         detail.setConfirmed(detail.getConfirmedQty() != null);
         detail.setUpdatedAt(now);
 
@@ -194,6 +351,12 @@ public class SupplierResponseService {
         }
         if (detail.getConfirmedDelivery() != null && !detail.getConfirmedDelivery().equals(detail.getRequestedDelivery())) {
             ensureLineAttentionActive(orderId, portalOrderDetailId, OrderAttention.DELIVERY_CHANGED, now);
+        }
+        // Phase 7-C5 8章/9章: [PROTOTYPE DECISION] any explicitly-selected
+        // Supply Status other than AVAILABLE warrants review - the official
+        // per-value business definition remains [TBD - CUSTOMER REVIEW] (24章).
+        if (detail.getSupplyStatus() != null && !"AVAILABLE".equals(detail.getSupplyStatus())) {
+            ensureLineAttentionActive(orderId, portalOrderDetailId, OrderAttention.SUPPLY_STATUS_CHANGED, now);
         }
     }
 
@@ -247,19 +410,30 @@ public class SupplierResponseService {
         }
     }
 
-    private SupplierResponse requireResponse(Long orderId) {
-        return supplierResponseRepository.findByPortalOrderId(orderId)
+    private PortalOrderRevision requireCurrentRevision(PortalOrder order) {
+        Integer revisionNo = order.getCurrentRevisionNo();
+        if (revisionNo == null) {
+            throw new IllegalStateException("Order " + order.getId() + " has no current Revision - Demo Send should have created one");
+        }
+        return revisionRepository.findByPortalOrderIdAndRevisionNo(order.getId(), revisionNo)
+                .orElseThrow(() -> new IllegalStateException("Revision " + revisionNo + " not found for Order " + order.getId()));
+    }
+
+    private SupplierResponse requireResponse(Long orderId, Long orderRevisionId) {
+        return supplierResponseRepository.findByPortalOrderIdAndOrderRevisionId(orderId, orderRevisionId)
                 .orElseThrow(() -> new IllegalStateException(
-                        "Supplier Response missing for Order " + orderId + " - Demo Send should have initialized it"));
+                        "Supplier Response missing for Order " + orderId + " Revision " + orderRevisionId
+                                + " - Demo Send should have initialized it"));
     }
 
     private static void validateStatusReadable(String status) {
-        if (!PortalOrder.STATUS_AWAITING_SUPPLIER.equals(status) && !PortalOrder.STATUS_SUPPLIER_CONFIRMED.equals(status)) {
+        if (!PortalOrder.STATUS_AWAITING_SUPPLIER.equals(status) && !PortalOrder.STATUS_SUPPLIER_CONFIRMED.equals(status)
+                && !PortalOrder.STATUS_AGREED.equals(status)) {
             throw new InvalidOrderStatusException(status);
         }
     }
 
-    private SupplierResponseView buildView(PortalOrder order, SupplierResponse response) {
+    private SupplierResponseView buildView(PortalOrder order, PortalOrderRevision revision, SupplierResponse response, boolean isCurrent) {
         List<OrderAttention> activeAttentions = orderAttentionRepository.findByPortalOrderIdAndActiveTrue(order.getId());
 
         List<SupplierResponseDetailView> detailViews = response.getDetails().stream()
@@ -273,6 +447,7 @@ public class SupplierResponseService {
 
         int totalOrderedQty = response.getDetails().stream().mapToInt(SupplierResponseDetail::getOrderedQty).sum();
         SupplierResponseSummary summary = computeSummary(response.getDetails());
+        List<ResponseDifferenceView> differences = OrderRevisionService.computeDifferences(revision, response);
 
         return new SupplierResponseView(
                 order.getId(), order.getDraftNo(), order.getPrototypePoNo(),
@@ -281,7 +456,10 @@ public class SupplierResponseService {
                 order.getOrderDate(), order.getStatus(),
                 totalOrderedQty, order.getTotalAmount(),
                 response.getResponseDate(), response.getResponseNote(), response.getResponseStatus(),
-                detailViews, orderAttentions, summary
+                detailViews, orderAttentions, summary,
+                response.getId(), revision.getRevisionNo(), isCurrent, differences,
+                response.getAgreedBy(), response.getAgreedAt(),
+                response.getReopenedBy(), response.getReopenedAt(), response.getReopenReason()
         );
     }
 
@@ -297,7 +475,7 @@ public class SupplierResponseService {
         }
         return new SupplierResponseDetailView(
                 d.getId(), pod.getSku(), pod.getItemNameSnapshot(), d.getOrderedQty(), d.getConfirmedQty(),
-                d.getRequestedDelivery(), d.getConfirmedDelivery(), d.getResponseNote(), d.isConfirmed(),
+                d.getRequestedDelivery(), d.getConfirmedDelivery(), d.getResponseNote(), d.getSupplyStatus(), d.isConfirmed(),
                 attentions, warnings
         );
     }

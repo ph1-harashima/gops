@@ -17,14 +17,24 @@
     "READY_TO_ORDER": "発注準備完了",
     "SENT": "送信済み",
     "AWAITING_SUPPLIER": "メーカー回答待ち",
-    "SUPPLIER_CONFIRMED": "メーカー確定済み"
+    "SUPPLIER_CONFIRMED": "メーカー確定済み",
+    "AGREED": "合意済み"
   },
   "attentionType": {
     "QUANTITY_CHANGED": "数量変更あり",
     "DELIVERY_CHANGED": "納期変更あり",
     "PARTIAL_CONFIRMATION": "一部回答",
     "DATA_OUTDATED": "データ更新が必要",
-    "OTHER_ATTENTION": "確認事項あり"
+    "OTHER_ATTENTION": "確認事項あり",
+    "SUPPLY_STATUS_CHANGED": "供給状況の確認が必要"
+  },
+  "supplyStatus": {
+    "AVAILABLE": "供給可能",
+    "OUT_OF_STOCK": "欠品",
+    "LONG_TERM_OUT_OF_STOCK": "長期欠品",
+    "DISCONTINUED": "廃番",
+    "WAITING_FOR_ARRIVAL": "入荷待ち",
+    "UNKNOWN": "不明"
   },
   "warningCode": {
     "CONFIRMED_QTY_EXCEEDS_ORDERED_QTY": "回答数量が発注数量を超えています"
@@ -48,6 +58,12 @@
     "SUBMITTED_FOR_APPROVAL": "承認依頼",
     "ORDER_APPROVED": "承認",
     "APPROVED_WITH_CHANGES": "修正のうえ承認",
-    "RETURNED_FOR_CORRECTION": "差し戻し"
+    "RETURNED_FOR_CORRECTION": "差し戻し",
+    "OFFICIAL_PO_INTEGRATION_REQUESTED": "G-SYS連携準備",
+    "PRECHECK_COMPLETED": "Preflight実行",
+    "MAIL_PREVIEW_GENERATED": "メールプレビュー表示",
+    "SUPPLIER_RESPONSE_AGREED": "合意",
+    "ORDER_REVISION_CREATED": "修正版の作成",
+    "AGREEMENT_REOPENED": "合意の取り消し"
   }
 }

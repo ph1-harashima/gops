@@ -29,6 +29,7 @@ import { useOrderHistoryDetail, useOrderEvents } from './api'
 import { useOfficialPoIntegration, useRequestOfficialPoIntegration } from './officialPoIntegrationApi'
 import { useMailPreview } from './mailPreviewApi'
 import { useApprove, useReturnForCorrection } from '../drafts/poPreviewApi'
+import { useOrderRevisions, useResponseHistory } from '../supplierResponse/api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
 import { resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
@@ -93,6 +94,8 @@ export function OrderHistoryDetailPage() {
   const { data: detail, isLoading, isError } = useOrderHistoryDetail(orderId)
   const { data: events, isLoading: eventsLoading } = useOrderEvents(orderId)
   const { data: integration } = useOfficialPoIntegration(orderId)
+  const { data: revisions } = useOrderRevisions(orderId)
+  const { data: responseHistory } = useResponseHistory(orderId)
 
   const { user } = useAuth()
   const isAdmin = user?.role === ROLE_ADMIN
@@ -160,8 +163,10 @@ export function OrderHistoryDetailPage() {
         // 入力 (input) - a Response is still owed.
         return { label: t('goToSupplierResponseInput'), to: `/orders/${detail.id}/supplier-response` }
       case 'SUPPLIER_CONFIRMED':
+      case 'AGREED':
         // 確認 (review) - same screen, read-only once Confirmed
-        // (SupplierResponsePage.isEditable already gates on Status).
+        // (SupplierResponsePage.isEditable already gates on Status). AGREED
+        // is where the Agreement/Reopen Actions themselves live (7-C5 21章).
         return { label: t('goToSupplierResponseReview'), to: `/orders/${detail.id}/supplier-response` }
       default:
         return null
@@ -455,6 +460,71 @@ export function OrderHistoryDetailPage() {
               </Typography>
             </Stack>
           )}
+        </Paper>
+      )}
+
+      {/* Phase 7-C5 19章/20章: browsable Revision History (Rev1, Rev2, ...) -
+          only rendered once an Order has actually been sent at least once
+          (a never-sent Order has no Revision yet). */}
+      {revisions && revisions.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="revision-history-section">
+          <Typography variant="subtitle1" gutterBottom>{t('revisionHistory.title')}</Typography>
+          <Stack spacing={2}>
+            {revisions.map((r) => (
+              <Box key={r.revisionId} data-testid={`revision-row-${r.revisionNo}`}>
+                <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    {t('revisionHistory.revisionLabel', { no: r.revisionNo })}
+                  </Typography>
+                  <Chip size="small" label={t(`revisionHistory.type.${r.revisionType}`)} />
+                  <Typography variant="caption" color="text.secondary">
+                    {r.createdBy} - {new Date(r.createdAt).toLocaleString('ja-JP')}
+                  </Typography>
+                </Stack>
+                {r.reason && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {t('revisionHistory.reasonLabel')}: {r.reason}
+                  </Typography>
+                )}
+                <Stack direction="row" spacing={3} sx={{ mt: 0.5, flexWrap: 'wrap' }}>
+                  {r.lines.map((line) => (
+                    <Typography key={line.skuCode} variant="caption" color="text.secondary">
+                      {line.skuCode}: {line.orderedQty}
+                    </Typography>
+                  ))}
+                </Stack>
+              </Box>
+            ))}
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Phase 7-C5 20章: browsable Response History (Response1, Response2, ...). */}
+      {responseHistory && responseHistory.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="order-detail-response-history-section">
+          <Typography variant="subtitle1" gutterBottom>{t('responseHistory.title')}</Typography>
+          <Stack spacing={1}>
+            {responseHistory.map((h) => (
+              <Stack key={h.responseId} direction="row" spacing={2} sx={{ alignItems: 'center' }}
+                     data-testid={`order-detail-response-history-row-${h.revisionNo}`}>
+                <Typography variant="body2">
+                  {t('responseHistory.revisionLabel', { no: h.revisionNo })}
+                  {h.isCurrent ? ` (${t('responseHistory.current')})` : ''}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">{h.responseStatus}</Typography>
+                {h.agreedBy && (
+                  <Typography variant="caption" color="text.secondary">
+                    {t('responseHistory.agreedBy', { by: h.agreedBy })}
+                  </Typography>
+                )}
+                {h.reopenedBy && (
+                  <Typography variant="caption" color="text.secondary">
+                    {t('responseHistory.reopenedBy', { by: h.reopenedBy })}
+                  </Typography>
+                )}
+              </Stack>
+            ))}
+          </Stack>
         </Paper>
       )}
 

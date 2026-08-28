@@ -17,14 +17,24 @@
     "READY_TO_ORDER": "Ready to Order",
     "SENT": "Sent",
     "AWAITING_SUPPLIER": "Awaiting Supplier Response",
-    "SUPPLIER_CONFIRMED": "Supplier Confirmed"
+    "SUPPLIER_CONFIRMED": "Supplier Confirmed",
+    "AGREED": "Agreed"
   },
   "attentionType": {
     "QUANTITY_CHANGED": "Quantity Changed",
     "DELIVERY_CHANGED": "Delivery Changed",
     "PARTIAL_CONFIRMATION": "Partially Answered",
     "DATA_OUTDATED": "Data Update Needed",
-    "OTHER_ATTENTION": "Needs Attention"
+    "OTHER_ATTENTION": "Needs Attention",
+    "SUPPLY_STATUS_CHANGED": "Supply Status Needs Review"
+  },
+  "supplyStatus": {
+    "AVAILABLE": "Available",
+    "OUT_OF_STOCK": "Out of Stock",
+    "LONG_TERM_OUT_OF_STOCK": "Long-Term Out of Stock",
+    "DISCONTINUED": "Discontinued",
+    "WAITING_FOR_ARRIVAL": "Waiting for Arrival",
+    "UNKNOWN": "Unknown"
   },
   "warningCode": {
     "CONFIRMED_QTY_EXCEEDS_ORDERED_QTY": "Confirmed quantity exceeds ordered quantity"
@@ -48,6 +58,12 @@
     "SUBMITTED_FOR_APPROVAL": "Submitted for Approval",
     "ORDER_APPROVED": "Approved",
     "APPROVED_WITH_CHANGES": "Approved with Changes",
-    "RETURNED_FOR_CORRECTION": "Returned for Correction"
+    "RETURNED_FOR_CORRECTION": "Returned for Correction",
+    "OFFICIAL_PO_INTEGRATION_REQUESTED": "G-SYS Integration Prepared",
+    "PRECHECK_COMPLETED": "Preflight Run",
+    "MAIL_PREVIEW_GENERATED": "Mail Preview Shown",
+    "SUPPLIER_RESPONSE_AGREED": "Agreed",
+    "ORDER_REVISION_CREATED": "Corrected Version Created",
+    "AGREEMENT_REOPENED": "Agreement Reopened"
   }
 }

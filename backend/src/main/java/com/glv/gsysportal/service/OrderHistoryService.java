@@ -4,6 +4,7 @@ import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.OrderAttention;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.PortalOrderDetail;
+import com.glv.gsysportal.domain.SupplierResponse;
 import com.glv.gsysportal.domain.SupplierResponseDetail;
 import com.glv.gsysportal.dto.response.AttentionSummary;
 import com.glv.gsysportal.dto.response.AuditEventView;
@@ -68,10 +69,15 @@ public class OrderHistoryService {
     public OrderHistoryDetailResponse detail(Long id) {
         PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
 
-        Map<Long, SupplierResponseDetail> confirmedByDetailId = supplierResponseRepository.findByPortalOrderId(id)
-                .map(sr -> sr.getDetails().stream()
-                        .collect(Collectors.toMap(d -> d.getPortalOrderDetail().getId(), d -> d)))
-                .orElse(Map.of());
+        // Phase 7-C5 5章: an Order may now have multiple Responses (one per
+        // Revision); Order Detail always shows the CURRENT one - the last row
+        // created, since Responses are created in strict Send order and never
+        // reordered (mirrors SupplierResponseService.requireCurrentRevision's
+        // "latest wins" resolution without needing a second query here).
+        List<SupplierResponse> responses = supplierResponseRepository.findByPortalOrderIdOrderByIdAsc(id);
+        Map<Long, SupplierResponseDetail> confirmedByDetailId = responses.isEmpty() ? Map.of()
+                : responses.get(responses.size() - 1).getDetails().stream()
+                        .collect(Collectors.toMap(d -> d.getPortalOrderDetail().getId(), d -> d));
 
         List<OrderAttention> active = orderAttentionRepository.findByPortalOrderIdAndActiveTrue(id);
 

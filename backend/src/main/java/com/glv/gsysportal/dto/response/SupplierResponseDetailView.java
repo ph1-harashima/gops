@@ -15,6 +15,7 @@ public record SupplierResponseDetailView(
         LocalDate requestedDelivery,
         LocalDate confirmedDelivery,
         String responseNote,
+        String supplyStatus,
         boolean isConfirmed,
         List<AttentionSummary> attentions,
         List<String> warningCodes

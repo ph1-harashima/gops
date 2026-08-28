@@ -3,6 +3,7 @@ package com.glv.gsysportal.service;
 import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.PortalOrderDetail;
+import com.glv.gsysportal.domain.PortalOrderRevision;
 import com.glv.gsysportal.domain.SupplierResponse;
 import com.glv.gsysportal.domain.SupplierResponseDetail;
 import com.glv.gsysportal.exception.DraftNotFoundException;
@@ -36,17 +37,20 @@ public class OrderStatusTransitionService {
     private final SupplierResponseRepository supplierResponseRepository;
     private final PoPreviewValidator validator;
     private final PrototypePoNoGenerator poNoGenerator;
+    private final OrderRevisionService orderRevisionService;
 
     public OrderStatusTransitionService(PortalOrderRepository portalOrderRepository,
                                          AuditEventRepository auditEventRepository,
                                          SupplierResponseRepository supplierResponseRepository,
                                          PoPreviewValidator validator,
-                                         PrototypePoNoGenerator poNoGenerator) {
+                                         PrototypePoNoGenerator poNoGenerator,
+                                         OrderRevisionService orderRevisionService) {
         this.portalOrderRepository = portalOrderRepository;
         this.auditEventRepository = auditEventRepository;
         this.supplierResponseRepository = supplierResponseRepository;
         this.validator = validator;
         this.poNoGenerator = poNoGenerator;
+        this.orderRevisionService = orderRevisionService;
     }
 
     /**
@@ -246,6 +250,12 @@ public class OrderStatusTransitionService {
      * Snapshotted (orderedQty/requestedDelivery), since Save Supplier
      * Response (implementation instructions 10章) only ever updates the
      * Supplier's answer, never these Original values.
+     *
+     * <p>Phase 7-C5: also where an Order Revision "crystallizes" - a new
+     * {@link PortalOrderRevision} snapshot is written here (1 on the first
+     * ever Send, N+1 on every re-Send following a "修正版を作成" correction
+     * cycle) and the new {@link SupplierResponse} for this Send is linked to
+     * it via {@code orderRevisionId} (7-C5 2章/5章/16章).
      */
     @Transactional(transactionManager = "prototypeTransactionManager")
     public PortalOrder demoSend(Long id, String performedBy) {
@@ -268,7 +278,8 @@ public class OrderStatusTransitionService {
         order.setUpdatedBy(performedBy);
         order.setUpdatedAt(now);
 
-        initializeSupplierResponse(order, now);
+        PortalOrderRevision revision = orderRevisionService.snapshotForSend(order, now, performedBy);
+        initializeSupplierResponse(order, revision, now);
 
         PortalOrder saved = portalOrderRepository.save(order);
         auditEventRepository.saveAll(events);
@@ -276,9 +287,10 @@ public class OrderStatusTransitionService {
         return saved;
     }
 
-    private void initializeSupplierResponse(PortalOrder order, OffsetDateTime now) {
+    private void initializeSupplierResponse(PortalOrder order, PortalOrderRevision revision, OffsetDateTime now) {
         SupplierResponse response = new SupplierResponse();
         response.setPortalOrderId(order.getId());
+        response.setOrderRevisionId(revision.getId());
         response.setResponseStatus(SupplierResponse.STATUS_PARTIAL);
         response.setCreatedAt(now);
         response.setUpdatedAt(now);

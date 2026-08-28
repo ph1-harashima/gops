@@ -48,6 +48,10 @@ public class PortalOrder {
     public static final String STATUS_SENT = "SENT";
     public static final String STATUS_AWAITING_SUPPLIER = "AWAITING_SUPPLIER";
     public static final String STATUS_SUPPLIER_CONFIRMED = "SUPPLIER_CONFIRMED";
+    /** Phase 7-C5: explicit ADMIN Business Action only - Supplier Response
+     * being CONFIRMED never implies AGREED (7-C5 10章/19章 "Supplier Response
+     * 確定 ≠ AGREED" must always hold). */
+    public static final String STATUS_AGREED = "AGREED";
 
     /** Matches com.glv.gsysportal.service.OrderCandidateService.DATA_SOURCE_CODE. */
     public static final String DATA_SOURCE_DEMO_LEGACY = "DEMO_LEGACY";
@@ -100,6 +104,17 @@ public class PortalOrder {
 
     @Column(nullable = false, length = 30)
     private String status = STATUS_DRAFT;
+
+    /** Phase 7-C5 3章: the Revision most recently sent to the Supplier - the
+     * SAME concept as {@link OfficialPoIntegrationRequest#getRevisionNo()},
+     * not a separate numbering scheme. NULL until the first Demo Send
+     * (mirrors the {@code prototypePoNo}/{@code officialPoNo} "unassigned
+     * until milestone" idiom above). Set only by
+     * {@code OrderStatusTransitionService.demoSend} - never incremented by
+     * "修正版を作成" itself, since a Revision only crystallizes at Send time
+     * (docs/supplier-response-revision-workflow.md 2章). */
+    @Column(name = "current_revision_no")
+    private Integer currentRevisionNo;
 
     private String remark;
 

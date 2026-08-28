@@ -19,9 +19,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Technical Design 5.3. "1 Order = 1 current-state header" - complete change
- * history is reconstructed from audit_event, never from a separate
- * version table (implementation instructions 8章).
+ * Technical Design 5.3. "1 Order+Revision = 1 current-state header" - complete
+ * change history is reconstructed from audit_event, never from a separate
+ * version table (implementation instructions 8章). Phase 7-C5 5章 relaxed the
+ * original "1 Order = 1 header" 1:1 constraint to "1 (Order, Revision) = 1
+ * header": each {@link PortalOrderRevision} Send gets its own new
+ * SupplierResponse row, and past rows (for a superseded Revision) are never
+ * modified again - they are the READ ONLY response history.
  */
 @Entity
 @Table(name = "supplier_response")
@@ -37,8 +41,14 @@ public class SupplierResponse {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "portal_order_id", nullable = false, unique = true)
+    @Column(name = "portal_order_id", nullable = false)
     private Long portalOrderId;
+
+    /** Phase 7-C5 5章: which {@link PortalOrderRevision} this Response answers.
+     * Combined with {@code portalOrderId}, unique per row (V11 migration) -
+     * one Response per Revision, replacing the old one-per-Order constraint. */
+    @Column(name = "order_revision_id", nullable = false)
+    private Long orderRevisionId;
 
     @Column(name = "response_date")
     private LocalDate responseDate;
@@ -57,6 +67,24 @@ public class SupplierResponse {
 
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
+
+    /** Phase 7-C5 11章: set only by the Agreement Business Action. Never
+     * cleared by Reopen (7-C5 18章 "履歴を消さない") - {@link #reopenedAt}
+     * records the most recent Reopen alongside it instead. */
+    @Column(name = "agreed_by", length = 50)
+    private String agreedBy;
+
+    @Column(name = "agreed_at")
+    private OffsetDateTime agreedAt;
+
+    @Column(name = "reopened_by", length = 50)
+    private String reopenedBy;
+
+    @Column(name = "reopened_at")
+    private OffsetDateTime reopenedAt;
+
+    @Column(name = "reopen_reason")
+    private String reopenReason;
 
     @OneToMany(mappedBy = "supplierResponse", cascade = CascadeType.ALL, orphanRemoval = false)
     @OrderBy("id ASC")

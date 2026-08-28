@@ -29,10 +29,6 @@ import java.util.List;
 @Service
 public class OfficialPoIntegrationService {
 
-    /** No Revision Workflow exists yet (7-C5 territory) - every Request this
-     * Phase uses Revision 1 (7-C2A 5章). */
-    private static final int CURRENT_REVISION_NO = 1;
-
     private final PortalOrderRepository portalOrderRepository;
     private final OfficialPoIntegrationRequestRepository integrationRequestRepository;
     private final AuditEventRepository auditEventRepository;
@@ -58,6 +54,18 @@ public class OfficialPoIntegrationService {
      * Preflight against Legacy READ ONLY every call, including repeat calls
      * on an already-existing Request - Master data can change between calls,
      * so a stale PASS should never be trusted indefinitely.
+     *
+     * <p>Phase 7-C5 16章: {@code revisionNo} is the SAME concept as
+     * {@link PortalOrder#getCurrentRevisionNo()} - not a separate numbering
+     * scheme. This Request is always created while the Order is APPROVED,
+     * i.e. BEFORE the Demo Send that will actually crystallize the next
+     * {@code portal_order_revision} row (docs/supplier-response-revision-workflow.md
+     * 2章), so the target revision is "one past whatever was last sent":
+     * {@code currentRevisionNo == null} (never sent) -> 1, matching 7-C2A's
+     * original hardcoded behavior exactly for a first-time Order; otherwise
+     * {@code currentRevisionNo + 1}, correctly targeting the upcoming
+     * correction's Revision once an Order has been sent, corrected, and
+     * re-approved.
      */
     @Transactional(transactionManager = "prototypeTransactionManager")
     public OfficialPoIntegrationResponse requestIntegration(Long orderId, String performedBy) {
@@ -65,17 +73,18 @@ public class OfficialPoIntegrationService {
         if (!PortalOrder.STATUS_APPROVED.equals(order.getStatus())) {
             throw new OrderNotApprovedException(orderId, order.getStatus());
         }
+        int targetRevisionNo = order.getCurrentRevisionNo() == null ? 1 : order.getCurrentRevisionNo() + 1;
 
         OffsetDateTime now = OffsetDateTime.now();
         boolean isNewRequest = integrationRequestRepository
-                .findByPortalOrderIdAndRevisionNo(orderId, CURRENT_REVISION_NO).isEmpty();
+                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo).isEmpty();
 
         OfficialPoIntegrationRequest request = integrationRequestRepository
-                .findByPortalOrderIdAndRevisionNo(orderId, CURRENT_REVISION_NO)
+                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
                 .orElseGet(() -> {
                     OfficialPoIntegrationRequest r = new OfficialPoIntegrationRequest();
                     r.setPortalOrderId(orderId);
-                    r.setRevisionNo(CURRENT_REVISION_NO);
+                    r.setRevisionNo(targetRevisionNo);
                     r.setRequestedBy(performedBy);
                     r.setRequestedAt(now);
                     r.setCreatedAt(now);

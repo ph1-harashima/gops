@@ -91,6 +91,22 @@ public class AuditEvent {
      * it would be unnatural). */
     public static final String MAIL_PREVIEW_GENERATED = "MAIL_PREVIEW_GENERATED";
 
+    // --- Phase 7-C5: Supplier Response Revision / Agreement Workflow ---
+    /** ADMIN Business Action: SUPPLIER_CONFIRMED -> AGREED (7-C5 11章). Written
+     * together with STATUS_CHANGED, same pairing convention as every other
+     * Status-changing event in this codebase. */
+    public static final String SUPPLIER_RESPONSE_AGREED = "SUPPLIER_RESPONSE_AGREED";
+    /** "修正版を作成" (7-C5 13章): SUPPLIER_CONFIRMED -> DRAFT, the start of a
+     * correction cycle. {@link #note} holds the mandatory reason. Individual
+     * field edits during the correction reuse the EXISTING Draft-edit Audit
+     * events (ORDER_QTY_CHANGED etc.) verbatim - see V11 migration's comment
+     * for why no separate ORDER_REVISION_UPDATED event was added. */
+    public static final String ORDER_REVISION_CREATED = "ORDER_REVISION_CREATED";
+    /** AGREED -> SUPPLIER_CONFIRMED with a mandatory reason (7-C5 18章).
+     * {@code agreed_by}/{@code agreed_at} on the SupplierResponse row are
+     * deliberately never cleared by this - see that entity's Javadoc. */
+    public static final String AGREEMENT_REOPENED = "AGREEMENT_REOPENED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

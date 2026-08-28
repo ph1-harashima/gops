@@ -13,6 +13,8 @@ const COLOR_BY_STATUS: Record<string, 'default' | 'success' | 'warning' | 'info'
   SENT: 'info',
   AWAITING_SUPPLIER: 'warning',
   SUPPLIER_CONFIRMED: 'success',
+  // Phase 7-C5: explicit ADMIN Business Action, distinct from SUPPLIER_CONFIRMED.
+  AGREED: 'success',
 }
 
 export function OrderStatusChip({ status }: { status: string }) {

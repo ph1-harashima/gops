@@ -394,6 +394,20 @@ Phase 7-C3（Supplier Contact / Mail Template Foundation）を実装・全回帰
 
 ---
 
+## 25. Phase 7-C5 実装結果まとめ
+
+Phase 7-C5（Supplier Response Revision / Agreement Workflow）を実装・全回帰確認済み。11章（Supplier Response Revision方式）・12章（Confirmed Qty=0 / Revision & Correction）の設計のうち、Order Revision Model・Response-Revision Link・Difference Detection・Agreement・Reopen・Supply Status（11.2章の一部）を実装。詳細は別ファイル **[docs/supplier-response-revision-workflow.md](./supplier-response-revision-workflow.md)** に記録。
+
+要点のみ:
+- 11.1章の「Order Revision ⇄ Supplier Response の往復（Round）」構造を実装。ただし11.1章が示唆する「Revisionを能動的に作成・編集する」モデルではなく、**「Revisionは実際にSendされた瞬間にのみ確定するSnapshot」**という設計を採用（`portal_order_detail`自体は今回も一切構造変更しない）。「修正版を作成」は実質的にOrderをDRAFTへ戻すだけで、次のDemo Send時に初めてRevision N+1としてSnapshotされる。既存のOrder Detail編集画面・承認Workflow（7-C1）をそのまま再利用でき、新画面を一切追加していない。
+- 11.3章のResponse Difference Workflowはおおむね設計どおり実装: 差異検出（Difference Detection）→ Attention → ADMIN判断（差異のまま合意 / 修正版作成）→（修正版の場合）DRAFT差し戻し→再承認→再送信、のサイクルを実装。ただし「修正版の再承認」は7-C1の既存単一段階Approval Workflowをそのまま再利用しており、11.3章図の`APRV`（簡略化された同時承認）のような特別な承認ロジックは追加していない（15章に相当する再設計は不要と判断 — 詳細は実装ファイルの14章参照）。
+- 11.2章のSupplier Availability Status（候補値6つ）を`supplier_response_detail.supply_status`列として実装。ユーザーが明示的に選択した値のみを保持し、Confirmed Qtyから自動推測しない（12.1章と同じ「0とnullを混同しない」原則の横展開）。ただし正式な値の定義・Dashboard KPIとの連携は未着手（引き続きCUSTOMER REVIEW #4）。
+- 12.2章の「Correction / Reopen」はAgreement（新設のBusiness Action）に対する`Reopen`のみ実装（AGREED→SUPPLIER_CONFIRMEDへの巻き戻し、理由必須、`agreed_by`/`agreed_at`は消さず`reopened_by`/`reopened_at`/`reopen_reason`を追加記録）。12.2章が言う軽微な値訂正としての`Correction`（直接の値上書き）は実装していない - 大きな変更は既存の「修正版を作成」（Revision +1）で扱う設計に統一し、値訂正の是非・粒度の境界線（CUSTOMER REVIEW #10）はこのPhaseでも未確定のまま。
+- G-SYS再Import（11.3章最終行）・Official PO Excel再生成は本Phaseの範囲外（7-C2B以降）で、Integration Requestの`revisionNo`がOrder Revisionと同一の値を指すよう整合させたのみ（実際のExcel再生成・Legacy投入はまだ発生しない）。
+- Backend Full Test 275/275、Frontend Build/Lint/E2E、Legacy `phasep-gulliver` 変更ゼロを確認済み（詳細は実装ファイル参照）。
+
+---
+
 ## 付録: Current G-SYS Flow（7-A要約のMermaid）
 
 ```mermaid

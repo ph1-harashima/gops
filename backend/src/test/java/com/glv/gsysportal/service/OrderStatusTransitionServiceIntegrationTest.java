@@ -2,6 +2,7 @@ package com.glv.gsysportal.service;
 
 import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.PortalOrder;
+import com.glv.gsysportal.domain.PortalOrderRevision;
 import com.glv.gsysportal.domain.SupplierResponse;
 import com.glv.gsysportal.dto.request.CreateDraftRequest;
 import com.glv.gsysportal.dto.request.UpdateDraftRequest;
@@ -12,6 +13,7 @@ import com.glv.gsysportal.exception.NoOrderableItemsException;
 import com.glv.gsysportal.exception.OrderNotEditableException;
 import com.glv.gsysportal.exception.ReturnReasonRequiredException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
+import com.glv.gsysportal.repository.prototype.PortalOrderRevisionRepository;
 import com.glv.gsysportal.repository.prototype.SupplierResponseRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +57,8 @@ class OrderStatusTransitionServiceIntegrationTest {
     private AuditEventRepository auditEventRepository;
     @Autowired
     private SupplierResponseRepository supplierResponseRepository;
+    @Autowired
+    private PortalOrderRevisionRepository revisionRepository;
 
     private OrderDraftResponse createDraft(String... skus) {
         return orderDraftService.createDraft(new CreateDraftRequest(List.of(skus), null, null, null), OPERATOR);
@@ -382,12 +386,33 @@ class OrderStatusTransitionServiceIntegrationTest {
 
         statusTransitionService.demoSend(approved.getId(), OPERATOR);
 
-        SupplierResponse response = supplierResponseRepository.findByPortalOrderId(approved.getId()).orElseThrow();
+        var responses = supplierResponseRepository.findByPortalOrderIdOrderByIdAsc(approved.getId());
+        assertEquals(1, responses.size());
+        SupplierResponse response = responses.get(0);
         assertEquals(SupplierResponse.STATUS_PARTIAL, response.getResponseStatus());
         assertEquals(1, response.getDetails().size());
         var detail = response.getDetails().get(0);
         assertEquals(3, detail.getOrderedQty(), "ordered_qty snapshot must equal order_qty at Demo Send time");
         assertEquals(null, detail.getConfirmedQty(), "confirmedQty starts unanswered (null), never 0");
+    }
+
+    @Test
+    void demoSendCreatesRevision1AndLinksSupplierResponseToIt() {
+        PortalOrder approved = createApprovedOrder(SKU_TENT_1);
+
+        PortalOrder sent = statusTransitionService.demoSend(approved.getId(), OPERATOR);
+
+        assertEquals(1, sent.getCurrentRevisionNo(), "first ever Send must crystallize Revision 1");
+        var revision = revisionRepository.findByPortalOrderIdAndRevisionNo(sent.getId(), 1).orElseThrow();
+        assertEquals(PortalOrderRevision.TYPE_INITIAL, revision.getRevisionType());
+        assertEquals(null, revision.getReason(), "INITIAL Revision never carries a reason");
+        assertEquals(1, revision.getDetails().size());
+        assertEquals(SKU_TENT_1, revision.getDetails().get(0).getSkuCode());
+        assertEquals(3, revision.getDetails().get(0).getOrderedQty());
+
+        SupplierResponse response = supplierResponseRepository
+                .findByPortalOrderIdAndOrderRevisionId(sent.getId(), revision.getId()).orElseThrow();
+        assertEquals(response.getId(), supplierResponseRepository.findByPortalOrderIdOrderByIdAsc(sent.getId()).get(0).getId());
     }
 
     @Test

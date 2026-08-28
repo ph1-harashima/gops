@@ -139,4 +139,33 @@ class OfficialPoIntegrationServiceIntegrationTest {
     void requestOnUnknownOrderThrowsNotFound() {
         assertThrows(DraftNotFoundException.class, () -> integrationService.requestIntegration(999_999L, ADMIN));
     }
+
+    /** Phase 7-C5 16章: after a Send + correction + re-Approval cycle, the
+     * NEXT Integration Request must target Revision 2 (currentRevisionNo=1
+     * from the first Send, +1 for the upcoming re-Send), never stay pinned at
+     * 1 - Integration Revision and Order Revision are the SAME concept. */
+    @Test
+    void requestAfterCorrectionCycleTargetsNextRevisionNo() {
+        PortalOrder order = createApprovedOrder();
+        PortalOrder sent = statusTransitionService.demoSend(order.getId(), ADMIN);
+        assertEquals(1, sent.getCurrentRevisionNo());
+
+        var response = supplierResponseService.getSupplierResponse(sent.getId());
+        supplierResponseService.saveSupplierResponse(sent.getId(), new com.glv.gsysportal.dto.request.SaveSupplierResponseRequest(
+                null, null, List.of(new com.glv.gsysportal.dto.request.SaveSupplierResponseRequest.LineUpdate(
+                        response.details().get(0).detailId(), 1, null, null, null))), ADMIN);
+        supplierResponseService.confirmSupplierResponse(sent.getId(), ADMIN);
+        orderRevisionService.createCorrection(sent.getId(), new com.glv.gsysportal.dto.request.CreateRevisionRequest("fix", true), ADMIN);
+        statusTransitionService.submitForApproval(sent.getId(), ADMIN, true);
+        statusTransitionService.approve(sent.getId(), ADMIN); // APPROVED again, still currentRevisionNo=1 (not yet re-sent)
+
+        OfficialPoIntegrationResponse integration = integrationService.requestIntegration(sent.getId(), ADMIN);
+
+        assertEquals(2, integration.revisionNo(), "targets the revision this APPROVED Order will become on its NEXT Send");
+    }
+
+    @Autowired
+    private SupplierResponseService supplierResponseService;
+    @Autowired
+    private OrderRevisionService orderRevisionService;
 }

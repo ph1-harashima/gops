@@ -5,7 +5,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 /** GET/PUT /api/orders/{id}/supplier-response (implementation instructions
- * 9章). */
+ * 9章), extended Phase 7-C5 21章 to be Revision-aware: {@code responseId}/
+ * {@code revisionNo} identify exactly which (Order, Revision) this View is
+ * for, and {@code differences}/agreement fields surface the 7-C5 8章/11章
+ * Difference Detection and Agreement state. */
 public record SupplierResponseView(
         Long orderId,
         String draftNo,
@@ -23,6 +26,15 @@ public record SupplierResponseView(
         String responseStatus,
         List<SupplierResponseDetailView> details,
         List<AttentionSummary> orderAttentions,
-        SupplierResponseSummary summary
+        SupplierResponseSummary summary,
+        Long responseId,
+        int revisionNo,
+        boolean isCurrent,
+        List<ResponseDifferenceView> differences,
+        String agreedBy,
+        java.time.OffsetDateTime agreedAt,
+        String reopenedBy,
+        java.time.OffsetDateTime reopenedAt,
+        String reopenReason
 ) {
 }

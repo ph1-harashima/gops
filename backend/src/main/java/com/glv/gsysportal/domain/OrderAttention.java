@@ -35,6 +35,10 @@ public class OrderAttention {
     public static final String PARTIAL_CONFIRMATION = "PARTIAL_CONFIRMATION";
     public static final String DATA_OUTDATED = "DATA_OUTDATED";
     public static final String OTHER_ATTENTION = "OTHER_ATTENTION";
+    /** Phase 7-C5 8章/9章: raised when a line's explicitly-selected Supply
+     * Status is anything other than AVAILABLE - stays ACTIVE until a user
+     * acknowledges it, same as QUANTITY_CHANGED/DELIVERY_CHANGED. */
+    public static final String SUPPLY_STATUS_CHANGED = "SUPPLY_STATUS_CHANGED";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

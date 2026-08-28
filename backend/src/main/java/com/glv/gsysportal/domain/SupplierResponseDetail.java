@@ -64,6 +64,15 @@ public class SupplierResponseDetail {
     @Column(name = "is_confirmed", nullable = false)
     private boolean confirmed;
 
+    /** Phase 7-C5 7章: explicitly selected by the answerer, NEVER auto-inferred
+     * from {@link #confirmedQty} (e.g. confirmedQty=0 must NOT automatically
+     * set OUT_OF_STOCK). NULL = not yet selected, distinct from the explicit
+     * {@code "UNKNOWN"} choice - same NULL-vs-explicit-value idiom as
+     * confirmedQty. Official business definition remains [TBD - CUSTOMER
+     * REVIEW] (7-C5 24章). */
+    @Column(name = "supply_status", length = 30)
+    private String supplyStatus;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
