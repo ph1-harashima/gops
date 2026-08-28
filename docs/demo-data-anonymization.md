@@ -6,6 +6,10 @@
 
 **機密性についての確認**: 変更前（Before）の名称（`アウトドアギア社`／`アルファ商事株式会社`等）は、Step 0/1でこのPrototype用に作成された架空のPlaceholder名称であり、実在の顧客・実在のBrand・実在のメーカー名を含んでいないことをコード（`backend/demo-data/02-seed.sql`のコメント、Requirements MD/Technical Design MDの記述）で確認した。したがって本Documentおよび変更前名称をGit管理下に置くことは問題ないと判断した。
 
+**改訂履歴**:
+- **Round 1**（初回匿名化）: `アウトドアギア社`等の元名称を`アウトドアブランドA`／`誠和商事株式会社`等へ変更。
+- **Round 2**（本改訂）: Round 1の名称が「Demo Data感が強い」（Brand名の末尾”A”）、または「実在企業と偶然一致し得る自然な日本企業名」（Supplier名）であったため、Brand名をアルファベット造語（`LIVORA`等）、Supplier名を実在の有名企業名を想起させない別の自然な架空社名へ再変更した。本書のBrand/Supplier表は**Round 2時点の最終値**を「After」として記載し、Round 1の中間値は各表内に注記する。Item名称はRound 1のまま変更していない。
+
 ## 対象範囲
 
 匿名化対象は、ローカルDocker上のDemo Legacy MySQL Seed（`legacy_demo`データベース）の表示名称のみ。以下は一切変更していない。
@@ -17,21 +21,27 @@
 
 ## Brand（MS_COMM, CATE_ID = 'MS_BRAND'）
 
-| Code | Before | After |
-|---|---|---|
-| `BR_OUTDOOR` | アウトドアギア社 | アウトドアブランドA |
-| `BR_HOME` | ホームグッズ社 | ホームブランドA |
-| `BR_KITCHEN` | キッチンウェア社 | キッチンブランドA |
+| Code | Before（Step 0/1元名称） | Round 1 | After（現在値） |
+|---|---|---|---|
+| `BR_OUTDOOR` | アウトドアギア社 | アウトドアブランドA | **FIELDNEST** |
+| `BR_HOME` | ホームグッズ社 | ホームブランドA | **LIVORA** |
+| `BR_KITCHEN` | キッチンウェア社 | キッチンブランドA | **KITCHENNE** |
+
+Round 1の「〜ブランドA」という表記が末尾”A”でDemo Data感が強かったため、造語アルファベットBrand名へ変更した。「Brand A」「Home A」等の記号的な名称は使用していない。
 
 ## Supplier（MS_COMM, CATE_ID = 'MS_SUPPL'）
 
 各SupplierはOutdoor/Home/Kitchenの複数Brandへ商品を供給しているため（実データ確認済み、下記参照）、単一カテゴリに限定した名称にすると実際の供給範囲と矛盾するため、カテゴリ非依存の一般的な商流会社名とした。
 
-| Code | Before | After | 実際に供給しているBrand（TR_PO実績ベース） |
-|---|---|---|---|
-| `SUP_ALPHA` | アルファ商事株式会社 | 誠和商事株式会社 | Outdoor（OD-TENT-001/002, OD-CHAIR-001, OD-LAMP-001）、Kitchen（KT-KNIFE-001/002, KT-BOWL-001/002） |
-| `SUP_BETA` | ベータトレーディング株式会社 | 中央トレーディング株式会社 | Outdoor（OD-CHAIR-002, OD-BAG-001/002）、Home（HM-RUG-001/002） |
-| `SUP_GAMMA` | ガンマ物産株式会社 | さくら物産株式会社 | Home（HM-MUG-001/002, HM-TOWEL-001/002）、Kitchen（KT-PAN-001/002） |
+| Code | Before（Step 0/1元名称） | Round 1 | After（現在値） | 実際に供給しているBrand（TR_PO実績ベース） |
+|---|---|---|---|---|
+| `SUP_ALPHA` | アルファ商事株式会社 | 誠和商事株式会社 | **東和ライフサプライ株式会社** | Outdoor（OD-TENT-001/002, OD-CHAIR-001, OD-LAMP-001）、Kitchen（KT-KNIFE-001/002, KT-BOWL-001/002） |
+| `SUP_BETA` | ベータトレーディング株式会社 | 中央トレーディング株式会社 | **蒼空プロダクト株式会社** | Outdoor（OD-CHAIR-002, OD-BAG-001/002）、Home（HM-RUG-001/002） |
+| `SUP_GAMMA` | ガンマ物産株式会社 | さくら物産株式会社 | **東都リビングパートナーズ株式会社** | Home（HM-MUG-001/002, HM-TOWEL-001/002）、Kitchen（KT-PAN-001/002） |
+
+Round 1の名称（誠和商事／中央トレーディング／さくら物産）は自然だが、実在法人と偶然一致し得る一般的な日本企業名だったため、実在企業名を意図的に避けつつ自然に見える別名称へ変更した。
+
+検討過程の記録として、SUP_BETAは当初「瑞穂プロダクト株式会社」を候補としたが、「瑞穂」がみずほフィナンシャルグループ（Mizuho）という著名な実在企業を強く想起させる読みであるため採用せず、「蒼空プロダクト株式会社」へ変更した。他の候補（東和ライフサプライ／東都リビングパートナーズ）については、特定の著名企業と完全一致する名称ではないことを確認した上で採用した。Web検索や外部Networkアクセスは行っておらず、「実在しないことの法的保証」ではなく「既存の知識で著名企業名と意図的に一致させない」という範囲での確認である。
 
 ## Item（MS_ITEM.DESCRIPTION）
 

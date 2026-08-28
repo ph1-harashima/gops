@@ -18,16 +18,16 @@ USE legacy_demo;
 -- Brand master (MS_BRAND)
 -- Names anonymized for the 9/17 customer demo (docs/demo-data-anonymization.md).
 -- Codes (BR_OUTDOOR/BR_HOME/BR_KITCHEN) and all numeric/master data are unchanged.
-INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_BRAND','BR_OUTDOOR','Brand Master','アウトドアブランドA',b'0',NOW(),NOW());
-INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_BRAND','BR_HOME','Brand Master','ホームブランドA',b'0',NOW(),NOW());
-INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_BRAND','BR_KITCHEN','Brand Master','キッチンブランドA',b'0',NOW(),NOW());
+INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_BRAND','BR_OUTDOOR','Brand Master','FIELDNEST',b'0',NOW(),NOW());
+INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_BRAND','BR_HOME','Brand Master','LIVORA',b'0',NOW(),NOW());
+INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_BRAND','BR_KITCHEN','Brand Master','KITCHENNE',b'0',NOW(),NOW());
 
 -- Supplier master (MS_SUPPL)
 -- Names anonymized for the 9/17 customer demo (docs/demo-data-anonymization.md).
 -- Codes (SUP_ALPHA/SUP_BETA/SUP_GAMMA) and all numeric/master data are unchanged.
-INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_SUPPL','SUP_ALPHA','Supplier Master','誠和商事株式会社',b'0',NOW(),NOW());
-INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_SUPPL','SUP_BETA','Supplier Master','中央トレーディング株式会社',b'0',NOW(),NOW());
-INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_SUPPL','SUP_GAMMA','Supplier Master','さくら物産株式会社',b'0',NOW(),NOW());
+INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_SUPPL','SUP_ALPHA','Supplier Master','東和ライフサプライ株式会社',b'0',NOW(),NOW());
+INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_SUPPL','SUP_BETA','Supplier Master','蒼空プロダクト株式会社',b'0',NOW(),NOW());
+INSERT INTO ms_comm (cate_id, code_id, cate_name, code_name, del_flg, create_datetime, update_datetime) VALUES ('MS_SUPPL','SUP_GAMMA','Supplier Master','東都リビングパートナーズ株式会社',b'0',NOW(),NOW());
 
 -- MS_ITEM
 -- DESCRIPTION (item name) anonymized/refreshed for the 9/17 customer demo
