@@ -30,7 +30,7 @@ import { test, expect, type Page } from '@playwright/test'
 const DEMO_USERNAME = 'purchase01'
 const DEMO_PASSWORD = 'DemoPass123!'
 
-// Two SKUs sharing one supplier (SUP_ALPHA / キッチンウェア社) so a single
+// Two SKUs sharing one supplier (SUP_ALPHA / キッチンブランドA) so a single
 // Draft can be created from both in one Create Draft action.
 const SKU_A = 'KT-BOWL-001' // driven to Confirmed Qty = 0
 const SKU_B = 'KT-BOWL-002' // driven to a Confirmed Qty change + a Confirmed Delivery change
