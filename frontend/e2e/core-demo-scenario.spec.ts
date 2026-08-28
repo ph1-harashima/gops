@@ -4,9 +4,11 @@ import { test, expect, type Page } from '@playwright/test'
  * Step 5 7章: Core Demo Scenario E2E test.
  *
  * Covers, in order: Login -> Candidate List -> SKU選択 -> Create Draft ->
- * Order Qty変更 -> Save -> Preview -> Confirm Order -> Demo Send ->
- * Supplier Response -> Confirmed Qty変更（0を含む） -> Confirmed Delivery
- * 変更 -> Save -> Confirm Response -> History -> Timeline確認 -> Attention
+ * Order Qty変更 -> Save -> Preview -> Confirm Order -> Demo Send -> 発注詳細
+ * (Order Detail, Phase 6-C: no longer auto-opens Supplier Response) ->
+ * 「メーカー回答を入力」-> Supplier Response -> Confirmed Qty変更（0を含む）
+ * -> Confirmed Delivery変更 -> Save -> Confirm Response -> 発注詳細 (Phase
+ * 6-C: Confirm also lands here directly now) -> Timeline確認 -> Attention
  * 確認 -> Acknowledge.
  *
  * Selector policy (Step 5 8章 finding): the checkbox/click-miss issue
@@ -43,7 +45,7 @@ async function login(page: Page) {
   await expect(page.getByTestId('nav-dashboard')).toBeVisible()
 }
 
-test('Core Demo Scenario: Candidate -> Draft -> Preview -> Confirm -> Demo Send -> Supplier Response -> History -> Attention Acknowledge', async ({ page }) => {
+test('Core Demo Scenario: Candidate -> Draft -> Preview -> Confirm -> Demo Send -> Order Detail -> Supplier Response -> Order Detail -> Attention Acknowledge', async ({ page }) => {
   // ---- Login ----
   await login(page)
 
@@ -88,9 +90,25 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Confirm -> Demo Send 
   await page.getByTestId('demo-send-button').click()
   await page.getByTestId('demo-send-dialog-confirm').click()
 
-  // Demo Send success navigates straight to Supplier Response.
-  await expect(page).toHaveURL(new RegExp(`/orders/${draftId}/supplier-response$`))
-  await expect(page.getByText('発注処理を記録しました。デモモードのため、実際のメールは送信されていません。')).toBeVisible()
+  // Phase 6-C: "送信する" and "後日回答を登録する" are separate Business
+  // Tasks now - Demo Send no longer auto-opens Supplier Response, it lands
+  // on 発注詳細 (Order Detail) instead. The returnTo chain is reset to the
+  // Order List's AWAITING_SUPPLIER bucket rather than carrying forward the
+  // Candidate List this Draft started from (docs/production-ux-workflow-redesign.md 8章).
+  await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))
+  expect(page.url()).not.toContain('supplier-response')
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/orders/history?status=AWAITING_SUPPLIER')
+  await expect(page.getByRole('heading', { name: '発注詳細' })).toBeVisible()
+  await expect(
+    page.getByText('メーカーへの発注を記録しました。現在、メーカー回答待ちです。デモモードのため、実際のメールは送信されていません。'),
+  ).toBeVisible()
+
+  // ---- 発注詳細 -> メーカー回答を入力 (a deliberate, separate click - this
+  // is the point of Phase 6-C, not an automatic follow-on) ----
+  const enterSupplierResponse = page.getByTestId('order-detail-primary-action')
+  await expect(enterSupplierResponse).toHaveText('メーカー回答を入力')
+  await enterSupplierResponse.click()
+  await expect(page).toHaveURL(new RegExp(`/orders/${draftId}/supplier-response(\\?.*)?$`))
 
   // ---- Supplier Response: Confirmed Qty変更（0を含む）+ Confirmed Delivery変更 ----
   const confirmedQtyA = page.getByTestId(`confirmed-qty-input-${SKU_A}`).locator('input')
@@ -112,11 +130,14 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Confirm -> Demo Send 
   // ---- Confirm Response (メーカー回答を確定) ----
   await page.getByTestId('confirm-response-button').click()
   await page.getByTestId('confirm-response-dialog-confirm').click()
-  await expect(page.getByText('メーカー回答を確定しました。')).toBeVisible()
 
-  // ---- History (履歴を見る) ----
-  await page.getByTestId('view-history-button').click()
-  await expect(page).toHaveURL(new RegExp(`/orders/${draftId}$`))
+  // Phase 6-C: Confirm now also lands on 発注詳細 directly - no more manual
+  // "履歴を見る" click, and the returnTo it carried in (this order's own
+  // AWAITING_SUPPLIER Order List context, set above) survives the round trip.
+  await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/orders/history?status=AWAITING_SUPPLIER')
+  await expect(page.getByText('メーカー回答を確定しました。')).toBeVisible()
+  await expect(page.getByTestId('order-detail-primary-action')).toHaveText('メーカー回答を確認する')
 
   // ---- Timeline確認 ----
   await expect(page.getByText('操作履歴')).toBeVisible()

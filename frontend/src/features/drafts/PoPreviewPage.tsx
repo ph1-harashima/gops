@@ -89,12 +89,23 @@ export function PoPreviewPage() {
     demoSendMutation.mutate(undefined, {
       onSuccess: () => {
         setDemoSendDialogOpen(false)
-        // AWAITING_SUPPLIER is outside Preview's Status scope (DRAFT/
-        // READY_TO_ORDER only - implementation instructions 1章), so unlike
-        // Confirm Order this screen cannot just stay and re-fetch - move on
-        // to Supplier Response, the natural next screen, carrying the
-        // success message implementation instructions 6章 asks for.
-        navigate(`/orders/${draftId}/supplier-response`, { state: { demoSendSuccess: true } })
+        // Phase 6-C (docs/production-ux-workflow-redesign.md 0章/2章):
+        // "送信する" and "後日回答を登録する" are separate Business Tasks -
+        // this no longer auto-opens Supplier Response. AWAITING_SUPPLIER is
+        // also outside Preview's own Status scope (DRAFT/READY_TO_ORDER
+        // only - implementation instructions 1章), so this screen can't just
+        // stay and re-fetch either; 発注詳細 (Order Detail) is the shared
+        // landing point for every Status, Send included.
+        //
+        // The inbound returnTo (if any) is deliberately NOT forwarded here:
+        // it usually points back to the Candidate List that started this
+        // Draft, and "送信済みなのに発注候補一覧へ戻る" would be an
+        // unnatural business context after a completed Send (6-C 8章). The
+        // returnTo chain is reset to the Order List's own AWAITING_SUPPLIER
+        // bucket instead - the order's new home now that it has been sent.
+        navigate(withReturnTo(`/orders/${draftId}`, '/orders/history?status=AWAITING_SUPPLIER'), {
+          state: { demoSendSuccess: true },
+        })
       },
     })
   }

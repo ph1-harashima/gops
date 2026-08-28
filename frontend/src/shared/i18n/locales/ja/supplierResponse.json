@@ -45,6 +45,5 @@
   "confirmDialogBody": "全SKUの回答を確定します。確定後は編集できません。",
   "confirmDialogCancel": "キャンセル",
   "confirmDialogConfirm": "確定する",
-  "confirmSuccess": "メーカー回答を確定しました。",
-  "viewHistory": "履歴を見る"
+  "confirmSuccess": "メーカー回答を確定しました。"
 }

@@ -1,4 +1,4 @@
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
 import Paper from '@mui/material/Paper'
@@ -47,6 +47,17 @@ export function OrderHistoryDetailPage() {
   const { id } = useParams<{ id: string }>()
   const orderId = Number(id)
   const navigate = useNavigate()
+  const location = useLocation()
+  // Phase 6-C (docs/production-ux-workflow-redesign.md 2章/5章): 発注詳細 is
+  // the shared landing point after both Demo Send and Supplier Response
+  // Confirm now (neither auto-opens the next screen anymore), so it shows
+  // whichever one-shot success Message the previous screen handed off via
+  // Router state - read once per navigation, not persisted, so a manual
+  // reload of this URL correctly shows neither.
+  const demoSendSuccess = Boolean((location.state as { demoSendSuccess?: boolean } | null)?.demoSendSuccess)
+  const supplierResponseConfirmSuccess = Boolean(
+    (location.state as { supplierResponseConfirmSuccess?: boolean } | null)?.supplierResponseConfirmSuccess,
+  )
   const [searchParams] = useSearchParams()
   // Phase 6-A (docs/production-ux-workflow-redesign.md 6.3章): restore the
   // originating List's own Filter state on "戻る", falling back to the
@@ -110,6 +121,13 @@ export function OrderHistoryDetailPage() {
         <OrderStatusChip status={detail.status} />
         <AttentionChips attentions={detail.orderAttentions} acknowledgeable />
       </Stack>
+
+      {demoSendSuccess && (
+        <Alert severity="success" sx={{ mb: 2 }}>{t('demoSendSuccessMessage')}</Alert>
+      )}
+      {supplierResponseConfirmSuccess && (
+        <Alert severity="success" sx={{ mb: 2 }}>{t('supplierResponseConfirmSuccessMessage')}</Alert>
+      )}
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" spacing={4} sx={{ flexWrap: 'wrap', rowGap: 1 }}>

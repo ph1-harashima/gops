@@ -44,6 +44,8 @@
     "attention": "Attention"
   },
   "notAvailable": "—",
+  "demoSendSuccessMessage": "Recorded the order to the supplier. Awaiting the supplier's response now. Demo Mode - no email was actually sent.",
+  "supplierResponseConfirmSuccessMessage": "Supplier response confirmed.",
   "goToDraftEdit": "Edit Draft",
   "goToPreview": "View PO Preview",
   "goToSupplierResponseInput": "Enter Supplier Response",

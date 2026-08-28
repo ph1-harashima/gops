@@ -71,5 +71,18 @@ test.describe('Phase 6-B: Order List / Order Detail', () => {
     await page.locator('table tbody tr').first().click()
     const action = page.getByTestId('order-detail-primary-action')
     await expect(action).toHaveText('メーカー回答を確認する')
+
+    // Phase 6-C Acceptance Scenario D: following the review link must land
+    // on a genuinely READ ONLY Supplier Response - no Save/Confirm CTA, and
+    // the confirmed-qty inputs are actually readOnly (not just hidden
+    // buttons), confirming SupplierResponsePage.isEditable's existing
+    // Status gate rather than assuming it from the button label alone.
+    await action.click()
+    await expect(page).toHaveURL(/\/supplier-response/)
+    await expect(page.getByRole('heading', { name: 'メーカー回答' })).toBeVisible()
+    await expect(page.getByTestId('save-response-button')).toHaveCount(0)
+    await expect(page.getByTestId('confirm-response-button')).toHaveCount(0)
+    const firstQtyInput = page.locator('[data-testid^="confirmed-qty-input-"] input').first()
+    await expect(firstQtyInput).toHaveAttribute('readonly', '')
   })
 })

@@ -44,6 +44,8 @@
     "attention": "確認事項"
   },
   "notAvailable": "—",
+  "demoSendSuccessMessage": "メーカーへの発注を記録しました。現在、メーカー回答待ちです。デモモードのため、実際のメールは送信されていません。",
+  "supplierResponseConfirmSuccessMessage": "メーカー回答を確定しました。",
   "goToDraftEdit": "ドラフトを編集",
   "goToPreview": "PO Previewを見る",
   "goToSupplierResponseInput": "メーカー回答を入力",

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import Box from '@mui/material/Box'
@@ -47,8 +47,6 @@ export function SupplierResponsePage() {
   const { id } = useParams<{ id: string }>()
   const orderId = Number(id)
   const navigate = useNavigate()
-  const location = useLocation()
-  const demoSendSuccess = Boolean((location.state as { demoSendSuccess?: boolean } | null)?.demoSendSuccess)
   const [searchParams] = useSearchParams()
   // Phase 6-A (docs/production-ux-workflow-redesign.md 8章/9章): "戻る" now
   // goes to Order Detail (the order's central screen) instead of PO
@@ -119,7 +117,21 @@ export function SupplierResponsePage() {
   }
 
   function handleConfirm() {
-    confirmMutation.mutate(undefined, { onSuccess: () => setConfirmDialogOpen(false) })
+    confirmMutation.mutate(undefined, {
+      onSuccess: () => {
+        setConfirmDialogOpen(false)
+        // Phase 6-C (docs/production-ux-workflow-redesign.md 4章): 発注詳細
+        // is this order's landing point after Confirm too, not just after
+        // Send - Recommended/Ordered/Confirmed Qty, Attention, and 操作履歴
+        // all live there. The existing returnTo (usually the Order List
+        // this screen was reached from, e.g. Status=AWAITING_SUPPLIER) is
+        // forwarded as-is - unlike Demo Send, there is no "wrong business
+        // context" concern here, so no reset is needed.
+        navigate(withReturnTo(`/orders/${orderId}`, returnTo), {
+          state: { supplierResponseConfirmSuccess: true },
+        })
+      },
+    })
   }
 
   if (isLoading) {
@@ -158,9 +170,6 @@ export function SupplierResponsePage() {
         <AttentionChips attentions={response.orderAttentions} acknowledgeable />
       </Stack>
 
-      {demoSendSuccess && (
-        <Alert severity="success" sx={{ mb: 2 }}>{t('preview:demoSendSuccess')}</Alert>
-      )}
       {saveMutation.isSuccess && <Alert severity="success" sx={{ mb: 2 }}>{t('saveSuccess')}</Alert>}
       {saveErrorCode === 'INVALID_CONFIRMED_QTY' && (
         <Alert severity="error" sx={{ mb: 2 }}>{t('errorGeneric')}</Alert>
@@ -293,13 +302,18 @@ export function SupplierResponsePage() {
         </Stack>
       </Paper>
 
-      <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
-        {isEditable && (
+      {/* Phase 6-C (docs/production-ux-workflow-redesign.md 6章): CTA set is
+          Status-driven now - AWAITING_SUPPLIER gets 回答を保存/メーカー回答を確定
+          (plus the 発注詳細へ戻る button already at the top of the page);
+          SUPPLIER_CONFIRMED is 原則READ ONLY with only that same 戻る button,
+          so no bottom row renders at all. The former standalone "履歴を見る"
+          button is gone - Confirm now lands on 発注詳細 itself, and 戻る
+          already goes there too, so it was a redundant third path. */}
+      {isEditable && (
+        <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
           <Button variant="contained" onClick={handleSave} disabled={saveMutation.isPending} data-testid="save-response-button">
             {saveMutation.isPending ? <CircularProgress size={20} /> : t('saveResponse')}
           </Button>
-        )}
-        {isEditable && (
           <Button
             variant="outlined"
             onClick={() => setConfirmDialogOpen(true)}
@@ -308,11 +322,8 @@ export function SupplierResponsePage() {
           >
             {t('confirmResponse')}
           </Button>
-        )}
-        <Button variant="text" onClick={() => navigate(`/orders/${orderId}`)} data-testid="view-history-button">
-          {t('viewHistory')}
-        </Button>
-      </Stack>
+        </Stack>
+      )}
 
       <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
         <DialogTitle>{t('confirmDialogTitle')}</DialogTitle>
