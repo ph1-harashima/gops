@@ -41,6 +41,10 @@ export interface OrderDraft {
   updatedAt: string
   details: OrderDraftDetail[]
   warningCodes: string[]
+  /** Phase 7-C1: the latest RETURNED_FOR_CORRECTION reason, shown only while
+   * still DRAFT and not yet resubmitted (mirrors OrderDraftResponse.returnReason /
+   * OrderDraftService.resolveReturnReason - null once resubmitted or approved). */
+  returnReason: string | null
 }
 
 export interface CreateDraftRequest {

@@ -9,12 +9,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * READY_TO_ORDER -> DRAFT (implementation instructions 13章). Deliberately
- * under {@code /api/orders/{id}/...}, not {@code /api/orders/drafts/{id}/...}
- * - matches the literal endpoint given in implementation instructions 13章.
- * Both are covered by the same {@code anyRequest().authenticated()} rule in
- * SecurityConfig (Step 2), so no Security configuration change was needed
- * for this Step (implementation instructions 18章).
+ * APPROVED -> DRAFT (implementation instructions 13章; Phase 7-C1: the source
+ * Status became APPROVED, and the action became ADMIN-only - un-approving an
+ * approved Order invalidates an ADMIN decision, so only an ADMIN may do it).
  */
 @RestController
 public class ReturnToDraftController {
@@ -28,6 +25,7 @@ public class ReturnToDraftController {
         this.currentUserProvider = currentUserProvider;
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/orders/{id}/return-to-draft")
     public OrderStatusChangeResponse returnToDraft(@PathVariable Long id) {
         PortalOrder order = statusTransitionService.returnToDraft(id, currentUserProvider.currentUsername());

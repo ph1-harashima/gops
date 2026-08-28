@@ -23,9 +23,11 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogContentText from '@mui/material/DialogContentText'
 import DialogActions from '@mui/material/DialogActions'
 
-import { usePoPreview, useConfirmOrder, useReturnToDraft, useDemoSend } from './poPreviewApi'
+import { usePoPreview, useReturnToDraft, useDemoSend } from './poPreviewApi'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { withReturnTo } from '../../shared/navigation/returnTo'
+import { useAuth } from '../auth/AuthContext'
+import { ROLE_ADMIN } from '../../shared/types/auth'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
 
 const KNOWN_ERROR_CODES = new Set([
@@ -59,30 +61,29 @@ export function PoPreviewPage() {
   const returnTo = searchParams.get('returnTo')
   const draftPath = withReturnTo(`/orders/drafts/${draftId}`, returnTo)
 
+  const { user } = useAuth()
+  const isAdmin = user?.role === ROLE_ADMIN
+
   const { data: preview, isLoading, isError, error, refetch } = usePoPreview(draftId)
-  const confirmMutation = useConfirmOrder(draftId)
   const returnMutation = useReturnToDraft(draftId)
   const demoSendMutation = useDemoSend(draftId)
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [demoSendDialogOpen, setDemoSendDialogOpen] = useState(false)
 
+  // Phase 7-C1 16章: the old DRAFT->READY_TO_ORDER "確定" transition no
+  // longer exists - "発注内容を修正" is now purely a navigation aid, not a
+  // Workflow Status change, for DRAFT and PENDING_APPROVAL (both are
+  // editable in place server-side, per role - OrderDraftPersistenceService's
+  // ownership/role matrix is the actual gate; this screen just routes
+  // there). Only APPROVED still needs an explicit un-approve first
+  // (return-to-draft, ADMIN-only) before the Draft screen becomes editable.
   function handleEditOrder() {
-    if (preview?.status === 'DRAFT') {
-      navigate(draftPath)
+    if (preview?.status === 'APPROVED') {
+      returnMutation.mutate(undefined, {
+        onSuccess: () => navigate(draftPath),
+      })
       return
     }
-    // READY_TO_ORDER -> DRAFT via Return to Draft, then go edit
-    // (implementation instructions 11章/12章/13章: "発注内容を修正" both
-    // unlocks editing and navigates there).
-    returnMutation.mutate(undefined, {
-      onSuccess: () => navigate(draftPath),
-    })
-  }
-
-  function handleConfirmOrder() {
-    confirmMutation.mutate(undefined, {
-      onSuccess: () => setConfirmDialogOpen(false),
-    })
+    navigate(draftPath)
   }
 
   function handleDemoSend() {
@@ -159,22 +160,6 @@ export function PoPreviewPage() {
         <Chip size="small" variant="outlined" color="info" label={t('demoModeChip')} />
       </Stack>
 
-      {confirmMutation.isSuccess && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {t('confirmSuccess')}
-        </Alert>
-      )}
-      {confirmMutation.isError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {(() => {
-            const code = errorCodeOf(confirmMutation.error)
-            if (code === 'NO_ORDERABLE_ITEMS') return t('errorNoOrderableItems')
-            if (code === 'MISSING_UNIT_PRICE') return t('errorMissingUnitPrice')
-            if (code === 'INVALID_STATUS_TRANSITION') return t('errorInvalidStatusTransition')
-            return t('errorGeneric')
-          })()}
-        </Alert>
-      )}
       {returnErrorCode && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {t('returnToDraftFailed')}
@@ -270,22 +255,20 @@ export function PoPreviewPage() {
       <Divider sx={{ my: 2 }} />
 
       <Stack direction="row" spacing={2}>
-        {(preview.status === 'DRAFT' || preview.status === 'READY_TO_ORDER') && (
-          <Button variant="outlined" onClick={handleEditOrder} disabled={returnMutation.isPending}>
+        {/* Phase 7-C1 16章: DRAFT/PENDING_APPROVAL are directly editable via
+            the Draft screen without any Status change (server-side
+            ownership/role matrix is the real gate); APPROVED still needs an
+            explicit un-approve first, which is ADMIN-only - hidden for
+            OPERATOR rather than shown-then-403'd, since return-to-draft is
+            an irreversible-feeling "undo an ADMIN decision" action, not a
+            routine edit request (17章's Backend enforcement still applies
+            regardless: ReturnToDraftController is @PreAuthorize-guarded). */}
+        {(preview.status === 'DRAFT' || preview.status === 'PENDING_APPROVAL' || (preview.status === 'APPROVED' && isAdmin)) && (
+          <Button variant="outlined" onClick={handleEditOrder} disabled={returnMutation.isPending} data-testid="edit-order-button">
             {returnMutation.isPending ? <CircularProgress size={20} /> : t('editOrder')}
           </Button>
         )}
-        {preview.status === 'DRAFT' && (
-          <Button
-            variant="contained"
-            onClick={() => setConfirmDialogOpen(true)}
-            disabled={confirmMutation.isPending}
-            data-testid="confirm-order-button"
-          >
-            {t('confirmOrder')}
-          </Button>
-        )}
-        {preview.status === 'READY_TO_ORDER' && (
+        {preview.status === 'APPROVED' && (
           <Button
             variant="contained"
             color="primary"
@@ -322,21 +305,6 @@ export function PoPreviewPage() {
           </Button>
         )}
       </Stack>
-
-      <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
-        <DialogTitle>{t('confirmDialogTitle')}</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('confirmDialogBody')}</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDialogOpen(false)} disabled={confirmMutation.isPending}>
-            {t('confirmDialogCancel')}
-          </Button>
-          <Button variant="contained" onClick={handleConfirmOrder} disabled={confirmMutation.isPending} data-testid="confirm-order-dialog-confirm">
-            {confirmMutation.isPending ? <CircularProgress size={20} /> : t('confirmDialogConfirm')}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       <Dialog open={demoSendDialogOpen} onClose={() => setDemoSendDialogOpen(false)}>
         <DialogTitle>{t('demoSendDialogTitle')}</DialogTitle>

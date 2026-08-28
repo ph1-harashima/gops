@@ -14,6 +14,8 @@ public record DashboardResponse(
         int outOfStockCount,
         int longTermOutOfStockCount,
         int draftCount,
+        /** Phase 7-C1 14章: ADMIN approval queue KPI. */
+        int pendingApprovalCount,
         int awaitingSupplierCount,
         int attentionCount,
         List<DashboardBrandRow> brands

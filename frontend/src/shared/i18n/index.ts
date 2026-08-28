@@ -24,6 +24,7 @@ import enDrafts from './locales/en/drafts.json'
 import enSupplierResponse from './locales/en/supplierResponse.json'
 import enCandidates from './locales/en/candidates.json'
 import enPreview from './locales/en/preview.json'
+import enDashboard from './locales/en/dashboard.json'
 
 // Japanese is the initial display language (Requirements MD 28.1).
 // Display text is never hardcoded into React components - it always comes
@@ -52,6 +53,7 @@ void i18n.use(initReactI18next).init({
       supplierResponse: enSupplierResponse,
       candidates: enCandidates,
       preview: enPreview,
+      dashboard: enDashboard,
     },
   },
   interpolation: {

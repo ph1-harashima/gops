@@ -133,13 +133,27 @@ public class OrderDraftPersistenceService {
      *    with old/new/performed_by/performed_at (implementation instructions 9章).
      */
     @Transactional(transactionManager = "prototypeTransactionManager")
-    public PortalOrder update(Long id, UpdateDraftRequest request, String performedBy) {
+    public PortalOrder update(Long id, UpdateDraftRequest request, String performedBy, boolean performerIsAdmin) {
         PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
 
-        // Implementation instructions 16章: Save Draft is only permitted while
-        // Status = DRAFT. Checked first, before touching any field, so a
-        // rejected save never partially applies.
-        if (!PortalOrder.STATUS_DRAFT.equals(order.getStatus())) {
+        // Phase 7-C1 editability matrix (checked first, before touching any
+        // field, so a rejected save never partially applies):
+        //   DRAFT            -> creator or ADMIN (minimal ownership rule -
+        //                       Supplier/Brand assignment scoping stays
+        //                       CUSTOMER REVIEW, 7-C1 13章)
+        //   PENDING_APPROVAL -> ADMIN only (the edit-and-approve path, 11章;
+        //                       the OPERATOR's Draft is locked while queued)
+        //   anything else    -> not editable (unchanged Step 2 rule)
+        if (PortalOrder.STATUS_DRAFT.equals(order.getStatus())) {
+            if (!performerIsAdmin && !performedBy.equals(order.getCreatedBy())) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "Only the Draft's creator or an ADMIN may edit it");
+            }
+        } else if (PortalOrder.STATUS_PENDING_APPROVAL.equals(order.getStatus())) {
+            if (!performerIsAdmin) {
+                throw new OrderNotEditableException(order.getStatus());
+            }
+        } else {
             throw new OrderNotEditableException(order.getStatus());
         }
 

@@ -38,12 +38,6 @@
     "attachment": "添付ファイル"
   },
   "editOrder": "発注内容を修正",
-  "confirmOrder": "発注内容を確定",
-  "confirmDialogTitle": "発注内容を確定しますか？",
-  "confirmDialogBody": "この内容で発注内容を確定しますか？\n確定後は発注準備完了となります。",
-  "confirmDialogCancel": "キャンセル",
-  "confirmDialogConfirm": "確定する",
-  "confirmSuccess": "発注内容を確定しました。",
   "returnToDraftFailed": "Order Draftへの変更に失敗しました。",
   "demoSend": "メーカーへ送信",
   "demoSendDialogTitle": "デモモードで発注処理を実行しますか？",

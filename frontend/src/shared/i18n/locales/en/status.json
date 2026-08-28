@@ -12,6 +12,8 @@
   },
   "orderStatus": {
     "DRAFT": "Draft",
+    "PENDING_APPROVAL": "Pending Approval",
+    "APPROVED": "Approved",
     "READY_TO_ORDER": "Ready to Order",
     "SENT": "Sent",
     "AWAITING_SUPPLIER": "Awaiting Supplier Response",
@@ -42,6 +44,10 @@
     "QUANTITY_CHANGED": "Confirmed Quantity Changed",
     "DELIVERY_CHANGED": "Confirmed Delivery Changed",
     "ATTENTION_ADDED": "Attention Raised",
-    "ATTENTION_RESOLVED": "Difference Acknowledged"
+    "ATTENTION_RESOLVED": "Difference Acknowledged",
+    "SUBMITTED_FOR_APPROVAL": "Submitted for Approval",
+    "ORDER_APPROVED": "Approved",
+    "APPROVED_WITH_CHANGES": "Approved with Changes",
+    "RETURNED_FOR_CORRECTION": "Returned for Correction"
   }
 }

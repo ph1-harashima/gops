@@ -189,7 +189,7 @@ class OrderDraftServiceIntegrationTest {
         OrderDraftResponse updated = orderDraftService.updateDraft(
                 created.id(),
                 new UpdateDraftRequest(null, null, null, List.of(new UpdateDraftRequest.DetailQtyUpdate(tentDetail.id(), 5))),
-                "tester02"
+                "tester02", true
         );
 
         var updatedTent = updated.details().stream().filter(d -> d.sku().equals(SKU_TENT_1)).findFirst().orElseThrow();
@@ -217,7 +217,7 @@ class OrderDraftServiceIntegrationTest {
         OrderDraftResponse updated = orderDraftService.updateDraft(
                 created.id(),
                 new UpdateDraftRequest(null, null, null, List.of(new UpdateDraftRequest.DetailQtyUpdate(detail.id(), 1))), // ratio 1/3 < 0.5
-                "tester02"
+                "tester02", true
         );
 
         assertTrue(updated.details().get(0).warningCodes().contains("ORDER_QTY_DIFFERS_SIGNIFICANTLY"));
@@ -234,7 +234,7 @@ class OrderDraftServiceIntegrationTest {
         OrderDraftResponse updated = orderDraftService.updateDraft(
                 created.id(),
                 new UpdateDraftRequest(null, null, null, List.of(new UpdateDraftRequest.DetailQtyUpdate(detail.id(), 4))), // ratio 4/3 ~= 1.33, within range
-                "tester02"
+                "tester02", true
         );
 
         assertTrue(updated.details().get(0).warningCodes().isEmpty());
@@ -251,7 +251,7 @@ class OrderDraftServiceIntegrationTest {
         OrderDraftResponse updated = orderDraftService.updateDraft(
                 created.id(),
                 new UpdateDraftRequest(null, null, null, List.of(new UpdateDraftRequest.DetailQtyUpdate(detail.id(), 0))),
-                "tester02"
+                "tester02", true
         );
 
         assertEquals(0, updated.details().get(0).orderQty());
@@ -268,7 +268,7 @@ class OrderDraftServiceIntegrationTest {
         assertThrows(InvalidOrderQtyException.class, () -> orderDraftService.updateDraft(
                 created.id(),
                 new UpdateDraftRequest(null, null, null, List.of(new UpdateDraftRequest.DetailQtyUpdate(detail.id(), -1))),
-                "tester02"
+                "tester02", true
         ));
     }
 
@@ -281,7 +281,7 @@ class OrderDraftServiceIntegrationTest {
         OrderDraftResponse updated = orderDraftService.updateDraft(
                 created.id(),
                 new UpdateDraftRequest(null, null, null, List.of(new UpdateDraftRequest.DetailQtyUpdate(999999L, 99))),
-                "tester02"
+                "tester02", true
         );
 
         assertEquals(created.details().get(0).orderQty(), updated.details().get(0).orderQty());
@@ -296,7 +296,7 @@ class OrderDraftServiceIntegrationTest {
         orderDraftService.updateDraft(
                 created.id(),
                 new UpdateDraftRequest(LocalDate.of(2026, 8, 28), LocalDate.of(2026, 9, 15), "after", null),
-                "tester02"
+                "tester02", true
         );
 
         List<AuditEvent> events = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(created.id());
@@ -317,7 +317,7 @@ class OrderDraftServiceIntegrationTest {
         orderDraftService.updateDraft(
                 created.id(),
                 new UpdateDraftRequest(null, null, "resaved", List.of(new UpdateDraftRequest.DetailQtyUpdate(detail.id(), 7))),
-                "tester02"
+                "tester02", true
         );
 
         OrderDraftResponse reGet = orderDraftService.getDraft(created.id());

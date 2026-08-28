@@ -16,6 +16,8 @@ export interface Dashboard {
   outOfStockCount: number
   longTermOutOfStockCount: number
   draftCount: number
+  /** Phase 7-C1 14章: ADMIN approval queue KPI. */
+  pendingApprovalCount: number
   awaitingSupplierCount: number
   attentionCount: number
   brands: DashboardBrandRow[]

@@ -25,7 +25,11 @@ import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 import type { OrderHistoryFilter } from './api'
 
-const STATUS_OPTIONS = ['DRAFT', 'READY_TO_ORDER', 'AWAITING_SUPPLIER', 'SUPPLIER_CONFIRMED']
+// Phase 7-C1 6章: READY_TO_ORDER dropped from the Filter options - no
+// current Order can hold that Status anymore (V8 migrated every existing
+// row to APPROVED, and no code writes it going forward). It stays
+// translatable in status.json only for historical Audit Timeline entries.
+const STATUS_OPTIONS = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'AWAITING_SUPPLIER', 'SUPPLIER_CONFIRMED']
 const FILTER_PARAMS = ['supplierCode', 'brandCode', 'status'] as const
 
 /** Read-only glance badges for the list view (no Acknowledge action here -

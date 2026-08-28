@@ -55,6 +55,20 @@ public class AuditEvent {
     public static final String ATTENTION_ADDED = "ATTENTION_ADDED";
     public static final String ATTENTION_RESOLVED = "ATTENTION_RESOLVED";
 
+    // --- Phase 7-C1: Role / Approval Foundation ---
+    /** OPERATOR (or ADMIN) requested approval: DRAFT -> PENDING_APPROVAL. */
+    public static final String SUBMITTED_FOR_APPROVAL = "SUBMITTED_FOR_APPROVAL";
+    /** ADMIN approved as-submitted: PENDING_APPROVAL -> APPROVED. */
+    public static final String ORDER_APPROVED = "ORDER_APPROVED";
+    /** ADMIN edited the Draft while PENDING_APPROVAL and then approved -
+     * written INSTEAD of ORDER_APPROVED; the individual field changes are
+     * already on the trail as ORDER_QTY_CHANGED etc. rows performed by the
+     * approver between submission and this event (7-C1 11章). */
+    public static final String APPROVED_WITH_CHANGES = "APPROVED_WITH_CHANGES";
+    /** ADMIN returned to OPERATOR: PENDING_APPROVAL -> DRAFT. The mandatory
+     * reason is stored in {@link #note} (7-C1 12章). */
+    public static final String RETURNED_FOR_CORRECTION = "RETURNED_FOR_CORRECTION";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

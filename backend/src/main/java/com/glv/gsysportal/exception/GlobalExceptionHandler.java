@@ -93,4 +93,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleAttentionAlreadyResolved(AttentionAlreadyResolvedException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "ATTENTION_ALREADY_RESOLVED"));
     }
+
+    @ExceptionHandler(ReturnReasonRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleReturnReasonRequired(ReturnReasonRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "RETURN_REASON_REQUIRED"));
+    }
 }

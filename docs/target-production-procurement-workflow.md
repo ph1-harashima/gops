@@ -369,6 +369,19 @@ Legacy DBへの変更は**ゼロ**（すべてPortal PostgreSQL側）。
 
 ---
 
+## 23. Phase 7-C1 実装結果まとめ
+
+Phase 7-C1（Role / Approval Foundation）を実装・全回帰確認済み。詳細（Permission Matrix、API一覧、DB Migration内容、Audit設計、テスト結果、Browser Scenario A〜E）は別ファイル **[docs/role-approval-implementation.md](./role-approval-implementation.md)** に記録。
+
+要点のみ:
+- Role: 4章の設計どおりOPERATOR/ADMINの2値に実装。ただしログインIDのemail化（17章）はこのPhaseでは見送り、Role Foundationのみ先行実装（`portal_user.email`列は追加・値投入済みだが未使用）。
+- Workflow Status: 5.1章の6値のうちDRAFT/PENDING_APPROVAL/APPROVEDの3値・4遷移（submit-for-approval/approve/return-for-correction/return-to-draft）のみ実装。SENT以降・正式PO番号・Official PO生成・Mail送信は未着手（7-C2以降）。
+- Approval Workflow（6章）: submit/approve/edit-and-approve/returnを実装。新規Audit基盤は作らず既存AuditEventを再利用。
+- 4軸State Model（18章）は未着手（このPhaseはWorkflow Status軸のみ）。
+- Backend Full Test 169/169、Frontend Build/Lint/E2E（25 tests, 2回連続安定）、Legacy `phasep-gulliver` 変更ゼロを確認済み。
+
+---
+
 ## 付録: Current G-SYS Flow（7-A要約のMermaid）
 
 ```mermaid

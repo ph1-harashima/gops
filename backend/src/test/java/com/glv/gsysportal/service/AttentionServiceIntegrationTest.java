@@ -30,6 +30,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Transactional(transactionManager = "prototypeTransactionManager")
 class AttentionServiceIntegrationTest {
 
+    /** Phase 7-C1: DRAFT -> PENDING_APPROVAL -> APPROVED (the pre-7-C1 confirm() equivalent). */
+    private com.glv.gsysportal.domain.PortalOrder approveViaWorkflow(Long orderId) {
+        statusTransitionService.submitForApproval(orderId, "tester01", true);
+        return statusTransitionService.approve(orderId, "tester01");
+    }
     private static final String SKU_TENT_1 = "OD-TENT-001"; // recommendedQty = 3
 
     @Autowired
@@ -45,7 +50,7 @@ class AttentionServiceIntegrationTest {
 
     private Long createQuantityChangedAttention() {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
-        PortalOrder ready = statusTransitionService.confirm(draft.id(), "tester01");
+        PortalOrder ready = approveViaWorkflow(draft.id());
         PortalOrder sent = statusTransitionService.demoSend(ready.getId(), "tester01");
         Long detailId = supplierResponseService.getSupplierResponse(sent.getId()).details().get(0).detailId();
         SupplierResponseView view = supplierResponseService.saveSupplierResponse(sent.getId(),

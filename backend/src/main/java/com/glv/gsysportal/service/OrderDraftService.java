@@ -10,8 +10,10 @@ import com.glv.gsysportal.exception.DraftNotFoundException;
 import com.glv.gsysportal.exception.EmptySkuListException;
 import com.glv.gsysportal.exception.MixedSupplierException;
 import com.glv.gsysportal.exception.SkuNotFoundException;
+import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository;
 import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
+import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,13 +36,16 @@ public class OrderDraftService {
     private final LegacyStockReadRepository legacyStockReadRepository;
     private final OrderDraftPersistenceService persistenceService;
     private final PortalOrderRepository portalOrderRepository;
+    private final AuditEventRepository auditEventRepository;
 
     public OrderDraftService(LegacyStockReadRepository legacyStockReadRepository,
                               OrderDraftPersistenceService persistenceService,
-                              PortalOrderRepository portalOrderRepository) {
+                              PortalOrderRepository portalOrderRepository,
+                              AuditEventRepository auditEventRepository) {
         this.legacyStockReadRepository = legacyStockReadRepository;
         this.persistenceService = persistenceService;
         this.portalOrderRepository = portalOrderRepository;
+        this.auditEventRepository = auditEventRepository;
     }
 
     public OrderDraftResponse createDraft(CreateDraftRequest request, String performedBy) {
@@ -70,21 +75,42 @@ public class OrderDraftService {
 
         // Step B: Prototype write, own transaction.
         PortalOrder saved = persistenceService.create(request, legacyRows, performedBy);
-        return toResponse(saved);
+        return toResponse(saved, null);
     }
 
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
     public OrderDraftResponse getDraft(Long id) {
         PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
-        return toResponse(order);
+        return toResponse(order, resolveReturnReason(order));
     }
 
-    public OrderDraftResponse updateDraft(Long id, UpdateDraftRequest request, String performedBy) {
-        PortalOrder saved = persistenceService.update(id, request, performedBy);
-        return toResponse(saved);
+    public OrderDraftResponse updateDraft(Long id, UpdateDraftRequest request, String performedBy, boolean performerIsAdmin) {
+        PortalOrder saved = persistenceService.update(id, request, performedBy, performerIsAdmin);
+        return toResponse(saved, resolveReturnReason(saved));
     }
 
-    static OrderDraftResponse toResponse(PortalOrder order) {
+    /**
+     * Phase 7-C1 12章: the Draft screen surfaces WHY a Draft came back. Only
+     * meaningful while status=DRAFT and the latest approval-flow event
+     * (SUBMITTED_FOR_APPROVAL vs RETURNED_FOR_CORRECTION) is a return - once
+     * the OPERATOR re-submits, the banner disappears.
+     */
+    private String resolveReturnReason(PortalOrder order) {
+        if (!PortalOrder.STATUS_DRAFT.equals(order.getStatus())) {
+            return null;
+        }
+        String reason = null;
+        for (AuditEvent e : auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(order.getId())) {
+            if (AuditEvent.RETURNED_FOR_CORRECTION.equals(e.getEventType())) {
+                reason = e.getNote();
+            } else if (AuditEvent.SUBMITTED_FOR_APPROVAL.equals(e.getEventType())) {
+                reason = null;
+            }
+        }
+        return reason;
+    }
+
+    static OrderDraftResponse toResponse(PortalOrder order, String returnReason) {
         List<OrderDraftDetailResponse> details = order.getDetails().stream()
                 .filter(d -> !d.isRemoved())
                 .map(OrderDraftService::toDetailResponse)
@@ -116,7 +142,8 @@ public class OrderDraftService {
                 order.getUpdatedBy(),
                 order.getUpdatedAt(),
                 details,
-                headerWarnings
+                headerWarnings,
+                returnReason
         );
     }
 

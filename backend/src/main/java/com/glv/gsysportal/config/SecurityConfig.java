@@ -34,6 +34,7 @@ import java.util.Map;
  * non-local environment.
  */
 @Configuration
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
@@ -81,11 +82,20 @@ public class SecurityConfig {
                         response.setStatus(HttpServletResponse.SC_OK))
                 .permitAll()
             )
-            .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"errorCode\":\"NOT_AUTHENTICATED\"}");
-            }));
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"errorCode\":\"NOT_AUTHENTICATED\"}");
+                })
+                // Phase 7-C1: authenticated but role-insufficient (e.g. an
+                // OPERATOR calling the ADMIN-only approve API directly) ->
+                // 403 with the same errorCode JSON shape as every other error.
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"errorCode\":\"FORBIDDEN\"}");
+                }));
         return http.build();
     }
 

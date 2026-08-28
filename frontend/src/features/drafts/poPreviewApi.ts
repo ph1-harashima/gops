@@ -18,19 +18,63 @@ export function usePoPreview(draftId: number) {
   })
 }
 
-async function confirmOrder(draftId: number): Promise<OrderStatusChange> {
-  const { data } = await apiClient.post<OrderStatusChange>(`/orders/drafts/${draftId}/confirm`)
+/** Phase 7-C1: invalidates every query a Workflow Status change can affect -
+ * this Order's own Preview/Draft/Detail/Timeline, the List it appears in,
+ * and the Dashboard's counts (draftCount/pendingApprovalCount/
+ * awaitingSupplierCount all move on submit/approve/return). Shared by
+ * submit/approve/return-for-correction below since all three are
+ * Workflow Status transitions with the same blast radius. */
+function invalidateOrderQueries(queryClient: ReturnType<typeof useQueryClient>, orderId: number) {
+  void queryClient.invalidateQueries({ queryKey: ['po-preview', orderId] })
+  void queryClient.invalidateQueries({ queryKey: ['order-draft', orderId] })
+  void queryClient.invalidateQueries({ queryKey: ['order-history-detail', orderId] })
+  void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+  void queryClient.invalidateQueries({ queryKey: ['order-history'] })
+  void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+}
+
+/** DRAFT -> PENDING_APPROVAL (Phase 7-C1 8章). Rejected 403/FORBIDDEN unless
+ * the caller is the Draft's own creator or an ADMIN (OrderStatusTransitionService.submitForApproval). */
+async function submitForApproval(orderId: number): Promise<OrderStatusChange> {
+  const { data } = await apiClient.post<OrderStatusChange>(`/orders/${orderId}/submit-for-approval`)
   return data
 }
 
-export function useConfirmOrder(draftId: number) {
+export function useSubmitForApproval(orderId: number) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () => confirmOrder(draftId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['po-preview', draftId] })
-      void queryClient.invalidateQueries({ queryKey: ['order-draft', draftId] })
-    },
+    mutationFn: () => submitForApproval(orderId),
+    onSuccess: () => invalidateOrderQueries(queryClient, orderId),
+  })
+}
+
+/** PENDING_APPROVAL -> APPROVED (Phase 7-C1 9章/10章). ADMIN only - Backend
+ * enforces via @PreAuthorize, this is not merely hidden by the UI. */
+async function approve(orderId: number): Promise<OrderStatusChange> {
+  const { data } = await apiClient.post<OrderStatusChange>(`/orders/${orderId}/approve`)
+  return data
+}
+
+export function useApprove(orderId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => approve(orderId),
+    onSuccess: () => invalidateOrderQueries(queryClient, orderId),
+  })
+}
+
+/** PENDING_APPROVAL -> DRAFT (Phase 7-C1 12章). ADMIN only; reason is
+ * mandatory Backend-side (400 RETURN_REASON_REQUIRED if blank). */
+async function returnForCorrection(orderId: number, reason: string): Promise<OrderStatusChange> {
+  const { data } = await apiClient.post<OrderStatusChange>(`/orders/${orderId}/return-for-correction`, { reason })
+  return data
+}
+
+export function useReturnForCorrection(orderId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (reason: string) => returnForCorrection(orderId, reason),
+    onSuccess: () => invalidateOrderQueries(queryClient, orderId),
   })
 }
 

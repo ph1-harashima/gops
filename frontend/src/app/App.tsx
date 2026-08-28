@@ -29,7 +29,7 @@ import { useAuth } from '../features/auth/AuthContext'
  * changes here.
  */
 export function App() {
-  const { t } = useTranslation('common')
+  const { t } = useTranslation(['common', 'drafts'])
   const { user, loading, logout } = useAuth()
   const location = useLocation()
 
@@ -76,7 +76,13 @@ export function App() {
               >
                 {t('navHistory')}
               </Button>
-              <Typography variant="body2">{user.displayName}</Typography>
+              <Typography variant="body2" data-testid="current-user-display">
+                {user.displayName}
+                {/* Phase 7-C1 19章: Role must be visible on every screen, not
+                    just this Header - existing Layout is otherwise untouched. */}
+                {' '}
+                <Chip size="small" variant="outlined" label={t(`drafts:roleLabel.${user.role}`, { defaultValue: user.role })} data-testid="current-user-role" />
+              </Typography>
               <Button size="small" onClick={() => void logout()} data-testid="nav-logout">
                 {t('logout')}
               </Button>

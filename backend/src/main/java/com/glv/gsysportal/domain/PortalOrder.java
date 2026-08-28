@@ -31,7 +31,16 @@ import java.util.List;
 public class PortalOrder {
 
     public static final String STATUS_DRAFT = "DRAFT";
-    public static final String STATUS_READY_TO_ORDER = "READY_TO_ORDER";
+    /** Phase 7-C1: OPERATOR has requested ADMIN approval - the Draft is
+     * locked against OPERATOR edits (only ADMIN may still modify it, for the
+     * edit-and-approve path) until it is approved or returned. */
+    public static final String STATUS_PENDING_APPROVAL = "PENDING_APPROVAL";
+    /** Phase 7-C1: ADMIN approved; the prototype PO No. is assigned at this
+     * transition (Target Design 5.1 - replaces the pre-7-C1 READY_TO_ORDER,
+     * which migration V8 mapped onto this value). The READY_TO_ORDER string
+     * still appears in historical audit_event rows and keeps its i18n label
+     * on the Frontend for that reason. */
+    public static final String STATUS_APPROVED = "APPROVED";
     /** Intermediate Status within the single Demo Send transaction
      * (implementation instructions 3章/4章) - persisted for Audit/History
      * accuracy, but the user always sees {@link #STATUS_AWAITING_SUPPLIER}

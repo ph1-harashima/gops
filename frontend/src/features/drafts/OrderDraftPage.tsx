@@ -19,12 +19,20 @@ import Tooltip from '@mui/material/Tooltip'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
 import Divider from '@mui/material/Divider'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogActions from '@mui/material/DialogActions'
 
 import { useOrderDraft, useUpdateDraft } from './api'
+import { useSubmitForApproval } from './poPreviewApi'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
+import { useAuth } from '../auth/AuthContext'
+import { ROLE_ADMIN } from '../../shared/types/auth'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
 
 /** Mirrors OrderDraftService.warningCodes on the backend, for immediate
@@ -56,11 +64,15 @@ export function OrderDraftPage() {
 
   const { data: draft, isLoading, isError } = useOrderDraft(draftId)
   const updateMutation = useUpdateDraft(draftId)
+  const submitMutation = useSubmitForApproval(draftId)
+  const { user } = useAuth()
+  const isAdmin = user?.role === ROLE_ADMIN
 
   const [orderDate, setOrderDate] = useState('')
   const [requestedDelivery, setRequestedDelivery] = useState('')
   const [remark, setRemark] = useState('')
   const [orderQtyById, setOrderQtyById] = useState<Record<number, number>>({})
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false)
 
   // Reset local edit state whenever a fresh Draft is loaded (initial load,
   // or after Save triggers the re-GET per Requirements MD 13章).
@@ -134,6 +146,17 @@ export function OrderDraftPage() {
     })
   }
 
+  function handleSubmitForApproval() {
+    submitMutation.mutate(undefined, {
+      onSuccess: () => {
+        setSubmitDialogOpen(false)
+        // Phase 7-C1 15章: 発注詳細 is the shared landing point after a
+        // Workflow Status change, same pattern as Demo Send (PoPreviewPage).
+        navigate(withReturnTo(`/orders/${draftId}`, returnTo))
+      },
+    })
+  }
+
   if (isLoading) {
     return (
       <Stack direction="row" spacing={1} sx={{ m: 4, alignItems: 'center' }}>
@@ -155,12 +178,22 @@ export function OrderDraftPage() {
     updateMutation.isError && axios.isAxiosError<ApiErrorBody>(updateMutation.error)
       ? updateMutation.error.response?.data?.errorCode
       : null
+  const submitErrorCode =
+    submitMutation.isError && axios.isAxiosError<ApiErrorBody>(submitMutation.error)
+      ? submitMutation.error.response?.data?.errorCode
+      : null
 
-  // Implementation instructions 16章: Save Draft (PUT) is Backend-rejected
-  // (409 ORDER_NOT_EDITABLE) unless Status = DRAFT - mirrored here so the
-  // Frontend also read-only's the form, not just relying on the Backend
-  // guard to reject an attempted Save.
-  const isEditable = draft.status === 'DRAFT'
+  // Phase 7-C1 4章/13章: mirrors OrderDraftPersistenceService.update()'s
+  // ownership/role matrix - DRAFT is editable by its own creator or any
+  // ADMIN, PENDING_APPROVAL is ADMIN-only (the edit-and-approve path), any
+  // other Status is read-only. This is a UX convenience only; the Backend
+  // enforces the actual rule regardless (17章 - Frontend hiding alone is
+  // never the access control).
+  const isEditable =
+    draft.status === 'DRAFT' ? (isAdmin || draft.createdBy === user?.username) :
+    draft.status === 'PENDING_APPROVAL' ? isAdmin :
+    false
+  const canSubmitForApproval = draft.status === 'DRAFT' && (isAdmin || draft.createdBy === user?.username)
 
   return (
     <Box sx={{ p: 3 }}>
@@ -178,6 +211,23 @@ export function OrderDraftPage() {
         )}
       </Stack>
 
+      {/* Phase 7-C1 12章: the most prominent Alert on this screen when
+          present - OPERATOR must not miss why their Draft came back. Only
+          rendered while status is DRAFT and not yet resubmitted
+          (OrderDraftService.resolveReturnReason on the Backend already
+          clears it the moment SUBMITTED_FOR_APPROVAL fires again). */}
+      {draft.returnReason && (
+        <Alert severity="warning" sx={{ mb: 2 }} data-testid="return-reason-banner">
+          <strong>{t('drafts:returnedBanner')}</strong>
+          {' - '}
+          {t('drafts:returnedReasonLabel')}: {draft.returnReason}
+        </Alert>
+      )}
+      {draft.status === 'PENDING_APPROVAL' && !isAdmin && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {t('drafts:pendingApprovalNotice')}
+        </Alert>
+      )}
       {updateMutation.isSuccess && (
         <Alert severity="success" sx={{ mb: 2 }}>
           {t('drafts:saveSuccess')}
@@ -186,6 +236,20 @@ export function OrderDraftPage() {
       {saveErrorCode && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {t('drafts:saveFailed', { code: saveErrorCode })}
+        </Alert>
+      )}
+      {submitMutation.isSuccess && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {t('drafts:submitSuccess')}
+        </Alert>
+      )}
+      {submitErrorCode && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {(() => {
+            if (submitErrorCode === 'NO_ORDERABLE_ITEMS') return t('drafts:errorNoOrderableItems')
+            if (submitErrorCode === 'FORBIDDEN') return t('drafts:errorForbidden')
+            return t('drafts:errorGeneric')
+          })()}
         </Alert>
       )}
       {isDirty && (
@@ -327,8 +391,43 @@ export function OrderDraftPage() {
           >
             {t('drafts:preview')}
           </Button>
+          {/* Phase 7-C1 8章: DRAFT -> PENDING_APPROVAL. Only the Draft's own
+              creator or an ADMIN can submit (OrderStatusTransitionService.
+              submitForApproval's ownership check) - hidden rather than
+              shown-then-403'd for the common case, though the Backend
+              enforces this regardless (17章). */}
+          {canSubmitForApproval && (
+            <Button
+              variant="contained"
+              onClick={() => setSubmitDialogOpen(true)}
+              disabled={submitMutation.isPending}
+              data-testid="submit-for-approval-button"
+            >
+              {submitMutation.isPending ? <CircularProgress size={20} /> : t('drafts:submitForApproval')}
+            </Button>
+          )}
         </Stack>
       </Paper>
+
+      <Dialog open={submitDialogOpen} onClose={() => setSubmitDialogOpen(false)}>
+        <DialogTitle>{t('drafts:submitDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('drafts:submitDialogBody')}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSubmitDialogOpen(false)} disabled={submitMutation.isPending}>
+            {t('drafts:submitDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmitForApproval}
+            disabled={submitMutation.isPending}
+            data-testid="submit-for-approval-dialog-confirm"
+          >
+            {submitMutation.isPending ? <CircularProgress size={20} /> : t('drafts:submitDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

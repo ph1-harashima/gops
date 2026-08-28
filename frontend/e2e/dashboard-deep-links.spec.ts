@@ -72,6 +72,19 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
     }
   })
 
+  test('承認待ち KPI -> Order List with status=PENDING_APPROVAL, count matches (Phase 7-C1 14章)', async ({ page }) => {
+    await login(page)
+    const expected = await kpiValue(page, '承認待ち')
+    test.skip(expected === 0, 'No PENDING_APPROVAL orders in the current Demo Data')
+
+    await kpiTile(page, '承認待ち').click()
+    await expect(page).toHaveURL(/\/orders\/history\?status=PENDING_APPROVAL/)
+    await waitForListSettled(page, /件の発注/)
+    const resultText = await page.getByText(/件の発注$|件の発注[^候]/).first().textContent()
+    const actual = Number(resultText?.match(/(\d+)件/)?.[1])
+    expect(actual).toBe(expected)
+  })
+
   test('メーカー回答待ち KPI -> Order List with status=AWAITING_SUPPLIER, count matches, and leads on into Supplier Response', async ({ page }) => {
     await login(page)
     const expected = await kpiValue(page, 'メーカー回答待ち')

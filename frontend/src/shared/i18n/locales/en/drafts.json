@@ -1,3 +1,19 @@
 {
-  "backToCandidates": "Back to Order Candidates"
+  "backToCandidates": "Back to Order Candidates",
+  "submitForApproval": "Submit for Approval",
+  "submitDialogTitle": "Submit for approval?",
+  "submitDialogBody": "Submit this Draft for approval?\nOnce submitted, quantities and other fields cannot be edited until an Administrator reviews it.",
+  "submitDialogCancel": "Cancel",
+  "submitDialogConfirm": "Submit",
+  "submitSuccess": "Submitted for approval.",
+  "errorNoOrderableItems": "No item has an order quantity of 1 or more. Please enter an order quantity.",
+  "errorForbidden": "You do not have permission to perform this action.",
+  "errorGeneric": "The operation failed.",
+  "returnedBanner": "Returned for Correction",
+  "returnedReasonLabel": "Return Reason",
+  "pendingApprovalNotice": "Pending approval. You can edit again once an Administrator reviews it.",
+  "roleLabel": {
+    "OPERATOR": "Operator",
+    "ADMIN": "Administrator"
+  }
 }

@@ -32,5 +32,21 @@
   "summary": {
     "totalQty": "合計数量",
     "totalAmount": "合計金額"
+  },
+  "submitForApproval": "承認依頼",
+  "submitDialogTitle": "承認依頼しますか？",
+  "submitDialogBody": "この内容で承認依頼を行いますか？\n依頼後は管理者が確認するまで発注数量などの編集ができなくなります。",
+  "submitDialogCancel": "キャンセル",
+  "submitDialogConfirm": "承認依頼する",
+  "submitSuccess": "承認依頼しました。",
+  "errorNoOrderableItems": "発注数量が1件以上設定されている商品がありません。発注数量を入力してください。",
+  "errorForbidden": "この操作を行う権限がありません。",
+  "errorGeneric": "処理に失敗しました。",
+  "returnedBanner": "差し戻されました",
+  "returnedReasonLabel": "差し戻し理由",
+  "pendingApprovalNotice": "承認待ちです。管理者の承認後に編集できます。",
+  "roleLabel": {
+    "OPERATOR": "購買担当",
+    "ADMIN": "管理者"
   }
 }

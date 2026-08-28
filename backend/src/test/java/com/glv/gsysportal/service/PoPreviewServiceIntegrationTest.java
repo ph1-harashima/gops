@@ -25,6 +25,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Transactional(transactionManager = "prototypeTransactionManager")
 class PoPreviewServiceIntegrationTest {
 
+    /** Phase 7-C1: DRAFT -> PENDING_APPROVAL -> APPROVED (the pre-7-C1 confirm() equivalent). */
+    private com.glv.gsysportal.domain.PortalOrder approveViaWorkflow(Long orderId) {
+        statusTransitionService.submitForApproval(orderId, "tester01", true);
+        return statusTransitionService.approve(orderId, "tester01");
+    }
     private static final String SKU_TENT_1 = "OD-TENT-001"; // recommendedQty = 3, unitPrice 1137
     private static final String SKU_TENT_2 = "OD-TENT-002"; // recommendedQty = 20, unitPrice 1274
     private static final String SKU_CHAIR_0 = "OD-CHAIR-001"; // recommendedQty = 0
@@ -63,11 +68,11 @@ class PoPreviewServiceIntegrationTest {
     @Test
     void previewAfterConfirmShowsAssignedPoNoAndReadyToOrderStatus() {
         OrderDraftResponse draft = createDraft(SKU_TENT_1);
-        statusTransitionService.confirm(draft.id(), "tester01");
+        approveViaWorkflow(draft.id());
 
         PoPreviewResponse preview = poPreviewService.preview(draft.id());
 
-        assertEquals("READY_TO_ORDER", preview.status());
+        assertEquals("APPROVED", preview.status());
         assertTrue(preview.prototypePoNo() != null && preview.prototypePoNo().startsWith("PO-DEMO-"));
     }
 

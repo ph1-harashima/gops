@@ -26,6 +26,12 @@ public record OrderDraftResponse(
         String updatedBy,
         OffsetDateTime updatedAt,
         List<OrderDraftDetailResponse> details,
-        List<String> warningCodes
+        List<String> warningCodes,
+        /** Phase 7-C1 12章: the reason from the latest RETURNED_FOR_CORRECTION
+         * Audit row, ONLY while it is the most recent approval-flow event on
+         * a DRAFT-status Order (i.e. the Draft is back precisely because it
+         * was returned); null otherwise. Read-time derived, never stored on
+         * the Order itself. */
+        String returnReason
 ) {
 }

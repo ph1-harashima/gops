@@ -5,6 +5,7 @@
     "outOfStock": "欠品",
     "longTermOutOfStock": "長期欠品",
     "draft": "発注作成中",
+    "pendingApproval": "承認待ち",
     "awaitingSupplier": "メーカー回答待ち",
     "attention": "要確認"
   },

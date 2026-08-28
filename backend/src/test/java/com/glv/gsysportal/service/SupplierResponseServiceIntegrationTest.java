@@ -40,6 +40,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Transactional(transactionManager = "prototypeTransactionManager")
 class SupplierResponseServiceIntegrationTest {
 
+    /** Phase 7-C1: DRAFT -> PENDING_APPROVAL -> APPROVED (the pre-7-C1 confirm() equivalent). */
+    private com.glv.gsysportal.domain.PortalOrder approveViaWorkflow(Long orderId) {
+        statusTransitionService.submitForApproval(orderId, "tester01", true);
+        return statusTransitionService.approve(orderId, "tester01");
+    }
     private static final String SKU_TENT_1 = "OD-TENT-001"; // recommendedQty=3
     private static final String SKU_TENT_2 = "OD-TENT-002"; // recommendedQty=20
 
@@ -54,7 +59,7 @@ class SupplierResponseServiceIntegrationTest {
 
     private PortalOrder createAwaitingSupplierOrder(String... skus) {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(skus), null, null, null), "tester01");
-        PortalOrder ready = statusTransitionService.confirm(draft.id(), "tester01");
+        PortalOrder ready = approveViaWorkflow(draft.id());
         return statusTransitionService.demoSend(ready.getId(), "tester01");
     }
 
@@ -161,7 +166,7 @@ class SupplierResponseServiceIntegrationTest {
     void confirmedDeliveryDifferentFromRequestedTriggersAttention() {
         OrderDraftResponse draft = orderDraftService.createDraft(
                 new CreateDraftRequest(List.of(SKU_TENT_1), null, LocalDate.of(2026, 9, 15), null), "tester01");
-        PortalOrder ready = statusTransitionService.confirm(draft.id(), "tester01");
+        PortalOrder ready = approveViaWorkflow(draft.id());
         PortalOrder order = statusTransitionService.demoSend(ready.getId(), "tester01");
         Long detailId = detailId(order, 0);
 
@@ -175,7 +180,7 @@ class SupplierResponseServiceIntegrationTest {
     void nullConfirmedDeliveryIsNotTreatedAsDifferentFromRequested() {
         OrderDraftResponse draft = orderDraftService.createDraft(
                 new CreateDraftRequest(List.of(SKU_TENT_1), null, LocalDate.of(2026, 9, 15), null), "tester01");
-        PortalOrder ready = statusTransitionService.confirm(draft.id(), "tester01");
+        PortalOrder ready = approveViaWorkflow(draft.id());
         PortalOrder order = statusTransitionService.demoSend(ready.getId(), "tester01");
         Long detailId = detailId(order, 0);
 
@@ -266,7 +271,7 @@ class SupplierResponseServiceIntegrationTest {
     @Test
     void saveWhileNotAwaitingSupplierIsRejected() {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
-        PortalOrder ready = statusTransitionService.confirm(draft.id(), "tester01"); // READY_TO_ORDER, not sent yet
+        PortalOrder ready = approveViaWorkflow(draft.id()); // APPROVED, not sent yet
 
         assertThrows(InvalidStatusTransitionException.class, () -> supplierResponseService.saveSupplierResponse(ready.getId(),
                 new SaveSupplierResponseRequest(null, null, List.of()), "tester01"));

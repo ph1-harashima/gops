@@ -12,6 +12,8 @@
   },
   "orderStatus": {
     "DRAFT": "下書き",
+    "PENDING_APPROVAL": "承認待ち",
+    "APPROVED": "承認済み",
     "READY_TO_ORDER": "発注準備完了",
     "SENT": "送信済み",
     "AWAITING_SUPPLIER": "メーカー回答待ち",
@@ -42,6 +44,10 @@
     "QUANTITY_CHANGED": "回答数量変更",
     "DELIVERY_CHANGED": "回答納期変更",
     "ATTENTION_ADDED": "確認事項の発生",
-    "ATTENTION_RESOLVED": "差異を確認済み"
+    "ATTENTION_RESOLVED": "差異を確認済み",
+    "SUBMITTED_FOR_APPROVAL": "承認依頼",
+    "ORDER_APPROVED": "承認",
+    "APPROVED_WITH_CHANGES": "修正のうえ承認",
+    "RETURNED_FOR_CORRECTION": "差し戻し"
   }
 }

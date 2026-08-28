@@ -40,7 +40,13 @@ class SupplierWorkflowApiTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         long id = ((Number) objectMapper.readValue(response, Map.class).get("id")).longValue();
-        mockMvc.perform(post("/api/orders/drafts/" + id + "/confirm")).andExpect(status().isOk());
+        // Phase 7-C1: DRAFT -> PENDING_APPROVAL (caller's session) ->
+        // APPROVED (ADMIN via request-scoped principal override) -> demo-send.
+        mockMvc.perform(post("/api/orders/" + id + "/submit-for-approval")).andExpect(status().isOk());
+        mockMvc.perform(post("/api/orders/" + id + "/approve")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .user("admin01").roles("ADMIN")))
+                .andExpect(status().isOk());
         mockMvc.perform(post("/api/orders/" + id + "/demo-send")).andExpect(status().isOk());
         return id;
     }

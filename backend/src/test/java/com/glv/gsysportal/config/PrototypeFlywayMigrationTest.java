@@ -36,7 +36,9 @@ class PrototypeFlywayMigrationTest {
                 "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank", String.class);
         // V6 (Step 3): prototype_po_no_seq + ORDER_RETURNED_TO_DRAFT event type.
         // V7 (Step 4): supplier_response / supplier_response_detail / order_attention.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7"), versions);
+        // V8 (Phase 7-C1): Role/Approval foundation - portal_user.email,
+        // admin01 demo account, READY_TO_ORDER -> APPROVED data migration.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8"), versions);
     }
 
     @Test
@@ -54,7 +56,8 @@ class PrototypeFlywayMigrationTest {
     void demoPortalUsersWereSeeded() {
         JdbcTemplate jdbc = new JdbcTemplate(prototypeDataSource);
         List<String> usernames = jdbc.queryForList("SELECT username FROM portal_user ORDER BY username", String.class);
-        assertEquals(List.of("purchase01", "sales_admin", "sys_admin"), usernames);
+        // admin01 added by V8 (Phase 7-C1 18章: a dedicated ADMIN demo account).
+        assertEquals(List.of("admin01", "purchase01", "sales_admin", "sys_admin"), usernames);
     }
 
     @Test

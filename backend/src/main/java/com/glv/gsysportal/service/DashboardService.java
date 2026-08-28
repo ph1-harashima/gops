@@ -56,6 +56,8 @@ public class DashboardService {
         int outOfStockCount = (int) candidates.stream().filter(DashboardService::isOutOfStock).count();
         int longTermOutOfStockCount = (int) candidates.stream().filter(DashboardService::isLongTermOutOfStock).count();
         int draftCount = (int) orders.stream().filter(o -> PortalOrder.STATUS_DRAFT.equals(o.getStatus())).count();
+        // Phase 7-C1 14章: ADMIN's approval queue entry point.
+        int pendingApprovalCount = (int) orders.stream().filter(o -> PortalOrder.STATUS_PENDING_APPROVAL.equals(o.getStatus())).count();
         int awaitingSupplierCount = (int) orders.stream().filter(o -> PortalOrder.STATUS_AWAITING_SUPPLIER.equals(o.getStatus())).count();
         int attentionCount = (int) orders.stream().filter(o -> orderIdsWithActiveAttention.contains(o.getId())).count();
 
@@ -63,7 +65,7 @@ public class DashboardService {
 
         return new DashboardResponse(
                 candidateCount, outOfStockCount, longTermOutOfStockCount,
-                draftCount, awaitingSupplierCount, attentionCount, brands
+                draftCount, pendingApprovalCount, awaitingSupplierCount, attentionCount, brands
         );
     }
 

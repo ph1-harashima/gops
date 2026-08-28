@@ -51,7 +51,13 @@ public class PoPreviewService {
     public PoPreviewResponse preview(Long draftId) {
         PortalOrder order = portalOrderRepository.findById(draftId).orElseThrow(() -> new DraftNotFoundException(draftId));
 
-        if (!PortalOrder.STATUS_DRAFT.equals(order.getStatus()) && !PortalOrder.STATUS_READY_TO_ORDER.equals(order.getStatus())) {
+        // Phase 7-C1: Preview is viewable across the whole pre-send span -
+        // DRAFT (final check before requesting approval), PENDING_APPROVAL
+        // (ADMIN reviewing the queued Draft), APPROVED (post-approval
+        // display with the assigned PO No.). SENT and beyond are rejected.
+        if (!PortalOrder.STATUS_DRAFT.equals(order.getStatus())
+                && !PortalOrder.STATUS_PENDING_APPROVAL.equals(order.getStatus())
+                && !PortalOrder.STATUS_APPROVED.equals(order.getStatus())) {
             throw new InvalidOrderStatusException(order.getStatus());
         }
 

@@ -4,12 +4,18 @@ import { test, expect, type Page } from '@playwright/test'
  * Step 5 7章: Core Demo Scenario E2E test.
  *
  * Covers, in order: Login -> Candidate List -> SKU選択 -> Create Draft ->
- * Order Qty変更 -> Save -> Preview -> Confirm Order -> Demo Send -> 発注詳細
- * (Order Detail, Phase 6-C: no longer auto-opens Supplier Response) ->
- * 「メーカー回答を入力」-> Supplier Response -> Confirmed Qty変更（0を含む）
- * -> Confirmed Delivery変更 -> Save -> Confirm Response -> 発注詳細 (Phase
- * 6-C: Confirm also lands here directly now) -> Timeline確認 -> Attention
- * 確認 -> Acknowledge.
+ * Order Qty変更 -> Save -> Preview -> 承認依頼 -> (ADMIN) 承認 -> Demo Send
+ * -> 発注詳細 (Order Detail, Phase 6-C: no longer auto-opens Supplier
+ * Response) -> 「メーカー回答を入力」-> Supplier Response -> Confirmed Qty
+ * 変更（0を含む）-> Confirmed Delivery変更 -> Save -> Confirm Response ->
+ * 発注詳細 (Phase 6-C: Confirm also lands here directly now) -> Timeline
+ * 確認 -> Attention確認 -> Acknowledge.
+ *
+ * Phase 7-C1: the old single-step DRAFT->READY_TO_ORDER "確定" no longer
+ * exists - OPERATOR submits for approval, then an ADMIN must separately
+ * approve before Demo Send becomes available. This suite exercises that
+ * as a real Role switch (logout/login), matching how the Prototype
+ * actually gates it - not a shortcut around the UI.
  *
  * Selector policy (Step 5 8章 finding): the checkbox/click-miss issue
  * observed during manual Step 4 verification was root-caused to a
@@ -31,21 +37,29 @@ import { test, expect, type Page } from '@playwright/test'
 
 const DEMO_USERNAME = 'purchase01'
 const DEMO_PASSWORD = 'DemoPass123!'
+// Phase 7-C1 18章: the dedicated ADMIN demo account (V8 migration).
+const ADMIN_USERNAME = 'admin01'
+const ADMIN_PASSWORD = 'DemoPass123!'
 
 // Two SKUs sharing one supplier (SUP_ALPHA / KITCHENNE) so a single
 // Draft can be created from both in one Create Draft action.
 const SKU_A = 'KT-BOWL-001' // driven to Confirmed Qty = 0
 const SKU_B = 'KT-BOWL-002' // driven to a Confirmed Qty change + a Confirmed Delivery change
 
-async function login(page: Page) {
+async function login(page: Page, username = DEMO_USERNAME, password = DEMO_PASSWORD) {
   await page.goto('/')
-  await page.getByLabel('ユーザー名').fill(DEMO_USERNAME)
-  await page.getByLabel('パスワード').fill(DEMO_PASSWORD)
+  await page.getByLabel('ユーザー名').fill(username)
+  await page.getByLabel('パスワード').fill(password)
   await page.getByRole('button', { name: 'ログイン' }).click()
   await expect(page.getByTestId('nav-dashboard')).toBeVisible()
 }
 
-test('Core Demo Scenario: Candidate -> Draft -> Preview -> Confirm -> Demo Send -> Order Detail -> Supplier Response -> Order Detail -> Attention Acknowledge', async ({ page }) => {
+async function logout(page: Page) {
+  await page.getByTestId('nav-logout').click()
+  await expect(page.getByLabel('ユーザー名')).toBeVisible()
+}
+
+test('Core Demo Scenario: Candidate -> Draft -> Preview -> Submit for Approval -> Approve -> Demo Send -> Order Detail -> Supplier Response -> Order Detail -> Attention Acknowledge', async ({ page }) => {
   // ---- Login ----
   await login(page)
 
@@ -75,18 +89,47 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Confirm -> Demo Send 
   await page.getByTestId('save-draft-button').click()
   await expect(page.getByText('保存しました。')).toBeVisible()
 
-  // ---- Preview ----
+  // ---- Preview (before approval - no PO No. assigned yet) ----
   // Phase 6-A: the returnTo chain is forwarded from Draft to Preview too.
   await page.getByTestId('go-to-preview-button').click()
   await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview(\\?.*)?$`))
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/candidates')
+  await expect(page.getByText('未採番')).toBeVisible()
 
-  // ---- Confirm (発注内容を確定) ----
-  await page.getByTestId('confirm-order-button').click()
-  await page.getByTestId('confirm-order-dialog-confirm').click()
-  await expect(page.getByText('発注内容を確定しました。')).toBeVisible()
+  // ---- 承認依頼 (Phase 7-C1: back to Draft, Submit for Approval) ----
+  await page.getByRole('button', { name: 'Order Draftへ戻る' }).click()
+  await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}(\\?.*)?$`))
+  await page.getByTestId('submit-for-approval-button').click()
+  await page.getByTestId('submit-for-approval-dialog-confirm').click()
 
-  // ---- Demo Send (メーカーへ送信) ----
+  // Submitting lands OPERATOR on 発注詳細, showing a read-only 承認待ち
+  // indicator (only an ADMIN gets 承認/修正/差し戻し there).
+  await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))
+  await expect(page.getByTestId('pending-approval-indicator')).toBeVisible()
+  await expect(page.getByTestId('order-detail-approve-button')).toHaveCount(0)
+
+  // ---- 承認 (Phase 7-C1: only an ADMIN can approve - real Role switch) ----
+  await logout(page)
+  await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
+  await page.goto(`/orders/${draftId}`)
+  await page.getByTestId('order-detail-approve-button').click()
+  await page.getByTestId('approve-dialog-confirm').click()
+  await expect(page.getByText('承認しました。')).toBeVisible()
+
+  // Approved -> PO No. is now assigned, and 発注詳細's primary Action is
+  // "PO Previewを見る" (Phase 7-C1 16章: APPROVED replaces the old
+  // READY_TO_ORDER Preview entry point).
+  const goToPreview = page.getByTestId('order-detail-primary-action')
+  await expect(goToPreview).toHaveText('PO Previewを見る')
+  await goToPreview.click()
+  await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview(\\?.*)?$`))
+  await expect(page.getByText('未採番')).toHaveCount(0)
+
+  // ---- Demo Send (メーカーへ送信) - continuing as this ADMIN session since
+  // Demo Send itself is not Role-restricted (SupplierWorkflowController has
+  // no @PreAuthorize gate); the strict OPERATOR/ADMIN separation itself is
+  // already covered above and by role-approval-workflow.spec.ts's Scenarios
+  // A-E. ----
   await page.getByTestId('demo-send-button').click()
   await page.getByTestId('demo-send-dialog-confirm').click()
 
@@ -140,9 +183,13 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Confirm -> Demo Send 
   await expect(page.getByTestId('order-detail-primary-action')).toHaveText('メーカー回答を確認する')
 
   // ---- Timeline確認 ----
+  // Phase 7-C1: the old single ORDER_READY ("発注内容確定（PO番号採番）")
+  // event no longer exists - PO No. assignment now happens inside 承認
+  // (ORDER_APPROVED), reached via 承認依頼 (SUBMITTED_FOR_APPROVAL) first.
   await expect(page.getByText('操作履歴')).toBeVisible()
   await expect(page.getByText('ドラフト作成')).toBeVisible()
-  await expect(page.getByText('発注内容確定（PO番号採番）')).toBeVisible()
+  await expect(page.getByText('承認依頼').first()).toBeVisible()
+  await expect(page.getByText('承認', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('デモ送信')).toBeVisible()
   await expect(page.getByText('メーカー回答確定')).toBeVisible()
 

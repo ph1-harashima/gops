@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import axios from 'axios'
 import Box from '@mui/material/Box'
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -9,16 +11,26 @@ import TableCell from '@mui/material/TableCell'
 import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
+import TextField from '@mui/material/TextField'
 import Stack from '@mui/material/Stack'
 import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
 import Divider from '@mui/material/Divider'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogActions from '@mui/material/DialogActions'
 
 import { useOrderHistoryDetail, useOrderEvents } from './api'
+import { useApprove, useReturnForCorrection } from '../drafts/poPreviewApi'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
 import { resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
+import { useAuth } from '../auth/AuthContext'
+import { ROLE_ADMIN } from '../../shared/types/auth'
+import type { ApiErrorBody } from '../../shared/types/orderDraft'
 import type { TFunction } from 'i18next'
 
 /** Audit Timeline i18n audit: oldValue/newValue are raw strings on the wire
@@ -37,6 +49,13 @@ function resolveTimelineValue(t: TFunction, fieldName: string | null, value: str
   if (fieldName === 'status') return t(`status:orderStatus.${value}`, { defaultValue: value })
   if (fieldName === 'attentionType') return t(`status:attentionType.${value}`, { defaultValue: value })
   return value
+}
+
+function errorCodeOf(error: unknown): string | null {
+  if (axios.isAxiosError<ApiErrorBody>(error)) {
+    return error.response?.data?.errorCode ?? null
+  }
+  return null
 }
 
 /** READ ONLY (Requirements MD 31.2) - no Save/Edit control anywhere on this
@@ -70,6 +89,27 @@ export function OrderHistoryDetailPage() {
   const { data: detail, isLoading, isError } = useOrderHistoryDetail(orderId)
   const { data: events, isLoading: eventsLoading } = useOrderEvents(orderId)
 
+  const { user } = useAuth()
+  const isAdmin = user?.role === ROLE_ADMIN
+  const approveMutation = useApprove(orderId)
+  const returnMutation = useReturnForCorrection(orderId)
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false)
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false)
+  const [returnReason, setReturnReason] = useState('')
+
+  function handleApprove() {
+    approveMutation.mutate(undefined, { onSuccess: () => setApproveDialogOpen(false) })
+  }
+
+  function handleReturnForCorrection() {
+    returnMutation.mutate(returnReason, {
+      onSuccess: () => {
+        setReturnDialogOpen(false)
+        setReturnReason('')
+      },
+    })
+  }
+
   if (isLoading) {
     return (
       <Stack direction="row" spacing={1} sx={{ m: 4, alignItems: 'center' }}>
@@ -93,11 +133,16 @@ export function OrderHistoryDetailPage() {
   // routes as-is (no new Business Logic, no new Route). SENT is never a
   // resting Status (OrderStatusTransitionService - Demo Send never leaves an
   // Order sitting in SENT), so it deliberately has no case here.
+  // Phase 7-C1 15章/16章: PENDING_APPROVAL is deliberately NOT handled here
+  // (it has role-dependent, multi-Action UI - ADMIN sees 承認/修正/差し戻し,
+  // OPERATOR sees a read-only indicator - rendered separately below).
+  // APPROVED replaces the old READY_TO_ORDER case (V8 migrated every
+  // existing Order to APPROVED; no Order can hold READY_TO_ORDER anymore).
   const primaryAction = (() => {
     switch (detail.status) {
       case 'DRAFT':
         return { label: t('goToDraftEdit'), to: `/orders/drafts/${detail.id}` }
-      case 'READY_TO_ORDER':
+      case 'APPROVED':
         return { label: t('goToPreview'), to: `/orders/drafts/${detail.id}/preview` }
       case 'AWAITING_SUPPLIER':
         // 入力 (input) - a Response is still owed.
@@ -127,6 +172,31 @@ export function OrderHistoryDetailPage() {
       )}
       {supplierResponseConfirmSuccess && (
         <Alert severity="success" sx={{ mb: 2 }}>{t('supplierResponseConfirmSuccessMessage')}</Alert>
+      )}
+      {approveMutation.isSuccess && (
+        <Alert severity="success" sx={{ mb: 2 }}>{t('approveSuccess')}</Alert>
+      )}
+      {approveMutation.isError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {(() => {
+            const code = errorCodeOf(approveMutation.error)
+            if (code === 'FORBIDDEN') return t('errorForbidden')
+            return t('errorGeneric')
+          })()}
+        </Alert>
+      )}
+      {returnMutation.isSuccess && (
+        <Alert severity="success" sx={{ mb: 2 }}>{t('returnSuccess')}</Alert>
+      )}
+      {returnMutation.isError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {(() => {
+            const code = errorCodeOf(returnMutation.error)
+            if (code === 'RETURN_REASON_REQUIRED') return t('errorReturnReasonRequired')
+            if (code === 'FORBIDDEN') return t('errorForbidden')
+            return t('errorGeneric')
+          })()}
+        </Alert>
       )}
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
@@ -185,6 +255,46 @@ export function OrderHistoryDetailPage() {
         </Stack>
       )}
 
+      {/* Phase 7-C1 15章: PENDING_APPROVAL's Action set depends on Role -
+          ADMIN gets 修正/承認/差し戻し, OPERATOR gets a read-only indicator.
+          The Backend enforces this regardless (approve/return-for-correction
+          are @PreAuthorize("hasRole('ADMIN')")) - this is UX convenience,
+          not the access control (17章). */}
+      {detail.status === 'PENDING_APPROVAL' && isAdmin && (
+        <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate(withReturnTo(`/orders/drafts/${detail.id}`, returnTo))}
+            data-testid="order-detail-edit-button"
+          >
+            {t('editDraft')}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => setApproveDialogOpen(true)}
+            disabled={approveMutation.isPending}
+            data-testid="order-detail-approve-button"
+          >
+            {approveMutation.isPending ? <CircularProgress size={20} /> : t('approve')}
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={() => setReturnDialogOpen(true)}
+            disabled={returnMutation.isPending}
+            data-testid="order-detail-return-button"
+          >
+            {returnMutation.isPending ? <CircularProgress size={20} /> : t('returnForCorrection')}
+          </Button>
+        </Stack>
+      )}
+      {detail.status === 'PENDING_APPROVAL' && !isAdmin && (
+        <Alert severity="info" sx={{ mt: 2 }} data-testid="pending-approval-indicator">
+          {t('pendingApprovalIndicator')}
+        </Alert>
+      )}
+
       <Divider sx={{ my: 3 }} />
 
       <Typography variant="h6" gutterBottom>{t('timelineTitle')}</Typography>
@@ -216,6 +326,57 @@ export function OrderHistoryDetailPage() {
           ))}
         </Stack>
       )}
+
+      <Dialog open={approveDialogOpen} onClose={() => setApproveDialogOpen(false)}>
+        <DialogTitle>{t('approveDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('approveDialogBody')}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setApproveDialogOpen(false)} disabled={approveMutation.isPending}>
+            {t('approveDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleApprove}
+            disabled={approveMutation.isPending}
+            data-testid="approve-dialog-confirm"
+          >
+            {approveMutation.isPending ? <CircularProgress size={20} /> : t('approveDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={returnDialogOpen} onClose={() => setReturnDialogOpen(false)}>
+        <DialogTitle>{t('returnDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{t('returnDialogBody')}</DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={2}
+            label={t('returnReasonInputLabel')}
+            value={returnReason}
+            onChange={(e) => setReturnReason(e.target.value)}
+            data-testid="return-reason-input"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReturnDialogOpen(false)} disabled={returnMutation.isPending}>
+            {t('returnDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleReturnForCorrection}
+            disabled={returnMutation.isPending || returnReason.trim() === ''}
+            data-testid="return-dialog-confirm"
+          >
+            {returnMutation.isPending ? <CircularProgress size={20} /> : t('returnDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
