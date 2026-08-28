@@ -40,7 +40,8 @@ class PrototypeFlywayMigrationTest {
         // admin01 demo account, READY_TO_ORDER -> APPROVED data migration.
         // V9 (Phase 7-C2A): Official PO Integration foundation -
         // portal_order.official_po_no, official_po_integration_request.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9"), versions);
+        // V10 (Phase 7-C3): Supplier Contact / Mail Template foundation.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), versions);
     }
 
     @Test

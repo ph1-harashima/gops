@@ -80,6 +80,17 @@ public class AuditEvent {
      * (7-C2A 19章). {@link #note} holds the overall PASS/WARNING/BLOCKED result. */
     public static final String PRECHECK_COMPLETED = "PRECHECK_COMPLETED";
 
+    // --- Phase 7-C3: Supplier Contact / Mail Template Foundation ---
+    /** Mail Preview generated - written every call (mirrors PRECHECK_COMPLETED's
+     * own precedent), {@link #note} holds "OK"/"BLOCKED" (7-C3 17章).
+     * Supplier Contact / Mail Template CREATED/UPDATED are deliberately NOT
+     * modeled as AuditEvent rows - this table is Order-scoped (portal_order_id
+     * NOT NULL) and Master changes have no Order to attach to; those Masters'
+     * own created_by/updated_by/created_at/updated_at columns serve as their
+     * audit trail instead (7-C3 17章's explicit permission to skip if forcing
+     * it would be unnatural). */
+    public static final String MAIL_PREVIEW_GENERATED = "MAIL_PREVIEW_GENERATED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

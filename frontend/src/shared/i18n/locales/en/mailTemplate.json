@@ -1,0 +1,49 @@
+{
+  "title": "Mail Template Management",
+  "subtitle": "Mail Template Master (Portal-only). Only PURCHASE_ORDER has real Resolution logic this Phase.",
+  "createButton": "New",
+  "editButton": "Edit",
+  "table": {
+    "templateName": "Template Name",
+    "templateType": "Type",
+    "supplierCode": "Supplier Code",
+    "brandCode": "Brand Code",
+    "language": "Language",
+    "active": "Status"
+  },
+  "statusActive": "Active",
+  "statusInactive": "Inactive",
+  "dialogTitleCreate": "New Mail Template",
+  "dialogTitleEdit": "Edit Mail Template",
+  "field": {
+    "templateName": "Template Name",
+    "templateType": "Type",
+    "supplierCode": "Supplier Code (optional)",
+    "supplierCodeHelp": "Leave blank for a language-wide default Template.",
+    "brandCode": "Brand Code (optional)",
+    "language": "Language",
+    "subjectTemplate": "Subject Template",
+    "bodyTemplate": "Body Template",
+    "attachmentType": "Attachment Type (optional)",
+    "active": "Active"
+  },
+  "templateType": {
+    "PURCHASE_ORDER": "PURCHASE_ORDER",
+    "PURCHASE_ORDER_REVISION": "PURCHASE_ORDER_REVISION",
+    "FOLLOW_UP": "FOLLOW_UP",
+    "CANCELLATION": "CANCELLATION"
+  },
+  "variablesHelp": "Available variables: {{supplierName}} {{contactName}} {{poNo}} {{orderDate}} {{requestedDelivery}} {{senderName}} {{senderEmail}} {{revisionNo}}",
+  "save": "Save",
+  "cancel": "Cancel",
+  "saveSuccess": "Saved.",
+  "empty": "No Mail Templates registered.",
+  "error": {
+    "INVALID_TEMPLATE_TYPE": "Invalid template type.",
+    "INVALID_LANGUAGE": "Invalid language.",
+    "SUPPLIER_CODE_NOT_FOUND": "Supplier code was not found in G-SYS.",
+    "BRAND_CODE_NOT_FOUND": "Brand code was not found in G-SYS.",
+    "FORBIDDEN": "You do not have permission to perform this action.",
+    "GENERIC": "The operation failed (an active Template may already exist for this type/supplier/brand/language)."
+  }
+}

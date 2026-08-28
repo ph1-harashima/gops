@@ -27,6 +27,7 @@ import Chip from '@mui/material/Chip'
 
 import { useOrderHistoryDetail, useOrderEvents } from './api'
 import { useOfficialPoIntegration, useRequestOfficialPoIntegration } from './officialPoIntegrationApi'
+import { useMailPreview } from './mailPreviewApi'
 import { useApprove, useReturnForCorrection } from '../drafts/poPreviewApi'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
@@ -98,6 +99,7 @@ export function OrderHistoryDetailPage() {
   const approveMutation = useApprove(orderId)
   const returnMutation = useReturnForCorrection(orderId)
   const requestIntegrationMutation = useRequestOfficialPoIntegration(orderId)
+  const mailPreviewMutation = useMailPreview(orderId)
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [returnDialogOpen, setReturnDialogOpen] = useState(false)
   const [returnReason, setReturnReason] = useState('')
@@ -392,6 +394,66 @@ export function OrderHistoryDetailPage() {
             >
               {requestIntegrationMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.requestButton')}
             </Button>
+          )}
+        </Paper>
+      )}
+
+      {/* Phase 7-C3 9章/11章: Mail Preview only - no Send API exists this
+          Phase. Same visibility/co-location as the Integration Section
+          above; deliberately separate Label from "Demo Send" (7-C3 11章). */}
+      {(detail.status === 'APPROVED' || (integration && integration.status !== 'NOT_REQUESTED')) && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="mail-preview-section">
+          <Typography variant="subtitle1" gutterBottom>{t('mailPreview.title')}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('mailPreview.subtitle')}</Typography>
+
+          {mailPreviewMutation.isError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {(() => {
+                const code = errorCodeOf(mailPreviewMutation.error)
+                if (code === 'FORBIDDEN') return t('mailPreview.errorForbidden')
+                return t('mailPreview.errorGeneric')
+              })()}
+            </Alert>
+          )}
+
+          <Button
+            variant="outlined"
+            onClick={() => mailPreviewMutation.mutate()}
+            disabled={mailPreviewMutation.isPending}
+            data-testid="mail-preview-button"
+          >
+            {mailPreviewMutation.isPending ? <CircularProgress size={20} /> : t('mailPreview.previewButton')}
+          </Button>
+
+          {mailPreviewMutation.data && (
+            <Stack spacing={1} sx={{ mt: 2 }} data-testid="mail-preview-result">
+              {mailPreviewMutation.data.issues.length > 0 && (
+                <Stack spacing={0.5}>
+                  {mailPreviewMutation.data.issues.map((issue, i) => (
+                    <Alert key={i} severity={issue.severity === 'BLOCKED' ? 'error' : 'warning'}>
+                      {t(`mailPreview.issue.${issue.code}`, { defaultValue: issue.code })}
+                    </Alert>
+                  ))}
+                </Stack>
+              )}
+              <Typography variant="body2">{t('mailPreview.from')}: {mailPreviewMutation.data.from}</Typography>
+              <Typography variant="body2">{t('mailPreview.to')}: {mailPreviewMutation.data.to.join(', ') || '—'}</Typography>
+              <Typography variant="body2">{t('mailPreview.cc')}: {mailPreviewMutation.data.cc.join(', ') || '—'}</Typography>
+              {mailPreviewMutation.data.subject ? (
+                <>
+                  <Typography variant="body2">{t('mailPreview.subject')}: <strong>{mailPreviewMutation.data.subject}</strong></Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                    {t('mailPreview.body')}:{'\n'}{mailPreviewMutation.data.body}
+                  </Typography>
+                </>
+              ) : (
+                <Alert severity="info">{t('mailPreview.blockedNotice')}</Alert>
+              )}
+              <Typography variant="body2" color="text.secondary">
+                {t('mailPreview.attachment')}: {mailPreviewMutation.data.attachment.fileName ?? '—'}
+                {' '}{t('mailPreview.attachmentNotGenerated')}
+              </Typography>
+            </Stack>
           )}
         </Paper>
       )}

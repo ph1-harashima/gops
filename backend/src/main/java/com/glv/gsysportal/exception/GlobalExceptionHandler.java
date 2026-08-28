@@ -103,4 +103,49 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleOrderNotApproved(OrderNotApprovedException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "ORDER_NOT_APPROVED"));
     }
+
+    @ExceptionHandler(InvalidEmailFormatException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidEmailFormat(InvalidEmailFormatException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_EMAIL_FORMAT"));
+    }
+
+    @ExceptionHandler(SupplierCodeNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleSupplierCodeNotFound(SupplierCodeNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "SUPPLIER_CODE_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(BrandCodeNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleBrandCodeNotFound(BrandCodeNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "BRAND_CODE_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(DuplicateSupplierContactException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateSupplierContact(DuplicateSupplierContactException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "DUPLICATE_SUPPLIER_CONTACT"));
+    }
+
+    @ExceptionHandler(SupplierContactNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleSupplierContactNotFound(SupplierContactNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("errorCode", "SUPPLIER_CONTACT_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(MailTemplateNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleMailTemplateNotFound(MailTemplateNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("errorCode", "MAIL_TEMPLATE_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(InvalidLanguageException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidLanguage(InvalidLanguageException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_LANGUAGE"));
+    }
+
+    @ExceptionHandler(InvalidContactTypeException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidContactType(InvalidContactTypeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_CONTACT_TYPE"));
+    }
+
+    @ExceptionHandler(InvalidTemplateTypeException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidTemplateType(InvalidTemplateTypeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_TEMPLATE_TYPE"));
+    }
 }

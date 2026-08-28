@@ -1,0 +1,55 @@
+{
+  "title": "Supplier Contact Management",
+  "subtitle": "Supplier Contact Master (Portal-only - Legacy has no Supplier contact/email Master).",
+  "createButton": "New",
+  "editButton": "Edit",
+  "table": {
+    "supplierCode": "Supplier Code",
+    "brandCode": "Brand Code",
+    "contactName": "Contact Name",
+    "email": "Email",
+    "contactType": "Type",
+    "language": "Language",
+    "primary": "Primary",
+    "active": "Status"
+  },
+  "statusActive": "Active",
+  "statusInactive": "Inactive",
+  "dialogTitleCreate": "New Supplier Contact",
+  "dialogTitleEdit": "Edit Supplier Contact",
+  "field": {
+    "supplierCode": "Supplier Code",
+    "brandCode": "Brand Code",
+    "brandCodeHelp": "Leave blank to apply to every Brand under this Supplier.",
+    "contactName": "Contact Name",
+    "email": "Email",
+    "contactType": "Type",
+    "language": "Language",
+    "region": "Region (optional)",
+    "procurementType": "Procurement Type (optional)",
+    "primary": "Primary",
+    "active": "Active"
+  },
+  "contactType": {
+    "TO": "To",
+    "CC": "Cc"
+  },
+  "language": {
+    "ja": "Japanese",
+    "en": "English"
+  },
+  "save": "Save",
+  "cancel": "Cancel",
+  "saveSuccess": "Saved.",
+  "empty": "No Supplier Contacts registered.",
+  "error": {
+    "INVALID_EMAIL_FORMAT": "Invalid email format.",
+    "SUPPLIER_CODE_NOT_FOUND": "Supplier code was not found in G-SYS.",
+    "BRAND_CODE_NOT_FOUND": "Brand code was not found in G-SYS.",
+    "DUPLICATE_SUPPLIER_CONTACT": "An active Contact already exists for this Supplier/Brand/Email.",
+    "INVALID_CONTACT_TYPE": "Invalid contact type.",
+    "INVALID_LANGUAGE": "Invalid language.",
+    "FORBIDDEN": "You do not have permission to perform this action.",
+    "GENERIC": "The operation failed."
+  }
+}

@@ -382,6 +382,18 @@ Phase 7-C1（Role / Approval Foundation）を実装・全回帰確認済み。�
 
 ---
 
+## 24. Phase 7-C3 実装結果まとめ
+
+Phase 7-C3（Supplier Contact / Mail Template Foundation）を実装・全回帰確認済み。9章のSupplier Communication設計のうち、Supplier Contact Master・Mail Template・Mail Preview・Recipient Resolutionを実装。詳細は別ファイル **[docs/supplier-contact-mail-template-foundation.md](./supplier-contact-mail-template-foundation.md)** に記録。
+
+要点のみ:
+- Supplier Contact Master・Mail Template Masterとも9章の設計どおりPortal専用で新設。9章の`cc`列（Contact自体のCC）は`contact_type`(TO/CC)として実装し、9章のもう一つのCC概念（「必ずADMIN」）は別軸のAdmin CC Rule（Resolution時に`portal_user`のADMIN roleから動的解決）として分離実装 - 9章記載の2種類のCCを混同しないよう区別。
+- 送信基盤（SYS_SEND_MAIL/SysSendMailBatch）・mail_history保存・実From/Reply-To方式のいずれも本Phaseでは未着手（19章の絶対禁止事項どおり、実送信に関わる一切を実施していない）。Mail Previewのみ。
+- Preview GateはAPPROVED+CONFIRMED+officialPoNo確定を要求する設計（10章）だが、CONFIRMEDに到達する手段が存在しないため、本番Send CTAは作らず、Previewのみ未確定項目の可視化用途で提供。
+- Backend Full Test 247/247、Frontend Build/Lint/E2E（36 tests, 2回連続安定）、Legacy変更ゼロを確認済み。
+
+---
+
 ## 付録: Current G-SYS Flow（7-A要約のMermaid）
 
 ```mermaid

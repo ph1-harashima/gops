@@ -11,9 +11,13 @@ import jaSupplierResponse from './locales/ja/supplierResponse.json'
 import jaHistory from './locales/ja/history.json'
 import jaDashboard from './locales/ja/dashboard.json'
 import jaSkuDetail from './locales/ja/skuDetail.json'
+import jaSupplierContact from './locales/ja/supplierContact.json'
+import jaMailTemplate from './locales/ja/mailTemplate.json'
 import enCommon from './locales/en/common.json'
 import enStatus from './locales/en/status.json'
 import enHistory from './locales/en/history.json'
+import enSupplierContact from './locales/en/supplierContact.json'
+import enMailTemplate from './locales/en/mailTemplate.json'
 // Phase 6-A: minimal partial resources - just the new Label keys introduced
 // this Phase (docs/production-ux-workflow-redesign.md 6章/13章). No
 // Language Selector is implemented yet (lng is fixed to 'ja' below), and
@@ -44,6 +48,8 @@ void i18n.use(initReactI18next).init({
       history: jaHistory,
       dashboard: jaDashboard,
       skuDetail: jaSkuDetail,
+      supplierContact: jaSupplierContact,
+      mailTemplate: jaMailTemplate,
     },
     en: {
       common: enCommon,
@@ -54,6 +60,8 @@ void i18n.use(initReactI18next).init({
       candidates: enCandidates,
       preview: enPreview,
       dashboard: enDashboard,
+      supplierContact: enSupplierContact,
+      mailTemplate: enMailTemplate,
     },
   },
   interpolation: {

@@ -1,0 +1,49 @@
+{
+  "title": "メールテンプレート管理",
+  "subtitle": "Mail Template Master（Portal専用）。今回実運用で解決されるのはPURCHASE_ORDERのみです。",
+  "createButton": "新規作成",
+  "editButton": "編集",
+  "table": {
+    "templateName": "テンプレート名",
+    "templateType": "種別",
+    "supplierCode": "メーカーコード",
+    "brandCode": "ブランドコード",
+    "language": "言語",
+    "active": "状態"
+  },
+  "statusActive": "有効",
+  "statusInactive": "無効",
+  "dialogTitleCreate": "メールテンプレートを新規作成",
+  "dialogTitleEdit": "メールテンプレートを編集",
+  "field": {
+    "templateName": "テンプレート名",
+    "templateType": "種別",
+    "supplierCode": "メーカーコード（任意）",
+    "supplierCodeHelp": "空欄の場合、言語共通のDefault Templateになります。",
+    "brandCode": "ブランドコード（任意）",
+    "language": "言語",
+    "subjectTemplate": "件名テンプレート",
+    "bodyTemplate": "本文テンプレート",
+    "attachmentType": "添付種別（任意）",
+    "active": "有効"
+  },
+  "templateType": {
+    "PURCHASE_ORDER": "PURCHASE_ORDER（発注書）",
+    "PURCHASE_ORDER_REVISION": "PURCHASE_ORDER_REVISION（発注書改訂）",
+    "FOLLOW_UP": "FOLLOW_UP（フォローアップ）",
+    "CANCELLATION": "CANCELLATION（取消）"
+  },
+  "variablesHelp": "利用可能な変数: {{supplierName}} {{contactName}} {{poNo}} {{orderDate}} {{requestedDelivery}} {{senderName}} {{senderEmail}} {{revisionNo}}",
+  "save": "保存",
+  "cancel": "キャンセル",
+  "saveSuccess": "保存しました。",
+  "empty": "登録されているテンプレートがありません。",
+  "error": {
+    "INVALID_TEMPLATE_TYPE": "種別が正しくありません。",
+    "INVALID_LANGUAGE": "言語が正しくありません。",
+    "SUPPLIER_CODE_NOT_FOUND": "メーカーコードがG-SYS上で見つかりません。",
+    "BRAND_CODE_NOT_FOUND": "ブランドコードがG-SYS上で見つかりません。",
+    "FORBIDDEN": "この操作を行う権限がありません。",
+    "GENERIC": "処理に失敗しました（同一種別・メーカー・ブランド・言語の有効なテンプレートが既に存在する可能性があります）。"
+  }
+}

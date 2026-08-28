@@ -1,0 +1,55 @@
+{
+  "title": "メーカー担当者管理",
+  "subtitle": "Supplier Contact Master（Portal専用 - Legacyにはメーカー担当者・メールアドレスのMasterが存在しません）。",
+  "createButton": "新規作成",
+  "editButton": "編集",
+  "table": {
+    "supplierCode": "メーカーコード",
+    "brandCode": "ブランドコード",
+    "contactName": "担当者名",
+    "email": "メールアドレス",
+    "contactType": "種別",
+    "language": "言語",
+    "primary": "主担当",
+    "active": "状態"
+  },
+  "statusActive": "有効",
+  "statusInactive": "無効",
+  "dialogTitleCreate": "メーカー担当者を新規作成",
+  "dialogTitleEdit": "メーカー担当者を編集",
+  "field": {
+    "supplierCode": "メーカーコード",
+    "brandCode": "ブランドコード",
+    "brandCodeHelp": "空欄の場合、このメーカーの全ブランドに適用されます。",
+    "contactName": "担当者名",
+    "email": "メールアドレス",
+    "contactType": "種別",
+    "language": "言語",
+    "region": "地域（任意）",
+    "procurementType": "調達種別（任意）",
+    "primary": "主担当",
+    "active": "有効"
+  },
+  "contactType": {
+    "TO": "To（宛先）",
+    "CC": "Cc（写し）"
+  },
+  "language": {
+    "ja": "日本語",
+    "en": "English"
+  },
+  "save": "保存",
+  "cancel": "キャンセル",
+  "saveSuccess": "保存しました。",
+  "empty": "登録されている担当者がありません。",
+  "error": {
+    "INVALID_EMAIL_FORMAT": "メールアドレスの形式が正しくありません。",
+    "SUPPLIER_CODE_NOT_FOUND": "メーカーコードがG-SYS上で見つかりません。",
+    "BRAND_CODE_NOT_FOUND": "ブランドコードがG-SYS上で見つかりません。",
+    "DUPLICATE_SUPPLIER_CONTACT": "同一メーカー・ブランド・メールアドレスの有効な担当者が既に存在します。",
+    "INVALID_CONTACT_TYPE": "種別が正しくありません。",
+    "INVALID_LANGUAGE": "言語が正しくありません。",
+    "FORBIDDEN": "この操作を行う権限がありません。",
+    "GENERIC": "処理に失敗しました。"
+  }
+}

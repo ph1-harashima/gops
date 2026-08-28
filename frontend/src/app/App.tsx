@@ -18,8 +18,11 @@ import { PoPreviewPage } from '../features/drafts/PoPreviewPage'
 import { SupplierResponsePage } from '../features/supplierResponse/SupplierResponsePage'
 import { OrderHistoryListPage } from '../features/history/OrderHistoryListPage'
 import { OrderHistoryDetailPage } from '../features/history/OrderHistoryDetailPage'
+import { SupplierContactPage } from '../features/admin/SupplierContactPage'
+import { MailTemplatePage } from '../features/admin/MailTemplatePage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { useAuth } from '../features/auth/AuthContext'
+import { ROLE_ADMIN } from '../shared/types/auth'
 
 /**
  * Step 5 finalizes the Prototype for the 9/17 demo: Dashboard (Action/
@@ -32,6 +35,7 @@ export function App() {
   const { t } = useTranslation(['common', 'drafts'])
   const { user, loading, logout } = useAuth()
   const location = useLocation()
+  const isAdmin = user?.role === ROLE_ADMIN
 
   const isHistorySection = location.pathname.startsWith('/orders/history') || /^\/orders\/\d+$/.test(location.pathname)
 
@@ -76,6 +80,32 @@ export function App() {
               >
                 {t('navHistory')}
               </Button>
+              {/* Phase 7-C3 12章: ADMIN-only Master management screens.
+                  Backend also enforces this (403 for OPERATOR on every
+                  underlying API call) - hiding the Nav entry is UX
+                  convenience, not the access control. */}
+              {isAdmin && (
+                <Button
+                  size="small"
+                  component={Link}
+                  to="/admin/supplier-contacts"
+                  color={location.pathname === '/admin/supplier-contacts' ? 'primary' : 'inherit'}
+                  data-testid="nav-admin-supplier-contacts"
+                >
+                  {t('navAdminSupplierContacts')}
+                </Button>
+              )}
+              {isAdmin && (
+                <Button
+                  size="small"
+                  component={Link}
+                  to="/admin/mail-templates"
+                  color={location.pathname === '/admin/mail-templates' ? 'primary' : 'inherit'}
+                  data-testid="nav-admin-mail-templates"
+                >
+                  {t('navAdminMailTemplates')}
+                </Button>
+              )}
               <Typography variant="body2" data-testid="current-user-display">
                 {user.displayName}
                 {/* Phase 7-C1 19章: Role must be visible on every screen, not
@@ -110,6 +140,13 @@ export function App() {
           <Route path="/orders/:id/supplier-response" element={<SupplierResponsePage />} />
           <Route path="/orders/history" element={<OrderHistoryListPage />} />
           <Route path="/orders/:id" element={<OrderHistoryDetailPage />} />
+          {/* Phase 7-C3 12章: Backend enforces ADMIN-only on every
+              underlying API (403 for OPERATOR) regardless of this Route
+              being reachable - no client-side route guard is the sole
+              control here, matching 13章/17章's convention throughout this
+              engagement. */}
+          <Route path="/admin/supplier-contacts" element={<SupplierContactPage />} />
+          <Route path="/admin/mail-templates" element={<MailTemplatePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       )}

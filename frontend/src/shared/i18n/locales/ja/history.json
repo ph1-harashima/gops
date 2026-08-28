@@ -108,5 +108,27 @@
       "ITEM_NOT_FOUND": "商品コードがG-SYS上で見つからないか、廃止されています。",
       "OFFICIAL_PO_NO_NOT_ASSIGNED": "正式PO番号が未設定のため、既存PO/Invoice/入荷実績との整合確認は次のPhase以降で行われます。"
     }
+  },
+  "mailPreview": {
+    "title": "メールプレビュー",
+    "subtitle": "実送信は行いません（Send APIは未実装です）。デモ送信とは別機能です。",
+    "previewButton": "メールプレビューを表示",
+    "from": "From",
+    "to": "To",
+    "cc": "CC",
+    "subject": "件名",
+    "body": "本文",
+    "attachment": "添付ファイル",
+    "attachmentNotGenerated": "（未生成 - Preview表示のみ）",
+    "blockedNotice": "未確定の項目があるため、件名・本文は表示できません。",
+    "issue": {
+      "OFFICIAL_PO_NO_NOT_ASSIGNED": "正式PO番号が未設定です。",
+      "SUPPLIER_CONTACT_NOT_FOUND": "有効なTo担当者（メーカー担当者Master）が見つかりません。",
+      "ADMIN_CC_NOT_FOUND": "CCに設定できる有効な管理者アカウントが見つかりません。",
+      "MAIL_TEMPLATE_NOT_FOUND": "有効なメールテンプレートが見つかりません。",
+      "MAIL_TEMPLATE_AMBIGUOUS": "同一優先順位で複数の有効なテンプレートが該当し、自動選択できません。"
+    },
+    "errorForbidden": "この操作を行う権限がありません。",
+    "errorGeneric": "処理に失敗しました。"
   }
 }
