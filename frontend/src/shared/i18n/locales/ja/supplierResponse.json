@@ -7,7 +7,7 @@
   "errorIncomplete": "未回答のSKUがあるため確定できません。全SKUの回答数量を入力してください。",
   "errorInvalidStatusTransition": "現在のStatusではこの操作を実行できません。",
   "header": {
-    "prototypePoNo": "Prototype PO No.",
+    "prototypePoNo": "PO No.",
     "supplier": "メーカー",
     "brand": "ブランド",
     "orderDate": "発注日",
@@ -44,6 +44,5 @@
   "confirmDialogTitle": "メーカー回答を確定しますか？",
   "confirmDialogBody": "全SKUの回答を確定します。確定後は編集できません。",
   "confirmDialogCancel": "キャンセル",
-  "confirmDialogConfirm": "確定する",
-  "confirmSuccess": "メーカー回答を確定しました。"
+  "confirmDialogConfirm": "確定する"
 }

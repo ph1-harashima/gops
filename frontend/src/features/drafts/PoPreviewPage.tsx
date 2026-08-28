@@ -180,11 +180,16 @@ export function PoPreviewPage() {
           {t('returnToDraftFailed')}
         </Alert>
       )}
-      {demoSendMutation.isSuccess && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {t('demoSendSuccess')}
-        </Alert>
-      )}
+      {/* Phase 6-E (docs/production-ux-workflow-redesign.md 8章): a
+          demoSendMutation.isSuccess Alert used to render here, but
+          handleDemoSend's onSuccess always navigate()s away in the same
+          synchronous callback (Phase 6-C) - this component unmounts before
+          isSuccess can ever be observed true on a render. Confirmed via
+          source (not guessed) and removed; the equivalent, actually-visible
+          Message now lives on 発注詳細 (OrderHistoryDetailPage's
+          demoSendSuccessMessage). demoSendMutation.isError below is
+          unaffected - only onSuccess navigates, so the Error Alert still
+          renders normally when Demo Send fails. */}
       {demoSendMutation.isError && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {(() => {
@@ -291,12 +296,29 @@ export function PoPreviewPage() {
             {demoSendMutation.isPending ? <CircularProgress size={20} /> : t('demoSend')}
           </Button>
         )}
-        {(preview.status === 'AWAITING_SUPPLIER' || preview.status === 'SUPPLIER_CONFIRMED') && (
+        {/* Phase 6-E (docs/production-ux-workflow-redesign.md 6章): a stale
+            Preview URL (reached via Browser Back/Forward or a bookmark from
+            before Send) can still be viewed after the order has moved past
+            READY_TO_ORDER - this is a fallback recovery path, not the
+            primary flow (発注詳細 owns that now, Phase 6-B/6-C). Its Label
+            now matches 発注詳細's own AWAITING_SUPPLIER/SUPPLIER_CONFIRMED
+            wording (入力 vs 確認) instead of a single generic "確認する" for
+            both, which had drifted out of sync with that split (Label
+            Consistency audit). */}
+        {preview.status === 'AWAITING_SUPPLIER' && (
           <Button
             variant="contained"
             onClick={() => navigate(withReturnTo(`/orders/${draftId}/supplier-response`, returnTo))}
           >
-            {t('goToSupplierResponse')}
+            {t('goToSupplierResponseInput')}
+          </Button>
+        )}
+        {preview.status === 'SUPPLIER_CONFIRMED' && (
+          <Button
+            variant="contained"
+            onClick={() => navigate(withReturnTo(`/orders/${draftId}/supplier-response`, returnTo))}
+          >
+            {t('goToSupplierResponseReview')}
           </Button>
         )}
       </Stack>

@@ -177,7 +177,14 @@ export function SupplierResponsePage() {
       {saveErrorCode === 'INVALID_STATUS_TRANSITION' && (
         <Alert severity="error" sx={{ mb: 2 }}>{t('errorInvalidStatusTransition')}</Alert>
       )}
-      {confirmMutation.isSuccess && <Alert severity="success" sx={{ mb: 2 }}>{t('confirmSuccess')}</Alert>}
+      {/* Phase 6-E: confirmMutation.isSuccess Alert removed - handleConfirm's
+          onSuccess always navigate()s to 発注詳細 in the same synchronous
+          callback (Phase 6-C), so this component unmounts before isSuccess
+          can ever render true here. Confirmed via source. The actually-
+          visible equivalent Message now lives on 発注詳細
+          (OrderHistoryDetailPage's supplierResponseConfirmSuccessMessage).
+          confirmErrorCode Alerts below are unaffected - only onSuccess
+          navigates. */}
       {confirmErrorCode === 'SUPPLIER_RESPONSE_INCOMPLETE' && (
         <Alert severity="error" sx={{ mb: 2 }}>{t('errorIncomplete')}</Alert>
       )}

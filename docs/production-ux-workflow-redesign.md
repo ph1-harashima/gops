@@ -1,8 +1,7 @@
 # Production-Oriented UX / Workflow Redesign（Phase 6 設計書）
 
-**Status**: Draft — 顧客レビュー待ち。本Stepではソースコードは一切変更していない（監査・設計のみ）。
+**Status**: **Phase 6-A〜6-E 実装完了**（2026-08-28）。本文書の前半（1〜14章）は実装前の設計として作成されたもので、歴史的記録としてそのまま残す。実際の実装内容・最終挙動・残存事項は末尾の「15. Phase 6 実装結果まとめ」を参照。
 **対象**: Frontend Navigation / 業務導線（Business Status Transitionの変更は含まない）
-**前提**: 本書の内容が承認された後に Phase 6-A から実装を開始する。承認前に実装は行わない。
 
 ---
 
@@ -358,3 +357,79 @@ Query Parameterの命名は、6.2節で確定するCandidateList/OrderListのパ
 12. **ソースコード変更ゼロの確認** — 本Stepで変更したファイルは本ドキュメントのみ。`phasep-gulliver/`・`frontend/`・`backend/` 配下のソースコードは一切変更していない（後述のGit差分で確認済み）。
 
 **次のアクション**: 本設計書の内容についてユーザー（Techlead経由含む）の確認・承認をお願いします。承認後、Phase 6-Aから実装を開始します。
+
+---
+
+## 15. Phase 6 実装結果まとめ（2026-08-28完了）
+
+上記1〜14章は実装前の設計。以下は実際に実装・検証済みの最終状態。Phase 6-A〜6-Eすべて個別にユーザー承認を得て実装し、各Phase末に`git commit`済み（`push`はしていない）。
+
+### 15.1 実装コミット一覧
+
+| Phase | 内容 | Commit |
+|---|---|---|
+| Docs | 本設計書作成 | `da90815` |
+| 6-A | Navigation / List State Preservation（`returnTo`基盤、Filter URL同期） | `9f8d976` |
+| 6-B | Order List / Order Detail 再編（発注一覧/発注詳細への名称・位置づけ変更） | `8aa0cfd` |
+| 6-C | Send / Supplier Response後の業務導線分離 | `91e1e6b` |
+| 6-D | Dashboard Deep Link整備 | `028fc3f` |
+| 6-E | 全画面UX / Navigation / Consistency Audit | （本Commit） |
+
+### 15.2 実装内容と実際の挙動（設計との差分）
+
+- **6-A**: 設計6章通り、`returnTo` Query Parameterチェーン方式を実装。Candidate List / Order Historyの両Filterを`useSearchParams`との双方向同期に変更。`OrderDraftPage`の「一覧へ戻る」バグ（実際はDashboardへ遷移）を修正。
+- **6-B**: 設計9章の想定通り、新規画面構築ゼロで`OrderHistoryListPage`/`OrderHistoryDetailPage`を再利用。「発注履歴」→「発注一覧」、Status別Primary Action（DRAFT/READY_TO_ORDER/AWAITING_SUPPLIER/SUPPLIER_CONFIRMED）を実装。SENTは実際には resting Statusとして永続化されないことをSourceで確認し、Filter選択肢に追加しなかった（既存4値のままが正しいという結論）。
+- **6-C**: 設計7〜8章の「送信完了」提案を、より直接的な「Send成功→発注詳細へ遷移＋Success Message」という実装に変更（ユーザー指示がこの形へ具体化されたため）。Send後は`returnTo`をCandidate Listから`/orders/history?status=AWAITING_SUPPLIER`へ強制的にリセットする設計を採用（設計書8章の想定通り）。
+- **6-D**: 発注候補（`recommendedOnly`）・要確認（`hasAttention`）ともにBackend変更なしのFrontend専用Filterとして実装可能と判明し、実装。欠品/長期欠品は`[TBD - CUSTOMER REVIEW]`のまま未確定のため、意図的にFilterを新設せず「件数表示のみ」の制約を維持。
+- **6-E**: 全画面を実ブラウザで横断監査。Dead Code 2箇所（`PoPreviewPage`の`demoSendSuccess` Alert、`SupplierResponsePage`の`confirmSuccess` Alert）と、孤立i18n Key 3個（`previewNotAvailable`, `statusDraft`, `statusReadyToOrder`）をSource確認の上で削除。「Prototype PO No.」ラベルを4箇所で「PO No.」に統一（List/Detailと同じ用語に統一）。PO Preview画面の「メーカー回答を確認する」ボタンをStatus別（入力/確認）に分割し、発注詳細の表現と統一。
+
+### 15.3 用語統一の最終結果
+
+| 旧用語 | 新用語 | 状態 |
+|---|---|---|
+| 発注履歴 | 発注一覧 | ✅ 統一済み（nav、List Title） |
+| 履歴一覧へ戻る | 発注一覧へ戻る | ✅ 統一済み |
+| 履歴詳細 | 発注詳細 | ✅ 統一済み（H1は元から正しかった） |
+| Prototype PO No. | PO No. | ✅ 統一済み（drafts/preview/supplierResponse/historyの4箇所） |
+| メーカー回答画面へ / メーカー回答を確認する（AWAITING_SUPPLIER時） | メーカー回答を入力 | ✅ 統一済み |
+| 一覧へ戻る（Draft、実際はDashboardへ遷移するバグ） | 発注候補一覧へ戻る（実際に発注候補一覧へ遷移） | ✅ バグ修正済み |
+
+「Audit Timeline」「History Detail」等の英語表現はコード内コメント・変数名にのみ残存（内部Component名は無理にRenameしない、という方針通り）。ユーザー向け画面テキストには残っていないことをGrep監査で確認済み。
+
+### 15.4 残存CUSTOMER REVIEW事項（最終一覧・重複排除済み）
+
+1. 欠品の正式な業務定義（現状: `currentStock == 0`という暫定Proxy）
+2. 長期欠品の正式な業務定義（現状: 欠品かつ`openPo == 0`という暫定Proxy）
+3. メーカー回答確定後を業務完了とみなすか
+4. COMPLETED Statusの新設要否
+5. 回答差異（数量変更・納期変更）発生時の後続業務処理
+6. 未納数量の再発注方法
+7. Confirmed Qty = 0 の正式な業務上の意味・扱い
+8. 回答納期変更時に承認フローが必要か
+9. Supplier Confirmed後の再編集可否
+10. READY_TO_ORDERからDraftへ戻す運用の正式ルール化
+11. `SupplierResponse.responseDate`/`responseNote`/`responseStatus`を発注詳細画面に表示するか（表示する場合はBackend DTO変更が必要）
+12. 欠品/長期欠品KPIに対応するCandidate List側Filterを新設するか（新設する場合、上記1・2の定義確定が前提条件）
+
+*(6-Aで提起された「Order List/Order Detailへの名称変更を採用してよいか」「Send後/確定後CTA文言が業務感覚と合っているか」は、6-B/6-Cで実装しユーザー承認済みのため本リストからは除外＝解決済み)*
+
+### 15.5 残存SOURCE REVIEW事項（最終一覧）
+
+1. **SKU詳細画面「履歴（Legacy PO実績）」テーブルのStatus列に内部Legacy Code（例: `OFFICIAL`）が未翻訳のまま表示される。** Legacy側が持つStatus値の全種類が不明なため、推測でi18nマッピングを追加していない。Legacy Adapter/DB側の調査が必要（Backend/Legacy変更を伴う可能性があるため、今回のPhase 6-Eの「Backend原則変更しない」範囲では対応せず報告に留めた）。
+2. **操作履歴（Activity History）の表示順序が、同一トランザクション内の複数Audit Event（例: デモ送信時に発生する3件の連続Status変更）で意図した論理順と食い違う場合がある。** 実ブラウザ確認で「送信済み→メーカー回答待ち」が「発注準備完了→送信済み」より先に表示される事例を確認。原因はAudit Event記録時のタイムスタンプ精度（同一ミリ秒になり得る）にあると推測されるが未確定。Backend（`OrderStatusTransitionService`のAudit Event記録ロジック）の調査・修正が必要なため、今回は変更せず報告に留めた。
+
+*(6-A〜6-Dで判明したSOURCE REVIEWのうち、List/Detail APIの項目網羅性、Pagination未実装の確認、SupplierResponse関連フィールドの必要有無は、いずれもSourceで解消済み、またはCUSTOMER REVIEW項目11へ移管済み)*
+
+### 15.6 既知の制約（今回意図的に対応しなかった事項）
+
+- 欠品/長期欠品KPIクリック時、Candidate Listへ遷移してもFilterされない（KPI件数と一覧件数が一致しない）。業務定義未確定のため意図的に未対応（CUSTOMER REVIEW 1・2・12）。
+- Language Selector（言語切替UI）は今回も未実装。`lng: 'ja'`固定のまま。新規追加したLabelのみja/en両リソースを用意し、将来の切替に備えている。
+- Mobile最適化は新規開発していない。Desktop幅（1568px/1280px）で確認した限りレイアウト崩れはないが、Mobile幅は未検証。
+
+### 15.7 Final Regression結果（2026-08-28）
+
+- Frontend: `npm run build`成功、`npm run lint`は既存パターンの警告4件のみ（新規警告なし）。
+- E2E: Playwright全19件、2回連続PASS。
+- Backend: `mvn test`で157件、Failures 0 / Errors 0 / Skipped 0、BUILD SUCCESS（既存ベースラインと完全一致）。
+- 実ブラウザFinal Business Flow（Dashboard→発注候補→Filter→SKU Detail→戻る→Draft作成→編集→Preview→確定→Demo Send→発注詳細→発注一覧→メーカー回答待ち→発注詳細→メーカー回答入力→保存→確定→発注詳細→操作履歴確認→発注一覧へ戻る）を1回通し、Filter/returnTo/Status/CTA/Message/Attention/操作履歴いずれも矛盾なく完走。
+- `phasep-gulliver/`（Legacy）は`git diff -w --stat`で空。Phase 6全体を通じてLegacy/Backendソースコードの変更はゼロ。
