@@ -48,13 +48,36 @@ export function DashboardPage() {
     )
   }
 
+  // Phase 6-D Deep Link audit (docs/production-ux-workflow-redesign.md 10章;
+  // full per-KPI writeup in the Phase 6-D completion report). Every target
+  // filter reuses Phase 6-A's URL Query Parameter mechanism as-is - no new
+  // state management, no Backend/API change.
+  //
+  // - 発注候補: DashboardService.isCandidate() = recommendedQty > 0, over the
+  //   SAME unfiltered Candidate set /candidates itself fetches. ?recommendedOnly=true
+  //   applies that identical condition client-side on the List (6-D 3章).
+  // - 欠品/長期欠品: DashboardService's own comment marks their definition
+  //   [TBD - CUSTOMER REVIEW] (currentStock==0 / +openPo==0, a provisional
+  //   Proxy). Candidate List has no matching Filter, and this Phase
+  //   deliberately does not add one - baking a contested definition into a
+  //   permanent Filter would overstep "現状では件数表示のみ" (6-D 7章). These
+  //   two keep navigating to the unfiltered List; count will not match List
+  //   count until that definition is finalized (reported, not hidden).
+  // - 発注作成中: DashboardService.draftCount is STATUS_DRAFT only -
+  //   READY_TO_ORDER is excluded, matching Label ("作成中" reads as "still
+  //   editable", not "confirmed but unsent") - no change needed (6-D 4章).
+  // - メーカー回答待ち: already correct (status=AWAITING_SUPPLIER).
+  // - 要確認: DashboardService.attentionCount counts any order (any Status)
+  //   with an active Attention. Order List already returns activeAttentionTypes
+  //   per row, so ?hasAttention=true is a client-side Filter over data the
+  //   existing API already sends - no new Attention Filter API (6-D 6章).
   const kpis = [
-    { key: 'candidateCount', label: t('kpi.candidates'), value: data.candidateCount, onClick: () => navigate('/candidates') },
+    { key: 'candidateCount', label: t('kpi.candidates'), value: data.candidateCount, onClick: () => navigate('/candidates?recommendedOnly=true') },
     { key: 'outOfStockCount', label: t('kpi.outOfStock'), value: data.outOfStockCount, onClick: () => navigate('/candidates') },
     { key: 'longTermOutOfStockCount', label: t('kpi.longTermOutOfStock'), value: data.longTermOutOfStockCount, onClick: () => navigate('/candidates') },
     { key: 'draftCount', label: t('kpi.draft'), value: data.draftCount, onClick: () => navigate('/orders/history?status=DRAFT') },
     { key: 'awaitingSupplierCount', label: t('kpi.awaitingSupplier'), value: data.awaitingSupplierCount, onClick: () => navigate('/orders/history?status=AWAITING_SUPPLIER') },
-    { key: 'attentionCount', label: t('kpi.attention'), value: data.attentionCount, onClick: () => navigate('/orders/history') },
+    { key: 'attentionCount', label: t('kpi.attention'), value: data.attentionCount, onClick: () => navigate('/orders/history?hasAttention=true') },
   ]
 
   return (
@@ -100,7 +123,7 @@ export function DashboardPage() {
                   </Button>
                 </TableCell>
                 <TableCell align="right">
-                  <Button size="small" onClick={() => navigate(`/candidates?brandCode=${b.brandCode}`)}>
+                  <Button size="small" onClick={() => navigate(`/candidates?brandCode=${b.brandCode}&recommendedOnly=true`)}>
                     {b.candidateCount}
                   </Button>
                 </TableCell>
@@ -120,7 +143,7 @@ export function DashboardPage() {
                   </Button>
                 </TableCell>
                 <TableCell align="right">
-                  <Button size="small" onClick={() => navigate(`/orders/history?brandCode=${b.brandCode}`)}>
+                  <Button size="small" onClick={() => navigate(`/orders/history?brandCode=${b.brandCode}&hasAttention=true`)}>
                     {b.attentionCount}
                   </Button>
                 </TableCell>

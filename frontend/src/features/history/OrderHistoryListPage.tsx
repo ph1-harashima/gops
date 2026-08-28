@@ -13,6 +13,8 @@ import TableRow from '@mui/material/TableRow'
 import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
+import Checkbox from '@mui/material/Checkbox'
+import FormControlLabel from '@mui/material/FormControlLabel'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
@@ -78,9 +80,33 @@ export function OrderHistoryListPage() {
     )
   }
 
+  // Phase 6-D (docs/production-ux-workflow-redesign.md 6章/11章): Dashboard's
+  // 要確認 KPI counts orders with an active Attention over the SAME
+  // unfiltered order set this screen already fetches - activeAttentionTypes
+  // is already on every row (OrderHistorySummaryResponse), so this is a
+  // pure client-side display filter, not a new Backend/API Attention Filter.
+  const hasAttentionOnly = searchParams.get('hasAttention') === 'true'
+
+  function toggleHasAttentionOnly(checked: boolean) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (checked) next.set('hasAttention', 'true')
+        else next.delete('hasAttention')
+        return next
+      },
+      { replace: true },
+    )
+  }
+
   const listPath = listReturnTo('/orders/history', searchParams)
 
   const { data, isLoading, isError, refetch } = useOrderHistory(filter)
+
+  const visibleData = useMemo(() => {
+    if (!data) return data
+    return hasAttentionOnly ? data.filter((row) => row.activeAttentionTypes.length > 0) : data
+  }, [data, hasAttentionOnly])
 
   const supplierOptions = useMemo(() => {
     const map = new Map<string, string>()
@@ -144,6 +170,16 @@ export function OrderHistoryListPage() {
             <MenuItem key={s} value={s}>{t(`status:orderStatus.${s}`)}</MenuItem>
           ))}
         </TextField>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={hasAttentionOnly}
+              onChange={(e) => toggleHasAttentionOnly(e.target.checked)}
+              data-testid="has-attention-only-checkbox"
+            />
+          }
+          label={t('filter.hasAttentionOnly')}
+        />
       </Stack>
 
       {isLoading && (
@@ -159,14 +195,14 @@ export function OrderHistoryListPage() {
         </Alert>
       )}
 
-      {!isLoading && !isError && data && data.length === 0 && (
+      {!isLoading && !isError && visibleData && visibleData.length === 0 && (
         <Alert severity="info" sx={{ my: 2 }}>{t('empty')}</Alert>
       )}
 
-      {!isLoading && !isError && data && data.length > 0 && (
+      {!isLoading && !isError && visibleData && visibleData.length > 0 && (
         <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {t('resultCount', { count: data.length })}
+            {t('resultCount', { count: visibleData.length })}
           </Typography>
           <TableContainer component={Paper} variant="outlined">
             <Table size="small" stickyHeader>
@@ -185,7 +221,7 @@ export function OrderHistoryListPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data.map((row) => (
+                {visibleData.map((row) => (
                   <TableRow
                     key={row.id}
                     hover

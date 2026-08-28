@@ -6,7 +6,8 @@
     "supplier": "メーカー",
     "brand": "ブランド",
     "status": "Status",
-    "all": "すべて"
+    "all": "すべて",
+    "hasAttentionOnly": "確認事項ありのみ表示"
   },
   "table": {
     "poNo": "PO No.",

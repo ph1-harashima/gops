@@ -22,6 +22,7 @@ import enHistory from './locales/en/history.json'
 // new keys for whenever `en` becomes reachable.
 import enDrafts from './locales/en/drafts.json'
 import enSupplierResponse from './locales/en/supplierResponse.json'
+import enCandidates from './locales/en/candidates.json'
 
 // Japanese is the initial display language (Requirements MD 28.1).
 // Display text is never hardcoded into React components - it always comes
@@ -48,6 +49,7 @@ void i18n.use(initReactI18next).init({
       history: enHistory,
       drafts: enDrafts,
       supplierResponse: enSupplierResponse,
+      candidates: enCandidates,
     },
   },
   interpolation: {

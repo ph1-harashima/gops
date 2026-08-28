@@ -5,7 +5,8 @@
     "supplier": "メーカー",
     "keyword": "SKU / 商品名",
     "keywordPlaceholder": "SKUまたは商品名で検索",
-    "all": "すべて"
+    "all": "すべて",
+    "recommendedOnly": "推奨発注数ありのみ表示"
   },
   "table": {
     "select": "選択",

@@ -12,6 +12,7 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Checkbox from '@mui/material/Checkbox'
+import FormControlLabel from '@mui/material/FormControlLabel'
 import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
@@ -44,6 +45,15 @@ export function CandidateListPage() {
     supplierCode: searchParams.get('supplierCode') ?? undefined,
     keyword: searchParams.get('keyword') ?? undefined,
   }
+  // Phase 6-D (docs/production-ux-workflow-redesign.md 3章/11章): Dashboard's
+  // 発注候補 KPI counts recommendedQty > 0 over the SAME unfiltered candidate
+  // set this screen already fetches (DashboardService.isCandidate() - no
+  // Backend/API change). recommendedOnly is therefore a pure client-side
+  // display filter, deliberately NOT part of OrderCandidateFilter/
+  // useOrderCandidates - it never becomes a Backend query param. Kept in
+  // the URL like every other Filter so the KPI's Deep Link, Browser Back/
+  // Forward, and returnTo all keep working the same way.
+  const recommendedOnly = searchParams.get('recommendedOnly') === 'true'
   const [keywordInput, setKeywordInput] = useState(filter.keyword ?? '')
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
@@ -74,6 +84,23 @@ export function CandidateListPage() {
 
   const { data, isLoading, isError, refetch } = useOrderCandidates(filter)
   const createDraftMutation = useCreateDraft()
+
+  const visibleData = useMemo(() => {
+    if (!data) return data
+    return recommendedOnly ? data.filter((row) => (row.recommendedQty ?? 0) > 0) : data
+  }, [data, recommendedOnly])
+
+  function toggleRecommendedOnly(checked: boolean) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (checked) next.set('recommendedOnly', 'true')
+        else next.delete('recommendedOnly')
+        return next
+      },
+      { replace: true },
+    )
+  }
 
   const brandOptions = useMemo(() => {
     const map = new Map<string, string>()
@@ -171,6 +198,17 @@ export function CandidateListPage() {
           onBlur={applyKeyword}
         />
 
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={recommendedOnly}
+              onChange={(e) => toggleRecommendedOnly(e.target.checked)}
+              data-testid="recommended-only-checkbox"
+            />
+          }
+          label={t('candidates:filter.recommendedOnly')}
+        />
+
         <Box sx={{ flexGrow: 1 }} />
 
         <Button
@@ -219,16 +257,16 @@ export function CandidateListPage() {
         </Alert>
       )}
 
-      {!isLoading && !isError && data && data.length === 0 && (
+      {!isLoading && !isError && visibleData && visibleData.length === 0 && (
         <Alert severity="info" sx={{ my: 2 }}>
           {t('candidates:empty')}
         </Alert>
       )}
 
-      {!isLoading && !isError && data && data.length > 0 && (
+      {!isLoading && !isError && visibleData && visibleData.length > 0 && (
         <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {t('candidates:resultCount', { count: data.length })}
+            {t('candidates:resultCount', { count: visibleData.length })}
           </Typography>
           <TableContainer component={Paper} variant="outlined">
             <Table size="small" stickyHeader>
@@ -250,7 +288,7 @@ export function CandidateListPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {data.map((row) => (
+                {visibleData.map((row) => (
                   <TableRow key={row.sku} hover selected={selected.has(row.sku)} data-testid={`candidate-row-${row.sku}`}>
                     <TableCell padding="checkbox">
                       <Checkbox

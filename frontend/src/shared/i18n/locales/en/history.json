@@ -6,7 +6,8 @@
     "supplier": "Supplier",
     "brand": "Brand",
     "status": "Status",
-    "all": "All"
+    "all": "All",
+    "hasAttentionOnly": "Show attention only"
   },
   "table": {
     "poNo": "PO No.",
