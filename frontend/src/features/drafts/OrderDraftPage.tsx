@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import Box from '@mui/material/Box'
@@ -24,6 +24,7 @@ import { useOrderDraft, useUpdateDraft } from './api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
+import { resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
 
 /** Mirrors OrderDraftService.warningCodes on the backend, for immediate
@@ -42,6 +43,16 @@ export function OrderDraftPage() {
   const { id } = useParams<{ id: string }>()
   const draftId = Number(id)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const returnTo = searchParams.get('returnTo')
+  // Phase 6-A bug fix (docs/production-ux-workflow-redesign.md 2章/13章 #1):
+  // this button used to be labeled "一覧へ戻る" but actually navigated to
+  // Dashboard regardless. It now genuinely returns to the Candidate List
+  // that created this Draft, Filter state included, via returnTo - and
+  // falls back to the unfiltered list when the Draft was opened without one
+  // (e.g. a bookmarked/typed URL) rather than guessing at a business context
+  // it can't know (5章 "Contextが不明なら安全なFallback").
+  const backTarget = resolveReturnTo(returnTo, '/candidates')
 
   const { data: draft, isLoading, isError } = useOrderDraft(draftId)
   const updateMutation = useUpdateDraft(draftId)
@@ -87,7 +98,7 @@ export function OrderDraftPage() {
     if (isDirty && !window.confirm(t('drafts:unsavedChangesConfirm'))) {
       return
     }
-    navigate('/')
+    navigate(backTarget)
   }
 
   function handleQtyChange(detailId: number, raw: string) {
@@ -154,7 +165,7 @@ export function OrderDraftPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
-        <Button onClick={handleBack}>{t('drafts:back')}</Button>
+        <Button onClick={handleBack}>{t('drafts:backToCandidates')}</Button>
         <Typography variant="h5" component="h1">
           {t('drafts:title')} - {draft.draftNo}
         </Typography>
@@ -309,7 +320,11 @@ export function OrderDraftPage() {
               {updateMutation.isPending ? <CircularProgress size={20} /> : t('drafts:saveDraft')}
             </Button>
           )}
-          <Button variant="outlined" onClick={() => navigate(`/orders/drafts/${draftId}/preview`)} data-testid="go-to-preview-button">
+          <Button
+            variant="outlined"
+            onClick={() => navigate(withReturnTo(`/orders/drafts/${draftId}/preview`, returnTo))}
+            data-testid="go-to-preview-button"
+          >
             {t('drafts:preview')}
           </Button>
         </Stack>

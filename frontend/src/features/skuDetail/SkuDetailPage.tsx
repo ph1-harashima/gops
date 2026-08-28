@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
 import Paper from '@mui/material/Paper'
@@ -17,6 +17,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 import { useSkuDetail } from './api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
+import { resolveReturnTo } from '../../shared/navigation/returnTo'
 
 /**
  * SKU Detail (implementation instructions Step 5 4章). READ ONLY reference
@@ -28,6 +29,12 @@ export function SkuDetailPage() {
   const { t } = useTranslation(['skuDetail', 'common', 'status'])
   const { sku } = useParams<{ sku: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  // Phase 6-A: Candidate List embeds its own current URL (Filter state
+  // included) as ?returnTo=... when linking here - restore that exact List
+  // state on "戻る" instead of always landing on the unfiltered list
+  // (docs/production-ux-workflow-redesign.md 6.3章).
+  const backTarget = resolveReturnTo(searchParams.get('returnTo'), '/candidates')
   const { data, isLoading, isError } = useSkuDetail(sku ?? '')
 
   if (isLoading) {
@@ -50,7 +57,7 @@ export function SkuDetailPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
-        <Button onClick={() => navigate('/candidates')}>{t('back')}</Button>
+        <Button onClick={() => navigate(backTarget)}>{t('back')}</Button>
         <Typography variant="h5" component="h1">{data.sku} - {data.itemName}</Typography>
         <ItemStatusChip status={data.itemStatus} />
         <DataSourceBadge dataSource={data.dataSource} />

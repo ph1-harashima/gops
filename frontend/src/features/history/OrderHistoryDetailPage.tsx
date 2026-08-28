@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
 import Paper from '@mui/material/Paper'
@@ -18,6 +18,7 @@ import Divider from '@mui/material/Divider'
 import { useOrderHistoryDetail, useOrderEvents } from './api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
+import { resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 import type { TFunction } from 'i18next'
 
 /** Audit Timeline i18n audit: oldValue/newValue are raw strings on the wire
@@ -46,6 +47,14 @@ export function OrderHistoryDetailPage() {
   const { id } = useParams<{ id: string }>()
   const orderId = Number(id)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  // Phase 6-A (docs/production-ux-workflow-redesign.md 6.3章): restore the
+  // originating List's own Filter state on "戻る", falling back to the
+  // unfiltered list when opened without a returnTo (bookmark, direct link
+  // from Supplier Response's 履歴を見る, etc). Forwarded onward to Preview /
+  // Supplier Response so the chain survives further hops too.
+  const returnTo = searchParams.get('returnTo')
+  const backTarget = resolveReturnTo(returnTo, '/orders/history')
 
   const { data: detail, isLoading, isError } = useOrderHistoryDetail(orderId)
   const { data: events, isLoading: eventsLoading } = useOrderEvents(orderId)
@@ -73,7 +82,7 @@ export function OrderHistoryDetailPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
-        <Button onClick={() => navigate('/orders/history')}>{t('backToList')}</Button>
+        <Button onClick={() => navigate(backTarget)}>{t('backToList')}</Button>
         <Typography variant="h5" component="h1">
           {t('detailTitle')} - {detail.prototypePoNo ?? detail.draftNo}
         </Typography>
@@ -127,12 +136,18 @@ export function OrderHistoryDetailPage() {
 
       <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
         {canGoToPreview && (
-          <Button variant="outlined" onClick={() => navigate(`/orders/drafts/${detail.id}/preview`)}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate(withReturnTo(`/orders/drafts/${detail.id}/preview`, returnTo))}
+          >
             {t('goToPreview')}
           </Button>
         )}
         {canGoToSupplierResponse && (
-          <Button variant="outlined" onClick={() => navigate(`/orders/${detail.id}/supplier-response`)}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate(withReturnTo(`/orders/${detail.id}/supplier-response`, returnTo))}
+          >
             {t('goToSupplierResponse')}
           </Button>
         )}

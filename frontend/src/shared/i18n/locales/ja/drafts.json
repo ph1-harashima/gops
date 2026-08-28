@@ -1,6 +1,6 @@
 {
   "title": "発注ドラフト",
-  "back": "一覧へ戻る",
+  "backToCandidates": "発注候補一覧へ戻る",
   "notFound": "指定されたドラフトが見つかりませんでした。",
   "supplier": "メーカー",
   "brand": "ブランド",

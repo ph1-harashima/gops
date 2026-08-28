@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
@@ -20,9 +20,11 @@ import Button from '@mui/material/Button'
 
 import { useOrderHistory } from './api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
+import { listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 import type { OrderHistoryFilter } from './api'
 
 const STATUS_OPTIONS = ['DRAFT', 'READY_TO_ORDER', 'AWAITING_SUPPLIER', 'SUPPLIER_CONFIRMED']
+const FILTER_PARAMS = ['supplierCode', 'brandCode', 'status'] as const
 
 /** Read-only glance badges for the list view (no Acknowledge action here -
  * that lives on Order History Detail / Supplier Response, implementation
@@ -48,13 +50,35 @@ function AttentionTypeBadges({ types }: { types: string[] }) {
 export function OrderHistoryListPage() {
   const { t } = useTranslation(['history', 'common', 'status'])
   const navigate = useNavigate()
-  // Dashboard deep-links here with ?brandCode=...&status=... (implementation
-  // instructions Step 5 3章) - only ever read once as the initial filter.
-  const [searchParams] = useSearchParams()
-  const [filter, setFilter] = useState<OrderHistoryFilter>({
+  // Phase 6-A (docs/production-ux-workflow-redesign.md 6.2章): same
+  // URL-as-single-source-of-truth fix as Candidate List - Dashboard's
+  // ?brandCode=...&status=... deep-link (Step 5 3章) is read live from
+  // searchParams on every render, not just once at mount, and every Filter
+  // change below writes straight back to the URL.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filter: OrderHistoryFilter = {
+    supplierCode: searchParams.get('supplierCode') ?? undefined,
     brandCode: searchParams.get('brandCode') ?? undefined,
     status: searchParams.get('status') ?? undefined,
-  })
+  }
+
+  function updateFilter(patch: Partial<OrderHistoryFilter>) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        const merged = { ...filter, ...patch }
+        for (const key of FILTER_PARAMS) {
+          const value = merged[key]
+          if (value) next.set(key, value)
+          else next.delete(key)
+        }
+        return next
+      },
+      { replace: true },
+    )
+  }
+
+  const listPath = listReturnTo('/orders/history', searchParams)
 
   const { data, isLoading, isError, refetch } = useOrderHistory(filter)
 
@@ -87,7 +111,7 @@ export function OrderHistoryListPage() {
           label={t('filter.supplier')}
           sx={{ minWidth: 200 }}
           value={filter.supplierCode ?? ''}
-          onChange={(e) => setFilter((prev) => ({ ...prev, supplierCode: e.target.value || undefined }))}
+          onChange={(e) => updateFilter({ supplierCode: e.target.value || undefined })}
         >
           <MenuItem value="">{t('filter.all')}</MenuItem>
           {supplierOptions.map(([code, name]) => (
@@ -100,7 +124,7 @@ export function OrderHistoryListPage() {
           label={t('filter.brand')}
           sx={{ minWidth: 200 }}
           value={filter.brandCode ?? ''}
-          onChange={(e) => setFilter((prev) => ({ ...prev, brandCode: e.target.value || undefined }))}
+          onChange={(e) => updateFilter({ brandCode: e.target.value || undefined })}
         >
           <MenuItem value="">{t('filter.all')}</MenuItem>
           {brandOptions.map(([code, name]) => (
@@ -113,7 +137,7 @@ export function OrderHistoryListPage() {
           label={t('filter.status')}
           sx={{ minWidth: 200 }}
           value={filter.status ?? ''}
-          onChange={(e) => setFilter((prev) => ({ ...prev, status: e.target.value || undefined }))}
+          onChange={(e) => updateFilter({ status: e.target.value || undefined })}
         >
           <MenuItem value="">{t('filter.all')}</MenuItem>
           {STATUS_OPTIONS.map((s) => (
@@ -162,7 +186,12 @@ export function OrderHistoryListPage() {
               </TableHead>
               <TableBody>
                 {data.map((row) => (
-                  <TableRow key={row.id} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/orders/${row.id}`)}>
+                  <TableRow
+                    key={row.id}
+                    hover
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => navigate(withReturnTo(`/orders/${row.id}`, listPath))}
+                  >
                     <TableCell>{row.prototypePoNo ?? row.draftNo}</TableCell>
                     <TableCell>{row.orderDate ?? '—'}</TableCell>
                     <TableCell>{row.supplierName ?? row.supplierCode}</TableCell>

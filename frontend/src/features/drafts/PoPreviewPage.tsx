@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import Box from '@mui/material/Box'
@@ -25,6 +25,7 @@ import DialogActions from '@mui/material/DialogActions'
 
 import { usePoPreview, useConfirmOrder, useReturnToDraft, useDemoSend } from './poPreviewApi'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
+import { withReturnTo } from '../../shared/navigation/returnTo'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
 
 const KNOWN_ERROR_CODES = new Set([
@@ -48,6 +49,15 @@ export function PoPreviewPage() {
   const { id } = useParams<{ id: string }>()
   const draftId = Number(id)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  // Phase 6-A: Draft forwards its own returnTo (ultimately the Candidate
+  // List's Filter state) here - Preview just keeps carrying it along so it
+  // survives the Preview<->Draft round trip and reaches Order Detail /
+  // Supplier Response too (docs/production-ux-workflow-redesign.md 6.3章/
+  // 9章). Demo Send's own post-success navigation is unchanged this Phase
+  // (that redesign is Phase 6-C, out of scope here).
+  const returnTo = searchParams.get('returnTo')
+  const draftPath = withReturnTo(`/orders/drafts/${draftId}`, returnTo)
 
   const { data: preview, isLoading, isError, error, refetch } = usePoPreview(draftId)
   const confirmMutation = useConfirmOrder(draftId)
@@ -58,14 +68,14 @@ export function PoPreviewPage() {
 
   function handleEditOrder() {
     if (preview?.status === 'DRAFT') {
-      navigate(`/orders/drafts/${draftId}`)
+      navigate(draftPath)
       return
     }
     // READY_TO_ORDER -> DRAFT via Return to Draft, then go edit
     // (implementation instructions 11章/12章/13章: "発注内容を修正" both
     // unlocks editing and navigates there).
     returnMutation.mutate(undefined, {
-      onSuccess: () => navigate(`/orders/drafts/${draftId}`),
+      onSuccess: () => navigate(draftPath),
     })
   }
 
@@ -108,7 +118,7 @@ export function PoPreviewPage() {
       'errorGeneric'
     return (
       <Box sx={{ p: 3 }}>
-        <Button onClick={() => navigate(`/orders/drafts/${draftId}`)} sx={{ mb: 2 }}>
+        <Button onClick={() => navigate(draftPath)} sx={{ mb: 2 }}>
           {t('back')}
         </Button>
         <Alert
@@ -130,7 +140,7 @@ export function PoPreviewPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
-        <Button onClick={() => navigate(`/orders/drafts/${draftId}`)}>{t('back')}</Button>
+        <Button onClick={() => navigate(draftPath)}>{t('back')}</Button>
         <Typography variant="h5" component="h1">
           {t('title')} - {preview.draftNo}
         </Typography>
@@ -271,7 +281,10 @@ export function PoPreviewPage() {
           </Button>
         )}
         {(preview.status === 'AWAITING_SUPPLIER' || preview.status === 'SUPPLIER_CONFIRMED') && (
-          <Button variant="contained" onClick={() => navigate(`/orders/${draftId}/supplier-response`)}>
+          <Button
+            variant="contained"
+            onClick={() => navigate(withReturnTo(`/orders/${draftId}/supplier-response`, returnTo))}
+          >
             {t('goToSupplierResponse')}
           </Button>
         )}

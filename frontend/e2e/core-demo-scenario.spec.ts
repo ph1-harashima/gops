@@ -54,10 +54,14 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Confirm -> Demo Send 
   await page.getByTestId(`candidate-checkbox-${SKU_B}`).locator('input').check()
 
   // ---- Create Draft ----
+  // Phase 6-A: the Draft URL now carries ?returnTo=... (the Candidate List's
+  // own Filter state) so its "戻る" button can restore that List instead of
+  // always landing on the unfiltered list (docs/production-ux-workflow-redesign.md 6.3章).
   await page.getByTestId('create-draft-button').click()
-  await expect(page).toHaveURL(/\/orders\/drafts\/\d+$/)
-  const draftId = page.url().match(/\/orders\/drafts\/(\d+)$/)?.[1]
+  await expect(page).toHaveURL(/\/orders\/drafts\/\d+(\?.*)?$/)
+  const draftId = page.url().match(/\/orders\/drafts\/(\d+)/)?.[1]
   expect(draftId).toBeTruthy()
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/candidates')
 
   // ---- Order Qty変更 ----
   const qtyInputA = page.getByTestId(`order-qty-input-${SKU_A}`).locator('input')
@@ -70,8 +74,10 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Confirm -> Demo Send 
   await expect(page.getByText('保存しました。')).toBeVisible()
 
   // ---- Preview ----
+  // Phase 6-A: the returnTo chain is forwarded from Draft to Preview too.
   await page.getByTestId('go-to-preview-button').click()
-  await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview$`))
+  await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview(\\?.*)?$`))
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/candidates')
 
   // ---- Confirm (発注内容を確定) ----
   await page.getByTestId('confirm-order-button').click()

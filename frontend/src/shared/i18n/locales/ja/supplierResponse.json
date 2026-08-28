@@ -1,6 +1,6 @@
 {
   "title": "メーカー回答",
-  "back": "戻る",
+  "backToOrderDetail": "発注詳細へ戻る",
   "notFound": "指定された発注が見つかりませんでした。",
   "errorInvalidOrderStatus": "現在のStatusではメーカー回答を表示できません。",
   "errorGeneric": "処理に失敗しました。",

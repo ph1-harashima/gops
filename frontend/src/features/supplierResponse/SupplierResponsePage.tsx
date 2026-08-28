@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import Box from '@mui/material/Box'
@@ -26,6 +26,7 @@ import Tooltip from '@mui/material/Tooltip'
 import { useSupplierResponse, useSaveSupplierResponse, useConfirmSupplierResponse } from './api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
+import { withReturnTo } from '../../shared/navigation/returnTo'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
 
 function errorCodeOf(error: unknown): string | null {
@@ -48,6 +49,17 @@ export function SupplierResponsePage() {
   const navigate = useNavigate()
   const location = useLocation()
   const demoSendSuccess = Boolean((location.state as { demoSendSuccess?: boolean } | null)?.demoSendSuccess)
+  const [searchParams] = useSearchParams()
+  // Phase 6-A (docs/production-ux-workflow-redesign.md 8章/9章): "戻る" now
+  // goes to Order Detail (the order's central screen) instead of PO
+  // Preview - a stale pre-send confirmation view is not a natural place to
+  // land once a response is already being recorded. Whatever returnTo this
+  // screen was given (e.g. from Order History List, via Order Detail) is
+  // forwarded along so Order Detail's own "一覧へ戻る" keeps working too.
+  // The post-Confirm CTA set (currently just "履歴を見る") is untouched -
+  // that full redesign is Phase 6-C, not this Phase.
+  const returnTo = searchParams.get('returnTo')
+  const backToOrderDetailTarget = withReturnTo(`/orders/${orderId}`, returnTo)
 
   const { data: response, isLoading, isError, error } = useSupplierResponse(orderId)
   const saveMutation = useSaveSupplierResponse(orderId)
@@ -138,7 +150,7 @@ export function SupplierResponsePage() {
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
-        <Button onClick={() => navigate(`/orders/${orderId}/preview`)}>{t('back')}</Button>
+        <Button onClick={() => navigate(backToOrderDetailTarget)}>{t('backToOrderDetail')}</Button>
         <Typography variant="h5" component="h1">
           {t('title')} - {response.prototypePoNo ?? response.draftNo}
         </Typography>

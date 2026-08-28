@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
@@ -23,21 +23,54 @@ import { useOrderCandidates } from './api'
 import { useCreateDraft } from '../drafts/api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
+import { listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 import type { OrderCandidateFilter } from '../../shared/types/orderCandidate'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
+
+const FILTER_PARAMS = ['brandCode', 'supplierCode', 'keyword'] as const
 
 export function CandidateListPage() {
   const { t } = useTranslation(['candidates', 'common'])
   const navigate = useNavigate()
-  // Dashboard's Brand breakdown deep-links here with ?brandCode=... - only
-  // ever read once as the initial filter value (implementation instructions
-  // Step 5 3章 "Brandクリックで該当Filter付き画面へ遷移").
-  const [searchParams] = useSearchParams()
-  const [filter, setFilter] = useState<OrderCandidateFilter>({
+  // Phase 6-A (docs/production-ux-workflow-redesign.md 6.2章): the URL is the
+  // single source of truth for Filter state - every change below writes
+  // straight back to searchParams (replace: true, so typing/selecting
+  // doesn't spam browser history), and Dashboard's ?brandCode=... deep-link
+  // (Step 5 3章) is read the same way as any other in-flight change, not
+  // just once at mount.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filter: OrderCandidateFilter = {
     brandCode: searchParams.get('brandCode') ?? undefined,
-  })
-  const [keywordInput, setKeywordInput] = useState('')
+    supplierCode: searchParams.get('supplierCode') ?? undefined,
+    keyword: searchParams.get('keyword') ?? undefined,
+  }
+  const [keywordInput, setKeywordInput] = useState(filter.keyword ?? '')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  // Keeps the Keyword text field in sync when the URL changes from outside
+  // a keystroke here - browser Back/Forward, a typed/bookmarked URL, or a
+  // future Dashboard deep-link.
+  useEffect(() => {
+    setKeywordInput(searchParams.get('keyword') ?? '')
+  }, [searchParams])
+
+  function updateFilter(patch: Partial<OrderCandidateFilter>) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        const merged = { ...filter, ...patch }
+        for (const key of FILTER_PARAMS) {
+          const value = merged[key]
+          if (value) next.set(key, value)
+          else next.delete(key)
+        }
+        return next
+      },
+      { replace: true },
+    )
+  }
+
+  const listPath = listReturnTo('/candidates', searchParams)
 
   const { data, isLoading, isError, refetch } = useOrderCandidates(filter)
   const createDraftMutation = useCreateDraft()
@@ -68,7 +101,7 @@ export function CandidateListPage() {
   }
 
   function applyKeyword() {
-    setFilter((prev) => ({ ...prev, keyword: keywordInput || undefined }))
+    updateFilter({ keyword: keywordInput || undefined })
   }
 
   function handleCreateDraft() {
@@ -77,7 +110,7 @@ export function CandidateListPage() {
       {
         onSuccess: (draft) => {
           setSelected(new Set())
-          navigate(`/orders/drafts/${draft.id}`)
+          navigate(withReturnTo(`/orders/drafts/${draft.id}`, listPath))
         },
       },
     )
@@ -101,7 +134,7 @@ export function CandidateListPage() {
           label={t('candidates:filter.brand')}
           sx={{ minWidth: 200 }}
           value={filter.brandCode ?? ''}
-          onChange={(e) => setFilter((prev) => ({ ...prev, brandCode: e.target.value || undefined }))}
+          onChange={(e) => updateFilter({ brandCode: e.target.value || undefined })}
         >
           <MenuItem value="">{t('candidates:filter.all')}</MenuItem>
           {brandOptions.map(([code, name]) => (
@@ -117,7 +150,7 @@ export function CandidateListPage() {
           label={t('candidates:filter.supplier')}
           sx={{ minWidth: 220 }}
           value={filter.supplierCode ?? ''}
-          onChange={(e) => setFilter((prev) => ({ ...prev, supplierCode: e.target.value || undefined }))}
+          onChange={(e) => updateFilter({ supplierCode: e.target.value || undefined })}
         >
           <MenuItem value="">{t('candidates:filter.all')}</MenuItem>
           {supplierOptions.map(([code, name]) => (
@@ -228,7 +261,10 @@ export function CandidateListPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Button size="small" onClick={() => navigate(`/items/${encodeURIComponent(row.sku)}`)}>
+                      <Button
+                        size="small"
+                        onClick={() => navigate(withReturnTo(`/items/${encodeURIComponent(row.sku)}`, listPath))}
+                      >
                         {row.sku}
                       </Button>
                     </TableCell>
