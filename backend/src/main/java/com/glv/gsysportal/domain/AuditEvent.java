@@ -69,6 +69,17 @@ public class AuditEvent {
      * reason is stored in {@link #note} (7-C1 12章). */
     public static final String RETURNED_FOR_CORRECTION = "RETURNED_FOR_CORRECTION";
 
+    // --- Phase 7-C2A: Official PO Integration Foundation ---
+    /** ADMIN requested Official PO Integration for an APPROVED Order
+     * (Integration Request row created or already existed - written once per
+     * Request, not on every idempotent re-call; 7-C2A 19章). Never implies
+     * anything was actually sent to Legacy. */
+    public static final String OFFICIAL_PO_INTEGRATION_REQUESTED = "OFFICIAL_PO_INTEGRATION_REQUESTED";
+    /** Preflight (Legacy READ ONLY) ran for an Integration Request - written
+     * every time Preflight runs, including repeat runs on the same Request
+     * (7-C2A 19章). {@link #note} holds the overall PASS/WARNING/BLOCKED result. */
+    public static final String PRECHECK_COMPLETED = "PRECHECK_COMPLETED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -79,7 +90,9 @@ public class AuditEvent {
     @Column(name = "portal_order_detail_id")
     private Long portalOrderDetailId;
 
-    @Column(name = "event_type", nullable = false, length = 30)
+    /** Widened 30->50 in V9 (Phase 7-C2A) - OFFICIAL_PO_INTEGRATION_REQUESTED
+     * is 33 characters, past the original 30-char limit. */
+    @Column(name = "event_type", nullable = false, length = 50)
     private String eventType;
 
     @Column(name = "field_name", length = 50)

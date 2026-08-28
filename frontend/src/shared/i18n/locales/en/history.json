@@ -71,5 +71,42 @@
   "returnSuccess": "Returned for correction.",
   "errorReturnReasonRequired": "Please enter a return reason.",
   "errorForbidden": "You do not have permission to perform this action.",
-  "errorGeneric": "The operation failed."
+  "errorGeneric": "The operation failed.",
+  "officialPoIntegration": {
+    "title": "G-SYS Official PO Integration",
+    "subtitle": "Independent of Demo Send - foundation for future real G-SYS Integration (Phase 7-C2A).",
+    "statusLabel": {
+      "NOT_REQUESTED": "Not Requested",
+      "PENDING": "Preparing",
+      "GENERATED": "Excel Generated",
+      "SUBMITTED": "Submitted to G-SYS",
+      "CONFIRMED": "Confirmed in G-SYS",
+      "FAILED": "Failed"
+    },
+    "officialPoNoLabel": "Official PO No.",
+    "officialPoNoUnassigned": "Not Yet Assigned",
+    "officialPoNoUnassignedNote": "The numbering rule is unresolved CUSTOMER REVIEW, so no number is auto-assigned this Phase. This is not an error.",
+    "revisionLabel": "Revision",
+    "requestedAtLabel": "Requested At",
+    "requestedByLabel": "Requested By",
+    "lastResultLabel": "Latest Preflight Result",
+    "requestButton": "Prepare G-SYS Integration",
+    "requestDialogTitle": "Prepare G-SYS Integration?",
+    "requestDialogBody": "Creates an Integration Request and checks consistency against Legacy Master data (Preflight).\nThis does NOT register anything in G-SYS or submit any File.",
+    "requestDialogCancel": "Cancel",
+    "requestDialogConfirm": "Prepare",
+    "requestSuccess": "G-SYS Integration preparation complete.",
+    "errorNotApproved": "Only an APPROVED order can prepare G-SYS Integration.",
+    "preflightResult": {
+      "PASS": "PASS",
+      "WARNING": "WARNING",
+      "BLOCKED": "BLOCKED"
+    },
+    "preflightIssue": {
+      "SUPPLIER_NOT_FOUND": "Supplier code was not found in G-SYS.",
+      "BRAND_NOT_FOUND": "Brand code was not found in G-SYS.",
+      "ITEM_NOT_FOUND": "Item code was not found in G-SYS, or is discontinued.",
+      "OFFICIAL_PO_NO_NOT_ASSIGNED": "No Official PO No. is assigned yet, so existing PO/Invoice/Stock-in checks are deferred to a later Phase."
+    }
+  }
 }

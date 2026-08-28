@@ -98,4 +98,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleReturnReasonRequired(ReturnReasonRequiredException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "RETURN_REASON_REQUIRED"));
     }
+
+    @ExceptionHandler(OrderNotApprovedException.class)
+    public ResponseEntity<Map<String, Object>> handleOrderNotApproved(OrderNotApprovedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "ORDER_NOT_APPROVED"));
+    }
 }

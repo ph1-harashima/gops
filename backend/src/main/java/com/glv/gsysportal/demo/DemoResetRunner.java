@@ -72,12 +72,18 @@ public class DemoResetRunner implements CommandLineRunner {
 
         log.warn("=== DEMO RESET: about to TRUNCATE Prototype business-data tables "
                 + "(portal_order, portal_order_detail, supplier_response, supplier_response_detail, "
-                + "order_attention, audit_event). portal_user is preserved. Target: {} ===",
+                + "order_attention, audit_event, official_po_integration_request). portal_user is "
+                + "preserved. Target: {} ===",
                 prototypeDataSource.getConnection().getMetaData().getURL());
 
+        // official_po_integration_request added Phase 7-C2A - it FK-references
+        // portal_order, so it must be included in the same TRUNCATE statement
+        // (Postgres refuses to truncate a table still referenced by an
+        // untouched FK from another table).
         prototypeJdbc.execute(
                 "TRUNCATE TABLE audit_event, order_attention, supplier_response_detail, "
-                        + "supplier_response, portal_order_detail, portal_order RESTART IDENTITY");
+                        + "supplier_response, official_po_integration_request, portal_order_detail, "
+                        + "portal_order RESTART IDENTITY");
         prototypeJdbc.execute("ALTER SEQUENCE prototype_po_no_seq RESTART WITH 1");
 
         log.warn("=== DEMO RESET: complete. portal_user accounts unchanged. Exiting. ===");

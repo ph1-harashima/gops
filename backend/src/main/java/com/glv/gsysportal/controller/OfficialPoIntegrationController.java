@@ -1,0 +1,49 @@
+package com.glv.gsysportal.controller;
+
+import com.glv.gsysportal.dto.response.OfficialPoIntegrationResponse;
+import com.glv.gsysportal.security.CurrentUserProvider;
+import com.glv.gsysportal.service.OfficialPoIntegrationService;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Phase 7-C2A 6章: explicit Business Action for Official PO Integration -
+ * never a generic Status update API, matching this codebase's established
+ * convention ({@link OrderApprovalController}). "G-SYS連携準備" only creates
+ * an Integration Request and runs Preflight (7-C2A 14章) - it never writes
+ * to Legacy in any way (no File, no Legacy DB row).
+ */
+@RestController
+public class OfficialPoIntegrationController {
+
+    private final OfficialPoIntegrationService integrationService;
+    private final CurrentUserProvider currentUserProvider;
+
+    public OfficialPoIntegrationController(OfficialPoIntegrationService integrationService,
+                                            CurrentUserProvider currentUserProvider) {
+        this.integrationService = integrationService;
+        this.currentUserProvider = currentUserProvider;
+    }
+
+    /** Order Detail's "G-SYS正式PO連携" Section (7-C2A 13章) - any
+     * authenticated user may view it, matching every other read endpoint in
+     * this codebase (only the Action below is ADMIN-restricted). */
+    @GetMapping("/api/orders/{id}/official-po")
+    public OfficialPoIntegrationResponse get(@PathVariable Long id) {
+        return integrationService.getIntegration(id);
+    }
+
+    /** "G-SYS連携準備". ADMIN only (7-C2A 6章: the standing recommendation for
+     * the entry point into real G-SYS Integration - self-approval Scope for
+     * OPERATOR stays a separate, still-undecided CUSTOMER REVIEW item and is
+     * not conflated with this gate). Order must be APPROVED (409
+     * ORDER_NOT_APPROVED otherwise). */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/orders/{id}/official-po/request")
+    public OfficialPoIntegrationResponse request(@PathVariable Long id) {
+        return integrationService.requestIntegration(id, currentUserProvider.currentUsername());
+    }
+}

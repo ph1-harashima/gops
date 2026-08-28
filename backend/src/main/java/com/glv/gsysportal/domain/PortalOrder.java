@@ -60,8 +60,22 @@ public class PortalOrder {
     @Column(name = "draft_no", nullable = false, unique = true, length = 30)
     private String draftNo;
 
+    /** Portal-internal display number, assigned at {@code approve()}. Format
+     * {@code PO-DEMO-yyyyMMdd-####} (see PrototypePoNoGenerator) - deliberately
+     * NOT G-SYS's Official PO No. and never sent to Legacy in any form
+     * (Phase 7-C2-Design 5.1章 / docs/official-po-integration-detailed-design.md). */
     @Column(name = "prototype_po_no", length = 30)
     private String prototypePoNo;
+
+    /** G-SYS Official PO No. (Legacy {@code TR_PO.PO_NO}). Phase 7-C2A: always
+     * NULL - this Phase never auto-assigns it (7-C2-Design 5.2章/7-C2A 7章 -
+     * the real numbering rule is unresolved CUSTOMER REVIEW). The column
+     * exists now so the three PO-number concepts (draftNo / prototypePoNo /
+     * officialPoNo) are distinguishable in Source/DTO/DB from the start,
+     * rather than retrofitted later. Only a future Phase, once the numbering
+     * rule is decided, may ever write a non-null value here. */
+    @Column(name = "official_po_no", length = 30)
+    private String officialPoNo;
 
     @Column(name = "supplier_code", nullable = false, length = 10)
     private String supplierCode;

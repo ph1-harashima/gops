@@ -53,6 +53,19 @@ class LegacyReadOnlyIntegrationTest {
         assertAccessDenied(ex);
     }
 
+    /** Phase 7-C2A: Official PO Integration's Preflight reads tr_po-adjacent
+     * Master tables but must never be able to write TR_PO itself - the exact
+     * table PrOfficialPoImportBatch writes (7-C2A 21章 Safety Guard regression). */
+    @Test
+    void insertAgainstTrPoIsRejected() {
+        DataAccessException ex = assertThrows(DataAccessException.class, () ->
+            legacyJdbcTemplate.update(
+                "INSERT INTO tr_po (po_no, status, supplier_cd, brand_cd) VALUES ('SHOULD-FAIL', 'OFFICIAL', 'X', 'Y')"
+            )
+        );
+        assertAccessDenied(ex);
+    }
+
     @Test
     void ddlAgainstLegacyDemoInstanceIsRejected() {
         DataAccessException ex = assertThrows(DataAccessException.class, () ->

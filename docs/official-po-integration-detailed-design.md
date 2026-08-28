@@ -596,3 +596,18 @@ flowchart TD
     J -->|Timeout/不一致| L[status=FAILED → Attention]
     K --> M[Supplier Send解禁<br/>19章Gate]
 ```
+
+---
+
+## 23. Phase 7-C2A 実装結果まとめ
+
+Phase 7-C2A（Official PO Integration Foundation）を実装・全回帰確認済み。詳細（Integration Request/State Model最終形、Preflight実装、Excel Generator Foundation、Contract Test、UI、テスト結果、Browser Scenario A〜E）は別ファイル **[docs/official-po-integration-foundation.md](./official-po-integration-foundation.md)** に記録。
+
+要点のみ:
+- Integration Stateは18章の5値設計に**GENERATED**を追加した6値構成（NOT_REQUESTEDは非永続）で確定。このPhaseはPENDINGのみ実際に到達可能。
+- `portal_order.official_po_no`をDomain/DB双方に追加、常にNULL（7章のGate）。
+- Excel Generator（`OfficialPoExcelGenerator`）・Preflight（`OfficialPoPreflightService`）とも実装したが、正式PO番号が確定しないため実業務Flowからは呼び出し不可能（Foundationのみ、Test経由でのみ動作確認）。
+- Legacyへの投入・確認（SUBMITTED以降）は未実装（7-C2Bスコープ）。
+- Backend Full Test 202/202、Frontend Build/Lint/E2E（30 tests, 2回連続安定）、Legacy変更ゼロを確認済み。
+
+---

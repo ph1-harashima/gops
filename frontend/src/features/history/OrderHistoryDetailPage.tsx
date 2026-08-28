@@ -23,7 +23,10 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogContentText from '@mui/material/DialogContentText'
 import DialogActions from '@mui/material/DialogActions'
 
+import Chip from '@mui/material/Chip'
+
 import { useOrderHistoryDetail, useOrderEvents } from './api'
+import { useOfficialPoIntegration, useRequestOfficialPoIntegration } from './officialPoIntegrationApi'
 import { useApprove, useReturnForCorrection } from '../drafts/poPreviewApi'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
@@ -88,14 +91,21 @@ export function OrderHistoryDetailPage() {
 
   const { data: detail, isLoading, isError } = useOrderHistoryDetail(orderId)
   const { data: events, isLoading: eventsLoading } = useOrderEvents(orderId)
+  const { data: integration } = useOfficialPoIntegration(orderId)
 
   const { user } = useAuth()
   const isAdmin = user?.role === ROLE_ADMIN
   const approveMutation = useApprove(orderId)
   const returnMutation = useReturnForCorrection(orderId)
+  const requestIntegrationMutation = useRequestOfficialPoIntegration(orderId)
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [returnDialogOpen, setReturnDialogOpen] = useState(false)
   const [returnReason, setReturnReason] = useState('')
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false)
+
+  function handleRequestIntegration() {
+    requestIntegrationMutation.mutate(undefined, { onSuccess: () => setRequestDialogOpen(false) })
+  }
 
   function handleApprove() {
     approveMutation.mutate(undefined, { onSuccess: () => setApproveDialogOpen(false) })
@@ -295,6 +305,97 @@ export function OrderHistoryDetailPage() {
         </Alert>
       )}
 
+      {/* Phase 7-C2A 13章: shown once APPROVED (where ADMIN can start it) or
+          once a Request already exists (any later Status - the Section stays
+          visible so its history remains visible even after Demo Send moves
+          the Order on, since Demo Send and this Foundation are deliberately
+          independent, 7-C2A 15章). */}
+      {(detail.status === 'APPROVED' || (integration && integration.status !== 'NOT_REQUESTED')) && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="official-po-integration-section">
+          <Typography variant="subtitle1" gutterBottom>{t('officialPoIntegration.title')}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {t('officialPoIntegration.subtitle')}
+          </Typography>
+
+          {requestIntegrationMutation.isSuccess && (
+            <Alert severity="success" sx={{ mb: 2 }}>{t('officialPoIntegration.requestSuccess')}</Alert>
+          )}
+          {requestIntegrationMutation.isError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {(() => {
+                const code = errorCodeOf(requestIntegrationMutation.error)
+                if (code === 'ORDER_NOT_APPROVED') return t('officialPoIntegration.errorNotApproved')
+                if (code === 'FORBIDDEN') return t('errorForbidden')
+                return t('errorGeneric')
+              })()}
+            </Alert>
+          )}
+
+          {integration && (
+            <Stack spacing={1} sx={{ mb: 2 }}>
+              <Stack direction="row" spacing={4} sx={{ flexWrap: 'wrap', rowGap: 1, alignItems: 'center' }}>
+                <Typography variant="body2">
+                  {t('officialPoIntegration.statusLabel.' + integration.status)}
+                </Typography>
+                <Typography variant="body2">
+                  {t('officialPoIntegration.officialPoNoLabel')}:{' '}
+                  <strong data-testid="official-po-no">
+                    {integration.officialPoNo ?? t('officialPoIntegration.officialPoNoUnassigned')}
+                  </strong>
+                </Typography>
+                {integration.status !== 'NOT_REQUESTED' && (
+                  <Typography variant="body2">
+                    {t('officialPoIntegration.revisionLabel')}: {integration.revisionNo}
+                  </Typography>
+                )}
+              </Stack>
+              {!integration.officialPoNo && integration.status !== 'NOT_REQUESTED' && (
+                <Alert severity="info" data-testid="official-po-no-unassigned-note">
+                  {t('officialPoIntegration.officialPoNoUnassignedNote')}
+                </Alert>
+              )}
+              {integration.requestedAt && (
+                <Typography variant="caption" color="text.secondary">
+                  {t('officialPoIntegration.requestedByLabel')}: {integration.requestedBy} - {t('officialPoIntegration.requestedAtLabel')}: {new Date(integration.requestedAt).toLocaleString('ja-JP')}
+                </Typography>
+              )}
+              {integration.preflight && (
+                <Box data-testid="preflight-result">
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', mt: 1 }}>
+                    {t('officialPoIntegration.lastResultLabel')}:{' '}
+                    <Chip
+                      size="small"
+                      label={t('officialPoIntegration.preflightResult.' + integration.preflight.result)}
+                      color={integration.preflight.result === 'BLOCKED' ? 'error'
+                        : integration.preflight.result === 'WARNING' ? 'warning' : 'success'}
+                    />
+                  </Typography>
+                  <Stack spacing={0.5} sx={{ mt: 1 }}>
+                    {integration.preflight.issues.map((issue, i) => (
+                      <Typography key={i} variant="body2" color="text.secondary">
+                        {t(`officialPoIntegration.preflightIssue.${issue.code}`, { defaultValue: issue.code })}
+                        {issue.skuCode ? ` (${issue.skuCode})` : ''}
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+            </Stack>
+          )}
+
+          {detail.status === 'APPROVED' && isAdmin && (
+            <Button
+              variant="outlined"
+              onClick={() => setRequestDialogOpen(true)}
+              disabled={requestIntegrationMutation.isPending}
+              data-testid="official-po-request-button"
+            >
+              {requestIntegrationMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.requestButton')}
+            </Button>
+          )}
+        </Paper>
+      )}
+
       <Divider sx={{ my: 3 }} />
 
       <Typography variant="h6" gutterBottom>{t('timelineTitle')}</Typography>
@@ -374,6 +475,26 @@ export function OrderHistoryDetailPage() {
             data-testid="return-dialog-confirm"
           >
             {returnMutation.isPending ? <CircularProgress size={20} /> : t('returnDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={requestDialogOpen} onClose={() => setRequestDialogOpen(false)}>
+        <DialogTitle>{t('officialPoIntegration.requestDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('officialPoIntegration.requestDialogBody')}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRequestDialogOpen(false)} disabled={requestIntegrationMutation.isPending}>
+            {t('officialPoIntegration.requestDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleRequestIntegration}
+            disabled={requestIntegrationMutation.isPending}
+            data-testid="official-po-request-dialog-confirm"
+          >
+            {requestIntegrationMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.requestDialogConfirm')}
           </Button>
         </DialogActions>
       </Dialog>

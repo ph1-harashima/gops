@@ -38,7 +38,9 @@ class PrototypeFlywayMigrationTest {
         // V7 (Step 4): supplier_response / supplier_response_detail / order_attention.
         // V8 (Phase 7-C1): Role/Approval foundation - portal_user.email,
         // admin01 demo account, READY_TO_ORDER -> APPROVED data migration.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8"), versions);
+        // V9 (Phase 7-C2A): Official PO Integration foundation -
+        // portal_order.official_po_no, official_po_integration_request.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9"), versions);
     }
 
     @Test

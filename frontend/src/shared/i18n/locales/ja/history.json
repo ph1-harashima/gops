@@ -71,5 +71,42 @@
   "returnSuccess": "差し戻しました。",
   "errorReturnReasonRequired": "差し戻し理由を入力してください。",
   "errorForbidden": "この操作を行う権限がありません。",
-  "errorGeneric": "処理に失敗しました。"
+  "errorGeneric": "処理に失敗しました。",
+  "officialPoIntegration": {
+    "title": "G-SYS正式PO連携",
+    "subtitle": "デモ送信とは独立した、将来の正式G-SYS連携のための機能です（Phase 7-C2A基盤）。",
+    "statusLabel": {
+      "NOT_REQUESTED": "未申請",
+      "PENDING": "準備中",
+      "GENERATED": "Excel生成済み",
+      "SUBMITTED": "G-SYSへ投入済み",
+      "CONFIRMED": "G-SYS登録確認済み",
+      "FAILED": "失敗"
+    },
+    "officialPoNoLabel": "正式PO番号",
+    "officialPoNoUnassigned": "正式PO番号未設定",
+    "officialPoNoUnassignedNote": "採番規則がCUSTOMER REVIEW未確定のため、このPhaseでは自動採番されません。エラーではありません。",
+    "revisionLabel": "Revision",
+    "requestedAtLabel": "申請日時",
+    "requestedByLabel": "申請者",
+    "lastResultLabel": "最終Preflight結果",
+    "requestButton": "G-SYS連携準備",
+    "requestDialogTitle": "G-SYS連携の準備をしますか？",
+    "requestDialogBody": "Integration Requestを作成し、Legacy側のMasterデータとの整合確認（Preflight）を行います。\nこの操作ではG-SYSへの実際の登録・File投入は一切行われません。",
+    "requestDialogCancel": "キャンセル",
+    "requestDialogConfirm": "準備する",
+    "requestSuccess": "G-SYS連携の準備が完了しました。",
+    "errorNotApproved": "承認済み（APPROVED）の発注のみ、G-SYS連携準備が行えます。",
+    "preflightResult": {
+      "PASS": "PASS",
+      "WARNING": "WARNING",
+      "BLOCKED": "BLOCKED"
+    },
+    "preflightIssue": {
+      "SUPPLIER_NOT_FOUND": "メーカーコードがG-SYS上で見つかりません。",
+      "BRAND_NOT_FOUND": "ブランドコードがG-SYS上で見つかりません。",
+      "ITEM_NOT_FOUND": "商品コードがG-SYS上で見つからないか、廃止されています。",
+      "OFFICIAL_PO_NO_NOT_ASSIGNED": "正式PO番号が未設定のため、既存PO/Invoice/入荷実績との整合確認は次のPhase以降で行われます。"
+    }
+  }
 }

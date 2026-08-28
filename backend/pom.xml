@@ -98,6 +98,23 @@
       <version>${json-simple.version}</version>
     </dependency>
 
+    <!--
+      Phase 7-C2A: OfficialPoExcelGenerator (Excel Generator Foundation).
+      A modern version, NOT the Legacy pom.xml's ancient poi/poi-ooxml 3.9 -
+      this is new Portal code, not a verbatim port of Legacy Source (that
+      distinction only applies to jp.ne.glv.legacycalc, Technical Design 4.3).
+    -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
