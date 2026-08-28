@@ -1,6 +1,6 @@
 {
-  "listTitle": "発注履歴",
-  "backToList": "履歴一覧へ戻る",
+  "listTitle": "発注一覧",
+  "backToList": "発注一覧へ戻る",
   "notFound": "指定された発注が見つかりませんでした。",
   "filter": {
     "supplier": "メーカー",
@@ -44,8 +44,10 @@
     "attention": "確認事項"
   },
   "notAvailable": "—",
-  "goToSupplierResponse": "メーカー回答画面へ",
-  "goToPreview": "PO プレビューへ",
+  "goToDraftEdit": "ドラフトを編集",
+  "goToPreview": "PO Previewを見る",
+  "goToSupplierResponseInput": "メーカー回答を入力",
+  "goToSupplierResponseReview": "メーカー回答を確認する",
   "timelineTitle": "操作履歴",
   "timelineEmpty": "履歴がありません。",
   "timelineFieldOldNew": "{{old}} → {{new}}"

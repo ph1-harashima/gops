@@ -1,6 +1,6 @@
 {
-  "listTitle": "Order History",
-  "backToList": "Back to History List",
+  "listTitle": "Orders",
+  "backToList": "Back to Orders",
   "notFound": "The requested order could not be found.",
   "filter": {
     "supplier": "Supplier",
@@ -22,7 +22,7 @@
   },
   "empty": "No matching orders found.",
   "resultCount": "{{count}} order(s)",
-  "detailTitle": "Order Detail",
+  "detailTitle": "Order Details",
   "detail": {
     "supplier": "Supplier",
     "brand": "Brand",
@@ -44,8 +44,10 @@
     "attention": "Attention"
   },
   "notAvailable": "—",
-  "goToSupplierResponse": "Go to Supplier Response",
-  "goToPreview": "Go to PO Preview",
+  "goToDraftEdit": "Edit Draft",
+  "goToPreview": "View PO Preview",
+  "goToSupplierResponseInput": "Enter Supplier Response",
+  "goToSupplierResponseReview": "View Supplier Response",
   "timelineTitle": "Activity History",
   "timelineEmpty": "No history yet.",
   "timelineFieldOldNew": "{{old}} → {{new}}"

@@ -76,8 +76,29 @@ export function OrderHistoryDetailPage() {
     )
   }
 
-  const canGoToPreview = ['DRAFT', 'READY_TO_ORDER'].includes(detail.status)
-  const canGoToSupplierResponse = ['AWAITING_SUPPLIER', 'SUPPLIER_CONFIRMED'].includes(detail.status)
+  // Phase 6-B (docs/production-ux-workflow-redesign.md 4章/5章): 発注詳細 is
+  // this order's business Hub - exactly one primary Action, chosen by its
+  // current Status, reusing the existing Draft/Preview/Supplier Response
+  // routes as-is (no new Business Logic, no new Route). SENT is never a
+  // resting Status (OrderStatusTransitionService - Demo Send never leaves an
+  // Order sitting in SENT), so it deliberately has no case here.
+  const primaryAction = (() => {
+    switch (detail.status) {
+      case 'DRAFT':
+        return { label: t('goToDraftEdit'), to: `/orders/drafts/${detail.id}` }
+      case 'READY_TO_ORDER':
+        return { label: t('goToPreview'), to: `/orders/drafts/${detail.id}/preview` }
+      case 'AWAITING_SUPPLIER':
+        // 入力 (input) - a Response is still owed.
+        return { label: t('goToSupplierResponseInput'), to: `/orders/${detail.id}/supplier-response` }
+      case 'SUPPLIER_CONFIRMED':
+        // 確認 (review) - same screen, read-only once Confirmed
+        // (SupplierResponsePage.isEditable already gates on Status).
+        return { label: t('goToSupplierResponseReview'), to: `/orders/${detail.id}/supplier-response` }
+      default:
+        return null
+    }
+  })()
 
   return (
     <Box sx={{ p: 3 }}>
@@ -134,24 +155,17 @@ export function OrderHistoryDetailPage() {
         </Table>
       </TableContainer>
 
-      <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-        {canGoToPreview && (
+      {primaryAction && (
+        <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
           <Button
             variant="outlined"
-            onClick={() => navigate(withReturnTo(`/orders/drafts/${detail.id}/preview`, returnTo))}
+            onClick={() => navigate(withReturnTo(primaryAction.to, returnTo))}
+            data-testid="order-detail-primary-action"
           >
-            {t('goToPreview')}
+            {primaryAction.label}
           </Button>
-        )}
-        {canGoToSupplierResponse && (
-          <Button
-            variant="outlined"
-            onClick={() => navigate(withReturnTo(`/orders/${detail.id}/supplier-response`, returnTo))}
-          >
-            {t('goToSupplierResponse')}
-          </Button>
-        )}
-      </Stack>
+        </Stack>
+      )}
 
       <Divider sx={{ my: 3 }} />
 

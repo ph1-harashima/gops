@@ -91,13 +91,18 @@ test.describe('Phase 6-A: List State Preservation', () => {
     await expect(page).toHaveURL(/status=/)
     const listUrl = page.url()
 
+    // Wait for the refetch triggered by the Filter change to actually
+    // resolve before counting rows - the URL updates synchronously but the
+    // Table does not (this was a latent flake in this Scenario, found while
+    // writing the equivalent wait for Phase 6-B's order-detail-hub.spec.ts).
+    await expect(page.getByText(/件の発注|該当する発注が見つかりませんでした/)).toBeVisible()
     const rowCount = await page.locator('table tbody tr').count()
     test.skip(rowCount === 0, 'No orders match this Status in the current Demo Data')
 
     await page.locator('table tbody tr').first().click()
     await expect(page).toHaveURL(/\/orders\/\d+\?returnTo=/)
 
-    await page.getByRole('button', { name: '履歴一覧へ戻る' }).click()
+    await page.getByRole('button', { name: '発注一覧へ戻る' }).click()
     await expect(page).toHaveURL(listUrl)
   })
 
