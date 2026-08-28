@@ -59,7 +59,7 @@ export function OrderHistoryDetailPage() {
           {t('detailTitle')} - {detail.prototypePoNo ?? detail.draftNo}
         </Typography>
         <OrderStatusChip status={detail.status} />
-        <AttentionChips types={detail.orderAttentionTypes} />
+        <AttentionChips attentions={detail.orderAttentions} acknowledgeable />
       </Stack>
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
@@ -99,7 +99,7 @@ export function OrderHistoryDetailPage() {
                 <TableCell align="right">{line.confirmedQty ?? t('notAvailable')}</TableCell>
                 <TableCell>{line.requestedDelivery ?? t('notAvailable')}</TableCell>
                 <TableCell>{line.confirmedDelivery ?? t('notAvailable')}</TableCell>
-                <TableCell><AttentionChips types={line.attentionTypes} /></TableCell>
+                <TableCell><AttentionChips attentions={line.attentions} acknowledgeable /></TableCell>
               </TableRow>
             ))}
           </TableBody>

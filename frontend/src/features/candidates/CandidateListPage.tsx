@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import Box from '@mui/material/Box'
@@ -29,7 +29,13 @@ import type { ApiErrorBody } from '../../shared/types/orderDraft'
 export function CandidateListPage() {
   const { t } = useTranslation(['candidates', 'common'])
   const navigate = useNavigate()
-  const [filter, setFilter] = useState<OrderCandidateFilter>({})
+  // Dashboard's Brand breakdown deep-links here with ?brandCode=... - only
+  // ever read once as the initial filter value (implementation instructions
+  // Step 5 3章 "Brandクリックで該当Filter付き画面へ遷移").
+  const [searchParams] = useSearchParams()
+  const [filter, setFilter] = useState<OrderCandidateFilter>({
+    brandCode: searchParams.get('brandCode') ?? undefined,
+  })
   const [keywordInput, setKeywordInput] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
@@ -138,6 +144,7 @@ export function CandidateListPage() {
           variant="contained"
           disabled={selected.size === 0 || createDraftMutation.isPending}
           onClick={handleCreateDraft}
+          data-testid="create-draft-button"
         >
           {createDraftMutation.isPending ? (
             <CircularProgress size={20} />
@@ -211,11 +218,20 @@ export function CandidateListPage() {
               </TableHead>
               <TableBody>
                 {data.map((row) => (
-                  <TableRow key={row.sku} hover selected={selected.has(row.sku)}>
+                  <TableRow key={row.sku} hover selected={selected.has(row.sku)} data-testid={`candidate-row-${row.sku}`}>
                     <TableCell padding="checkbox">
-                      <Checkbox checked={selected.has(row.sku)} onChange={() => toggleSelect(row.sku)} />
+                      <Checkbox
+                        checked={selected.has(row.sku)}
+                        onChange={() => toggleSelect(row.sku)}
+                        slotProps={{ input: { 'aria-label': row.sku } as never }}
+                        data-testid={`candidate-checkbox-${row.sku}`}
+                      />
                     </TableCell>
-                    <TableCell>{row.sku}</TableCell>
+                    <TableCell>
+                      <Button size="small" onClick={() => navigate(`/items/${encodeURIComponent(row.sku)}`)}>
+                        {row.sku}
+                      </Button>
+                    </TableCell>
                     <TableCell>
                       <Stack spacing={0.5}>
                         <span>{row.itemName ?? t('candidates:notAvailable')}</span>

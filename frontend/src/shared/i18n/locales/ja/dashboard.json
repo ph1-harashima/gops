@@ -1,0 +1,20 @@
+{
+  "title": "ダッシュボード",
+  "kpi": {
+    "candidates": "発注候補",
+    "outOfStock": "欠品",
+    "longTermOutOfStock": "長期欠品",
+    "draft": "発注作成中",
+    "awaitingSupplier": "メーカー回答待ち",
+    "attention": "要確認"
+  },
+  "brandBreakdown": "ブランド別内訳",
+  "table": {
+    "brand": "ブランド",
+    "candidates": "発注候補",
+    "outOfStock": "欠品",
+    "draft": "発注作成中",
+    "awaitingSupplier": "メーカー回答待ち",
+    "attention": "要確認"
+  }
+}

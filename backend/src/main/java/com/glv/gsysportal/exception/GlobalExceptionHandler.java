@@ -83,4 +83,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleSupplierResponseIncomplete(SupplierResponseIncompleteException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "SUPPLIER_RESPONSE_INCOMPLETE"));
     }
+
+    @ExceptionHandler(AttentionNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleAttentionNotFound(AttentionNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("errorCode", "ATTENTION_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(AttentionAlreadyResolvedException.class)
+    public ResponseEntity<Map<String, Object>> handleAttentionAlreadyResolved(AttentionAlreadyResolvedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "ATTENTION_ALREADY_RESOLVED"));
+    }
 }

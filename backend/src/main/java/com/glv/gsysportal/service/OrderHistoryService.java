@@ -4,6 +4,7 @@ import com.glv.gsysportal.domain.OrderAttention;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.PortalOrderDetail;
 import com.glv.gsysportal.domain.SupplierResponseDetail;
+import com.glv.gsysportal.dto.response.AttentionSummary;
 import com.glv.gsysportal.dto.response.AuditEventView;
 import com.glv.gsysportal.dto.response.OrderHistoryDetailLineView;
 import com.glv.gsysportal.dto.response.OrderHistoryDetailResponse;
@@ -72,9 +73,9 @@ public class OrderHistoryService {
                 .map(d -> toLineView(order, d, confirmedByDetailId.get(d.getId()), active))
                 .toList();
 
-        List<String> orderAttentionTypes = active.stream()
+        List<AttentionSummary> orderAttentions = active.stream()
                 .filter(a -> a.getPortalOrderDetailId() == null)
-                .map(OrderAttention::getAttentionType)
+                .map(a -> new AttentionSummary(a.getId(), a.getAttentionType()))
                 .toList();
 
         return new OrderHistoryDetailResponse(
@@ -83,7 +84,7 @@ public class OrderHistoryService {
                 order.getBrandCode(), order.getBrandNameSnapshot(),
                 order.getOrderDate(), order.getRequestedDelivery(), order.getCurrency(), order.getRemark(),
                 order.getStatus(), order.getTotalQty(), order.getTotalAmount(),
-                lines, orderAttentionTypes
+                lines, orderAttentions
         );
     }
 
@@ -114,16 +115,16 @@ public class OrderHistoryService {
 
     private static OrderHistoryDetailLineView toLineView(PortalOrder order, PortalOrderDetail detail,
                                                            SupplierResponseDetail response, List<OrderAttention> active) {
-        List<String> attentionTypes = active.stream()
+        List<AttentionSummary> attentions = active.stream()
                 .filter(a -> detail.getId().equals(a.getPortalOrderDetailId()))
-                .map(OrderAttention::getAttentionType)
+                .map(a -> new AttentionSummary(a.getId(), a.getAttentionType()))
                 .toList();
         return new OrderHistoryDetailLineView(
                 detail.getSku(), detail.getItemNameSnapshot(), detail.getRecommendedQty(), detail.getOrderQty(),
                 response == null ? null : response.getConfirmedQty(),
                 response == null ? order.getRequestedDelivery() : response.getRequestedDelivery(),
                 response == null ? null : response.getConfirmedDelivery(),
-                attentionTypes
+                attentions
         );
     }
 }

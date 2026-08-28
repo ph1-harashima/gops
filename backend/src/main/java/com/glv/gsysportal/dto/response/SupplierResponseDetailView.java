@@ -16,7 +16,7 @@ public record SupplierResponseDetailView(
         LocalDate confirmedDelivery,
         String responseNote,
         boolean isConfirmed,
-        List<String> attentionTypes,
+        List<AttentionSummary> attentions,
         List<String> warningCodes
 ) {
 }

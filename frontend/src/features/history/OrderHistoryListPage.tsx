@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -13,16 +13,34 @@ import TableRow from '@mui/material/TableRow'
 import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
+import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 
 import { useOrderHistory } from './api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
-import { AttentionChips } from '../../shared/components/AttentionChips'
 import type { OrderHistoryFilter } from './api'
 
 const STATUS_OPTIONS = ['DRAFT', 'READY_TO_ORDER', 'AWAITING_SUPPLIER', 'SUPPLIER_CONFIRMED']
+
+/** Read-only glance badges for the list view (no Acknowledge action here -
+ * that lives on Order History Detail / Supplier Response, implementation
+ * instructions Step 5 2章). Unlike AttentionChips this renders from plain
+ * type strings (OrderHistorySummaryResponse.activeAttentionTypes), not
+ * id-bearing AttentionSummary objects. */
+function AttentionTypeBadges({ types }: { types: string[] }) {
+  const { t } = useTranslation('status')
+  if (types.length === 0) return null
+  return (
+    <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+      {types.map((type) => (
+        <Chip key={type} size="small" color={type === 'PARTIAL_CONFIRMATION' ? 'info' : 'warning'}
+              label={t(`attentionType.${type}`, { defaultValue: type })} />
+      ))}
+    </Stack>
+  )
+}
 
 /** Requirements MD 31.2: History画面は原則READ ONLY. Row click navigates to
  * detail; no inline editing exists on this screen (implementation
@@ -30,7 +48,13 @@ const STATUS_OPTIONS = ['DRAFT', 'READY_TO_ORDER', 'AWAITING_SUPPLIER', 'SUPPLIE
 export function OrderHistoryListPage() {
   const { t } = useTranslation(['history', 'common', 'status'])
   const navigate = useNavigate()
-  const [filter, setFilter] = useState<OrderHistoryFilter>({})
+  // Dashboard deep-links here with ?brandCode=...&status=... (implementation
+  // instructions Step 5 3章) - only ever read once as the initial filter.
+  const [searchParams] = useSearchParams()
+  const [filter, setFilter] = useState<OrderHistoryFilter>({
+    brandCode: searchParams.get('brandCode') ?? undefined,
+    status: searchParams.get('status') ?? undefined,
+  })
 
   const { data, isLoading, isError, refetch } = useOrderHistory(filter)
 
@@ -147,7 +171,7 @@ export function OrderHistoryListPage() {
                     <TableCell align="right">{row.totalOrderedQty}</TableCell>
                     <TableCell align="right">¥{row.totalAmount.toLocaleString()}</TableCell>
                     <TableCell><OrderStatusChip status={row.status} /></TableCell>
-                    <TableCell><AttentionChips types={row.activeAttentionTypes} /></TableCell>
+                    <TableCell><AttentionTypeBadges types={row.activeAttentionTypes} /></TableCell>
                     <TableCell>{new Date(row.updatedAt).toLocaleString('ja-JP')}</TableCell>
                   </TableRow>
                 ))}

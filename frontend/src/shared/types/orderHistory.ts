@@ -1,5 +1,7 @@
 // Mirrors backend com.glv.gsysportal.dto.response.OrderHistorySummaryResponse
 // / OrderHistoryDetailResponse / OrderHistoryDetailLineView / AuditEventView.
+import type { AttentionSummary } from './attention'
+
 export interface OrderHistorySummary {
   id: number
   draftNo: string
@@ -26,7 +28,7 @@ export interface OrderHistoryDetailLine {
   confirmedQty: number | null
   requestedDelivery: string | null
   confirmedDelivery: string | null
-  attentionTypes: string[]
+  attentions: AttentionSummary[]
 }
 
 export interface OrderHistoryDetail {
@@ -45,7 +47,7 @@ export interface OrderHistoryDetail {
   totalQty: number
   totalAmount: number
   details: OrderHistoryDetailLine[]
-  orderAttentionTypes: string[]
+  orderAttentions: AttentionSummary[]
 }
 
 export interface AuditEventItem {

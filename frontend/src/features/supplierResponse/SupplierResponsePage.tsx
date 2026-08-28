@@ -143,7 +143,7 @@ export function SupplierResponsePage() {
           {t('title')} - {response.prototypePoNo ?? response.draftNo}
         </Typography>
         <OrderStatusChip status={response.status} />
-        <AttentionChips types={response.orderAttentionTypes} />
+        <AttentionChips attentions={response.orderAttentions} acknowledgeable />
       </Stack>
 
       {demoSendSuccess && (
@@ -217,7 +217,7 @@ export function SupplierResponsePage() {
             {response.details.map((d) => {
               const edit = lines[d.detailId] ?? { confirmedQty: '', confirmedDelivery: '', responseNote: '' }
               return (
-                <TableRow key={d.detailId} hover>
+                <TableRow key={d.detailId} hover data-testid={`response-row-${d.sku}`}>
                   <TableCell>{d.sku}</TableCell>
                   <TableCell>{d.itemName}</TableCell>
                   <TableCell align="right">{d.orderedQty}</TableCell>
@@ -231,6 +231,7 @@ export function SupplierResponsePage() {
                         value={edit.confirmedQty}
                         color={d.warningCodes.length > 0 ? 'warning' : undefined}
                         onChange={(e) => handleQtyChange(d.detailId, e.target.value)}
+                        data-testid={`confirmed-qty-input-${d.sku}`}
                         slotProps={{
                           htmlInput: { min: 0, step: 1, style: { textAlign: 'right', width: 90 } },
                           input: { readOnly: !isEditable },
@@ -244,6 +245,7 @@ export function SupplierResponsePage() {
                       size="small"
                       value={edit.confirmedDelivery}
                       onChange={(e) => handleDeliveryChange(d.detailId, e.target.value)}
+                      data-testid={`confirmed-delivery-input-${d.sku}`}
                       slotProps={{ inputLabel: { shrink: true }, input: { readOnly: !isEditable } }}
                     />
                   </TableCell>
@@ -259,7 +261,7 @@ export function SupplierResponsePage() {
                     />
                   </TableCell>
                   <TableCell>
-                    <AttentionChips types={d.attentionTypes} />
+                    <AttentionChips attentions={d.attentions} acknowledgeable />
                   </TableCell>
                 </TableRow>
               )
@@ -281,7 +283,7 @@ export function SupplierResponsePage() {
 
       <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
         {isEditable && (
-          <Button variant="contained" onClick={handleSave} disabled={saveMutation.isPending}>
+          <Button variant="contained" onClick={handleSave} disabled={saveMutation.isPending} data-testid="save-response-button">
             {saveMutation.isPending ? <CircularProgress size={20} /> : t('saveResponse')}
           </Button>
         )}
@@ -290,11 +292,12 @@ export function SupplierResponsePage() {
             variant="outlined"
             onClick={() => setConfirmDialogOpen(true)}
             disabled={!allAnswered || confirmMutation.isPending}
+            data-testid="confirm-response-button"
           >
             {t('confirmResponse')}
           </Button>
         )}
-        <Button variant="text" onClick={() => navigate(`/orders/${orderId}`)}>
+        <Button variant="text" onClick={() => navigate(`/orders/${orderId}`)} data-testid="view-history-button">
           {t('viewHistory')}
         </Button>
       </Stack>
@@ -308,7 +311,7 @@ export function SupplierResponsePage() {
           <Button onClick={() => setConfirmDialogOpen(false)} disabled={confirmMutation.isPending}>
             {t('confirmDialogCancel')}
           </Button>
-          <Button variant="contained" onClick={handleConfirm} disabled={confirmMutation.isPending}>
+          <Button variant="contained" onClick={handleConfirm} disabled={confirmMutation.isPending} data-testid="confirm-response-dialog-confirm">
             {confirmMutation.isPending ? <CircularProgress size={20} /> : t('confirmDialogConfirm')}
           </Button>
         </DialogActions>

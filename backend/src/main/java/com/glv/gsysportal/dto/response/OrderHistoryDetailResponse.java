@@ -23,6 +23,6 @@ public record OrderHistoryDetailResponse(
         int totalQty,
         BigDecimal totalAmount,
         List<OrderHistoryDetailLineView> details,
-        List<String> orderAttentionTypes
+        List<AttentionSummary> orderAttentions
 ) {
 }

@@ -6,6 +6,7 @@ import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.SupplierResponse;
 import com.glv.gsysportal.domain.SupplierResponseDetail;
 import com.glv.gsysportal.dto.request.SaveSupplierResponseRequest;
+import com.glv.gsysportal.dto.response.AttentionSummary;
 import com.glv.gsysportal.dto.response.SupplierResponseDetailView;
 import com.glv.gsysportal.dto.response.SupplierResponseSummary;
 import com.glv.gsysportal.dto.response.SupplierResponseView;
@@ -265,9 +266,9 @@ public class SupplierResponseService {
                 .map(d -> toDetailView(d, activeAttentions))
                 .toList();
 
-        List<String> orderAttentionTypes = activeAttentions.stream()
+        List<AttentionSummary> orderAttentions = activeAttentions.stream()
                 .filter(a -> a.getPortalOrderDetailId() == null)
-                .map(OrderAttention::getAttentionType)
+                .map(a -> new AttentionSummary(a.getId(), a.getAttentionType()))
                 .toList();
 
         int totalOrderedQty = response.getDetails().stream().mapToInt(SupplierResponseDetail::getOrderedQty).sum();
@@ -280,15 +281,15 @@ public class SupplierResponseService {
                 order.getOrderDate(), order.getStatus(),
                 totalOrderedQty, order.getTotalAmount(),
                 response.getResponseDate(), response.getResponseNote(), response.getResponseStatus(),
-                detailViews, orderAttentionTypes, summary
+                detailViews, orderAttentions, summary
         );
     }
 
     private static SupplierResponseDetailView toDetailView(SupplierResponseDetail d, List<OrderAttention> activeAttentions) {
         var pod = d.getPortalOrderDetail();
-        List<String> attentionTypes = activeAttentions.stream()
+        List<AttentionSummary> attentions = activeAttentions.stream()
                 .filter(a -> pod.getId().equals(a.getPortalOrderDetailId()))
-                .map(OrderAttention::getAttentionType)
+                .map(a -> new AttentionSummary(a.getId(), a.getAttentionType()))
                 .toList();
         List<String> warnings = new ArrayList<>();
         if (d.getConfirmedQty() != null && d.getConfirmedQty() > d.getOrderedQty()) {
@@ -297,7 +298,7 @@ public class SupplierResponseService {
         return new SupplierResponseDetailView(
                 d.getId(), pod.getSku(), pod.getItemNameSnapshot(), d.getOrderedQty(), d.getConfirmedQty(),
                 d.getRequestedDelivery(), d.getConfirmedDelivery(), d.getResponseNote(), d.isConfirmed(),
-                attentionTypes, warnings
+                attentions, warnings
         );
     }
 

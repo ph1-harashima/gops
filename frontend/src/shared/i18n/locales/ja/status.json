@@ -27,6 +27,7 @@
   "warningCode": {
     "CONFIRMED_QTY_EXCEEDS_ORDERED_QTY": "回答数量が発注数量を超えています"
   },
+  "acknowledgeAttention": "確認済みにする",
   "eventType": {
     "ORDER_DRAFT_CREATED": "ドラフト作成",
     "ORDER_QTY_CHANGED": "発注数量変更",

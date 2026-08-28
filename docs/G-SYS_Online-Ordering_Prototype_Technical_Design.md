@@ -808,4 +808,91 @@ Backend: `mvn test`（Golden Test 9件 + READ ONLY Test 4件、計13件PASS）�
 
 ---
 
-以上がPrototype Technical Designである。Step 0/1の内容は本書に反映済みのBaselineとして確定した。Step 2以降の実装は別指示で開始する。
+# 18. Implementation Step 2-4 Baseline確定事項（2026-08-27～2026-08-28）
+
+`[CONFIRMED]` Order Draft保存からOrder History / Timelineまで、Core Workflow（Candidate → Draft → Preview → Confirm → Demo Send → Supplier Response → History）を実装・全Regression PASSの状態で確定した。詳細は各章に反映済みだが、本章にStep単位のCommitとRegression結果をサマリとして掲載する（Step 5指示に基づく記録）。
+
+## Step 2（Commit `b2eda6d`）
+
+Safety Guard（Host Allowlist／DB Name／Profile Guard）を実装し、以降の全Stepで作業開始前に再実行する運用を確立（4.1節・5章）。Order Draft作成・保存API、`portal_order`/`portal_order_detail`/`audit_event`/`portal_user`（V1-V5 Migration）、Spring Security Session Form Login（7章）を実装。
+
+## Step 3（Commit `c2a54c0`）
+
+PO Preview（READ ONLY）、Confirm Order（`DRAFT → READY_TO_ORDER`、Prototype PO No.採番）、Return to Draft（`READY_TO_ORDER → DRAFT`、PO No.維持）を実装（8章/9章）。`prototype_po_no_seq`シーケンスおよび`ORDER_RETURNED_TO_DRAFT`イベント種別を追加（V6 Migration）。
+
+## Step 4（Commit `479f7f4`）
+
+- **Demo Send実装済み**：`POST /api/orders/{id}/demo-send`。`READY_TO_ORDER → SENT → AWAITING_SUPPLIER`を単一Transactionで実行し、`SENT`はAudit/History専用の中間Statusとしてユーザーには常に`AWAITING_SUPPLIER`のみ表示する（8.1節）。
+- **supplier_response初期化タイミング**：Demo Send実行と同一Transaction内で、非削除の各`portal_order_detail`行から`supplier_response`/`supplier_response_detail`を初期化する。`ordered_qty`＝この時点の`order_qty`、`requested_delivery`＝この時点の`portal_order.requested_delivery`をSnapshotし、`confirmed_qty`はNULLで初期化する（8.1節）。
+- **confirmedQty 0/null分離実装済み**：`supplier_response_detail.confirmed_qty`はDEFAULTなしのNULL許容`INTEGER`。DTO（`SupplierResponseDetailView`/`SaveSupplierResponseRequest.LineUpdate`）はJavaの`Integer`（プリミティブ`int`ではない）として一貫してNULLを保持し、JSONの`null`をFrontendまで一切0へcoerceしない（5.4節）。
+- **Partial Response実装済み**：`PUT /api/orders/{id}/supplier-response`は`details`に含まれない行を変更しない部分保存。一部SKUのみ回答時はOrder単位の`PARTIAL_CONFIRMATION` Attentionを設定し、全SKU回答完了で自動解消する（8.1節）。
+- **QUANTITY_CHANGED / DELIVERY_CHANGED**：`confirmedQty`が`orderedQty`と異なる（かつ非null）場合、`confirmedDelivery`が`requestedDelivery`と異なる（かつ非null）場合にそれぞれ`order_attention`をACTIVEで作成（重複防止は部分Unique Indexで保証）。ユーザーがAcknowledgeするまでACTIVEを維持し、値が一致する方向へ再修正されても自動解消しない（5.5節・8.1節）。
+- **Multiple Response Audit**：同一行への複数回の値変更（例：null→9→8）はすべて`audit_event(QUANTITY_CHANGED)`として個別に記録し、最新値だけでなく変更履歴全体を追跡可能にする。値が変化しないSaveはAuditを追加しない（8.1節）。
+- **Supplier Response暫定完了条件**：`[PROTOTYPE DECISION]`「非削除の全明細で`confirmedQty`が非null」のみを条件とし、Confirmed Deliveryは必須としない。正式な完了条件は`[TBD - CUSTOMER REVIEW]`のまま維持している（30.9節・27.4節）。
+- **Order History / Timeline実装済み**：`GET /api/orders/history`（Filter対応一覧）、`GET /api/orders/{id}`（Recommended → Ordered → Confirmedの3段階表示）、`GET /api/orders/{id}/events`（audit_eventの時系列Timeline）を実装。全てREAD ONLY（30.10節）。
+- **Core Workflow E2E実証済み**：Candidate → Draft → Preview → Confirm → Demo Send → Supplier Response（数量変更・明示的0回答含む）→ History / Timelineの一連を、実際のブラウザセッションでログインから最後まで1本通しで実行し、各段階でDB値とUI表示の一致をcurl/psqlでもクロスチェックした。
+- **Attention部分Unique IndexのNULL問題とCOALESCE対策**：`order_attention`の重複ACTIVE防止用部分Unique Indexを`portal_order_detail_id`の素の列で設計すると、PostgresがNULLを「互いに異なる値」として扱うため、Order単位のAttention（`PARTIAL_CONFIRMATION`、`portal_order_detail_id IS NULL`）が重複挿入され得るという正当性上の欠陥が当初案にあった。Migration作成時に発見し、`COALESCE(portal_order_detail_id, -1)`でNULLを正規化することで修正した（`V7__supplier_response_and_attention.sql`、5.5節）。
+- **Backend 142 Tests PASS**：Golden 9 / Legacy READ ONLY 4 / Safety Gate 29 / Flyway Migration 4 / Draft Service 16 / Draft API 8 / PO Preview Service 9 / PO Preview API 7 / Confirm/Return-to-Draft/Demo Send Service 17 / Supplier Response Service 22 / Order History Service 7 / Supplier Workflow API 5 / Order History API 3 / PO Preview Validator 6。`mvn clean package`・`npm run build`いずれも成功。
+
+---
+
+# 19. Implementation Step 5 Baseline確定事項（2026-08-28）
+
+Step 5の目的はCoreのBusiness Logic（18章）を変更・再設計することではなく、9/17デモを「安定して、分かりやすく、何度でも再現できる状態」にすることであり、本章に記載する機能はいずれもCore Workflowの外側に追加されたものである。Core Workflowの状態遷移・計算ロジック・Attention判定条件は18章記載の内容から一切変更していない。
+
+## A. Attention Acknowledge（実装指示Step 5 2章を参照・確定）
+
+`POST /api/attentions/{id}/acknowledge`を実装。ACTIVEなAttentionのみを対象とし、既に解消済み（`is_active=false`）のAttentionへの二重Acknowledgeは`409 ATTENTION_ALREADY_RESOLVED`で拒否する（Confirm Order/Demo Send/Confirm Supplier Responseと同じ「拒否によるIdempotency」方式、18章のUnique Index設計思想と対称）。成功時は`acknowledged_by`/`acknowledged_at`/`resolved_at`を設定し`is_active=false`とした上で、`audit_event(ATTENTION_RESOLVED)`を1件記録する。Attention行は物理削除しない（Historyから常に参照可能）。Frontend側はOrder History Detail画面とSupplier Response画面の両方から、Attention Chipの✓アイコンで実行できる。
+
+## B. Dashboard（実装指示Step 5 3章を参照・確定）
+
+`GET /api/dashboard`を実装。**Action/Operation Cockpitであり、Analyticsではない**という要求を構造的に担保するため、`DashboardResponse` DTOにはSales Trend/売上分析/粗利分析/在庫回転率等を保持できるフィールドが一切存在しない。表示するのは発注候補・欠品・長期欠品・発注作成中・メーカー回答待ち・要確認の6 KPIと、Brand別内訳（Brand・発注候補・欠品・発注作成中・メーカー回答待ち・要確認）のみで、いずれも既存のOrder Candidate API / Order (Draft) Repository / Attention Repositoryが持つデータの単純な件数集計である。KPI/Brandセルのクリックは対応する画面へURLクエリパラメータ付きで遷移する（Candidate List: `?brandCode=`、Order History List: `?brandCode=&status=`）。
+
+**「長期欠品」の定義**：`currentStock==0 AND (openPo==null || openPo==0)`というPrototype限定の代替定義を採用した。これは期間・日付に基づく正式な定義ではなく（Prototypeにはそのためのデータが存在しない）、コード上に明示コメントを付与した上で採用している。要件MD 27.4に記載の正式な定義は引き続き`[TBD - CUSTOMER REVIEW]`のままであり、本Stepで変更・確定していない。
+
+## C. SKU Detail（実装指示Step 5 4章を参照・確定）
+
+`GET /api/items/{sku}/ordering-context`を実装。商品情報（SKU/商品名/Brand/メーカー/商品状態）・在庫情報（現在庫/安全在庫[取得不可のため常にnull]/発注残/入荷予定数[取得不可のため常にnull]）・発注情報（当月販売数/リードタイム/推奨発注数）・履歴（Legacy `tr_po`/`tr_po_dtl`から取得できるPO実績のみ）の4セクションで構成する。**存在しないSales Trendは生成せず、直近30/60/90日・前月/前々月といった期間集計は一切実装していない。** 履歴セクションはLegacyに実在するPO行のみをそのまま返す新規READ ONLY Query（`SkuPoHistoryReadQuery.sql`）によるもので、推測・合成した行は含まない。
+
+## D. Demo Reset（実装指示Step 5 5章を参照・確定）
+
+`backend/demo-reset.sh`（`DemoResetRunner`、`app.demo-reset.enabled=true`時のみ動作する`CommandLineRunner`）として実装し、**Backend APIとしては一切公開していない**（CLI/scriptのみ）。防御は二重構造：(1) 既存のSafety Guard（`SafetyGuardEnvironmentPostProcessor`）がProfile／Legacy・Prototype双方のJDBC URLホスト・DB名を起動時に検証しており、許可外の接続先ではApplication自体が起動しないため`DemoResetRunner`のコードに到達し得ない、(2) `DemoResetRunner`自身も実行時に生きている`Connection`のURLを`validateJdbcUrl()`で再検証してからのみTRUNCATEを実行する。対象は`portal_order`/`portal_order_detail`/`supplier_response`/`supplier_response_detail`/`order_attention`/`audit_event`の6テーブル（`TRUNCATE ... RESTART IDENTITY`）＋`prototype_po_no_seq`の`RESTART WITH 1`で、`portal_user`は対象外として維持する。ローカルDocker環境で実行し、対象6テーブルが0件になったこと・`portal_user`が変化しないこと・Legacy Demo MySQL（`ms_item`/`tr_po`）が完全に無変化であることを実データで確認済み。
+
+## E. Demo Scenario Seed（実装指示Step 5 6章を参照・確定）
+
+既存Demo Seed（19 SKU/3 Brand/3 Supplier、18章C参照）を確認した結果、要求されたA〜G（推奨発注数>0/=0、Open POあり、現在庫少、当月販売数多、Item別Formula、Default Formula）のカテゴリはいずれも追加のSeedデータ変更なしに既存データで満たされていることを確認した。個別SKUの対応関係はデモ実施時の説明順とあわせて`docs/9-17-demo-script.md`（20章）に記載する。Recommended Qtyを直接Seedしない原則（18章C）は維持している。
+
+## F. E2E自動化Test（実装指示Step 5 7章を参照・確定）
+
+`frontend/e2e/core-demo-scenario.spec.ts`（Playwright、`frontend/playwright.config.ts`）としてCore Demo Scenario 1本を自動化した：Login → Candidate List → SKU選択（同一メーカーの2 SKU）→ Create Draft → Order Qty変更 → Save → Preview → Confirm Order → Demo Send → Supplier Response（Confirmed Qty変更、うち1件は0） → Confirmed Delivery変更 → Save → Confirm Response → History → Timeline確認 → Attention確認（数量変更あり/納期変更あり） → Acknowledge → Dashboard反映確認。**座標クリックには一切依存せず**、`data-testid`（本Stepで各画面に追加）/ `getByRole` / `getByLabel`のみで要素を特定する（G章のUI Click Issue調査結果を踏まえた設計）。2回連続実行しいずれもPASSすることを確認済み（Demo Resetを介さなくても再実行可能）。
+
+## G. UI Click Issue調査結果（実装指示Step 5 8章を参照・確定）
+
+Step 4のマニュアル検証中に観測されたCheckbox/TextFieldの初回クリック取りこぼしについて、「自動化ツール固有の問題」と即断せず、以下を実施した：(1) React側の状態更新・MUI Checkbox/TextField実装のソースレビュー（debounce/disabled中/`stopPropagation`/カスタムTheme起因の遅延いずれも存在しないことを確認）、(2) 座標ベースクリック vs アクセシビリティツリー（ref）ベースクリックのA/Bテスト。結果、座標ベースクリックのみで再現し、ref/DOM ベースクリックでは同一要素・同一操作で一度も再現しなかった。原因はスクリーンショット画像解像度（1568×783）と実ビューポート（2560×1279、約1.63倍）の不一致による座標丸め誤差と特定した。**Applicationコード側の不具合ではない**と結論し、コード変更は行っていない。F章のPlaywright E2E Testは`data-testid`ベースの安定したSelectorのみを用いる設計とすることで、この種の問題から構造的に独立している。
+
+## H. Authentication / CSRF（実装指示Step 5 9章を参照・確定）
+
+Authenticationの方式（Spring Security Session Form Login）は変更していない。CSRFは`SecurityConfig`にて`csrf.disable()`のまま据え置いている（Step 0/1からの既存方針を維持、7章参照）。本Stepでは大規模なSecurity再設計は行っていない。これは**既知のTechnical Debt**として明示的に記録する：
+
+> **Production Consideration（本番移行時の必須対応事項）**：本Prototypeはローカル環境限定のセッションCookie認証APIであるためCSRF保護を無効化しているが、本番移行時には必ずCSRF保護を有効化すること（Spring Securityの`CookieCsrfTokenRepository`等によるトークン方式、またはAPI Gateway側でのCSRF対策への切替を含む）。あわせて、Cookieの`SameSite`属性・HTTPS必須化・Session Fixation対策の再点検もあわせて実施すること。9/17 Prototypeデモの範囲ではこの対応は行わない。
+
+## I. Demo Environment Banner（実装指示Step 5 10章を参照・確定）
+
+共通Header（AppBar）に小さな「デモ環境」Chip（`data-testid="demo-environment-badge"`）を追加した。既存の大きめのDemo Environment警告Alert（Step 3/4から存在）とは別に、常時表示される控えめなIndicatorとして機能する。文言は`common.json`の`demoEnvironmentBadge`キー経由（i18nリソースのみ、ハードコードなし）。
+
+## Regression / Commit
+
+`[CONFIRMED]` 2026-08-28、Step 5の全DoD項目を満たした状態でFinal Regressionを実施した。
+
+- **Backend**: `./mvnw clean package` → `Tests run: 157, Failures: 0, Errors: 0, Skipped: 0`、`BUILD SUCCESS`。内訳は18章の142件（Step 2-4分）に、Step 5で追加した`AttentionServiceIntegrationTest`（4）・`DashboardServiceIntegrationTest`（2）・`SkuDetailServiceIntegrationTest`（3）・`DemoResetRunnerTest`（6、Spring Contextを起動しない純粋Unit Test）の15件を加えたもの。
+- **Frontend**: `npm run build`（`tsc -b && vite build`）成功。TypeScriptコンパイルエラーなし。
+- **E2E**: `frontend/e2e/core-demo-scenario.spec.ts`（Playwright）をCore Demo Scenario全体で3回連続実行し、いずれもPASS（連続実行での再現性を確認）。
+- **Demo Rehearsal**: `demo-reset.sh`実行後、実ブラウザで2回連続Core Workflowを実施（1回目: 通常操作、2回目: 顧客説明を想定した操作）。Draft No./PO No.採番の正常な連番進行、Demo Sendの単一実行、Partial Response表示と自動解消、Confirmed Qty = 0の正しい表示、Attention表示とAcknowledge後のDashboard即時反映を、2回とも実データで確認した。
+- **Legacy変更ゼロ**: `phasep-gulliver`のHEADコミット（`e8139c1`）および追跡ファイル943件は、Step 5開始前後で完全に不変。`git status`は全ファイルが変更ありと表示するが、`git diff -w`（空白無視）で差分ゼロを確認しており、これは本環境のチェックアウト時のCRLF/LF正規化による表示上のノイズであり、内容上の変更は一切ない（Step 5の作業はいずれも`backend/`・`frontend/`・`docs/`のみに閉じており、`phasep-gulliver/`配下のファイルには一度も書き込んでいない）。
+- **External Network確認**: `application*.yml`にAWS/SMTP/Tempostar/Logizero等の外部接続設定が存在しないことを再確認。Safety Guard関連Test（Unit 20件 + Integration 5件）はいずれもPASS。
+
+Commit IDは次Step以降のBaseline確定事項として、本章に追記する形で記録する（Step 2-4の記録方式（18章）と同様）。
+
+---
+
+以上がPrototype Technical Designである。Step 0/1〜5の内容は本書に反映済みのBaselineとして確定した。9/17デモに向けたPrototypeとしての実装はStep 5で完了しており、Step 6以降の実装は別指示で開始する。

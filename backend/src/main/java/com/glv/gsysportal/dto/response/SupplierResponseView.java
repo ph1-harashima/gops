@@ -22,7 +22,7 @@ public record SupplierResponseView(
         String responseNote,
         String responseStatus,
         List<SupplierResponseDetailView> details,
-        List<String> orderAttentionTypes,
+        List<AttentionSummary> orderAttentions,
         SupplierResponseSummary summary
 ) {
 }

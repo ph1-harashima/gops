@@ -5,6 +5,7 @@ import com.glv.gsysportal.domain.OrderAttention;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.dto.request.CreateDraftRequest;
 import com.glv.gsysportal.dto.request.SaveSupplierResponseRequest;
+import com.glv.gsysportal.dto.response.AttentionSummary;
 import com.glv.gsysportal.dto.response.OrderDraftResponse;
 import com.glv.gsysportal.dto.response.SupplierResponseDetailView;
 import com.glv.gsysportal.dto.response.SupplierResponseView;
@@ -120,7 +121,7 @@ class SupplierResponseServiceIntegrationTest {
         SupplierResponseView view = supplierResponseService.saveSupplierResponse(order.getId(),
                 new SaveSupplierResponseRequest(null, null, List.of(line(detailId, 2, null))), "tester01");
 
-        assertTrue(view.details().get(0).attentionTypes().contains(OrderAttention.QUANTITY_CHANGED));
+        assertTrue(hasType(view.details().get(0).attentions(), OrderAttention.QUANTITY_CHANGED));
         assertTrue(view.details().get(0).warningCodes().isEmpty(), "less-than is not a Warning case");
     }
 
@@ -132,7 +133,7 @@ class SupplierResponseServiceIntegrationTest {
         SupplierResponseView view = supplierResponseService.saveSupplierResponse(order.getId(),
                 new SaveSupplierResponseRequest(null, null, List.of(line(detailId, 3, null))), "tester01");
 
-        assertTrue(view.details().get(0).attentionTypes().isEmpty());
+        assertTrue(view.details().get(0).attentions().isEmpty());
         assertTrue(view.details().get(0).warningCodes().isEmpty());
     }
 
@@ -143,7 +144,7 @@ class SupplierResponseServiceIntegrationTest {
         SupplierResponseView view = supplierResponseService.saveSupplierResponse(order.getId(),
                 new SaveSupplierResponseRequest(null, null, List.of(line(detailId(order, 0), 5, null))), "tester01");
 
-        assertTrue(view.details().get(0).attentionTypes().contains(OrderAttention.QUANTITY_CHANGED));
+        assertTrue(hasType(view.details().get(0).attentions(), OrderAttention.QUANTITY_CHANGED));
         assertTrue(view.details().get(0).warningCodes().contains("CONFIRMED_QTY_EXCEEDS_ORDERED_QTY"),
                 "greater-than is allowed but must carry a Warning code, never an Error");
     }
@@ -167,7 +168,7 @@ class SupplierResponseServiceIntegrationTest {
         SupplierResponseView view = supplierResponseService.saveSupplierResponse(order.getId(),
                 new SaveSupplierResponseRequest(null, null, List.of(line(detailId, 3, LocalDate.of(2026, 9, 20)))), "tester01");
 
-        assertTrue(view.details().get(0).attentionTypes().contains(OrderAttention.DELIVERY_CHANGED));
+        assertTrue(hasType(view.details().get(0).attentions(), OrderAttention.DELIVERY_CHANGED));
     }
 
     @Test
@@ -182,7 +183,7 @@ class SupplierResponseServiceIntegrationTest {
         SupplierResponseView view = supplierResponseService.saveSupplierResponse(order.getId(),
                 new SaveSupplierResponseRequest(null, null, List.of(line(detailId, 3, null))), "tester01");
 
-        assertFalse(view.details().get(0).attentionTypes().contains(OrderAttention.DELIVERY_CHANGED),
+        assertFalse(hasType(view.details().get(0).attentions(), OrderAttention.DELIVERY_CHANGED),
                 "implementation instructions 13章: null confirmedDelivery must not be treated as a difference");
     }
 
@@ -193,7 +194,7 @@ class SupplierResponseServiceIntegrationTest {
         SupplierResponseView view = supplierResponseService.saveSupplierResponse(order.getId(),
                 new SaveSupplierResponseRequest(null, null, List.of(line(detailId(order, 0), 3, null))), "tester01");
 
-        assertTrue(view.orderAttentionTypes().contains(OrderAttention.PARTIAL_CONFIRMATION));
+        assertTrue(hasType(view.orderAttentions(), OrderAttention.PARTIAL_CONFIRMATION));
     }
 
     @Test
@@ -207,7 +208,7 @@ class SupplierResponseServiceIntegrationTest {
         SupplierResponseView finalView = supplierResponseService.saveSupplierResponse(order.getId(),
                 new SaveSupplierResponseRequest(null, null, List.of(line(d2, 20, null))), "tester01");
 
-        assertFalse(finalView.orderAttentionTypes().contains(OrderAttention.PARTIAL_CONFIRMATION),
+        assertFalse(hasType(finalView.orderAttentions(), OrderAttention.PARTIAL_CONFIRMATION),
                 "PARTIAL_CONFIRMATION auto-resolves once every line has an answer (implementation instructions 23章)");
     }
 
@@ -221,8 +222,8 @@ class SupplierResponseServiceIntegrationTest {
         SupplierResponseView view = supplierResponseService.saveSupplierResponse(order.getId(),
                 new SaveSupplierResponseRequest(null, null, List.of(line(detailId, 2, null))), "tester01");
 
-        long qtyChangedCount = view.details().get(0).attentionTypes().stream()
-                .filter(t -> t.equals(OrderAttention.QUANTITY_CHANGED)).count();
+        long qtyChangedCount = view.details().get(0).attentions().stream()
+                .filter(a -> a.attentionType().equals(OrderAttention.QUANTITY_CHANGED)).count();
         assertEquals(1, qtyChangedCount, "no duplicate ACTIVE Attention despite two separate qty changes on the same line");
     }
 
@@ -350,5 +351,9 @@ class SupplierResponseServiceIntegrationTest {
 
     private static SupplierResponseDetailView findByDetailId(SupplierResponseView view, Long detailId) {
         return view.details().stream().filter(d -> d.detailId().equals(detailId)).findFirst().orElseThrow();
+    }
+
+    private static boolean hasType(List<AttentionSummary> attentions, String type) {
+        return attentions.stream().anyMatch(a -> a.attentionType().equals(type));
     }
 }

@@ -2,6 +2,8 @@
 // SupplierResponseDetailView / SupplierResponseSummary. confirmedQty is
 // `number | null` (never coerced) - null means not yet answered, 0 means an
 // explicit zero answer (implementation instructions 11章).
+import type { AttentionSummary } from './attention'
+
 export interface SupplierResponseDetail {
   detailId: number
   sku: string
@@ -12,7 +14,7 @@ export interface SupplierResponseDetail {
   confirmedDelivery: string | null
   responseNote: string | null
   isConfirmed: boolean
-  attentionTypes: string[]
+  attentions: AttentionSummary[]
   warningCodes: string[]
 }
 
@@ -41,7 +43,7 @@ export interface SupplierResponse {
   responseNote: string | null
   responseStatus: string
   details: SupplierResponseDetail[]
-  orderAttentionTypes: string[]
+  orderAttentions: AttentionSummary[]
   summary: SupplierResponseSummary
 }
 

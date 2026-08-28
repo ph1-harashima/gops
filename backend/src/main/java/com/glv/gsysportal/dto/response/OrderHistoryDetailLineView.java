@@ -16,6 +16,6 @@ public record OrderHistoryDetailLineView(
         Integer confirmedQty,
         LocalDate requestedDelivery,
         LocalDate confirmedDelivery,
-        List<String> attentionTypes
+        List<AttentionSummary> attentions
 ) {
 }

@@ -1,5 +1,6 @@
 package com.glv.gsysportal.repository.legacy;
 
+import com.glv.gsysportal.repository.legacy.row.LegacyPoHistoryRow;
 import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -26,13 +27,16 @@ import java.util.List;
 public class LegacyStockReadRepository {
 
     private static final String QUERY_RESOURCE = "legacy/RecommendedQtyReadQuery.sql";
+    private static final String PO_HISTORY_QUERY_RESOURCE = "legacy/SkuPoHistoryReadQuery.sql";
 
     private final NamedParameterJdbcTemplate legacyJdbc;
     private final String sql;
+    private final String poHistorySql;
 
     public LegacyStockReadRepository(NamedParameterJdbcTemplate legacyNamedParameterJdbcTemplate) {
         this.legacyJdbc = legacyNamedParameterJdbcTemplate;
-        this.sql = loadSql();
+        this.sql = loadSql(QUERY_RESOURCE);
+        this.poHistorySql = loadSql(PO_HISTORY_QUERY_RESOURCE);
     }
 
     /**
@@ -100,16 +104,36 @@ public class LegacyStockReadRepository {
         return ((Number) value).intValue();
     }
 
-    private static String loadSql() {
+    /**
+     * SKU Detail's PO History (implementation instructions Step 5 4章) -
+     * flat list of actual TR_PO/TR_PO_DTL rows for one SKU, ordered newest
+     * first. No Sales Trend / date-window logic - just what Legacy has.
+     */
+    @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
+    public List<LegacyPoHistoryRow> findPoHistoryBySku(String sku) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("sku", sku);
+        return legacyJdbc.query(poHistorySql, params, (rs, rowNum) -> new LegacyPoHistoryRow(
+                rs.getString("po_no"),
+                rs.getObject("ordr_date", java.time.LocalDate.class),
+                rs.getString("status"),
+                nullableInt(rs, "qty_po"),
+                rs.getBigDecimal("prc_unit"),
+                rs.getString("ccy"),
+                rs.getString("supplier_cd"),
+                rs.getString("supplier_name")
+        ));
+    }
+
+    private static String loadSql(String resourceName) {
         try {
-            var resource = new ClassPathResource(QUERY_RESOURCE);
+            var resource = new ClassPathResource(resourceName);
             return new String(Files.readAllBytes(resource.getFile().toPath()), StandardCharsets.UTF_8);
         } catch (IOException e) {
             // Fallback for packaged (non-file-system) classpath resources, e.g. inside a jar.
-            try (var is = new ClassPathResource(QUERY_RESOURCE).getInputStream()) {
+            try (var is = new ClassPathResource(resourceName).getInputStream()) {
                 return new String(is.readAllBytes(), StandardCharsets.UTF_8);
             } catch (IOException inner) {
-                throw new UncheckedIOException("Failed to load " + QUERY_RESOURCE, inner);
+                throw new UncheckedIOException("Failed to load " + resourceName, inner);
             }
         }
     }

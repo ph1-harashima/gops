@@ -9,6 +9,8 @@ import jaDrafts from './locales/ja/drafts.json'
 import jaPreview from './locales/ja/preview.json'
 import jaSupplierResponse from './locales/ja/supplierResponse.json'
 import jaHistory from './locales/ja/history.json'
+import jaDashboard from './locales/ja/dashboard.json'
+import jaSkuDetail from './locales/ja/skuDetail.json'
 import enCommon from './locales/en/common.json'
 
 // Japanese is the initial display language (Requirements MD 28.1).
@@ -27,6 +29,8 @@ void i18n.use(initReactI18next).init({
       preview: jaPreview,
       supplierResponse: jaSupplierResponse,
       history: jaHistory,
+      dashboard: jaDashboard,
+      skuDetail: jaSkuDetail,
     },
     en: {
       common: enCommon,

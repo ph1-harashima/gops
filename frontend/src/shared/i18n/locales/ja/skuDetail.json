@@ -1,0 +1,32 @@
+{
+  "back": "発注候補一覧へ戻る",
+  "notFound": "指定されたSKUが見つかりませんでした。",
+  "notAvailable": "—",
+  "section": {
+    "product": "商品情報",
+    "inventory": "在庫情報",
+    "ordering": "発注情報",
+    "history": "履歴（Legacy PO実績）"
+  },
+  "field": {
+    "brand": "ブランド",
+    "supplier": "メーカー",
+    "currentStock": "現在庫",
+    "safetyStock": "安全在庫",
+    "openPo": "発注残",
+    "openArrival": "入荷予定数",
+    "monthlySales": "当月販売数",
+    "leadTime": "リードタイム",
+    "recommendedQty": "推奨発注数",
+    "unitPrice": "単価"
+  },
+  "historyEmpty": "この商品のLegacy PO実績はありません。",
+  "historyTable": {
+    "poNo": "PO No.",
+    "orderDate": "発注日",
+    "supplier": "メーカー",
+    "qty": "数量",
+    "unitPrice": "単価",
+    "status": "Status"
+  }
+}

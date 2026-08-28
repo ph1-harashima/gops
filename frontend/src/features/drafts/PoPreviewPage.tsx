@@ -254,6 +254,7 @@ export function PoPreviewPage() {
             variant="contained"
             onClick={() => setConfirmDialogOpen(true)}
             disabled={confirmMutation.isPending}
+            data-testid="confirm-order-button"
           >
             {t('confirmOrder')}
           </Button>
@@ -264,6 +265,7 @@ export function PoPreviewPage() {
             color="primary"
             onClick={() => setDemoSendDialogOpen(true)}
             disabled={demoSendMutation.isPending}
+            data-testid="demo-send-button"
           >
             {demoSendMutation.isPending ? <CircularProgress size={20} /> : t('demoSend')}
           </Button>
@@ -284,7 +286,7 @@ export function PoPreviewPage() {
           <Button onClick={() => setConfirmDialogOpen(false)} disabled={confirmMutation.isPending}>
             {t('confirmDialogCancel')}
           </Button>
-          <Button variant="contained" onClick={handleConfirmOrder} disabled={confirmMutation.isPending}>
+          <Button variant="contained" onClick={handleConfirmOrder} disabled={confirmMutation.isPending} data-testid="confirm-order-dialog-confirm">
             {confirmMutation.isPending ? <CircularProgress size={20} /> : t('confirmDialogConfirm')}
           </Button>
         </DialogActions>
@@ -299,7 +301,7 @@ export function PoPreviewPage() {
           <Button onClick={() => setDemoSendDialogOpen(false)} disabled={demoSendMutation.isPending}>
             {t('demoSendDialogCancel')}
           </Button>
-          <Button variant="contained" onClick={handleDemoSend} disabled={demoSendMutation.isPending}>
+          <Button variant="contained" onClick={handleDemoSend} disabled={demoSendMutation.isPending} data-testid="demo-send-dialog-confirm">
             {demoSendMutation.isPending ? <CircularProgress size={20} /> : t('demoSendDialogConfirm')}
           </Button>
         </DialogActions>

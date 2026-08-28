@@ -251,7 +251,7 @@ export function OrderDraftPage() {
               const warn = hasSignificantDeviation(d.recommendedQty, qty)
               const invalid = !Number.isInteger(qty) || qty < 0
               return (
-                <TableRow key={d.id} hover>
+                <TableRow key={d.id} hover data-testid={`draft-row-${d.sku}`}>
                   <TableCell>{d.sku}</TableCell>
                   <TableCell>{d.itemName}</TableCell>
                   <TableCell align="right">{d.currentStock ?? t('drafts:notAvailable')}</TableCell>
@@ -264,6 +264,7 @@ export function OrderDraftPage() {
                       value={qty}
                       onChange={(e) => handleQtyChange(d.id, e.target.value)}
                       error={invalid}
+                      data-testid={`order-qty-input-${d.sku}`}
                       slotProps={{
                         htmlInput: { min: 0, step: 1, style: { textAlign: 'right', width: 80 } },
                         input: { readOnly: !isEditable },
@@ -303,11 +304,12 @@ export function OrderDraftPage() {
               variant="contained"
               onClick={handleSave}
               disabled={!isDirty || invalidQty || updateMutation.isPending}
+              data-testid="save-draft-button"
             >
               {updateMutation.isPending ? <CircularProgress size={20} /> : t('drafts:saveDraft')}
             </Button>
           )}
-          <Button variant="outlined" onClick={() => navigate(`/orders/drafts/${draftId}/preview`)}>
+          <Button variant="outlined" onClick={() => navigate(`/orders/drafts/${draftId}/preview`)} data-testid="go-to-preview-button">
             {t('drafts:preview')}
           </Button>
         </Stack>
