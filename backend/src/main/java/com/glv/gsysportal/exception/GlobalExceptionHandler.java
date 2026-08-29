@@ -197,4 +197,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleInvalidFollowUpReason(InvalidFollowUpReasonException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_FOLLOW_UP_REASON"));
     }
+
+    // --- Phase 7-C6: Excel / Legacy Concurrency Control Foundation ---
+
+    @ExceptionHandler(OfficialPoNotLinkedException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoNotLinked(OfficialPoNotLinkedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "OFFICIAL_PO_NOT_LINKED"));
+    }
+
+    @ExceptionHandler(LegacyPoNotFoundForBaselineException.class)
+    public ResponseEntity<Map<String, Object>> handleLegacyPoNotFoundForBaseline(LegacyPoNotFoundForBaselineException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "LEGACY_PO_NOT_FOUND_FOR_BASELINE"));
+    }
+
+    @ExceptionHandler(IntegrationRequestRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleIntegrationRequestRequired(IntegrationRequestRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "INTEGRATION_REQUEST_REQUIRED"));
+    }
+
+    @ExceptionHandler(InvalidIntegrationIntentException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidIntegrationIntent(InvalidIntegrationIntentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_INTEGRATION_INTENT"));
+    }
 }

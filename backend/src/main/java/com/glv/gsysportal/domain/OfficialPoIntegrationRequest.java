@@ -123,6 +123,19 @@ public class OfficialPoIntegrationRequest {
     @Column(name = "preflight_at")
     private OffsetDateTime preflightAt;
 
+    /** Phase 7-C6 12章/13章: distinguishes "this Official PO No. is expected
+     * to be a brand-new G-SYS PO" ({@link #INTENT_NEW}) from "expected to
+     * already exist and is being updated" ({@link #INTENT_UPDATE}) - so a
+     * PO_NOT_FOUND Concurrency result is never automatically treated as an
+     * error for a NEW-intent Order. Null until an ADMIN explicitly sets it
+     * (7-C6 13章 "自動推定は慎重にする" - the numbering rule itself is still
+     * unresolved CUSTOMER REVIEW, so this is never inferred). */
+    public static final String INTENT_NEW = "NEW";
+    public static final String INTENT_UPDATE = "UPDATE";
+
+    @Column(name = "integration_intent", length = 10)
+    private String integrationIntent;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

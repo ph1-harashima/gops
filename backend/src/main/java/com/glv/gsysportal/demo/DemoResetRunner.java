@@ -73,7 +73,8 @@ public class DemoResetRunner implements CommandLineRunner {
         log.warn("=== DEMO RESET: about to TRUNCATE Prototype business-data tables "
                 + "(portal_order, portal_order_detail, portal_order_revision, portal_order_revision_detail, "
                 + "supplier_response, supplier_response_detail, order_attention, audit_event, "
-                + "official_po_integration_request, follow_up_case). portal_user is preserved. Target: {} ===",
+                + "official_po_integration_request, follow_up_case, legacy_po_baseline). "
+                + "portal_user is preserved. Target: {} ===",
                 prototypeDataSource.getConnection().getMetaData().getURL());
 
         // official_po_integration_request (7-C2A) and portal_order_revision/
@@ -85,11 +86,13 @@ public class DemoResetRunner implements CommandLineRunner {
         // FK-reference EACH OTHER (portal_order.source_follow_up_case_id ->
         // follow_up_case, follow_up_case.portal_order_id -> portal_order) -
         // Postgres TRUNCATE resolves this fine as long as both are listed in
-        // the SAME statement, which they are here.
+        // the SAME statement, which they are here. legacy_po_baseline (7-C6)
+        // FK-references portal_order the same simple way official_po_integration_request
+        // does, so it just joins the same list.
         prototypeJdbc.execute(
                 "TRUNCATE TABLE audit_event, order_attention, supplier_response_detail, "
                         + "supplier_response, official_po_integration_request, portal_order_revision_detail, "
-                        + "portal_order_revision, follow_up_case, portal_order_detail, portal_order RESTART IDENTITY");
+                        + "portal_order_revision, follow_up_case, legacy_po_baseline, portal_order_detail, portal_order RESTART IDENTITY");
         prototypeJdbc.execute("ALTER SEQUENCE prototype_po_no_seq RESTART WITH 1");
 
         log.warn("=== DEMO RESET: complete. portal_user accounts unchanged. Exiting. ===");

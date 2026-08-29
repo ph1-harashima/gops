@@ -1,5 +1,6 @@
 package com.glv.gsysportal.controller;
 
+import com.glv.gsysportal.dto.request.SetIntegrationIntentRequest;
 import com.glv.gsysportal.dto.response.OfficialPoIntegrationResponse;
 import com.glv.gsysportal.security.CurrentUserProvider;
 import com.glv.gsysportal.service.OfficialPoIntegrationService;
@@ -7,6 +8,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -45,5 +48,13 @@ public class OfficialPoIntegrationController {
     @PostMapping("/api/orders/{id}/official-po/request")
     public OfficialPoIntegrationResponse request(@PathVariable Long id) {
         return integrationService.requestIntegration(id, currentUserProvider.currentUsername());
+    }
+
+    /** Phase 7-C6 12章/13章: "NEW"/"UPDATE" - ADMIN only, requires an
+     * Integration Request to already exist for the current target Revision. */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/api/orders/{id}/official-po/intent")
+    public OfficialPoIntegrationResponse setIntent(@PathVariable Long id, @RequestBody SetIntegrationIntentRequest request) {
+        return integrationService.setIntegrationIntent(id, request.intent(), currentUserProvider.currentUsername());
     }
 }

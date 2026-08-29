@@ -167,6 +167,33 @@
       "status": "状況"
     }
   },
+  "legacyPoConcurrency": {
+    "title": "G-SYSとの整合確認",
+    "captureButton": "G-SYS現在状態を基準として記録",
+    "captureSuccess": "現在のG-SYS状態を基準として記録しました。",
+    "errorNotLinked": "正式PO番号が未設定のため、基準を記録できません。",
+    "errorPoNotFound": "設定されている正式PO番号がG-SYS上に見つからないため、基準を記録できません。",
+    "errorIntegrationRequestRequired": "先に「G-SYS連携準備」を行ってください。",
+    "notLinked": "G-SYS正式PO未連携のため、整合確認はできません。",
+    "poNotFound": "設定されている正式PO番号がG-SYS上に見つかりません。",
+    "notBaselined": "まだ基準が記録されていません。",
+    "unchanged": "G-SYS側で発注内容の変更はありません。",
+    "changed": "G-SYS側で発注内容が変更されています。",
+    "baselineCapturedLabel": "基準記録者",
+    "diffTable": {
+      "field": "項目",
+      "sku": "SKU",
+      "baselineValue": "記録時の値",
+      "currentValue": "現在の値",
+      "diffType": "種別"
+    },
+    "diffType": {
+      "HEADER_CHANGED": "ヘッダー変更",
+      "LINE_CHANGED": "明細変更",
+      "LINE_ADDED": "明細追加",
+      "LINE_REMOVED": "明細削除"
+    }
+  },
   "followUp": {
     "title": "問い合わせ",
     "createButton": "問い合わせ対象にする",

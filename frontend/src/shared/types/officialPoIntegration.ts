@@ -30,4 +30,6 @@ export interface OfficialPoIntegration {
   failedAt: string | null
   errorCode: string | null
   errorMessage: string | null
+  /** Phase 7-C6 12章/13章: "NEW" | "UPDATE" | null. */
+  integrationIntent: string | null
 }

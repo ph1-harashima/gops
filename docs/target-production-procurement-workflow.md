@@ -419,6 +419,17 @@ Phase 7-C7A（Fulfillment / Follow-up Foundation）を実装・全回帰確認�
 - 未納検知のTiming（CUSTOMER REVIEW #7）は本Phaseでも未着手 - 自動督促ルールは一切実装せず、人が明示的にFollow-up Caseを起票するFoundationのみを実装した。
 - Backend Full Test 299/299、Frontend Build/Lint/E2E（50/50 ×2回）、Legacy `phasep-gulliver` 変更ゼロを確認済み（詳細は実装ファイル参照）。
 
+## 27. Phase 7-C6実装結果まとめ
+
+Phase 7-C6（Excel / Legacy Concurrency Control Foundation）を実装・全回帰確認済み。15章（Excel Coexistence）の設計のうち、案A（revision number embedded）・案C（Upload前diff preview）に相当する、Portal側でのSnapshot/Fingerprint方式によるOptimistic Concurrency検出Foundationを実装。詳細は別ファイル **[docs/excel-legacy-concurrency-control.md](./excel-legacy-concurrency-control.md)** に記録（実装前Legacy Source監査の全結果を含む）。
+
+要点のみ:
+- 15章が推奨した「A（revisionで機械検出）+ C（diffプレビューで見える化）」の組合せを、Excel生成そのものが未実装（7-C2B以降）の現時点でも先取りする形で実装した: Excel Download/Uploadという具体的なFile操作ではなく、その前提となる「PortalがG-SYSを確認した時点のSnapshot」（=Aのrevision embedded相当、`legacy_po_baseline`）と「現在のG-SYSとの構造化差分」（=Cのdiff preview相当、`LegacyPoDiffEngine`）を、File非依存の形でFoundation化した。実際のExcel生成・Downloadへの結線（Fingerprintをファイルmetadataへ埋め込む等）は7-C2B以降。
+- 案D（管理者承認付きImport）・案B（downloadedAt/sourceUpdatedAt比較）は15章の推奨どおり不採用（Bは採用せず、Aで代替）。
+- 14章（Follow-up/Reorder、7-C7Aで実装）の「16章 Credit POとの関係」で示された「元Recordを書き換えず、差分を別Recordとして積む」という原則を、本Phaseの`legacy_po_baseline`（append-only、再Captureのたびに新規行）にも一貫して適用した。
+- G-SYS側にOptimistic Lock機構が実効的に存在しない（`TrPo.version`はJPA `@Transient`指定で実際には機能しない）ことを改めて確認した上で、Portal側だけで完結するSHA-256 Fingerprint方式を採用した。
+- Backend Full Test 337/337、Frontend Build/Lint/E2E（58/58 ×2回）、Legacy `phasep-gulliver` 変更ゼロを確認済み（詳細は実装ファイル参照）。
+
 ---
 
 ## 付録: Current G-SYS Flow（7-A要約のMermaid）

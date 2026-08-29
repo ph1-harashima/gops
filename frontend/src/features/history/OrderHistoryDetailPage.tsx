@@ -28,6 +28,7 @@ import MenuItem from '@mui/material/MenuItem'
 
 import { useOrderHistoryDetail, useOrderEvents } from './api'
 import { useOfficialPoIntegration, useRequestOfficialPoIntegration } from './officialPoIntegrationApi'
+import { useLegacyPoConcurrency, useCaptureLegacyPoBaseline } from './legacyPoConcurrencyApi'
 import { useMailPreview } from './mailPreviewApi'
 import { useFulfillment } from './fulfillmentApi'
 import {
@@ -102,6 +103,7 @@ export function OrderHistoryDetailPage() {
   const { data: detail, isLoading, isError } = useOrderHistoryDetail(orderId)
   const { data: events, isLoading: eventsLoading } = useOrderEvents(orderId)
   const { data: integration } = useOfficialPoIntegration(orderId)
+  const { data: concurrency } = useLegacyPoConcurrency(orderId)
   const { data: revisions } = useOrderRevisions(orderId)
   const { data: responseHistory } = useResponseHistory(orderId)
   const { data: fulfillment } = useFulfillment(orderId)
@@ -112,6 +114,7 @@ export function OrderHistoryDetailPage() {
   const approveMutation = useApprove(orderId)
   const returnMutation = useReturnForCorrection(orderId)
   const requestIntegrationMutation = useRequestOfficialPoIntegration(orderId)
+  const captureBaselineMutation = useCaptureLegacyPoBaseline(orderId)
   const mailPreviewMutation = useMailPreview(orderId)
   const createFollowUpCaseMutation = useCreateFollowUpCase(orderId)
   const updateFollowUpNoteMutation = useUpdateFollowUpCaseNote(orderId)
@@ -134,6 +137,10 @@ export function OrderHistoryDetailPage() {
 
   function handleRequestIntegration() {
     requestIntegrationMutation.mutate(undefined, { onSuccess: () => setRequestDialogOpen(false) })
+  }
+
+  function handleCaptureBaseline() {
+    captureBaselineMutation.mutate()
   }
 
   function openFollowUpDialog(sku?: string) {
@@ -451,6 +458,92 @@ export function OrderHistoryDetailPage() {
               data-testid="official-po-request-button"
             >
               {requestIntegrationMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.requestButton')}
+            </Button>
+          )}
+
+          {/* Phase 7-C6 9章/10章/19章: Excel / Legacy Concurrency Control
+              Foundation - extends this same Section rather than adding a new
+              one (19章's explicit instruction). Never implies a Legacy WRITE
+              (20章's Label wording constraint). */}
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle2" gutterBottom>{t('legacyPoConcurrency.title')}</Typography>
+
+          {captureBaselineMutation.isSuccess && (
+            <Alert severity="success" sx={{ mb: 2 }}>{t('legacyPoConcurrency.captureSuccess')}</Alert>
+          )}
+          {captureBaselineMutation.isError && (
+            <Alert severity="error" sx={{ mb: 2 }} data-testid="legacy-po-baseline-capture-error">
+              {(() => {
+                const code = errorCodeOf(captureBaselineMutation.error)
+                if (code === 'OFFICIAL_PO_NOT_LINKED') return t('legacyPoConcurrency.errorNotLinked')
+                if (code === 'LEGACY_PO_NOT_FOUND_FOR_BASELINE') return t('legacyPoConcurrency.errorPoNotFound')
+                if (code === 'INTEGRATION_REQUEST_REQUIRED') return t('legacyPoConcurrency.errorIntegrationRequestRequired')
+                if (code === 'FORBIDDEN') return t('errorForbidden')
+                return t('errorGeneric')
+              })()}
+            </Alert>
+          )}
+
+          {concurrency && (
+            <Stack spacing={1} sx={{ mb: 2 }} data-testid="legacy-po-concurrency-section">
+              {concurrency.result === 'NOT_LINKED' && (
+                <Alert severity="info" data-testid="concurrency-not-linked">{t('legacyPoConcurrency.notLinked')}</Alert>
+              )}
+              {concurrency.result === 'PO_NOT_FOUND' && (
+                <Alert severity="warning" data-testid="concurrency-po-not-found">{t('legacyPoConcurrency.poNotFound')}</Alert>
+              )}
+              {concurrency.result === 'NOT_BASELINED' && (
+                <Alert severity="info" data-testid="concurrency-not-baselined">{t('legacyPoConcurrency.notBaselined')}</Alert>
+              )}
+              {concurrency.result === 'UNCHANGED' && (
+                <Alert severity="success" data-testid="concurrency-unchanged">{t('legacyPoConcurrency.unchanged')}</Alert>
+              )}
+              {concurrency.result === 'CHANGED' && (
+                <Box data-testid="concurrency-changed">
+                  <Alert severity="warning" sx={{ mb: 1 }}>{t('legacyPoConcurrency.changed')}</Alert>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>{t('legacyPoConcurrency.diffTable.field')}</TableCell>
+                          <TableCell>{t('legacyPoConcurrency.diffTable.sku')}</TableCell>
+                          <TableCell>{t('legacyPoConcurrency.diffTable.baselineValue')}</TableCell>
+                          <TableCell>{t('legacyPoConcurrency.diffTable.currentValue')}</TableCell>
+                          <TableCell>{t('legacyPoConcurrency.diffTable.diffType')}</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {concurrency.diffs.map((d, i) => (
+                          <TableRow key={i} data-testid={`concurrency-diff-row-${i}`}>
+                            <TableCell>{d.field}</TableCell>
+                            <TableCell>{d.skuCode ?? t('notAvailable')}</TableCell>
+                            <TableCell>{d.baselineValue ?? t('notAvailable')}</TableCell>
+                            <TableCell>{d.currentValue ?? t('notAvailable')}</TableCell>
+                            <TableCell>{t('legacyPoConcurrency.diffType.' + d.diffType)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              )}
+              {concurrency.capturedAt && (
+                <Typography variant="caption" color="text.secondary">
+                  {t('legacyPoConcurrency.baselineCapturedLabel')}: {concurrency.capturedBy} -{' '}
+                  {new Date(concurrency.capturedAt).toLocaleString('ja-JP')}
+                </Typography>
+              )}
+            </Stack>
+          )}
+
+          {isAdmin && (
+            <Button
+              variant="outlined"
+              onClick={handleCaptureBaseline}
+              disabled={captureBaselineMutation.isPending}
+              data-testid="legacy-po-baseline-capture-button"
+            >
+              {captureBaselineMutation.isPending ? <CircularProgress size={20} /> : t('legacyPoConcurrency.captureButton')}
             </Button>
           )}
         </Paper>

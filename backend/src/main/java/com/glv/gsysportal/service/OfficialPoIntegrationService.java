@@ -9,6 +9,8 @@ import com.glv.gsysportal.dto.response.OfficialPoIntegrationResponse;
 import com.glv.gsysportal.dto.response.OfficialPoPreflightIssue;
 import com.glv.gsysportal.dto.response.OfficialPoPreflightResult;
 import com.glv.gsysportal.exception.DraftNotFoundException;
+import com.glv.gsysportal.exception.IntegrationRequestRequiredException;
+import com.glv.gsysportal.exception.InvalidIntegrationIntentException;
 import com.glv.gsysportal.exception.OrderNotApprovedException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
@@ -73,7 +75,7 @@ public class OfficialPoIntegrationService {
         if (!PortalOrder.STATUS_APPROVED.equals(order.getStatus())) {
             throw new OrderNotApprovedException(orderId, order.getStatus());
         }
-        int targetRevisionNo = order.getCurrentRevisionNo() == null ? 1 : order.getCurrentRevisionNo() + 1;
+        int targetRevisionNo = targetRevisionNo(order);
 
         OffsetDateTime now = OffsetDateTime.now();
         boolean isNewRequest = integrationRequestRepository
@@ -124,6 +126,38 @@ public class OfficialPoIntegrationService {
                 .orElseGet(() -> OfficialPoIntegrationResponse.notRequested(orderId));
     }
 
+    /**
+     * Phase 7-C5 16章's "one past whatever was last sent" target Revision
+     * computation, extracted so {@code LegacyPoConcurrencyService} (7-C6)
+     * targets the exact SAME Revision a Baseline/Integration Request would -
+     * a Legacy PO Baseline captured against the wrong Revision would silently
+     * defeat 7-C6 16章's "Rev1のBaselineをRev2へ流用しない" guarantee.
+     */
+    static int targetRevisionNo(PortalOrder order) {
+        return order.getCurrentRevisionNo() == null ? 1 : order.getCurrentRevisionNo() + 1;
+    }
+
+    /** Phase 7-C6 12章/13章: ADMIN explicitly records whether this Order's
+     * upcoming Official PO Integration targets a brand-new G-SYS PO or an
+     * update to an existing one. Requires an Integration Request to already
+     * exist for the current target Revision (mirrors Baseline Capture's own
+     * precondition, 7-C6 9章) - there is nothing to annotate otherwise. */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public OfficialPoIntegrationResponse setIntegrationIntent(Long orderId, String intent, String performedBy) {
+        if (!OfficialPoIntegrationRequest.INTENT_NEW.equals(intent) && !OfficialPoIntegrationRequest.INTENT_UPDATE.equals(intent)) {
+            throw new InvalidIntegrationIntentException(intent);
+        }
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        int targetRevisionNo = targetRevisionNo(order);
+        OfficialPoIntegrationRequest request = integrationRequestRepository
+                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
+                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+
+        request.setIntegrationIntent(intent);
+        request.setUpdatedAt(OffsetDateTime.now());
+        return toResponse(integrationRequestRepository.save(request));
+    }
+
     private OfficialPoIntegrationResponse toResponse(OfficialPoIntegrationRequest r) {
         OfficialPoPreflightResult preflight = r.getPreflightResult() == null ? null
                 : new OfficialPoPreflightResult(r.getPreflightResult(), readIssuesJson(r.getPreflightIssuesJson()));
@@ -131,7 +165,7 @@ public class OfficialPoIntegrationService {
                 r.getPortalOrderId(), r.getRevisionNo(), r.getStatus(), r.getOfficialPoNo(),
                 r.getRequestedBy(), r.getRequestedAt(), preflight,
                 r.getGeneratedAt(), r.getSubmittedAt(), r.getConfirmedAt(), r.getFailedAt(),
-                r.getErrorCode(), r.getErrorMessage()
+                r.getErrorCode(), r.getErrorMessage(), r.getIntegrationIntent()
         );
     }
 

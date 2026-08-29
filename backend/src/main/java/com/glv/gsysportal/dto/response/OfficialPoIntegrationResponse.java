@@ -24,12 +24,14 @@ public record OfficialPoIntegrationResponse(
         OffsetDateTime confirmedAt,
         OffsetDateTime failedAt,
         String errorCode,
-        String errorMessage
+        String errorMessage,
+        /** Phase 7-C6 12章/13章: NEW/UPDATE, or null until an ADMIN explicitly sets it. */
+        String integrationIntent
 ) {
     public static final String STATUS_NOT_REQUESTED = "NOT_REQUESTED";
 
     public static OfficialPoIntegrationResponse notRequested(Long orderId) {
         return new OfficialPoIntegrationResponse(orderId, 0, STATUS_NOT_REQUESTED,
-                null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null);
     }
 }

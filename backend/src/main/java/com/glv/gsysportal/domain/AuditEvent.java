@@ -117,6 +117,16 @@ public class AuditEvent {
     /** A Reorder Draft was created from a Follow-up Case (7-C7A 16章). */
     public static final String REORDER_CREATED = "REORDER_CREATED";
 
+    // --- Phase 7-C6: Excel / Legacy Concurrency Control Foundation ---
+    /** ADMIN explicit Business Action ("G-SYS現在状態を基準として記録",
+     * 7-C6 9章) - written every Capture call, including re-captures of an
+     * already-Baselined Revision. */
+    public static final String LEGACY_PO_BASELINE_CAPTURED = "LEGACY_PO_BASELINE_CAPTURED";
+    /** Written ONLY when Compare finds the Legacy PO has actually diverged
+     * from its Baseline (7-C6 18章) - never for an UNCHANGED result, to avoid
+     * generating a row on every ordinary Order Detail page view. */
+    public static final String LEGACY_PO_CHANGE_DETECTED = "LEGACY_PO_CHANGE_DETECTED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -167,6 +167,33 @@
       "status": "Status"
     }
   },
+  "legacyPoConcurrency": {
+    "title": "G-SYS Consistency Check",
+    "captureButton": "Record Current G-SYS State As Baseline",
+    "captureSuccess": "Recorded the current G-SYS state as the Baseline.",
+    "errorNotLinked": "No Official PO No. is linked yet - cannot record a Baseline.",
+    "errorPoNotFound": "The configured Official PO No. was not found in G-SYS - cannot record a Baseline.",
+    "errorIntegrationRequestRequired": "Please run \"Prepare G-SYS Integration\" first.",
+    "notLinked": "Not yet linked to a G-SYS Official PO - Consistency Check is unavailable.",
+    "poNotFound": "The configured Official PO No. was not found in G-SYS.",
+    "notBaselined": "No Baseline has been recorded yet.",
+    "unchanged": "No change detected on the G-SYS side.",
+    "changed": "The G-SYS side has changed.",
+    "baselineCapturedLabel": "Baseline recorded by",
+    "diffTable": {
+      "field": "Field",
+      "sku": "SKU",
+      "baselineValue": "Baseline Value",
+      "currentValue": "Current Value",
+      "diffType": "Type"
+    },
+    "diffType": {
+      "HEADER_CHANGED": "Header Changed",
+      "LINE_CHANGED": "Line Changed",
+      "LINE_ADDED": "Line Added",
+      "LINE_REMOVED": "Line Removed"
+    }
+  },
   "followUp": {
     "title": "Follow-up",
     "createButton": "Raise Follow-up",

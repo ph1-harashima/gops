@@ -66,6 +66,18 @@ class LegacyReadOnlyIntegrationTest {
         assertAccessDenied(ex);
     }
 
+    /** Phase 7-C6: LegacyPoConcurrencyReadRepository reads TR_PO_DTL's
+     * commercial columns (qty_po/prc_unit) but must never be able to write
+     * them - the exact table a real Legacy Handoff (7-C2B, still not
+     * implemented) would eventually need to stay READ ONLY against today. */
+    @Test
+    void updateAgainstTrPoDtlIsRejected() {
+        DataAccessException ex = assertThrows(DataAccessException.class, () ->
+            legacyJdbcTemplate.update("UPDATE tr_po_dtl SET qty_po = 999 WHERE po_no = 'PO-CONC-01'")
+        );
+        assertAccessDenied(ex);
+    }
+
     @Test
     void ddlAgainstLegacyDemoInstanceIsRejected() {
         DataAccessException ex = assertThrows(DataAccessException.class, () ->

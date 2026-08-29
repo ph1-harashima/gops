@@ -46,7 +46,9 @@ class PrototypeFlywayMigrationTest {
         // supply_status, Agreement/Reopen fields, AGREED status.
         // V12 (Phase 7-C7A): Fulfillment / Follow-up Foundation - follow_up_case,
         // portal_order source_order_id/source_follow_up_case_id/reorder_reason.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"), versions);
+        // V13 (Phase 7-C6): Excel / Legacy Concurrency Control Foundation -
+        // legacy_po_baseline, official_po_integration_request.integration_intent.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"), versions);
     }
 
     @Test
@@ -56,7 +58,7 @@ class PrototypeFlywayMigrationTest {
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name", String.class);
         for (String expected : List.of("portal_order", "portal_order_detail", "audit_event", "portal_user",
                 "supplier_response", "supplier_response_detail", "order_attention",
-                "portal_order_revision", "portal_order_revision_detail", "follow_up_case")) {
+                "portal_order_revision", "portal_order_revision_detail", "follow_up_case", "legacy_po_baseline")) {
             assertTrue(tables.contains(expected), "Expected table missing: " + expected + ", got: " + tables);
         }
     }

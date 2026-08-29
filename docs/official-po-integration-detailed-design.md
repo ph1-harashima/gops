@@ -610,4 +610,14 @@ Phase 7-C2A（Official PO Integration Foundation）を実装・全回帰確認�
 - Legacyへの投入・確認（SUBMITTED以降）は未実装（7-C2Bスコープ）。
 - Backend Full Test 202/202、Frontend Build/Lint/E2E（30 tests, 2回連続安定）、Legacy変更ゼロを確認済み。
 
+## 24. Phase 7-C6実装結果まとめ
+
+Phase 7-C6（Excel / Legacy Concurrency Control Foundation）を実装・全回帰確認済み。11.2章（PortalでのPreflight Check設計）・17章（Excel Coexistence）で構想されていたOptimistic Concurrency Detectionを実装。詳細（Legacy Source監査、Canonical Snapshot/Fingerprint/Diff Engine設計、テスト結果、Browser Scenario A〜G）は別ファイル **[docs/excel-legacy-concurrency-control.md](./excel-legacy-concurrency-control.md)** に記録。
+
+要点のみ:
+- 11.2章が示した「対象PO Noに紐づくInvoiceの有無・Stock-in状況を先読み」というPreflight型アプローチとは別に、**Baseline Snapshot + Fingerprint比較というOptimistic Lock型アプローチ**を採用した。理由: 11.2章のInvoice先読みは「Delete&Recreateが安全に成功するか」を予測するものであり、「PortalがG-SYSを確認した時点から実際にHandoffする直前までの間にG-SYS自体が変わっていないか」という7-C6の主題（並行編集検出）とは別の問いに答えるものだったため、両者は排他ではなく補完関係として整理した（Preflight=投入前の一発判定、Concurrency=時間経過に伴う変化検出）。
+- 17章のScenario 1-4（Portal/手作業Excelの競合）のうち、Scenario 4「G-SYS側でPOが既に変更済み」に対する具体的な検出手段として、Baseline Capture（"G-SYS現在状態を基準として記録"）→ Compare（"G-SYSとの差異を確認"）の2アクションを実装した。Scenario 1-3（手作業Excelとの投入順序競合そのもの）は7-C2B（実Handoff）以降のスコープのまま。
+- 17章が明記していた「根本的な制約」（G-SYSのImport Batchは投入元を区別できない）は本Phaseでも変わらず - Concurrency Detectionは検出のみで、どちらを正とするかのConflict Resolutionは実装していない（20章の禁止事項どおり）。
+- Backend Full Test 337/337、Frontend Build/Lint/E2E（58 tests, 2回連続安定）、Legacy変更ゼロを確認済み。
+
 ---

@@ -115,6 +115,11 @@ CREATE TABLE ms_formula (
 -- against the original PO it corrects (see that Repository's Javadoc and
 -- docs/fulfillment-follow-up-foundation.md 2章 for the full Source-derived
 -- mechanism).
+-- deliv_week/deliv_date added in Phase 7-C6 (Excel / Legacy Concurrency
+-- Control Foundation) - real Legacy TR_PO.DELIV_WEEK/DELIV_DATE (both plain
+-- VARCHAR, confirmed via jp.ne.glv.model.TrPo - DELIV_DATE is free-text, not
+-- a real DATE column) are part of LegacyPoConcurrencyReadRepository's
+-- Canonical Snapshot candidate field list (7-C6 2章's "delivery").
 CREATE TABLE tr_po (
   po_no              VARCHAR(30)  NOT NULL,
   status             VARCHAR(10)  NULL,
@@ -123,6 +128,8 @@ CREATE TABLE tr_po (
   brand_cd           VARCHAR(10)  NULL,
   ccy                VARCHAR(10)  NULL,
   ordr_date          DATE         NULL,
+  deliv_week         VARCHAR(5)   NULL,
+  deliv_date         VARCHAR(50)  NULL,
   amt_ttl            DECIMAL(10,2) NULL,
   del_flg            BIT(1)       NULL,
   create_datetime    DATETIME     NULL,

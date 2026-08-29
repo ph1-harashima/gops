@@ -138,6 +138,45 @@ INSERT INTO tr_po_dtl (po_no, line_no, item_cd, qty_po, prc_unit, amt_line, del_
 INSERT INTO tr_po (po_no, status, supplier_cd, brand_cd, ccy, ordr_date, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('PO-KITCHEN-19','OFFICIAL','SUP_ALPHA','BR_KITCHEN','JPY','2026-07-20',10809.00,b'0',NOW(),NOW());
 INSERT INTO tr_po_dtl (po_no, line_no, item_cd, qty_po, prc_unit, amt_line, del_flg, create_datetime, update_datetime) VALUES ('PO-KITCHEN-19',1,'KT-BOWL-002',3,3603.00000,10809.00000,b'0',NOW(),NOW());
 
+-- Phase 7-C6: Excel / Legacy Concurrency Control Foundation Test Fixtures
+-- (docs/excel-legacy-concurrency-control.md 5章). Dedicated PO-CONC-01/02/03
+-- rows, deliberately separate from the PO-OUTDOOR/PO-HOME/PO-KITCHEN fixtures
+-- above, so this Phase's Backend/E2E tests (which directly mutate these rows
+-- via `docker exec gsys-legacy-demo-mysql mysql ...` after a Baseline is
+-- captured - 7-C6 14章's explicitly sanctioned Test-only Legacy Demo DB
+-- mutation, never through the Portal application's own READ ONLY connection)
+-- never interact with the Fulfillment/Follow-up fixture set. deliv_week/
+-- deliv_date are populated here (unlike every PO-OUTDOOR/HOME/KITCHEN row
+-- above) specifically to exercise those 2 Canonical Snapshot fields.
+--
+-- Dedicated CC-ITEM-00x item codes (NOT any existing OD-/HM-/KT- code) -
+-- found the hard way: RecommendedQtyReadQuery.sql derives an item's
+-- unitPrice/supplier/currency from whichever TR_PO has the LATEST ordr_date
+-- for that item_cd (ROW_NUMBER() ... ORDER BY p.ordr_date DESC). Reusing an
+-- existing item_cd here with a later ordr_date than its PO-OUTDOOR/HOME/
+-- KITCHEN fixture would silently steal that resolution for every OTHER test
+-- in this codebase relying on that item's known price (this broke
+-- PoPreviewServiceIntegrationTest for real during this Phase's
+-- implementation before being caught and fixed this way).
+INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-001','BR_OUTDOOR','Concurrency Control Test Item 1','30','NEW',b'0',b'1',b'0',NOW(),NOW());
+INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-002','BR_OUTDOOR','Concurrency Control Test Item 2','30','NEW',b'0',b'1',b'0',NOW(),NOW());
+INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-003','BR_OUTDOOR','Concurrency Control Test Item 3','30','NEW',b'0',b'1',b'0',NOW(),NOW());
+INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-004','BR_OUTDOOR','Concurrency Control Test Item 4','30','NEW',b'0',b'1',b'0',NOW(),NOW());
+INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-005','BR_OUTDOOR','Concurrency Control Test Item 5','30','NEW',b'0',b'1',b'0',NOW(),NOW());
+
+INSERT INTO tr_po (po_no, status, supplier_cd, brand_cd, ccy, ordr_date, deliv_week, deliv_date, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('PO-CONC-01','OFFICIAL','SUP_ALPHA','BR_OUTDOOR','JPY','2026-08-01','35','2026-08-24',6000.00,b'0',NOW(),NOW());
+INSERT INTO tr_po_dtl (po_no, line_no, item_cd, qty_po, prc_unit, amt_line, del_flg, create_datetime, update_datetime) VALUES ('PO-CONC-01',1,'CC-ITEM-001',5,1000.00000,5000.00000,b'0',NOW(),NOW());
+INSERT INTO tr_po_dtl (po_no, line_no, item_cd, qty_po, prc_unit, amt_line, del_flg, create_datetime, update_datetime) VALUES ('PO-CONC-01',2,'CC-ITEM-002',2,500.00000,1000.00000,b'0',NOW(),NOW());
+-- Line-Added scenario fixture: starts with 1 line only.
+INSERT INTO tr_po (po_no, status, supplier_cd, brand_cd, ccy, ordr_date, deliv_week, deliv_date, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('PO-CONC-02','OFFICIAL','SUP_BETA','BR_OUTDOOR','JPY','2026-08-02','35','2026-08-25',3200.00,b'0',NOW(),NOW());
+INSERT INTO tr_po_dtl (po_no, line_no, item_cd, qty_po, prc_unit, amt_line, del_flg, create_datetime, update_datetime) VALUES ('PO-CONC-02',1,'CC-ITEM-003',4,800.00000,3200.00000,b'0',NOW(),NOW());
+-- Line-Removed scenario fixture: starts with 2 lines (the 2nd is soft-deleted
+-- by the E2E scenario via del_flg=1, matching Legacy's own Delete & Recreate
+-- soft-delete convention rather than a hard DELETE).
+INSERT INTO tr_po (po_no, status, supplier_cd, brand_cd, ccy, ordr_date, deliv_week, deliv_date, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('PO-CONC-03','OFFICIAL','SUP_BETA','BR_OUTDOOR','JPY','2026-08-03','35','2026-08-26',2400.00,b'0',NOW(),NOW());
+INSERT INTO tr_po_dtl (po_no, line_no, item_cd, qty_po, prc_unit, amt_line, del_flg, create_datetime, update_datetime) VALUES ('PO-CONC-03',1,'CC-ITEM-004',3,600.00000,1800.00000,b'0',NOW(),NOW());
+INSERT INTO tr_po_dtl (po_no, line_no, item_cd, qty_po, prc_unit, amt_line, del_flg, create_datetime, update_datetime) VALUES ('PO-CONC-03',2,'CC-ITEM-005',2,300.00000,600.00000,b'0',NOW(),NOW());
+
 -- MS_FORMULA: stretch goal, per-item Formula for 1 SKU (all others fall back to Legacy Default 4EU)
 INSERT INTO ms_formula (id, formula_11, formula_12, formula_13, formula_14, del_flg, create_datetime, update_datetime) VALUES ('OD-TENT-001','IF([AT]<=5,(ROUNDUP([AT]*1-[AR]+[AT]*1/2,0)),IF([AT]<=10,(ROUNDUP([AT]*1-[AR]+[AT]*2/2,0)),ROUNDUP([AT]*1-[AR]+[AT]*3/2,0)))','IF(ROUNDDOWN([AZ]-([AT]*1/2),0)<0,0,ROUNDDOWN([AZ]-([AT]*1/2),0))','IF([AZ]-[BA]+(SUM([U]:[AO]))>[AT]*3/2,[AT]*3/2-(SUM([U]:[AO])),[AZ]-[BA])','IF([BB]<=1,0,ROUNDDOWN([BB],0))',b'0',NOW(),NOW());
 
