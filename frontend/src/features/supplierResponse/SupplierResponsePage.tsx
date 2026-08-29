@@ -567,7 +567,32 @@ export function SupplierResponsePage() {
         </Stack>
       )}
 
-      <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
+      {/* Bug fix (found via live demo testing on a Revision 2 order): a plain
+          `onClose={() => setConfirmDialogOpen(false)}` also fires on a
+          backdrop click or Escape - MUI's default dismiss paths for ANY
+          Dialog. Root-caused live: the very first attempt to click
+          "メーカー回答を確定" landed fractionally outside the dialog's own
+          button (a coordinate/timing mismatch plausible under real,
+          higher-latency input such as a remote desktop session), and that
+          single miss-click was enough to hit the Backdrop and silently
+          dismiss the Dialog via this exact onClose path - with the
+          Backend/API layer never touched at all (confirmed: zero network
+          requests fired), exactly matching the reported "確認Dialogが一瞬
+          表示されたが、ユーザー操作なしで自動的に消えた" symptom. This is
+          NOT related to the previous Phase's confirmMutation.reset()
+          useEffect fix (verified live: the Dialog survives repeated
+          `response` cache replacements without a real Cancel/Confirm click).
+          For this "確定後は編集できません" irreversible confirmation, only an
+          explicit Cancel or Confirm click should ever close it - so
+          `reason` is inspected and both dismiss-by-accident paths are
+          ignored here. */}
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setConfirmDialogOpen(false)
+        }}
+      >
         <DialogTitle>{t('confirmDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>{t('confirmDialogBody')}</DialogContentText>
