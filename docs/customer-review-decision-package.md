@@ -1,6 +1,6 @@
-# Customer Review Decision Package — Phase 7-D / 7-D2
+# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E
 
-**Status**: Docs Only（Phase 7-D／7-D2とも）。コード変更・DB Migration・Legacy変更は一切行っていない。
+**Status**: Docs Only（Phase 7-D／7-D2／7-E追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。
 
 **目的**: Phase 7-A〜7-C6の各Documentに散在する`CUSTOMER REVIEW`項目をすべて回収し、「何を顧客に確認しないと本番実装できないか」を一本化する（Phase 7-D）。さらにPhase 7-D2で、**「Sourceコードから分からない」＝「Gulliver社へ質問する」ではない**という前提のもと、Phase1社内（特にG-SYS保守担当のErnest）への確認で解決可能な項目を切り分け、最終的にGulliver社へ聞く質問を最小化する。
 
@@ -51,6 +51,14 @@
 
 Splitを行った結果、47項目（Theme A-H）は**64項目**（一部が現在事実/将来決定で分割されたため）に細分化された。内訳は3章のQuick Referenceおよび15章の集計を参照。
 
+## 1c. Phase 7-E: User Management関連8項目の追加
+
+Phase 7-EのNavigation / Save-to-Next UX Audit（Section 4: Master Maintenance Information Architecture監査）の一環で、`PortalUser`（Portal-owned Masterの一つ）についてSource/Docs調査を行った結果、User作成・編集・無効化・削除・Password運用・Role変更に関するBusiness Ruleが一切確定していないことが判明した。これらはUser Management UI・CRUD API未実装（本Phaseでも実装しない）の状態で新たに発見された未決事項であり、Theme B（Approval / Permission）へ**B-7〜B-14として追加**する。全8項目とも、現行G-SYS（Legacy）に対応する機能・権限情報が存在しない（`legacy-procurement-workflow-reverse-engineering.md`15章 — 11 User TypeはPO操作権限を持たない）ため、Ernest／Gulliver Current Operationのどちらにも「現在の事実」として聞く対象がなく、全て**Gulliver Future Decision（D）**に分類する（Theme Bの既存6項目と同じ扱い）。
+
+既存のB-2（海外Supplierの自己承認範囲＝`User.selfApprovalScope`）は、User Masterのフィールド案の一つとして本追加項目群と関連するが、B-2自体は独立した既存項目として据え置き、重複登録はしない。
+
+Splitの結果、64項目は**72項目**に増える。内訳は3章のQuick Referenceおよび15章の集計を参照。
+
 ---
 
 ## 2. 分類基準（Phase 7-D、Timing/Blocker/Theme）
@@ -79,7 +87,7 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 
 ---
 
-## 3. Quick Reference（全64項目、Phase 7-D2分類つき）
+## 3. Quick Reference（全72項目、Phase 7-D2分類つき。B-7〜B-14はPhase 7-E追加分）
 
 凡例: **7-D2分類** = A(Source Confirmed) / B(Ernest Confirm) / C(Gulliver Current Operation) / D(Gulliver Future Decision)
 
@@ -101,6 +109,14 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 | B-4 | Approval | 修正版（Revision）再送時に再承認が必要か | B | IMPORTANT | **D** |
 | B-5 | Approval | 複数段階承認者階層の要否 | C | LATER | **D** |
 | B-6 | Approval | 承認後の再編集の許容範囲 | B | IMPORTANT | **D** |
+| B-7 | Approval (User Mgmt) | User作成・編集・無効化を誰が実行できるか | C | LATER | **D** |
+| B-8 | Approval (User Mgmt) | User削除を許可するか、enabledによる論理無効化のみとするか | C | LATER | **D** |
+| B-9 | Approval (User Mgmt) | 自分自身の無効化・Role変更を許可するか | C | LATER | **D** |
+| B-10 | Approval (User Mgmt) | 最後のADMINを無効化／降格できないようにするか | C | LATER | **D** |
+| B-11 | Approval (User Mgmt) | Password初期発行・変更・Resetの運用 | C | LATER | **D** |
+| B-12 | Approval (User Mgmt) | User Masterのregion項目の用途・値域 | C | LATER | **D** |
+| B-13 | Approval (User Mgmt) | ログインIDをemail認証へ将来切り替えるか | C | LATER | **D** |
+| B-14 | Approval (User Mgmt) | Legacy MS_USERとの将来SSO統合要否 | C | LATER | **D** |
 | C-1a | Supplier Mail | 現在、メーカーへのメール送信はどう行われているか（SYS_SEND_MAIL経由か等） | A | BLOCKER | **B**（Ernest Q8） |
 | C-1b | Supplier Mail | PortalからSYS_SEND_MAILキューへの書込みを許可してよいか | A | BLOCKER | **D** |
 | C-2 | Supplier Mail | Fromルール | A | BLOCKER | **D** |
@@ -277,6 +293,60 @@ Theme Bの6項目は、現行G-SYSに承認機能自体が一切存在しない�
 - **Target Portal Proposal**: APPROVED以降の編集は差し戻し・修正版作成経由のみ。
 - **Question**: 「一度承認された発注内容を後から直接編集できる必要がありますか。」　**Timing**: B　**Blocker**: IMPORTANT
 - **Source**: role-approval-implementation 20章／7-A 20章#4
+
+---
+
+### B-7〜B-14. User Management関連（Phase 7-E追加、1c章参照）
+
+Phase 7-EのPortalUser仕様調査（Source: `PortalUser.java`／`SecurityConfig.java`／`V4,V5,V8`migration、Docs: `target-production-procurement-workflow.md`17章）で判明した、User作成・編集・無効化・削除・Password・Role・regionに関する8つの未決事項。**いずれもBusiness Ruleの決定は行わず、記録のみ**（実装・仕様確定は本Phaseでは行わない）。
+
+### B-7. User作成・編集・無効化を誰が実行できるか
+
+- **Current G-SYS Fact**: PortalUserのCRUD API・画面は現状一切存在しない（Flyway migrationでの直接投入のみ）。
+- **Question**: 「Userの作成・編集・無効化は、Portal内のADMIN Roleが行う想定でよいでしょうか。それとも別の管理者・別システムでの運用を想定されていますか。」　**Timing**: C　**Blocker**: LATER
+- **Source**: Phase 7-E PortalUser仕様調査
+
+### B-8. User削除を許可するか、enabledによる論理無効化のみとするか
+
+- **Current G-SYS Fact**: `portal_user.enabled`列は存在するが、これをfalseにする、または行を物理削除するコードはSource全体に存在しない。
+- **Question**: 「Userを完全に削除できる必要がありますか。それとも履歴保持のため無効化のみで十分でしょうか。」
+- **Why**: 他のPortal Master（Supplier Contact等）では「Inactiveを推奨」方針が既に採用されており（7-C3 12章）、一貫性の観点で参考になる。　**Timing**: C　**Blocker**: LATER
+- **Source**: Phase 7-E PortalUser仕様調査
+
+### B-9. 自分自身の無効化・Role変更を許可するか
+
+- **Question**: 「ログイン中の管理者が、自分自身のRoleを変更したりアカウントを無効化したりできてよいでしょうか。」　**Timing**: C　**Blocker**: LATER
+- **Source**: Phase 7-E PortalUser仕様調査
+
+### B-10. 最後のADMINを無効化／降格できないようにするか
+
+- **Question**: 「システム上、ADMIN Roleのアカウントが0件になる操作（最後の管理者を無効化・降格する等）を防ぐガードが必要でしょうか。」　**Timing**: C　**Blocker**: LATER
+- **Source**: Phase 7-E PortalUser仕様調査
+
+### B-11. Password初期発行・変更・Resetの運用
+
+- **Current G-SYS Fact**: 現状、全Passwordの発行はFlyway migrationでのBCryptハッシュ固定値投入のみ。変更・Reset機能（API・画面）は存在しない。
+- **Question**: 「新規Userのパスワードは誰がどう初期発行しますか。本人によるパスワード変更、管理者による強制Resetは必要でしょうか。」　**Timing**: C　**Blocker**: LATER
+- **Source**: Phase 7-E PortalUser仕様調査
+
+### B-12. User Masterのregion項目の用途・値域
+
+- **Target Portal Proposal**: `target-production-procurement-workflow.md`17章にUser Masterフィールド案として`region`が記載されているが、値域・用途は未定義（Portal専用の将来フィールドで、Legacy側に対応する情報はない）。
+- **Question**: 「User Masterのregion項目は、どのような値（例: 国内/海外、担当地域名など）を想定されていますか。不要であれば項目自体の削除も検討可能です。」　**Timing**: C　**Blocker**: LATER
+- **Source**: target-production 17章／Phase 7-E PortalUser仕様調査
+
+### B-13. ログインIDをemail認証へ将来切り替えるか
+
+- **Current G-SYS Fact**: 現在の認証はusername + password（Phase 7-C1でemail化を見送り、Role Foundationのみ先行実装済み） — この部分はSource Confirmed。
+- **Target Portal Proposal**: `target-production-procurement-workflow.md`17章に「認証: email + password」という将来案の記載あり。`portal_user.email`列は追加済みだが未使用。
+- **Question**: 「ログインIDを将来usernameからemailへ切り替える必要がありますか。切り替える場合の時期は？」　**Timing**: C　**Blocker**: LATER
+- **Source**: target-production 17章／Phase 7-C1報告／Phase 7-E PortalUser仕様調査
+
+### B-14. Legacy MS_USERとの将来SSO統合要否
+
+- **Current G-SYS Fact**: PortalUserはLegacy `MS_USER`と完全に独立（FK・ID共有一切なし） — この部分はSource Confirmed。統合しない、という判断自体は`target-production-procurement-workflow.md`17章で既に文書化済みだが、「将来のSSO統合」は同章で別Phase課題として保留されているのみで、正式に不要と決定されたわけではない。
+- **Question**: 「G-SYS（Legacy）のログインとPortalのログインを、将来的にSSO等で統合する必要がありますか。」　**Timing**: C　**Blocker**: LATER
+- **Source**: target-production 17章／Phase 7-E PortalUser仕様調査
 
 ---
 
@@ -470,6 +540,7 @@ Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（7項
 | A-5 | official-po-integration-detailed-design#5 |
 | A-6 | official-po-integration-detailed-design#7 |
 | B-1〜B-6 | target-production#2,#3／7-A#1／role-approval-implementation／supplier-response-revision-workflow |
+| B-7〜B-14 | Phase 7-E PortalUser仕様調査（本Doc初出、他Docからの統合ではない）／target-production17章（B-12,B-13,B-14） |
 | C-1〜C-9 | supplier-contact-mail-template-foundation（8項目）／target-production#11,#13／7-A#6 |
 | D-1〜D-9 | target-production#4,#6,#9,#10／supplier-response-revision-workflow／requirements27.4／production-ux-workflow-redesign15.4 |
 | E-1〜E-7 | target-production#7,#8／7-A#5／fulfillment-follow-up-foundation |
@@ -486,15 +557,15 @@ Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（7項
 
 - 全47項目（Theme A-H）＋Appendix I 7項目 ＝ 計54項目。Timing=A（9/17前必須）は11項目、Blocker=BLOCKERは9項目。
 
-### 15.2 Phase 7-D2時点（4分類軸、分割後64項目）
+### 15.2 Phase 7-D2時点＋Phase 7-E追加後（4分類軸、72項目）
 
 | 分類 | 件数 | 質問先 |
 |---|---|---|
 | **A. SOURCE CONFIRMED** | **0** | なし（詳細は15.3参照） |
 | **B. PHASE1 / ERNEST CONFIRM** | **13** | `docs/ernest-current-operation-question-sheet.md` |
 | **C. GULLIVER CURRENT OPERATION CONFIRM** | **8** | Gulliver（現行業務の事実確認） |
-| **D. GULLIVER FUTURE DECISION** | **43** | Gulliver（将来方針の意思決定） |
-| **合計** | **64** | |
+| **D. GULLIVER FUTURE DECISION** | **51**（Phase 7-D2時点43 ＋ Phase 7-E追加分B-7〜B-14の8） | Gulliver（将来方針の意思決定） |
+| **合計** | **72** | |
 
 ### 15.3 なぜ「A. SOURCE CONFIRMED」が0件なのか
 
@@ -519,9 +590,9 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 ### 15.6 Ernest確認後も確実にGulliver判断が必要な項目
 
 - **C. GULLIVER CURRENT OPERATION CONFIRM（8件）**: Ernestが技術保守担当として確定できない、Gulliver社の業務運用・組織構造に関する事実（例: メーカー担当者のBrand別割当、複数宛先送信の実際の運用、欠品/廃番の業務定義）。Ernestに聞いても解決しない可能性が高いため、最初からGulliver向けとして扱う。
-- **D. GULLIVER FUTURE DECISION（43件、うちAppendix I 7件含む）**: Portal導入後の新しい業務ルール・権限・運用方針そのものであり、これは「事実確認」ではなく「意思決定」であるため、Ernestが何を答えても消えない。Gulliverの最終承認が必須。
-- **合計 51件が、Ernest確認後も確実にGulliverへの確認が必要な項目数。**
+- **D. GULLIVER FUTURE DECISION（51件、うちAppendix I 7件、Phase 7-E追加分B-7〜B-14の8件含む）**: Portal導入後の新しい業務ルール・権限・運用方針そのものであり、これは「事実確認」ではなく「意思決定」であるため、Ernestが何を答えても消えない。Gulliverの最終承認が必須。
+- **合計 59件が、Ernest確認後も確実にGulliverへの確認が必要な項目数。**
 
 ### 15.7 「件数を減らすこと」自体を目的にしない
 
-上記のとおり、B分類13件をEarnestへ振り分けても、Gulliverへの質問自体は最大51件（C:8＋D:43）残る。これは「件数を無理に減らした」結果ではなく、**「Phase1として調べれば分かることをGulliverに聞かない」**という本Phaseの目的を優先した結果である。件数の多寡よりも、各質問が正しい相手（Ernest / Gulliver Current Operation / Gulliver Future Decision）に向いていることを優先した。
+上記のとおり、B分類13件をEarnestへ振り分けても、Gulliverへの質問自体は最大59件（C:8＋D:51）残る。これは「件数を無理に減らした」結果ではなく、**「Phase1として調べれば分かることをGulliverに聞かない」**という本Phaseの目的を優先した結果である。件数の多寡よりも、各質問が正しい相手（Ernest / Gulliver Current Operation / Gulliver Future Decision）に向いていることを優先した。
