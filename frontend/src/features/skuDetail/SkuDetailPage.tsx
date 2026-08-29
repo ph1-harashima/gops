@@ -17,6 +17,8 @@ import CircularProgress from '@mui/material/CircularProgress'
 import { useSkuDetail } from './api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
+import { StockJudgementChip } from '../../shared/components/StockJudgementChip'
+import { computeStockJudgement } from '../../shared/domain/stockJudgement'
 import { resolveReturnTo } from '../../shared/navigation/returnTo'
 
 /**
@@ -79,6 +81,22 @@ export function SkuDetailPage() {
             <Typography variant="body2">{t('field.safetyStock')}: {data.safetyStock ?? t('notAvailable')}</Typography>
             <Typography variant="body2">{t('field.openPo')}: {data.openPo ?? t('notAvailable')}</Typography>
             <Typography variant="body2">{t('field.openArrival')}: {data.openArrival ?? t('notAvailable')}</Typography>
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Typography variant="body2">{t('field.stockJudgement')}:</Typography>
+              {/* Phase 7-G: SkuDetailResponse keeps openPo/openArrival as two
+                  separate raw fields (SkuDetailService.java), but
+                  OrderCandidateResponse - what DashboardService's
+                  isLongTermOutOfStock Predicate and the Candidate List's
+                  in-page Filter/Badge actually read as "openPo" - is
+                  row.openPo()+row.openArrival() already summed
+                  (OrderCandidateService.toResponse, sum()). Passing raw
+                  data.openPo alone here would silently diverge from that
+                  Predicate for any SKU with openPo==0 but openArrival>0 -
+                  confirmed via Source, not assumption - so the two are added
+                  back together here to keep this screen's Badge consistent
+                  with the Candidate List/Dashboard Badge for the same SKU. */}
+              <StockJudgementChip judgement={computeStockJudgement(data.currentStock, (data.openPo ?? 0) + (data.openArrival ?? 0))} />
+            </Stack>
           </Stack>
         </Paper>
 

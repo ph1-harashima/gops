@@ -15,6 +15,7 @@
     "safetyStock": "安全在庫",
     "openPo": "発注残",
     "openArrival": "入荷予定数",
+    "stockJudgement": "在庫判定（暫定）",
     "monthlySales": "当月販売数",
     "leadTime": "リードタイム",
     "recommendedQty": "推奨発注数",

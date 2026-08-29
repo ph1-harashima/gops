@@ -28,6 +28,12 @@
     "OTHER_ATTENTION": "確認事項あり",
     "SUPPLY_STATUS_CHANGED": "供給状況の確認が必要"
   },
+  "stockJudgement": {
+    "NORMAL": "通常",
+    "OUT_OF_STOCK": "欠品",
+    "LONG_TERM_OUT_OF_STOCK": "長期欠品"
+  },
+  "stockJudgementTooltip": "現在のPrototype判定です。商品状態（通常/廃番/発注停止等）とは別の軸で、在庫数・発注残から算出しています。正式な判定条件はGulliver社確認後に確定します。",
   "supplyStatus": {
     "AVAILABLE": "供給可能",
     "OUT_OF_STOCK": "欠品",

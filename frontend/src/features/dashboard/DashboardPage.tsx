@@ -14,6 +14,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import Grid from '@mui/material/Grid'
+import Tooltip from '@mui/material/Tooltip'
 
 import { useDashboard } from './api'
 
@@ -25,7 +26,7 @@ import { useDashboard } from './api'
  * pre-filtered screen.
  */
 export function DashboardPage() {
-  const { t } = useTranslation(['dashboard', 'common'])
+  const { t } = useTranslation(['dashboard', 'common', 'status'])
   const navigate = useNavigate()
   const { data, isLoading, isError, refetch } = useDashboard()
 
@@ -74,20 +75,26 @@ export function DashboardPage() {
   //   per row, so ?hasAttention=true is a client-side Filter over data the
   //   existing API already sends - no new Attention Filter API (6-D 6章).
   const kpis = [
-    { key: 'candidateCount', label: t('kpi.candidates'), value: data.candidateCount, onClick: () => navigate('/candidates?recommendedOnly=true') },
-    { key: 'outOfStockCount', label: t('kpi.outOfStock'), value: data.outOfStockCount, onClick: () => navigate('/candidates?outOfStockOnly=true') },
-    { key: 'longTermOutOfStockCount', label: t('kpi.longTermOutOfStock'), value: data.longTermOutOfStockCount, onClick: () => navigate('/candidates?longTermOutOfStockOnly=true') },
-    { key: 'draftCount', label: t('kpi.draft'), value: data.draftCount, onClick: () => navigate('/orders/history?status=DRAFT') },
+    { key: 'candidateCount', label: t('kpi.candidates'), value: data.candidateCount, onClick: () => navigate('/candidates?recommendedOnly=true'), tooltip: undefined as string | undefined },
+    // Phase 7-G: same provisional Predicate/Tooltip wording as the new
+    // 在庫判定 Chip (status:stockJudgementTooltip) so a user who has already
+    // seen the Chip's Tooltip on the List/Detail recognizes this KPI refers
+    // to the identical concept - not a new caveat, just making the existing
+    // "件数だけでは分からない" gap this KPI already had (undocumented until
+    // now) explicit here too.
+    { key: 'outOfStockCount', label: t('kpi.outOfStock'), value: data.outOfStockCount, onClick: () => navigate('/candidates?outOfStockOnly=true'), tooltip: t('status:stockJudgementTooltip') },
+    { key: 'longTermOutOfStockCount', label: t('kpi.longTermOutOfStock'), value: data.longTermOutOfStockCount, onClick: () => navigate('/candidates?longTermOutOfStockOnly=true'), tooltip: t('status:stockJudgementTooltip') },
+    { key: 'draftCount', label: t('kpi.draft'), value: data.draftCount, onClick: () => navigate('/orders/history?status=DRAFT'), tooltip: undefined as string | undefined },
     // Phase 7-C1 14章: ADMIN's approval queue entry point - minimal design,
     // reusing the same Dashboard KPI -> pre-filtered Order List pattern as
     // every other tile here (no new screen, no new API).
-    { key: 'pendingApprovalCount', label: t('kpi.pendingApproval'), value: data.pendingApprovalCount, onClick: () => navigate('/orders/history?status=PENDING_APPROVAL') },
-    { key: 'awaitingSupplierCount', label: t('kpi.awaitingSupplier'), value: data.awaitingSupplierCount, onClick: () => navigate('/orders/history?status=AWAITING_SUPPLIER') },
-    { key: 'attentionCount', label: t('kpi.attention'), value: data.attentionCount, onClick: () => navigate('/orders/history?hasAttention=true') },
+    { key: 'pendingApprovalCount', label: t('kpi.pendingApproval'), value: data.pendingApprovalCount, onClick: () => navigate('/orders/history?status=PENDING_APPROVAL'), tooltip: undefined as string | undefined },
+    { key: 'awaitingSupplierCount', label: t('kpi.awaitingSupplier'), value: data.awaitingSupplierCount, onClick: () => navigate('/orders/history?status=AWAITING_SUPPLIER'), tooltip: undefined as string | undefined },
+    { key: 'attentionCount', label: t('kpi.attention'), value: data.attentionCount, onClick: () => navigate('/orders/history?hasAttention=true'), tooltip: undefined as string | undefined },
     // Phase 7-C7A 19章: no dedicated Order List Filter exists for "has an
     // Open Follow-up Case" this Phase (same "count only, unfiltered target"
     // precedent as 欠品/長期欠品 above) - the count itself is exact.
-    { key: 'openFollowUpCaseCount', label: t('kpi.openFollowUpCase'), value: data.openFollowUpCaseCount, onClick: () => navigate('/orders/history') },
+    { key: 'openFollowUpCaseCount', label: t('kpi.openFollowUpCase'), value: data.openFollowUpCaseCount, onClick: () => navigate('/orders/history'), tooltip: undefined as string | undefined },
   ]
 
   return (
@@ -97,18 +104,24 @@ export function DashboardPage() {
       </Typography>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        {kpis.map((kpi) => (
-          <Grid key={kpi.key} size={{ xs: 6, sm: 4, md: 2 }}>
+        {kpis.map((kpi) => {
+          const tile = (
             <Paper
               variant="outlined"
               onClick={kpi.onClick}
               sx={{ p: 2, textAlign: 'center', cursor: 'pointer', '&:hover': { boxShadow: 2 } }}
+              data-testid={`kpi-tile-${kpi.key}`}
             >
               <Typography variant="h4">{kpi.value}</Typography>
               <Typography variant="body2" color="text.secondary">{kpi.label}</Typography>
             </Paper>
-          </Grid>
-        ))}
+          )
+          return (
+            <Grid key={kpi.key} size={{ xs: 6, sm: 4, md: 2 }}>
+              {kpi.tooltip ? <Tooltip title={kpi.tooltip}>{tile}</Tooltip> : tile}
+            </Grid>
+          )
+        })}
       </Grid>
 
       <Typography variant="h6" gutterBottom>{t('brandBreakdown')}</Typography>

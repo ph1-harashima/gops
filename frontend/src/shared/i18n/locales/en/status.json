@@ -28,6 +28,12 @@
     "OTHER_ATTENTION": "Needs Attention",
     "SUPPLY_STATUS_CHANGED": "Supply Status Needs Review"
   },
+  "stockJudgement": {
+    "NORMAL": "Normal",
+    "OUT_OF_STOCK": "Out of Stock",
+    "LONG_TERM_OUT_OF_STOCK": "Long-Term Out of Stock"
+  },
+  "stockJudgementTooltip": "This is the current Prototype's provisional judgement, on a separate axis from Item Status (Normal/Discontinued/On Hold etc.) - calculated from Stock Qty and Open PO. The official definition is pending confirmation by Gulliver.",
   "supplyStatus": {
     "AVAILABLE": "Available",
     "OUT_OF_STOCK": "Out of Stock",

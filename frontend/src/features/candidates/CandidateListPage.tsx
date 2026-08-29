@@ -25,6 +25,8 @@ import { useOrderCandidates } from './api'
 import { useCreateDraft } from '../drafts/api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
+import { StockJudgementChip } from '../../shared/components/StockJudgementChip'
+import { computeStockJudgement } from '../../shared/domain/stockJudgement'
 import { listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 import type { OrderCandidateFilter } from '../../shared/types/orderCandidate'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
@@ -98,10 +100,17 @@ export function CandidateListPage() {
 
   const visibleData = useMemo(() => {
     if (!data) return data
+    // Phase 7-G: filters now route through the same computeStockJudgement()
+    // the new 在庫判定 column/Badge renders from - previously this predicate
+    // was duplicated inline here, independently from what any Badge showed
+    // (there was no Badge at all). outOfStockOnly matches judgement !==
+    // NORMAL (not === OUT_OF_STOCK) because 長期欠品 is a SUBSET of 欠品
+    // (see stockJudgement.ts) - this keeps the exact same filtering RESULT
+    // as before, only the implementation is now shared/single-sourced.
     return data
       .filter((row) => !recommendedOnly || (row.recommendedQty ?? 0) > 0)
-      .filter((row) => !outOfStockOnly || (row.currentStock ?? null) === 0)
-      .filter((row) => !longTermOutOfStockOnly || ((row.currentStock ?? null) === 0 && (row.openPo ?? 0) === 0))
+      .filter((row) => !outOfStockOnly || computeStockJudgement(row.currentStock, row.openPo) !== 'NORMAL')
+      .filter((row) => !longTermOutOfStockOnly || computeStockJudgement(row.currentStock, row.openPo) === 'LONG_TERM_OUT_OF_STOCK')
   }, [data, recommendedOnly, outOfStockOnly, longTermOutOfStockOnly])
 
   function toggleRecommendedOnly(checked: boolean) {
@@ -375,6 +384,7 @@ export function CandidateListPage() {
                   <TableCell align="right">{t('candidates:table.leadTime')}</TableCell>
                   <TableCell align="right">{t('candidates:table.recommendedQty')}</TableCell>
                   <TableCell>{t('candidates:table.itemStatus')}</TableCell>
+                  <TableCell>{t('candidates:table.stockJudgement')}</TableCell>
                   <TableCell align="right">{t('candidates:table.unitPrice')}</TableCell>
                 </TableRow>
               </TableHead>
@@ -417,6 +427,9 @@ export function CandidateListPage() {
                     </TableCell>
                     <TableCell>
                       <ItemStatusChip status={row.itemStatus} />
+                    </TableCell>
+                    <TableCell>
+                      <StockJudgementChip judgement={computeStockJudgement(row.currentStock, row.openPo)} />
                     </TableCell>
                     <TableCell align="right">
                       {row.unitPrice != null ? `¥${row.unitPrice.toLocaleString()}` : t('candidates:notAvailable')}

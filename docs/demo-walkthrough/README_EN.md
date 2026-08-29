@@ -67,6 +67,7 @@ Uses the stock, sales history, and open-PO data from Legacy G-SYS together with 
 - Current Stock, Safety Stock, Open PO
 - This month's sales, Lead Time
 - Recommended Qty: notice that both SKUs with a Recommended Qty of 0 and SKUs with a positive Recommended Qty appear together in the same list
+- Item Status (Normal/Discontinued/On Hold etc.) and Stock Judgement (provisional) (Normal/Out of Stock/Long-Term Out of Stock): two independent pieces of information in separate columns/Badges - Item Status comes from the Legacy Item Master, while Stock Judgement is provisionally calculated from Current Stock and Open PO. A SKU with Item Status = Normal can still show Stock Judgement = Long-Term Out of Stock; that is not a contradiction. Rows reached via the Dashboard's "Out of Stock"/"Long-term Out of Stock" tile or Brand row show this same Badge. The official definition for Stock Judgement remains pending Customer Review, per `docs/9-17-demo-script.md` section 21.
 
 ### What happens next
 

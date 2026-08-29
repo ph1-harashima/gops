@@ -23,6 +23,7 @@
     "leadTime": "リードタイム",
     "recommendedQty": "推奨発注数",
     "itemStatus": "商品状態",
+    "stockJudgement": "在庫判定（暫定）",
     "unitPrice": "単価"
   },
   "empty": "発注候補が見つかりませんでした。",
