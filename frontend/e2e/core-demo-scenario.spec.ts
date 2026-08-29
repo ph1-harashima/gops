@@ -97,7 +97,7 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Submit for Approval -
   await expect(page.getByText('未採番')).toBeVisible()
 
   // ---- 承認依頼 (Phase 7-C1: back to Draft, Submit for Approval) ----
-  await page.getByRole('button', { name: 'Order Draftへ戻る' }).click()
+  await page.getByRole('button', { name: '発注ドラフトへ戻る' }).click()
   await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}(\\?.*)?$`))
   await page.getByTestId('submit-for-approval-button').click()
   await page.getByTestId('submit-for-approval-dialog-confirm').click()

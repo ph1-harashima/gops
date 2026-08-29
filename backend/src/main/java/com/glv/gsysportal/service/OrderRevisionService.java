@@ -5,6 +5,7 @@ import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.PortalOrderDetail;
 import com.glv.gsysportal.domain.PortalOrderRevision;
 import com.glv.gsysportal.domain.PortalOrderRevisionDetail;
+import com.glv.gsysportal.domain.PortalUser;
 import com.glv.gsysportal.domain.SupplierResponse;
 import com.glv.gsysportal.domain.SupplierResponseDetail;
 import com.glv.gsysportal.dto.request.CreateRevisionRequest;
@@ -17,13 +18,16 @@ import com.glv.gsysportal.exception.RevisionReasonRequiredException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRevisionRepository;
+import com.glv.gsysportal.repository.prototype.PortalUserRepository;
 import com.glv.gsysportal.repository.prototype.SupplierResponseRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -39,15 +43,18 @@ public class OrderRevisionService {
     private final PortalOrderRevisionRepository revisionRepository;
     private final SupplierResponseRepository supplierResponseRepository;
     private final AuditEventRepository auditEventRepository;
+    private final PortalUserRepository portalUserRepository;
 
     public OrderRevisionService(PortalOrderRepository portalOrderRepository,
                                  PortalOrderRevisionRepository revisionRepository,
                                  SupplierResponseRepository supplierResponseRepository,
-                                 AuditEventRepository auditEventRepository) {
+                                 AuditEventRepository auditEventRepository,
+                                 PortalUserRepository portalUserRepository) {
         this.portalOrderRepository = portalOrderRepository;
         this.revisionRepository = revisionRepository;
         this.supplierResponseRepository = supplierResponseRepository;
         this.auditEventRepository = auditEventRepository;
+        this.portalUserRepository = portalUserRepository;
     }
 
     /**
@@ -165,18 +172,28 @@ public class OrderRevisionService {
 
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
     public List<OrderRevisionSummary> getRevisionHistory(Long orderId) {
-        return revisionRepository.findByPortalOrderIdOrderByRevisionNoAsc(orderId).stream()
-                .map(OrderRevisionService::toSummary)
+        List<PortalOrderRevision> revisions = revisionRepository.findByPortalOrderIdOrderByRevisionNoAsc(orderId);
+        // Phase 7-H: same "resolve once per distinct Login ID, tolerate a
+        // since-removed account" idiom as OrderHistoryService's
+        // performedByDisplayName lookup - not a new pattern, applied here too
+        // so Revision History reads a person's name instead of a Login ID.
+        Map<String, String> displayNameByUsername = new HashMap<>();
+        revisions.stream().map(PortalOrderRevision::getCreatedBy).distinct().forEach(username ->
+                displayNameByUsername.put(username, portalUserRepository.findByUsername(username)
+                        .map(PortalUser::getDisplayName)
+                        .orElse(null)));
+        return revisions.stream()
+                .map(r -> toSummary(r, displayNameByUsername.get(r.getCreatedBy())))
                 .toList();
     }
 
-    private static OrderRevisionSummary toSummary(PortalOrderRevision r) {
+    private static OrderRevisionSummary toSummary(PortalOrderRevision r, String createdByDisplayName) {
         List<OrderRevisionLineView> lines = r.getDetails().stream()
                 .map(d -> new OrderRevisionLineView(d.getSkuCode(), d.getItemNameSnapshot(), d.getRecommendedQty(),
                         d.getOrderedQty(), d.getRequestedDelivery(), d.getUnitPrice()))
                 .toList();
         return new OrderRevisionSummary(r.getId(), r.getRevisionNo(), r.getRevisionType(), r.getReason(),
-                r.getCreatedBy(), r.getCreatedAt(), lines);
+                r.getCreatedBy(), createdByDisplayName, r.getCreatedAt(), lines);
     }
 
     /**

@@ -7,7 +7,13 @@
     "brand": "Brand",
     "status": "Status",
     "all": "All",
-    "hasAttentionOnly": "Show attention only"
+    "hasAttentionOnly": "Show attention only",
+    "orderNoKeyword": "PO No. / Draft No.",
+    "orderNoKeywordPlaceholder": "Search by PO No. or Draft No.",
+    "itemKeyword": "SKU / Item Name",
+    "itemKeywordPlaceholder": "Search by SKU or item name",
+    "updatedFrom": "Updated (From)",
+    "updatedTo": "Updated (To)"
   },
   "table": {
     "poNo": "PO No.",
@@ -53,7 +59,6 @@
   "goToSupplierResponseReview": "View Supplier Response",
   "timelineTitle": "Activity History",
   "timelineEmpty": "No history yet.",
-  "timelineFieldOldNew": "{{old}} → {{new}}",
   "editDraft": "Edit",
   "approve": "Approve",
   "returnForCorrection": "Return for Correction",
@@ -196,7 +201,9 @@
   },
   "followUp": {
     "title": "Follow-up",
-    "createButton": "Raise Follow-up",
+    "createButton": "Ask about delivery / arrival status",
+    "createButtonInfoLabel": "About this feature",
+    "createButtonTooltip": "Records the content of a Supplier inquiry for this Order in the Portal (no real mail is ever sent). Can be created at any time, regardless of whether Official G-SYS PO integration exists or Fulfillment data can be retrieved.",
     "createButtonShort": "Follow-up",
     "empty": "No Follow-up Cases yet.",
     "errorGeneric": "The operation failed.",

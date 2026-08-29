@@ -3,6 +3,7 @@ package com.glv.gsysportal.service;
 import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.FollowUpCase;
 import com.glv.gsysportal.domain.PortalOrder;
+import com.glv.gsysportal.domain.PortalUser;
 import com.glv.gsysportal.dto.request.CloseFollowUpCaseRequest;
 import com.glv.gsysportal.dto.request.CreateFollowUpCaseRequest;
 import com.glv.gsysportal.dto.request.UpdateFollowUpCaseRequest;
@@ -15,11 +16,14 @@ import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.FollowUpCaseRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRevisionRepository;
+import com.glv.gsysportal.repository.prototype.PortalUserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -38,15 +42,18 @@ public class FollowUpCaseService {
     private final PortalOrderRevisionRepository revisionRepository;
     private final FollowUpCaseRepository followUpCaseRepository;
     private final AuditEventRepository auditEventRepository;
+    private final PortalUserRepository portalUserRepository;
 
     public FollowUpCaseService(PortalOrderRepository portalOrderRepository,
                                 PortalOrderRevisionRepository revisionRepository,
                                 FollowUpCaseRepository followUpCaseRepository,
-                                AuditEventRepository auditEventRepository) {
+                                AuditEventRepository auditEventRepository,
+                                PortalUserRepository portalUserRepository) {
         this.portalOrderRepository = portalOrderRepository;
         this.revisionRepository = revisionRepository;
         this.followUpCaseRepository = followUpCaseRepository;
         this.auditEventRepository = auditEventRepository;
+        this.portalUserRepository = portalUserRepository;
     }
 
     @Transactional(transactionManager = "prototypeTransactionManager")
@@ -90,8 +97,17 @@ public class FollowUpCaseService {
         if (!portalOrderRepository.existsById(orderId)) {
             throw new DraftNotFoundException(orderId);
         }
-        return followUpCaseRepository.findByPortalOrderIdOrderByCreatedAtAsc(orderId).stream()
-                .map(FollowUpCaseService::toResponse)
+        List<FollowUpCase> cases = followUpCaseRepository.findByPortalOrderIdOrderByCreatedAtAsc(orderId);
+        // Phase 7-H: same "resolve once per distinct Login ID, tolerate a
+        // since-removed account" idiom as OrderHistoryService's
+        // performedByDisplayName lookup.
+        Map<String, String> displayNameByUsername = new HashMap<>();
+        cases.stream().map(FollowUpCase::getCreatedBy).distinct().forEach(username ->
+                displayNameByUsername.put(username, portalUserRepository.findByUsername(username)
+                        .map(PortalUser::getDisplayName)
+                        .orElse(null)));
+        return cases.stream()
+                .map(c -> toResponse(c, displayNameByUsername.get(c.getCreatedBy())))
                 .toList();
     }
 
@@ -161,10 +177,16 @@ public class FollowUpCaseService {
         return followUpCaseRepository.findById(id).orElseThrow(() -> new FollowUpCaseNotFoundException(id));
     }
 
-    private static FollowUpCaseResponse toResponse(FollowUpCase c) {
+    private FollowUpCaseResponse toResponse(FollowUpCase c) {
+        String createdByDisplayName = portalUserRepository.findByUsername(c.getCreatedBy())
+                .map(PortalUser::getDisplayName).orElse(null);
+        return toResponse(c, createdByDisplayName);
+    }
+
+    private static FollowUpCaseResponse toResponse(FollowUpCase c, String createdByDisplayName) {
         return new FollowUpCaseResponse(
                 c.getId(), c.getPortalOrderId(), c.getOrderRevisionId(), c.getOfficialPoNo(), c.getSkuCode(),
-                c.getStatus(), c.getReason(), c.getNote(), c.getCreatedBy(), c.getCreatedAt(),
+                c.getStatus(), c.getReason(), c.getNote(), c.getCreatedBy(), createdByDisplayName, c.getCreatedAt(),
                 c.getUpdatedBy(), c.getUpdatedAt(), c.getClosedBy(), c.getClosedAt()
         );
     }

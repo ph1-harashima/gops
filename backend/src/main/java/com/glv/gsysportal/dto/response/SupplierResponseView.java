@@ -32,8 +32,10 @@ public record SupplierResponseView(
         boolean isCurrent,
         List<ResponseDifferenceView> differences,
         String agreedBy,
+        String agreedByDisplayName,
         java.time.OffsetDateTime agreedAt,
         String reopenedBy,
+        String reopenedByDisplayName,
         java.time.OffsetDateTime reopenedAt,
         String reopenReason
 ) {

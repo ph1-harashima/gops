@@ -4,6 +4,7 @@ import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.OrderAttention;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.PortalOrderRevision;
+import com.glv.gsysportal.domain.PortalUser;
 import com.glv.gsysportal.domain.SupplierResponse;
 import com.glv.gsysportal.domain.SupplierResponseDetail;
 import com.glv.gsysportal.dto.request.AgreeResponseRequest;
@@ -28,13 +29,16 @@ import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OrderAttentionRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRevisionRepository;
+import com.glv.gsysportal.repository.prototype.PortalUserRepository;
 import com.glv.gsysportal.repository.prototype.SupplierResponseRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -62,17 +66,20 @@ public class SupplierResponseService {
     private final PortalOrderRevisionRepository revisionRepository;
     private final OrderAttentionRepository orderAttentionRepository;
     private final AuditEventRepository auditEventRepository;
+    private final PortalUserRepository portalUserRepository;
 
     public SupplierResponseService(PortalOrderRepository portalOrderRepository,
                                     SupplierResponseRepository supplierResponseRepository,
                                     PortalOrderRevisionRepository revisionRepository,
                                     OrderAttentionRepository orderAttentionRepository,
-                                    AuditEventRepository auditEventRepository) {
+                                    AuditEventRepository auditEventRepository,
+                                    PortalUserRepository portalUserRepository) {
         this.portalOrderRepository = portalOrderRepository;
         this.supplierResponseRepository = supplierResponseRepository;
         this.revisionRepository = revisionRepository;
         this.orderAttentionRepository = orderAttentionRepository;
         this.auditEventRepository = auditEventRepository;
+        this.portalUserRepository = portalUserRepository;
     }
 
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
@@ -113,10 +120,22 @@ public class SupplierResponseService {
                     .ifPresent(r -> entries.add(new SupplierResponseHistoryEntry(
                             r.getId(), revision.getRevisionNo(), r.getResponseDate(), r.getResponseStatus(),
                             Objects.equals(order.getCurrentRevisionNo(), revision.getRevisionNo()),
-                            r.getAgreedBy(), r.getAgreedAt(), r.getReopenedBy(), r.getReopenedAt(), r.getReopenReason()
+                            r.getAgreedBy(), displayNameOf(r.getAgreedBy()), r.getAgreedAt(),
+                            r.getReopenedBy(), displayNameOf(r.getReopenedBy()), r.getReopenedAt(), r.getReopenReason()
                     )));
         }
         return entries;
+    }
+
+    /** Phase 7-H: same "resolve, tolerate a since-removed account" idiom as
+     * OrderHistoryService's performedByDisplayName lookup - null username
+     * (agreedBy/reopenedBy are null until that Business Action ever
+     * happened) resolves to null without a lookup. */
+    private String displayNameOf(String username) {
+        if (username == null) {
+            return null;
+        }
+        return portalUserRepository.findByUsername(username).map(PortalUser::getDisplayName).orElse(null);
     }
 
     /**
@@ -458,8 +477,8 @@ public class SupplierResponseService {
                 response.getResponseDate(), response.getResponseNote(), response.getResponseStatus(),
                 detailViews, orderAttentions, summary,
                 response.getId(), revision.getRevisionNo(), isCurrent, differences,
-                response.getAgreedBy(), response.getAgreedAt(),
-                response.getReopenedBy(), response.getReopenedAt(), response.getReopenReason()
+                response.getAgreedBy(), displayNameOf(response.getAgreedBy()), response.getAgreedAt(),
+                response.getReopenedBy(), displayNameOf(response.getReopenedBy()), response.getReopenedAt(), response.getReopenReason()
         );
     }
 

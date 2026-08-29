@@ -7,7 +7,13 @@
     "brand": "ブランド",
     "status": "Status",
     "all": "すべて",
-    "hasAttentionOnly": "確認事項ありのみ表示"
+    "hasAttentionOnly": "確認事項ありのみ表示",
+    "orderNoKeyword": "PO No. / Draft No.",
+    "orderNoKeywordPlaceholder": "PO NoまたはDraft Noで検索",
+    "itemKeyword": "SKU / 商品名",
+    "itemKeywordPlaceholder": "SKUまたは商品名で検索",
+    "updatedFrom": "更新日（From）",
+    "updatedTo": "更新日（To）"
   },
   "table": {
     "poNo": "PO No.",
@@ -53,7 +59,6 @@
   "goToSupplierResponseReview": "メーカー回答を確認する",
   "timelineTitle": "操作履歴",
   "timelineEmpty": "履歴がありません。",
-  "timelineFieldOldNew": "{{old}} → {{new}}",
   "editDraft": "修正",
   "approve": "承認",
   "returnForCorrection": "差し戻し",
@@ -196,7 +201,9 @@
   },
   "followUp": {
     "title": "問い合わせ",
-    "createButton": "問い合わせ対象にする",
+    "createButton": "未納・入荷状況を問い合わせる",
+    "createButtonInfoLabel": "この機能についての説明",
+    "createButtonTooltip": "この発注についてメーカーへの問い合わせ内容をPortal上に記録します（実際のメール送信は行われません）。G-SYS正式PO連携の有無やFulfillment実績の取得状況に関わらず、いつでも作成できます。",
     "createButtonShort": "問い合わせ",
     "empty": "問い合わせはまだありません。",
     "errorGeneric": "処理に失敗しました。",

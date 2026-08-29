@@ -25,6 +25,10 @@ import DialogActions from '@mui/material/DialogActions'
 
 import Chip from '@mui/material/Chip'
 import MenuItem from '@mui/material/MenuItem'
+import Tooltip from '@mui/material/Tooltip'
+import IconButton from '@mui/material/IconButton'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 
 import { useOrderHistoryDetail, useOrderEvents } from './api'
 import { useOfficialPoIntegration, useRequestOfficialPoIntegration } from './officialPoIntegrationApi'
@@ -39,7 +43,7 @@ import { useApprove, useReturnForCorrection } from '../drafts/poPreviewApi'
 import { useOrderRevisions, useResponseHistory } from '../supplierResponse/api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
-import { resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
+import { resolveReturnTo, withBackTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_ADMIN } from '../../shared/types/auth'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
@@ -58,8 +62,13 @@ const FOLLOW_UP_REASONS = ['DELIVERY_OVERDUE', 'PARTIAL_DELIVERY', 'NO_ARRIVAL',
  * confirmedDelivery/prototypePoNo/draftNo/...) is a genuine data value
  * (a number, a date, free text, an identifier) and must never be routed
  * through a Code i18n table - it is rendered as-is. */
+// Phase 7-H (Audit Timeline readability audit): blank means "genuinely no
+// value to show" for a Timeline row - both `null` (e.g. a Create event's
+// oldValue - nothing existed before) AND `""` (e.g. REMARK_CHANGED clearing
+// a Remark to empty text) collapse to the same "not present" case here, so
+// neither ever renders as a bare "—" or an empty space next to an Arrow.
 function resolveTimelineValue(t: TFunction, fieldName: string | null, value: string | null): string | null {
-  if (value === null) return null
+  if (value === null || value === '') return null
   if (fieldName === 'status') return t(`status:orderStatus.${value}`, { defaultValue: value })
   if (fieldName === 'attentionType') return t(`status:attentionType.${value}`, { defaultValue: value })
   return value
@@ -218,7 +227,14 @@ export function OrderHistoryDetailPage() {
       case 'DRAFT':
         return { label: t('goToDraftEdit'), to: `/orders/drafts/${detail.id}` }
       case 'APPROVED':
-        return { label: t('goToPreview'), to: `/orders/drafts/${detail.id}/preview` }
+        // Phase 7-H (PO Preview Navigation audit): PoPreviewPage is reached
+        // from both here and Order Draft's own "PO プレビュー" button, and
+        // previously had no way to tell them apart (its 戻る button always
+        // hardcoded the Draft path) - backTo carries THIS screen's own path
+        // so Preview's 戻る button returns here instead, while returnTo
+        // (attached below, same as every other case) keeps carrying the
+        // deeper List chain unchanged.
+        return { label: t('goToPreview'), to: withBackTo(`/orders/drafts/${detail.id}/preview`, `/orders/${detail.id}`) }
       case 'AWAITING_SUPPLIER':
         // 入力 (input) - a Response is still owed.
         return { label: t('goToSupplierResponseInput'), to: `/orders/${detail.id}/supplier-response` }
@@ -624,7 +640,7 @@ export function OrderHistoryDetailPage() {
                   </Typography>
                   <Chip size="small" label={t(`revisionHistory.type.${r.revisionType}`)} />
                   <Typography variant="caption" color="text.secondary">
-                    {r.createdBy} - {new Date(r.createdAt).toLocaleString('ja-JP')}
+                    {r.createdByDisplayName ?? r.createdBy} - {new Date(r.createdAt).toLocaleString('ja-JP')}
                   </Typography>
                 </Stack>
                 {r.reason && (
@@ -660,12 +676,12 @@ export function OrderHistoryDetailPage() {
                 <Typography variant="body2" color="text.secondary">{h.responseStatus}</Typography>
                 {h.agreedBy && (
                   <Typography variant="caption" color="text.secondary">
-                    {t('responseHistory.agreedBy', { by: h.agreedBy })}
+                    {t('responseHistory.agreedBy', { by: h.agreedByDisplayName ?? h.agreedBy })}
                   </Typography>
                 )}
                 {h.reopenedBy && (
                   <Typography variant="caption" color="text.secondary">
-                    {t('responseHistory.reopenedBy', { by: h.reopenedBy })}
+                    {t('responseHistory.reopenedBy', { by: h.reopenedByDisplayName ?? h.reopenedBy })}
                   </Typography>
                 )}
               </Stack>
@@ -745,6 +761,26 @@ export function OrderHistoryDetailPage() {
       <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="follow-up-section">
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 1 }}>
           <Typography variant="subtitle1">{t('followUp.title')}</Typography>
+          {/* Phase 7-H (Follow-up audit): confirmed via Source
+              (FollowUpCaseService.create has no Order-status/officialPoNo/
+              Fulfillment-LINKED gate; docs/fulfillment-follow-up-foundation.md
+              12章/20章 - OPERATOR/ADMIN双方に意図的に開放) that manual
+              creation working even when G-SYS正式PO未連携 is the Foundation's
+              own intended design, not a gap - a Follow-up Case is a
+              Portal-only record of "問い合わせたい"意図そのもので、Legacy
+              Fulfillment実績を読める状態を前提にしていない。Label/Tooltip
+              only change - creation条件（Business Rule）は変更していない。 */}
+          {/* aria-label is deliberately a short, generic label (t('followUp.createButtonInfoLabel'))
+              rather than the full Tooltip text - the Tooltip text itself
+              explains "実際のメール送信は行われません" (E2E regression found:
+              the full text's own mention of "送信" made this button falsely
+              match getByRole('button', {name: /送信/}) assertions elsewhere
+              on this screen that check "no Send control exists"). */}
+          <Tooltip title={t('followUp.createButtonTooltip')}>
+            <IconButton size="small" aria-label={t('followUp.createButtonInfoLabel')}>
+              <InfoOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           <Button size="small" variant="outlined" onClick={() => openFollowUpDialog()} data-testid="create-follow-up-case-button">
             {t('followUp.createButton')}
           </Button>
@@ -770,7 +806,7 @@ export function OrderHistoryDetailPage() {
                 <Typography variant="body2">{t(`followUp.reason.${c.reason}`)}</Typography>
                 {c.skuCode && <Typography variant="body2" color="text.secondary">SKU: {c.skuCode}</Typography>}
                 <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                  {c.createdBy} - {new Date(c.createdAt).toLocaleString('ja-JP')}
+                  {c.createdByDisplayName ?? c.createdBy} - {new Date(c.createdAt).toLocaleString('ja-JP')}
                 </Typography>
               </Stack>
               {c.note && <Typography variant="body2" sx={{ mt: 0.5 }}>{c.note}</Typography>}
@@ -835,26 +871,48 @@ export function OrderHistoryDetailPage() {
       )}
       {!eventsLoading && events && events.length > 0 && (
         <Stack spacing={1}>
-          {events.map((e, i) => (
-            <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
-              <Stack direction="row" spacing={2} sx={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
-                <Typography variant="body2" sx={{ fontWeight: 'bold', minWidth: 200 }}>
-                  {t(`status:eventType.${e.eventType}`, { defaultValue: e.eventType })}
-                </Typography>
-                {(e.oldValue !== null || e.newValue !== null) && (
-                  <Typography variant="body2" color="text.secondary">
-                    {t('timelineFieldOldNew', {
-                      old: resolveTimelineValue(t, e.fieldName, e.oldValue) ?? t('notAvailable'),
-                      new: resolveTimelineValue(t, e.fieldName, e.newValue) ?? t('notAvailable'),
-                    })}
+          {events.map((e, i) => {
+            // Phase 7-H (Audit Timeline readability audit): a "—" Before
+            // paired with an Arrow read as a value having CHANGED FROM
+            // nothing, which is misleading for Create-type events (nothing
+            // "changed" - a value was simply set for the first time, e.g.
+            // ORDER_DRAFT_CREATED's newValue=draftNo with no real oldValue).
+            // The Arrow (an MUI icon, not the "→" character - visually
+            // distinct from surrounding text) now renders ONLY when BOTH
+            // sides resolve to a genuine value; a single-sided value (Create,
+            // or a Business event that only ever records one side) renders
+            // alone, with no placeholder dash and no Arrow. Event semantics
+            // (eventType/fieldName/oldValue/newValue as stored) are
+            // completely unchanged - this only touches how the same data is
+            // displayed.
+            const oldResolved = resolveTimelineValue(t, e.fieldName, e.oldValue)
+            const newResolved = resolveTimelineValue(t, e.fieldName, e.newValue)
+            return (
+              <Paper key={i} variant="outlined" sx={{ p: 1.5 }} data-testid={`timeline-event-${i}`}>
+                <Stack direction="row" spacing={2} sx={{ alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', minWidth: 200 }}>
+                    {t(`status:eventType.${e.eventType}`, { defaultValue: e.eventType })}
                   </Typography>
-                )}
-                <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                  {e.performedByDisplayName ?? e.performedBy} - {new Date(e.performedAt).toLocaleString('ja-JP')}
-                </Typography>
-              </Stack>
-            </Paper>
-          ))}
+                  {(oldResolved !== null || newResolved !== null) && (
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                      {oldResolved !== null && newResolved !== null ? (
+                        <>
+                          <Typography variant="body2" color="text.secondary">{oldResolved}</Typography>
+                          <ArrowForwardIcon fontSize="inherit" sx={{ color: 'text.secondary' }} data-testid="timeline-arrow-icon" />
+                          <Typography variant="body2" color="text.secondary">{newResolved}</Typography>
+                        </>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">{oldResolved ?? newResolved}</Typography>
+                      )}
+                    </Stack>
+                  )}
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                    {e.performedByDisplayName ?? e.performedBy} - {new Date(e.performedAt).toLocaleString('ja-JP')}
+                  </Typography>
+                </Stack>
+              </Paper>
+            )
+          })}
         </Stack>
       )}
 

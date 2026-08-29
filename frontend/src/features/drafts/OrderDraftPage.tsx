@@ -30,7 +30,7 @@ import { useSubmitForApproval } from './poPreviewApi'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
-import { resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
+import { resolveReturnTo, withBackTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_ADMIN } from '../../shared/types/auth'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
@@ -282,6 +282,20 @@ export function OrderDraftPage() {
             onChange={(e) => setOrderDate(e.target.value)}
             slotProps={{ inputLabel: { shrink: true }, input: { readOnly: !isEditable } }}
           />
+          {/* Phase 7-H (希望納期 required-ness audit): confirmed via Source
+              that Legacy's Official PO Excel Import DOES require a delivery
+              value (PrOfficialPoImportBatch - ERR_MSG_CELL_REQUIRED if
+              blank), but that Gate applies to a Legacy-side Import step this
+              Prototype never actually calls (no Official PO Import folder
+              writes, per this engagement's standing constraint) - Source
+              does NOT show any Portal-side Draft/Approval/Demo Send stage
+              requiring it today (OrderDraftPersistenceService/
+              OrderStatusTransitionService have zero validation on it).
+              Marked 任意 here to reflect that CONFIRMED-optional state
+              honestly, not left unlabeled - Business Rule NOT changed;
+              customer-review-decision-package.md D-9相当のCUSTOMER REVIEW
+              opens on whether Portal should require it earlier (see
+              completion report). */}
           <TextField
             label={t('drafts:requestedDelivery')}
             type="date"
@@ -289,6 +303,7 @@ export function OrderDraftPage() {
             value={requestedDelivery}
             onChange={(e) => setRequestedDelivery(e.target.value)}
             slotProps={{ inputLabel: { shrink: true }, input: { readOnly: !isEditable } }}
+            helperText={isEditable ? t('drafts:requestedDeliveryOptionalHint') : undefined}
           />
         </Stack>
         <TextField
@@ -386,7 +401,7 @@ export function OrderDraftPage() {
           )}
           <Button
             variant="outlined"
-            onClick={() => navigate(withReturnTo(`/orders/drafts/${draftId}/preview`, returnTo))}
+            onClick={() => navigate(withBackTo(withReturnTo(`/orders/drafts/${draftId}/preview`, returnTo), `/orders/drafts/${draftId}`))}
             data-testid="go-to-preview-button"
           >
             {t('drafts:preview')}

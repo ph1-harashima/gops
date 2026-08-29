@@ -82,7 +82,7 @@ test.describe('Phase 7-C1: Role / Approval Workflow', () => {
     await page.getByTestId('go-to-preview-button').click()
     await expect(page.getByTestId('edit-order-button')).toBeVisible()
     await expect(page.getByTestId('demo-send-button')).toHaveCount(0)
-    await page.getByRole('button', { name: 'Order Draftへ戻る' }).click()
+    await page.getByRole('button', { name: '発注ドラフトへ戻る' }).click()
 
     await submitForApproval(page, draftId)
 

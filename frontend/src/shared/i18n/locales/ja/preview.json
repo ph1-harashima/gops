@@ -1,6 +1,7 @@
 {
   "title": "PO プレビュー",
-  "back": "Order Draftへ戻る",
+  "backToDraft": "発注ドラフトへ戻る",
+  "backToOrderDetail": "発注詳細へ戻る",
   "notFound": "指定されたドラフトが見つかりませんでした。",
   "errorNoOrderableItems": "発注数量が1件以上設定されている商品がありません。Order Draftで発注数量を入力してください。",
   "errorMissingUnitPrice": "単価が取得できない商品があるため、Previewを表示できません。",

@@ -87,7 +87,7 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 
 ---
 
-## 3. Quick Reference（全72項目、Phase 7-D2分類つき。B-7〜B-14はPhase 7-E追加分）
+## 3. Quick Reference（全72項目、Phase 7-D2分類つき。B-7〜B-14はPhase 7-E追加分。A-7はPhase 7-H追加分だが、旧Appendix Iの1項目を移動・再整理したものであり総数への純増はない）
 
 凡例: **7-D2分類** = A(Source Confirmed) / B(Ernest Confirm) / C(Gulliver Current Operation) / D(Gulliver Future Decision)
 
@@ -103,6 +103,7 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 | A-5a | PO番号 | Initial POは現在も現役で使われているか | C | LATER | **B**（Ernest Q5） |
 | A-5b | PO番号 | Portalとして書き込む必要があるか | C | LATER | **D** |
 | A-6 | PO番号 | Import Error時の現在の運用 | C | LATER | **B**（Ernest Q6） |
+| A-7 | PO番号 | 希望納期（Delivery）をPortalのどのWorkflow段階で必須にすべきか | B | IMPORTANT | **D** |
 | B-1 | Approval | 管理者承認Workflowの採否・単位・否認時扱い・代行 | B | IMPORTANT | **D** |
 | B-2 | Approval | 海外Supplierの自己承認範囲 | C | LATER | **D** |
 | B-3 | Approval | ADMINがその場で修正して承認可能でよいか | B | IMPORTANT | **D** |
@@ -158,7 +159,7 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 | G-3 | Cancellation | APPROVED後のPortal側キャンセル可否 | C | LATER | **D** |
 | H-1 | Infrastructure | G-SYS Hosting・Import Folder Hosting・Network情報 | C | LATER | **B**（Ernest Q13） |
 | H-2 | Infrastructure | 既存Import Batchの起動Trigger・実行頻度 | A | BLOCKER | **B**（Ernest Q7） |
-| AppI-1〜7 | (Appendix I) | Phase 0由来のPrototype UI/計算仕様細部（7項目、13章参照） | C | LATER | **D**（全項目） |
+| AppI-1〜6 | (Appendix I) | Phase 0由来のPrototype UI/計算仕様細部（6項目、13章参照。Requested Deliveryの必須/任意はA-7へ移動済み） | C | LATER | **D**（全項目） |
 
 ---
 
@@ -249,6 +250,20 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 - **Current G-SYS Fact**: 該当する業務プロセス自体がSource上存在しない。
 - **Question**: 「G-SYSへの取込がエラーになった場合、現在は誰が気づいて対応していますか。」　**7-D2分類: B（Ernest Q6）**　**Timing**: C　**Blocker**: LATER
 - **Source**: official-po-integration-detailed-design 21章#7
+
+### A-7. 希望納期（Delivery）をPortalのどのWorkflow段階で必須にすべきか（Phase 7-H追加）
+
+- **Current G-SYS Fact（Source Confirmed）**: `PrOfficialPoImportBatch`/`PrInitialPoImportBatch`（同一Row/Col定数構造、`official-po-integration-detailed-design.md` 4章の比較表と同じSource）を確認した結果：
+  - **Official PO Import**: Delivery Week・Delivery Dateの両セルとも**必須**（空欄は`ERR_MSG_CELL_REQUIRED`でImport全体が失敗）。DB上（`TR_PO.DELIV_WEEK`/`DELIV_DATE`、Portal側`tr_po`ミラーでも同じ）は両方NULL許容だが、Import Validationレベルで事実上必須。
+  - **Initial PO Import**: Delivery Weekセルは値が必須だが、リテラルの文字列`"TBD"`のみ許可（実日付は拒否）。Delivery Dateセルは逆に**値があるとエラー**（`DELIVERY DATE IS NOT NEEDED IN INITIAL PO`）。
+  - **Portal自身の現状**: `OrderDraftPersistenceService`/`OrderStatusTransitionService`のいずれも`requestedDelivery`の必須Validationを一切持たない（`@NotNull`等のAnnotationも存在しない） - Draft保存・承認依頼・ADMIN承認・Demo Send、すべて未入力のまま通過可能（Source確認済み、Phase 7-H）。
+  - **A-5の既存結論との関係**: 4章の評価どおりPortalはInitial PO Integrationを行わない前提（`APPROVED → G-SYS OFFICIAL`のみ）のため、上記Initial PO側の制約（Delivery Date拒否）はPortalには直接関係しない。関係するのはOfficial PO Import側の必須制約のみ。
+  - **データ形式の非対称**: PortalのrequestedDeliveryは単一の実`Date`だが、LegacyのDelivery Weekは`"WK36"`のような週コード文字列、Delivery Dateは別列の自由記述文字列（`DELIV_DATE VARCHAR(50)`、実DATE型ではない） - 1:1対応しない。
+- **Question**: 「①Portal側で希望納期を入力必須にすべきタイミングはどこか（Draft保存時／承認依頼時／ADMIN承認時／G-SYS Integration Prep時のいずれか、それとも現状どおり任意のままでよいか）。②必須にする場合、LegacyのDelivery Week（週コード）／Delivery Date（自由記述日付）という2フィールド形式と、Portalの単一Dateフィールドをどう対応付けるべきか。」
+- **7-D2分類**: **D（Gulliver Future Decision）** - Legacy側の必須制約自体はSourceで確定済みだが、それをPortal自身のどのWorkflow段階で・どの形式で反映すべきかは業務判断であり、Sourceだけでは決定できない。
+- **Timing**: B（9/17デモ当日に確認 - Prototypeは現状の任意のまま見せられるが、Official PO Integration実装（7-C2B相当）に進む前に確定したい）　**Blocker**: IMPORTANT
+- **今回の対応（Phase 7-H）**: 上記の理由によりPortal側のValidationは追加していない（勝手な必須化はしない、というPhase 7-H自身の指示に従った）。Order Draft画面の希望納期入力欄に「任意項目です」というHelper Textのみ追加し、現在の実際の挙動（未入力でも進める）を正直に表示する変更のみ実施。
+- **Source**: `PrOfficialPoImportBatch.java`（Row/Col 14,3〜14,4）／`PrInitialPoImportBatch.java`（同座標）／`official-po-integration-detailed-design.md` 4章／`OrderDraftPersistenceService.java`／`OrderStatusTransitionService.java`
 
 ---
 
@@ -515,9 +530,9 @@ Theme Hの2項目はいずれも技術的な環境情報であり、**Gulliver�
 
 ## 13. Appendix I: Phase 0/0.5由来の未決事項
 
-Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（7項目）。いずれもPrototypeは暫定値で正常に動作しており、9/17デモの成立を妨げない。**全項目 7-D2分類: D（Gulliver Future Decision、LATER）** — Portal UI・計算方針そのものの採否であり、Ernestの技術保守範囲でもGulliverの現行業務運用でもなく、純粋にPortalの仕様として将来決めればよい事項のため。
+Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（6項目）。いずれもPrototypeは暫定値で正常に動作しており、9/17デモの成立を妨げない。**全項目 7-D2分類: D（Gulliver Future Decision、LATER）** — Portal UI・計算方針そのものの採否であり、Ernestの技術保守範囲でもGulliverの現行業務運用でもなく、純粋にPortalの仕様として将来決めればよい事項のため。
 
-- Requested Deliveryの必須/任意
+- ~~Requested Deliveryの必須/任意~~ → **A-7へ格上げ・移動済み（Phase 7-H）**。Source監査の結果、単なるPortal UI仕様の話ではなく、Legacy Official PO Importの実際の必須制約（`PrOfficialPoImportBatch`）に根ざした論点であることが判明したため、Theme A（PO番号・Official PO）側で詳細なFact/Questionとして再整理した。Timingも当初のLATERからIMPORTANTへ引き上げている。5章A-7参照。
 - 現行Formula（`calc4`）を新画面でもそのまま利用する方針の妥当性
 - `calc4Alt`を通常画面に表示するか
 - Recommended Qty乖離Warningの正式な閾値
@@ -539,6 +554,7 @@ Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（7項
 | A-4 | target-production#12／7-A#7／official-po-integration-detailed-design#4／excel-legacy-concurrency-control |
 | A-5 | official-po-integration-detailed-design#5 |
 | A-6 | official-po-integration-detailed-design#7 |
+| A-7 | PrOfficialPoImportBatch.java／PrInitialPoImportBatch.java／official-po-integration-detailed-design#4（Phase 7-H新規。旧Appendix Iの「Requested Deliveryの必須/任意」を統合） |
 | B-1〜B-6 | target-production#2,#3／7-A#1／role-approval-implementation／supplier-response-revision-workflow |
 | B-7〜B-14 | Phase 7-E PortalUser仕様調査（本Doc初出、他Docからの統合ではない）／target-production17章（B-12,B-13,B-14） |
 | C-1〜C-9 | supplier-contact-mail-template-foundation（8項目）／target-production#11,#13／7-A#6 |
@@ -557,14 +573,14 @@ Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（7項
 
 - 全47項目（Theme A-H）＋Appendix I 7項目 ＝ 計54項目。Timing=A（9/17前必須）は11項目、Blocker=BLOCKERは9項目。
 
-### 15.2 Phase 7-D2時点＋Phase 7-E追加後（4分類軸、72項目）
+### 15.2 Phase 7-D2時点＋Phase 7-E/7-H追加後（4分類軸、72項目）
 
 | 分類 | 件数 | 質問先 |
 |---|---|---|
 | **A. SOURCE CONFIRMED** | **0** | なし（詳細は15.3参照） |
 | **B. PHASE1 / ERNEST CONFIRM** | **13** | `docs/ernest-current-operation-question-sheet.md` |
 | **C. GULLIVER CURRENT OPERATION CONFIRM** | **8** | Gulliver（現行業務の事実確認） |
-| **D. GULLIVER FUTURE DECISION** | **51**（Phase 7-D2時点43 ＋ Phase 7-E追加分B-7〜B-14の8） | Gulliver（将来方針の意思決定） |
+| **D. GULLIVER FUTURE DECISION** | **51**（Phase 7-D2時点43 ＋ Phase 7-E追加分B-7〜B-14の8。Phase 7-Hで旧Appendix Iの1項目をA-7として再整理したが、D内での移動のため総数は変わらない） | Gulliver（将来方針の意思決定） |
 | **合計** | **72** | |
 
 ### 15.3 なぜ「A. SOURCE CONFIRMED」が0件なのか
@@ -590,7 +606,7 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 ### 15.6 Ernest確認後も確実にGulliver判断が必要な項目
 
 - **C. GULLIVER CURRENT OPERATION CONFIRM（8件）**: Ernestが技術保守担当として確定できない、Gulliver社の業務運用・組織構造に関する事実（例: メーカー担当者のBrand別割当、複数宛先送信の実際の運用、欠品/廃番の業務定義）。Ernestに聞いても解決しない可能性が高いため、最初からGulliver向けとして扱う。
-- **D. GULLIVER FUTURE DECISION（51件、うちAppendix I 7件、Phase 7-E追加分B-7〜B-14の8件含む）**: Portal導入後の新しい業務ルール・権限・運用方針そのものであり、これは「事実確認」ではなく「意思決定」であるため、Ernestが何を答えても消えない。Gulliverの最終承認が必須。
+- **D. GULLIVER FUTURE DECISION（51件、うちAppendix I 6件＋Theme A側のA-7として再整理された1件、Phase 7-E追加分B-7〜B-14の8件含む）**: Portal導入後の新しい業務ルール・権限・運用方針そのものであり、これは「事実確認」ではなく「意思決定」であるため、Ernestが何を答えても消えない。Gulliverの最終承認が必須。
 - **合計 59件が、Ernest確認後も確実にGulliverへの確認が必要な項目数。**
 
 ### 15.7 「件数を減らすこと」自体を目的にしない

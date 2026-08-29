@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
@@ -30,7 +30,10 @@ import type { OrderHistoryFilter } from './api'
 // row to APPROVED, and no code writes it going forward). It stays
 // translatable in status.json only for historical Audit Timeline entries.
 const STATUS_OPTIONS = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'AWAITING_SUPPLIER', 'SUPPLIER_CONFIRMED']
-const FILTER_PARAMS = ['supplierCode', 'brandCode', 'status'] as const
+// Phase 7-H (Order List search/filter audit): orderNoKeyword/itemKeyword/
+// updatedFrom/updatedTo added the same way as the existing 3 - real Backend
+// query params (OrderHistoryService.list), not a client-only display Filter.
+const FILTER_PARAMS = ['supplierCode', 'brandCode', 'status', 'orderNoKeyword', 'itemKeyword', 'updatedFrom', 'updatedTo'] as const
 
 /** Read-only glance badges for the list view (no Acknowledge action here -
  * that lives on Order History Detail / Supplier Response, implementation
@@ -66,7 +69,21 @@ export function OrderHistoryListPage() {
     supplierCode: searchParams.get('supplierCode') ?? undefined,
     brandCode: searchParams.get('brandCode') ?? undefined,
     status: searchParams.get('status') ?? undefined,
+    orderNoKeyword: searchParams.get('orderNoKeyword') ?? undefined,
+    itemKeyword: searchParams.get('itemKeyword') ?? undefined,
+    updatedFrom: searchParams.get('updatedFrom') ?? undefined,
+    updatedTo: searchParams.get('updatedTo') ?? undefined,
   }
+  // Phase 7-H: same "local input state, commit to the URL on blur/Enter"
+  // idiom as CandidateListPage's Keyword field - typing a keyword must not
+  // fire a fresh Backend request on every keystroke.
+  const [orderNoKeywordInput, setOrderNoKeywordInput] = useState(filter.orderNoKeyword ?? '')
+  const [itemKeywordInput, setItemKeywordInput] = useState(filter.itemKeyword ?? '')
+
+  useEffect(() => {
+    setOrderNoKeywordInput(searchParams.get('orderNoKeyword') ?? '')
+    setItemKeywordInput(searchParams.get('itemKeyword') ?? '')
+  }, [searchParams])
 
   function updateFilter(patch: Partial<OrderHistoryFilter>) {
     setSearchParams(
@@ -179,6 +196,46 @@ export function OrderHistoryListPage() {
             <MenuItem key={s} value={s}>{t(`status:orderStatus.${s}`)}</MenuItem>
           ))}
         </TextField>
+        <TextField
+          size="small"
+          label={t('filter.orderNoKeyword')}
+          placeholder={t('filter.orderNoKeywordPlaceholder') ?? undefined}
+          sx={{ minWidth: 220 }}
+          value={orderNoKeywordInput}
+          onChange={(e) => setOrderNoKeywordInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && updateFilter({ orderNoKeyword: orderNoKeywordInput || undefined })}
+          onBlur={() => updateFilter({ orderNoKeyword: orderNoKeywordInput || undefined })}
+          data-testid="order-no-keyword-input"
+        />
+        <TextField
+          size="small"
+          label={t('filter.itemKeyword')}
+          placeholder={t('filter.itemKeywordPlaceholder') ?? undefined}
+          sx={{ minWidth: 220 }}
+          value={itemKeywordInput}
+          onChange={(e) => setItemKeywordInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && updateFilter({ itemKeyword: itemKeywordInput || undefined })}
+          onBlur={() => updateFilter({ itemKeyword: itemKeywordInput || undefined })}
+          data-testid="item-keyword-input"
+        />
+        <TextField
+          label={t('filter.updatedFrom')}
+          type="date"
+          size="small"
+          value={filter.updatedFrom ?? ''}
+          onChange={(e) => updateFilter({ updatedFrom: e.target.value || undefined })}
+          slotProps={{ inputLabel: { shrink: true } }}
+          data-testid="updated-from-input"
+        />
+        <TextField
+          label={t('filter.updatedTo')}
+          type="date"
+          size="small"
+          value={filter.updatedTo ?? ''}
+          onChange={(e) => updateFilter({ updatedTo: e.target.value || undefined })}
+          slotProps={{ inputLabel: { shrink: true } }}
+          data-testid="updated-to-input"
+        />
         <FormControlLabel
           control={
             <Checkbox

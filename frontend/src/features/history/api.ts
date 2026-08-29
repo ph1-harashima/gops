@@ -6,6 +6,14 @@ export interface OrderHistoryFilter {
   supplierCode?: string
   brandCode?: string
   status?: string
+  // Phase 7-H (Order List search/filter audit): same Backend query param
+  // pattern as supplierCode/brandCode/status above - Backend does the
+  // actual filtering (OrderHistoryService.list), not a Frontend fetch-all +
+  // client filter, consistent with the existing 3.
+  orderNoKeyword?: string
+  itemKeyword?: string
+  updatedFrom?: string
+  updatedTo?: string
 }
 
 async function fetchHistory(filter: OrderHistoryFilter): Promise<OrderHistorySummary[]> {
@@ -14,6 +22,10 @@ async function fetchHistory(filter: OrderHistoryFilter): Promise<OrderHistorySum
       supplierCode: filter.supplierCode || undefined,
       brandCode: filter.brandCode || undefined,
       status: filter.status || undefined,
+      orderNoKeyword: filter.orderNoKeyword || undefined,
+      itemKeyword: filter.itemKeyword || undefined,
+      updatedFrom: filter.updatedFrom || undefined,
+      updatedTo: filter.updatedTo || undefined,
     },
   })
   return data

@@ -47,7 +47,7 @@ class OrderHistoryServiceIntegrationTest {
     void listIncludesCreatedOrderAndIsReadOnly() {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
 
-        List<OrderHistorySummaryResponse> list = orderHistoryService.list(null, null, null);
+        List<OrderHistorySummaryResponse> list = orderHistoryService.list(null, null, null, null, null, null, null);
 
         assertTrue(list.stream().anyMatch(o -> o.id().equals(draft.id())));
     }
@@ -56,11 +56,53 @@ class OrderHistoryServiceIntegrationTest {
     void listFiltersBySupplierBrandAndStatus() {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
 
-        List<OrderHistorySummaryResponse> matched = orderHistoryService.list("SUP_ALPHA", "BR_OUTDOOR", "DRAFT");
-        List<OrderHistorySummaryResponse> unmatched = orderHistoryService.list("SUP_BETA", null, null);
+        List<OrderHistorySummaryResponse> matched = orderHistoryService.list("SUP_ALPHA", "BR_OUTDOOR", "DRAFT", null, null, null, null);
+        List<OrderHistorySummaryResponse> unmatched = orderHistoryService.list("SUP_BETA", null, null, null, null, null, null);
 
         assertTrue(matched.stream().anyMatch(o -> o.id().equals(draft.id())));
         assertTrue(unmatched.stream().noneMatch(o -> o.id().equals(draft.id())));
+    }
+
+    /** Phase 7-H (Order List search/filter audit). */
+    @Test
+    void listFiltersByOrderNoKeyword() {
+        OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+
+        // draftNo is always assigned at creation - matches on a substring,
+        // case-insensitively.
+        String keywordFragment = draft.draftNo().substring(0, 8).toLowerCase(java.util.Locale.ROOT);
+        List<OrderHistorySummaryResponse> matched = orderHistoryService.list(null, null, null, keywordFragment, null, null, null);
+        List<OrderHistorySummaryResponse> unmatched = orderHistoryService.list(null, null, null, "NO-SUCH-ORDER-NUMBER", null, null, null);
+
+        assertTrue(matched.stream().anyMatch(o -> o.id().equals(draft.id())));
+        assertTrue(unmatched.stream().noneMatch(o -> o.id().equals(draft.id())));
+    }
+
+    /** Phase 7-H (Order List search/filter audit). */
+    @Test
+    void listFiltersByItemKeyword() {
+        OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+
+        List<OrderHistorySummaryResponse> matchedBySku = orderHistoryService.list(null, null, null, null, "od-tent-001", null, null);
+        List<OrderHistorySummaryResponse> unmatched = orderHistoryService.list(null, null, null, null, "NO-SUCH-ITEM", null, null);
+
+        assertTrue(matchedBySku.stream().anyMatch(o -> o.id().equals(draft.id())));
+        assertTrue(unmatched.stream().noneMatch(o -> o.id().equals(draft.id())));
+    }
+
+    /** Phase 7-H (Order List search/filter audit). */
+    @Test
+    void listFiltersByUpdatedDateRange() {
+        OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+        java.time.LocalDate today = java.time.LocalDate.now();
+
+        List<OrderHistorySummaryResponse> withinRange = orderHistoryService.list(null, null, null, null, null, today, today);
+        List<OrderHistorySummaryResponse> beforeRange = orderHistoryService.list(null, null, null, null, null, null, today.minusDays(1));
+        List<OrderHistorySummaryResponse> afterRange = orderHistoryService.list(null, null, null, null, null, today.plusDays(1), null);
+
+        assertTrue(withinRange.stream().anyMatch(o -> o.id().equals(draft.id())));
+        assertTrue(beforeRange.stream().noneMatch(o -> o.id().equals(draft.id())));
+        assertTrue(afterRange.stream().noneMatch(o -> o.id().equals(draft.id())));
     }
 
     @Test

@@ -12,6 +12,7 @@ export interface FollowUpCase {
   reason: string
   note: string | null
   createdBy: string
+  createdByDisplayName: string | null
   createdAt: string
   updatedBy: string
   updatedAt: string

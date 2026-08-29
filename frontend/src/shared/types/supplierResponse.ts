@@ -63,8 +63,10 @@ export interface SupplierResponse {
   isCurrent: boolean
   differences: ResponseDifference[]
   agreedBy: string | null
+  agreedByDisplayName: string | null
   agreedAt: string | null
   reopenedBy: string | null
+  reopenedByDisplayName: string | null
   reopenedAt: string | null
   reopenReason: string | null
 }
@@ -97,6 +99,7 @@ export interface OrderRevisionSummary {
   revisionType: 'INITIAL' | 'CORRECTION'
   reason: string | null
   createdBy: string
+  createdByDisplayName: string | null
   createdAt: string
   lines: OrderRevisionLine[]
 }
@@ -110,8 +113,10 @@ export interface SupplierResponseHistoryEntry {
   responseStatus: string
   isCurrent: boolean
   agreedBy: string | null
+  agreedByDisplayName: string | null
   agreedAt: string | null
   reopenedBy: string | null
+  reopenedByDisplayName: string | null
   reopenedAt: string | null
   reopenReason: string | null
 }

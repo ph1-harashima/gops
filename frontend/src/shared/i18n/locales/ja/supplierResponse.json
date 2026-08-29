@@ -23,6 +23,7 @@
     "itemName": "商品名",
     "orderedQty": "発注数量",
     "confirmedQty": "回答数量",
+    "confirmedQtyRequiredHint": "この列は「メーカー回答を確定」に必須です。全SKU分を入力（0でも可）してから確定してください。他の項目（回答納期・メモ・供給状況・回答日）は任意です。",
     "requestedDelivery": "希望納期",
     "confirmedDelivery": "回答納期",
     "responseNote": "回答理由・メモ",

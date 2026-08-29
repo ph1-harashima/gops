@@ -357,7 +357,20 @@ export function SupplierResponsePage() {
               <TableCell>{t('table.sku')}</TableCell>
               <TableCell>{t('table.itemName')}</TableCell>
               <TableCell align="right">{t('table.orderedQty')}</TableCell>
-              <TableCell align="right">{t('table.confirmedQty')}</TableCell>
+              {/* Phase 7-H (Supplier Response必須項目監査): confirmedQty is
+                  the ONLY field SupplierResponseService.confirmSupplierResponse
+                  actually requires (every non-removed line non-null) before
+                  "メーカー回答を確定" succeeds - responseDate/
+                  confirmedDelivery/responseNote/supplyStatus have zero
+                  requiredness anywhere in Source (Backend or current
+                  Frontend), so only this column gets a required marker;
+                  the others intentionally stay unmarked (任意) rather than
+                  guessing a new requirement Source doesn't show. */}
+              <TableCell align="right">
+                <Tooltip title={t('table.confirmedQtyRequiredHint')}>
+                  <span>{t('table.confirmedQty')} *</span>
+                </Tooltip>
+              </TableCell>
               <TableCell>{t('table.requestedDelivery')}</TableCell>
               <TableCell>{t('table.confirmedDelivery')}</TableCell>
               <TableCell>{t('table.responseNote')}</TableCell>
@@ -531,7 +544,7 @@ export function SupplierResponsePage() {
         <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="agreed-section">
           <Typography variant="subtitle1" gutterBottom>{t('agreement.title')}</Typography>
           <Typography variant="body2" data-testid="agreed-info">
-            {t('agreement.agreedInfo', { by: response.agreedBy, at: response.agreedAt ? new Date(response.agreedAt).toLocaleString('ja-JP') : '' })}
+            {t('agreement.agreedInfo', { by: response.agreedByDisplayName ?? response.agreedBy, at: response.agreedAt ? new Date(response.agreedAt).toLocaleString('ja-JP') : '' })}
           </Typography>
           {isAdmin ? (
             <Button
@@ -564,7 +577,7 @@ export function SupplierResponsePage() {
                   {h.isCurrent ? ` (${t('history.current')})` : ''}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">{h.responseStatus}</Typography>
-                {h.agreedBy && <Typography variant="caption" color="text.secondary">{t('history.agreedBy', { by: h.agreedBy })}</Typography>}
+                {h.agreedBy && <Typography variant="caption" color="text.secondary">{t('history.agreedBy', { by: h.agreedByDisplayName ?? h.agreedBy })}</Typography>}
               </Stack>
             ))}
           </Stack>

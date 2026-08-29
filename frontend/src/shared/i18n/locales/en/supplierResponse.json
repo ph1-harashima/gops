@@ -23,6 +23,7 @@
     "itemName": "Item Name",
     "orderedQty": "Ordered Qty",
     "confirmedQty": "Confirmed Qty",
+    "confirmedQtyRequiredHint": "This column is required to \"Confirm Supplier Response\" - enter a value (0 is allowed) for every SKU before confirming. Every other field (Confirmed Delivery, Note, Supply Status, Response Date) is optional.",
     "requestedDelivery": "Requested Delivery",
     "confirmedDelivery": "Confirmed Delivery",
     "responseNote": "Response Note",

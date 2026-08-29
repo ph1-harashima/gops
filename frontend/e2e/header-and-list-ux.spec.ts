@@ -51,7 +51,7 @@ test.describe('Phase 7-F: Global Header hierarchy', () => {
     const navArea = page.getByTestId('header-nav-area')
     const userArea = page.getByTestId('header-user-area')
     await expect(navArea.getByTestId('nav-master-maintenance')).toBeVisible()
-    await expect(userArea.getByTestId('current-user-display')).toHaveText('購買管理者（デモ）')
+    await expect(userArea.getByTestId('current-user-display')).toHaveText('鈴木 花子')
     await expect(userArea.getByTestId('current-user-role')).toHaveText('管理者')
     await expect(userArea.getByTestId('nav-logout')).toBeVisible()
     // All three sit inside the SAME User Area container, not scattered

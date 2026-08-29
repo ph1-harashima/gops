@@ -87,9 +87,11 @@ test.describe('Phase 7-C2A: Official PO Integration Foundation', () => {
     await expect(page.getByTestId('official-po-no-unassigned-note')).toBeVisible()
     await expect(page.getByTestId('preflight-result')).toBeVisible()
     // Scoped to the Preflight Section, not the whole page - the Audit
-    // Timeline below also renders "— → PASS" for the same PRECHECK_COMPLETED
-    // event's oldValue/newValue pair, which a page-wide getByText('PASS')
-    // would collide with.
+    // Timeline below also renders "PASS" (Phase 7-H: no Arrow, no "—" - a
+    // Create-shaped event with only one side of a value, since
+    // PRECHECK_COMPLETED has no real "before") for the same
+    // PRECHECK_COMPLETED event, which a page-wide getByText('PASS') would
+    // collide with.
     await expect(page.getByTestId('preflight-result').getByText('PASS')).toBeVisible()
   })
 

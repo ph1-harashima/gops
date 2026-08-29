@@ -25,7 +25,7 @@ import DialogActions from '@mui/material/DialogActions'
 
 import { usePoPreview, useReturnToDraft, useDemoSend } from './poPreviewApi'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
-import { withReturnTo } from '../../shared/navigation/returnTo'
+import { resolveBackTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_ADMIN } from '../../shared/types/auth'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
@@ -59,7 +59,19 @@ export function PoPreviewPage() {
   // 9章). Demo Send's own post-success navigation is unchanged this Phase
   // (that redesign is Phase 6-C, out of scope here).
   const returnTo = searchParams.get('returnTo')
-  const draftPath = withReturnTo(`/orders/drafts/${draftId}`, returnTo)
+  // editPath: "発注内容を修正" always means "go edit the Draft", regardless
+  // of which screen linked to this Preview - unaffected by backTo below.
+  const editPath = withReturnTo(`/orders/drafts/${draftId}`, returnTo)
+  // Phase 7-H (PO Preview Navigation audit): 戻る previously always reused
+  // editPath (the Draft screen), even when Order Detail was the actual
+  // caller (発注一覧 -> 発注詳細 -> PO Preview -> "戻る" landed on the Draft,
+  // not back on 発注詳細 - confirmed Root Cause via Source, not assumption).
+  // backTo (shared/navigation/returnTo.ts) now carries whichever screen
+  // actually linked here; a missing backTo (a stale/bookmarked Preview URL
+  // from before this fix) falls back to the old Draft-path behavior.
+  const backTo = resolveBackTo(searchParams.get('backTo'), `/orders/drafts/${draftId}`)
+  const backPath = withReturnTo(backTo, returnTo)
+  const backLabel = backTo.startsWith('/orders/drafts/') ? t('backToDraft') : t('backToOrderDetail')
 
   const { user } = useAuth()
   const isAdmin = user?.role === ROLE_ADMIN
@@ -79,11 +91,11 @@ export function PoPreviewPage() {
   function handleEditOrder() {
     if (preview?.status === 'APPROVED') {
       returnMutation.mutate(undefined, {
-        onSuccess: () => navigate(draftPath),
+        onSuccess: () => navigate(editPath),
       })
       return
     }
-    navigate(draftPath)
+    navigate(editPath)
   }
 
   function handleDemoSend() {
@@ -130,8 +142,8 @@ export function PoPreviewPage() {
       'errorGeneric'
     return (
       <Box sx={{ p: 3 }}>
-        <Button onClick={() => navigate(draftPath)} sx={{ mb: 2 }}>
-          {t('back')}
+        <Button onClick={() => navigate(backPath)} sx={{ mb: 2 }}>
+          {backLabel}
         </Button>
         <Alert
           severity="error"
@@ -152,7 +164,7 @@ export function PoPreviewPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
-        <Button onClick={() => navigate(draftPath)}>{t('back')}</Button>
+        <Button onClick={() => navigate(backPath)}>{backLabel}</Button>
         <Typography variant="h5" component="h1">
           {t('title')} - {preview.draftNo}
         </Typography>
