@@ -1,5 +1,7 @@
 {
   "filter": {
-    "recommendedOnly": "Show recommended only"
+    "recommendedOnly": "Show recommended only",
+    "outOfStockOnly": "Show out of stock only",
+    "longTermOutOfStockOnly": "Show long-term out of stock only"
   }
 }

@@ -8,10 +8,13 @@ import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import Stack from '@mui/material/Stack'
+import Divider from '@mui/material/Divider'
 import CircularProgress from '@mui/material/CircularProgress'
 import Box from '@mui/material/Box'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
+import PersonIcon from '@mui/icons-material/Person'
+import LogoutIcon from '@mui/icons-material/Logout'
 
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { CandidateListPage } from '../features/candidates/CandidateListPage'
@@ -52,8 +55,20 @@ export function App() {
     location.pathname === '/admin/supplier-contacts' || location.pathname === '/admin/mail-templates'
   const [masterMenuAnchor, setMasterMenuAnchor] = useState<HTMLElement | null>(null)
 
+  const roleLabel = user ? t(`drafts:roleLabel.${user.role}`, { defaultValue: user.role }) : ''
+
   return (
-    <>
+    // Phase 7-F Header/List UX Audit: the whole App shell is a fixed-height
+    // flex column now (AppBar/banner as non-scrolling flex items, routed
+    // content as the single flex:1/overflow:auto region below them) so that
+    // every list screen's MUI `stickyHeader` Table sticks correctly against
+    // ITS nearest scrolling ancestor (this Box) without ever needing to
+    // coordinate pixel offsets against the Header's own height - the Header
+    // is simply never inside the scrolling region, so it can't be scrolled
+    // under or overlapped by a sticky Table header. Previously this Box
+    // didn't exist and `<AppBar position="static">` scrolled away with the
+    // rest of the page like any other content.
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppBar position="static" color="default" elevation={1}>
         <Toolbar variant="dense">
           <Typography variant="h6" component="div" sx={{ mr: 1 }}>
@@ -65,82 +80,120 @@ export function App() {
           <Chip size="small" variant="outlined" color="warning" label={t('demoEnvironmentBadge')} data-testid="demo-environment-badge" />
           <Box sx={{ flexGrow: 1 }} />
           {user && (
-            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-              <Button
-                size="small"
-                component={Link}
-                to="/"
-                color={location.pathname === '/' ? 'primary' : 'inherit'}
-                data-testid="nav-dashboard"
-              >
-                {t('navDashboard')}
-              </Button>
-              <Button
-                size="small"
-                component={Link}
-                to="/candidates"
-                color={location.pathname === '/candidates' ? 'primary' : 'inherit'}
-                data-testid="nav-candidates"
-              >
-                {t('navCandidates')}
-              </Button>
-              <Button
-                size="small"
-                component={Link}
-                to="/orders/history"
-                color={isHistorySection ? 'primary' : 'inherit'}
-                data-testid="nav-history"
-              >
-                {t('navHistory')}
-              </Button>
-              {/* Phase 7-C3 12章 / Phase 7-E Section 6: ADMIN-only Master
-                  management, now grouped under one submenu. Backend also
-                  enforces this (403 for OPERATOR on every underlying API
-                  call) - hiding the Nav entry is UX convenience, not the
-                  access control. */}
-              {isAdmin && (
-                <>
-                  <Button
+            <>
+              {/* Phase 7-F Header UX Audit: Navigation Area - business/admin
+                  menu links only. Deliberately separated (Divider below)
+                  from the User/Session Area so the two groups are never
+                  visually confused with each other (found during manual
+                  review: all 7 items - 4 Nav links, user name, Role, Logout
+                  - previously rendered in one undifferentiated row). */}
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }} data-testid="header-nav-area">
+                <Button
+                  size="small"
+                  component={Link}
+                  to="/"
+                  color={location.pathname === '/' ? 'primary' : 'inherit'}
+                  data-testid="nav-dashboard"
+                >
+                  {t('navDashboard')}
+                </Button>
+                <Button
+                  size="small"
+                  component={Link}
+                  to="/candidates"
+                  color={location.pathname === '/candidates' ? 'primary' : 'inherit'}
+                  data-testid="nav-candidates"
+                >
+                  {t('navCandidates')}
+                </Button>
+                <Button
+                  size="small"
+                  component={Link}
+                  to="/orders/history"
+                  color={isHistorySection ? 'primary' : 'inherit'}
+                  data-testid="nav-history"
+                >
+                  {t('navHistory')}
+                </Button>
+                {/* Phase 7-C3 12章 / Phase 7-E Section 6: ADMIN-only Master
+                    management, grouped under one submenu. Backend also
+                    enforces this (403 for OPERATOR on every underlying API
+                    call) - hiding the Nav entry is UX convenience, not the
+                    access control. */}
+                {isAdmin && (
+                  <>
+                    <Button
+                      size="small"
+                      color={isMasterMaintenanceSection ? 'primary' : 'inherit'}
+                      onClick={(e) => setMasterMenuAnchor(e.currentTarget)}
+                      data-testid="nav-master-maintenance"
+                    >
+                      {t('navMasterMaintenance')}
+                    </Button>
+                    <Menu anchorEl={masterMenuAnchor} open={Boolean(masterMenuAnchor)} onClose={() => setMasterMenuAnchor(null)}>
+                      <MenuItem
+                        component={Link}
+                        to="/admin/supplier-contacts"
+                        selected={location.pathname === '/admin/supplier-contacts'}
+                        onClick={() => setMasterMenuAnchor(null)}
+                        data-testid="nav-admin-supplier-contacts"
+                      >
+                        {t('navAdminSupplierContacts')}
+                      </MenuItem>
+                      <MenuItem
+                        component={Link}
+                        to="/admin/mail-templates"
+                        selected={location.pathname === '/admin/mail-templates'}
+                        onClick={() => setMasterMenuAnchor(null)}
+                        data-testid="nav-admin-mail-templates"
+                      >
+                        {t('navAdminMailTemplates')}
+                      </MenuItem>
+                    </Menu>
+                  </>
+                )}
+              </Stack>
+
+              <Divider orientation="vertical" flexItem sx={{ mx: 2, my: 1 }} data-testid="header-area-divider" />
+
+              {/* Phase 7-F Header UX Audit: User/Session Area - a single
+                  visual group (Icon + Name + Role Badge + Logout), separated
+                  from Navigation by the Divider above. The Role is a
+                  non-interactive filled Chip (no onClick, no href, no Link
+                  styling) so it reads as a status badge, never as another
+                  clickable Menu Item next to it - the exact confusion this
+                  audit's manual review flagged ("購買担当（デモ） 購買担当"
+                  previously rendered as two adjacent, same-looking text
+                  runs). User name itself is plain Typography (not a Link/
+                  Button) since it has no click behavior this Phase - per
+                  the audit's own instruction, a non-interactive label must
+                  never be styled to look clickable. */}
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }} data-testid="header-user-area">
+                <PersonIcon fontSize="small" color="action" />
+                <Stack spacing={0.25} sx={{ lineHeight: 1.1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.2 }} data-testid="current-user-display">
+                    {user.displayName}
+                  </Typography>
+                  <Chip
                     size="small"
-                    color={isMasterMaintenanceSection ? 'primary' : 'inherit'}
-                    onClick={(e) => setMasterMenuAnchor(e.currentTarget)}
-                    data-testid="nav-master-maintenance"
-                  >
-                    {t('navMasterMaintenance')}
-                  </Button>
-                  <Menu anchorEl={masterMenuAnchor} open={Boolean(masterMenuAnchor)} onClose={() => setMasterMenuAnchor(null)}>
-                    <MenuItem
-                      component={Link}
-                      to="/admin/supplier-contacts"
-                      selected={location.pathname === '/admin/supplier-contacts'}
-                      onClick={() => setMasterMenuAnchor(null)}
-                      data-testid="nav-admin-supplier-contacts"
-                    >
-                      {t('navAdminSupplierContacts')}
-                    </MenuItem>
-                    <MenuItem
-                      component={Link}
-                      to="/admin/mail-templates"
-                      selected={location.pathname === '/admin/mail-templates'}
-                      onClick={() => setMasterMenuAnchor(null)}
-                      data-testid="nav-admin-mail-templates"
-                    >
-                      {t('navAdminMailTemplates')}
-                    </MenuItem>
-                  </Menu>
-                </>
-              )}
-              <Typography variant="body2" data-testid="current-user-display">
-                {user.displayName}
-                {/* Phase 7-C1 19章: Role must be visible on every screen, not
-                    just this Header - existing Layout is otherwise untouched. */}
-                {' '}
-                <Chip size="small" variant="outlined" label={t(`drafts:roleLabel.${user.role}`, { defaultValue: user.role })} data-testid="current-user-role" />
-              </Typography>
-              <Button size="small" onClick={() => void logout()} data-testid="nav-logout">
-                {t('logout')}
-              </Button>
-            </Stack>
+                    variant="filled"
+                    color={isAdmin ? 'secondary' : 'default'}
+                    label={roleLabel}
+                    data-testid="current-user-role"
+                    sx={{ height: 18, fontSize: '0.7rem', '& .MuiChip-label': { px: 0.75 } }}
+                  />
+                </Stack>
+                <Button
+                  size="small"
+                  onClick={() => void logout()}
+                  startIcon={<LogoutIcon fontSize="small" />}
+                  data-testid="nav-logout"
+                  sx={{ ml: 1 }}
+                >
+                  {t('logout')}
+                </Button>
+              </Stack>
+            </>
           )}
         </Toolbar>
       </AppBar>
@@ -148,32 +201,34 @@ export function App() {
         {t('demoEnvironmentBanner')}
       </Alert>
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
-          <CircularProgress />
-        </Box>
-      ) : !user ? (
-        <LoginPage />
-      ) : (
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/candidates" element={<CandidateListPage />} />
-          <Route path="/items/:sku" element={<SkuDetailPage />} />
-          <Route path="/orders/drafts/:id" element={<OrderDraftPage />} />
-          <Route path="/orders/drafts/:id/preview" element={<PoPreviewPage />} />
-          <Route path="/orders/:id/supplier-response" element={<SupplierResponsePage />} />
-          <Route path="/orders/history" element={<OrderHistoryListPage />} />
-          <Route path="/orders/:id" element={<OrderHistoryDetailPage />} />
-          {/* Phase 7-C3 12章: Backend enforces ADMIN-only on every
-              underlying API (403 for OPERATOR) regardless of this Route
-              being reachable - no client-side route guard is the sole
-              control here, matching 13章/17章's convention throughout this
-              engagement. */}
-          <Route path="/admin/supplier-contacts" element={<SupplierContactPage />} />
-          <Route path="/admin/mail-templates" element={<MailTemplatePage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      )}
-    </>
+      <Box sx={{ flex: 1, overflow: 'auto' }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
+            <CircularProgress />
+          </Box>
+        ) : !user ? (
+          <LoginPage />
+        ) : (
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/candidates" element={<CandidateListPage />} />
+            <Route path="/items/:sku" element={<SkuDetailPage />} />
+            <Route path="/orders/drafts/:id" element={<OrderDraftPage />} />
+            <Route path="/orders/drafts/:id/preview" element={<PoPreviewPage />} />
+            <Route path="/orders/:id/supplier-response" element={<SupplierResponsePage />} />
+            <Route path="/orders/history" element={<OrderHistoryListPage />} />
+            <Route path="/orders/:id" element={<OrderHistoryDetailPage />} />
+            {/* Phase 7-C3 12章: Backend enforces ADMIN-only on every
+                underlying API (403 for OPERATOR) regardless of this Route
+                being reachable - no client-side route guard is the sole
+                control here, matching 13章/17章's convention throughout this
+                engagement. */}
+            <Route path="/admin/supplier-contacts" element={<SupplierContactPage />} />
+            <Route path="/admin/mail-templates" element={<MailTemplatePage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        )}
+      </Box>
+    </Box>
   )
 }

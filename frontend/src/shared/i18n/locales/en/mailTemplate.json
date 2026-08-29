@@ -33,7 +33,18 @@
     "FOLLOW_UP": "FOLLOW_UP",
     "CANCELLATION": "CANCELLATION"
   },
-  "variablesHelp": "Available variables: {{supplierName}} {{contactName}} {{poNo}} {{orderDate}} {{requestedDelivery}} {{senderName}} {{senderEmail}} {{revisionNo}}",
+  "variablesInsertHelp": "Click (or drag & drop) to insert a variable into whichever of Subject/Body was last focused.",
+  "variable": {
+    "supplierName": "Supplier Name",
+    "contactName": "Contact Name",
+    "poNo": "PO No.",
+    "orderDate": "Order Date",
+    "requestedDelivery": "Requested Delivery",
+    "senderName": "Sender Name",
+    "senderEmail": "Sender Email",
+    "revisionNo": "Revision No."
+  },
+  "variablesHelp": "Internal storage format (reference): {{supplierName}} {{contactName}} {{poNo}} {{orderDate}} {{requestedDelivery}} {{senderName}} {{senderEmail}} {{revisionNo}}",
   "save": "Save",
   "cancel": "Cancel",
   "saveSuccess": "Saved.",

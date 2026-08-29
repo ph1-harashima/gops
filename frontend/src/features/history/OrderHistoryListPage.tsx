@@ -129,7 +129,12 @@ export function OrderHistoryListPage() {
   }, [data])
 
   return (
-    <Box sx={{ p: 3 }}>
+    // Phase 7-F Header/List UX Audit (Sticky Table Header): see the same
+    // structural note in CandidateListPage.tsx - TableContainer needs an
+    // intentional bounded height (flex:1/overflow:auto below) to actually
+    // be the scrolling ancestor `stickyHeader` sticks within; its default
+    // `overflow-x: auto` alone claims that role without ever scrolling.
+    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Typography variant="h5" component="h1" gutterBottom>
         {t('listTitle')}
       </Typography>
@@ -204,12 +209,12 @@ export function OrderHistoryListPage() {
       )}
 
       {!isLoading && !isError && visibleData && visibleData.length > 0 && (
-        <>
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {t('resultCount', { count: visibleData.length })}
           </Typography>
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small" stickyHeader>
+          <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 0 }} data-testid="order-history-table-container">
+            <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
               <TableHead>
                 <TableRow>
                   <TableCell>{t('table.poNo')}</TableCell>
@@ -247,7 +252,7 @@ export function OrderHistoryListPage() {
               </TableBody>
             </Table>
           </TableContainer>
-        </>
+        </Box>
       )}
     </Box>
   )

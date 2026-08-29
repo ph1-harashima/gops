@@ -19,6 +19,7 @@ import Stack from '@mui/material/Stack'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
+import Chip from '@mui/material/Chip'
 
 import { useOrderCandidates } from './api'
 import { useCreateDraft } from '../drafts/api'
@@ -54,6 +55,16 @@ export function CandidateListPage() {
   // the URL like every other Filter so the KPI's Deep Link, Browser Back/
   // Forward, and returnTo all keep working the same way.
   const recommendedOnly = searchParams.get('recommendedOnly') === 'true'
+  // Phase 7-F Header/List UX Audit (Dashboard Drill-down整合): mirrors
+  // recommendedOnly exactly - a pure client-side display filter reusing the
+  // SAME provisional Predicate DashboardService already counts with
+  // (isOutOfStock/isLongTermOutOfStock, currentStock==0 /
+  // currentStock==0&&openPo==0). No Business Rule change: this is not a new
+  // definition, only making the Candidate List capable of showing the
+  // identical subset the Dashboard tile/Brand row already counted, so the
+  // two numbers agree instead of one going to an always-unfiltered list.
+  const outOfStockOnly = searchParams.get('outOfStockOnly') === 'true'
+  const longTermOutOfStockOnly = searchParams.get('longTermOutOfStockOnly') === 'true'
   const [keywordInput, setKeywordInput] = useState(filter.keyword ?? '')
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
@@ -87,15 +98,22 @@ export function CandidateListPage() {
 
   const visibleData = useMemo(() => {
     if (!data) return data
-    return recommendedOnly ? data.filter((row) => (row.recommendedQty ?? 0) > 0) : data
-  }, [data, recommendedOnly])
+    return data
+      .filter((row) => !recommendedOnly || (row.recommendedQty ?? 0) > 0)
+      .filter((row) => !outOfStockOnly || (row.currentStock ?? null) === 0)
+      .filter((row) => !longTermOutOfStockOnly || ((row.currentStock ?? null) === 0 && (row.openPo ?? 0) === 0))
+  }, [data, recommendedOnly, outOfStockOnly, longTermOutOfStockOnly])
 
   function toggleRecommendedOnly(checked: boolean) {
+    setBooleanParam('recommendedOnly', checked)
+  }
+
+  function setBooleanParam(key: string, value: boolean) {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev)
-        if (checked) next.set('recommendedOnly', 'true')
-        else next.delete('recommendedOnly')
+        if (value) next.set(key, 'true')
+        else next.delete(key)
         return next
       },
       { replace: true },
@@ -117,6 +135,26 @@ export function CandidateListPage() {
     }
     return Array.from(map.entries())
   }, [data])
+
+  // Phase 7-F Header/List UX Audit (Filter Chip): every active Filter -
+  // Brand/Supplier/Keyword text Filters plus the three boolean display
+  // Filters - surfaced as one removable Chip each, so a Dashboard Deep Link
+  // (e.g. Brand + 欠品) is legible at a glance instead of only visible by
+  // re-reading the Filter controls above.
+  function brandOptionsLabel(code: string): string {
+    return brandOptions.find(([c]) => c === code)?.[1] ?? code
+  }
+  function supplierOptionsLabel(code: string): string {
+    return supplierOptions.find(([c]) => c === code)?.[1] ?? code
+  }
+  const activeFilterChips = [
+    filter.brandCode ? { key: 'brandCode', label: `${t('candidates:filter.brand')}: ${brandOptionsLabel(filter.brandCode)}`, onDelete: () => updateFilter({ brandCode: undefined }) } : null,
+    filter.supplierCode ? { key: 'supplierCode', label: `${t('candidates:filter.supplier')}: ${supplierOptionsLabel(filter.supplierCode)}`, onDelete: () => updateFilter({ supplierCode: undefined }) } : null,
+    filter.keyword ? { key: 'keyword', label: `${t('candidates:filter.keyword')}: ${filter.keyword}`, onDelete: () => updateFilter({ keyword: undefined }) } : null,
+    recommendedOnly ? { key: 'recommendedOnly', label: t('candidates:filter.recommendedOnly'), onDelete: () => toggleRecommendedOnly(false) } : null,
+    outOfStockOnly ? { key: 'outOfStockOnly', label: t('candidates:filter.outOfStockOnly'), onDelete: () => setBooleanParam('outOfStockOnly', false) } : null,
+    longTermOutOfStockOnly ? { key: 'longTermOutOfStockOnly', label: t('candidates:filter.longTermOutOfStockOnly'), onDelete: () => setBooleanParam('longTermOutOfStockOnly', false) } : null,
+  ].filter((c): c is { key: string; label: string; onDelete: () => void } => c !== null)
 
   function toggleSelect(sku: string) {
     setSelected((prev) => {
@@ -149,7 +187,20 @@ export function CandidateListPage() {
       : null
 
   return (
-    <Box sx={{ p: 3 }}>
+    // Phase 7-F Header/List UX Audit (Sticky Table Header): a bounded flex
+    // column, not plain document flow. TableContainer's own default
+    // `overflow-x: auto` (for horizontal scroll on wide tables) makes the
+    // CSS engine treat IT as the nearest scrolling ancestor for any
+    // `position: sticky` cell inside it (the "auto y follows non-visible x"
+    // overflow quirk) - if TableContainer never has a bounded height of its
+    // own, that scrolling ancestor never actually scrolls, so stickyHeader
+    // visibly does nothing (confirmed via live reproduction: the header
+    // scrolled away with the rest of the page). Giving TableContainer
+    // `flex: 1, overflow: auto, minHeight: 0` below makes it the real,
+    // intentional scroll region - MUI's own documented pattern for
+    // `stickyHeader` - while everything above it (title/filters/Filter
+    // Chips/alerts) stays on-screen, never scrolling out of view.
+    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Typography variant="h5" component="h1" gutterBottom>
         {t('candidates:title')}
       </Typography>
@@ -208,6 +259,33 @@ export function CandidateListPage() {
           }
           label={t('candidates:filter.recommendedOnly')}
         />
+        {/* Phase 7-F Header/List UX Audit (Dashboard Drill-down整合): same
+            provisional Predicate as DashboardService.isOutOfStock/
+            isLongTermOutOfStock (currentStock==0 / +openPo==0) - no new
+            Business Rule, just making the List capable of showing the exact
+            subset the Dashboard tile already counts, driven by the same
+            outOfStockOnly/longTermOutOfStockOnly URL Filter the Dashboard's
+            own Deep Link now sets. */}
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={outOfStockOnly}
+              onChange={(e) => setBooleanParam('outOfStockOnly', e.target.checked)}
+              data-testid="out-of-stock-only-checkbox"
+            />
+          }
+          label={t('candidates:filter.outOfStockOnly')}
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={longTermOutOfStockOnly}
+              onChange={(e) => setBooleanParam('longTermOutOfStockOnly', e.target.checked)}
+              data-testid="long-term-out-of-stock-only-checkbox"
+            />
+          }
+          label={t('candidates:filter.longTermOutOfStockOnly')}
+        />
 
         <Box sx={{ flexGrow: 1 }} />
 
@@ -224,6 +302,14 @@ export function CandidateListPage() {
           )}
         </Button>
       </Stack>
+
+      {activeFilterChips.length > 0 && (
+        <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1 }} data-testid="active-filter-chips">
+          {activeFilterChips.map((chip) => (
+            <Chip key={chip.key} size="small" label={chip.label} onDelete={chip.onDelete} data-testid={`filter-chip-${chip.key}`} />
+          ))}
+        </Stack>
+      )}
 
       {createDraftErrorCode === 'MIXED_SUPPLIER_NOT_ALLOWED' && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -264,12 +350,17 @@ export function CandidateListPage() {
       )}
 
       {!isLoading && !isError && visibleData && visibleData.length > 0 && (
-        <>
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {t('candidates:resultCount', { count: visibleData.length })}
           </Typography>
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small" stickyHeader>
+          <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 0 }} data-testid="candidate-list-table-container">
+            {/* Phase 7-F Header/List UX Audit: MUI's default stickyHeader
+                background was found transparent in this theme via live
+                reproduction (underlying row text visibly showed through the
+                sticky header) - forced opaque explicitly rather than relying
+                on the default. */}
+            <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
               <TableHead>
                 <TableRow>
                   <TableCell padding="checkbox">{t('candidates:table.select')}</TableCell>
@@ -335,7 +426,7 @@ export function CandidateListPage() {
               </TableBody>
             </Table>
           </TableContainer>
-        </>
+        </Box>
       )}
     </Box>
   )

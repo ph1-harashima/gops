@@ -58,11 +58,13 @@ export function DashboardPage() {
   //   applies that identical condition client-side on the List (6-D 3章).
   // - 欠品/長期欠品: DashboardService's own comment marks their definition
   //   [TBD - CUSTOMER REVIEW] (currentStock==0 / +openPo==0, a provisional
-  //   Proxy). Candidate List has no matching Filter, and this Phase
-  //   deliberately does not add one - baking a contested definition into a
-  //   permanent Filter would overstep "現状では件数表示のみ" (6-D 7章). These
-  //   two keep navigating to the unfiltered List; count will not match List
-  //   count until that definition is finalized (reported, not hidden).
+  //   Proxy). Phase 7-F Header/List UX Audit: Candidate List now has a
+  //   matching client-side Filter (outOfStockOnly/longTermOutOfStockOnly)
+  //   reusing this EXACT SAME provisional Predicate - not a new Business
+  //   Rule, just closing the Dashboard-count-vs-List-count gap the 6-D
+  //   comment above previously reported (not hidden) as a known mismatch.
+  //   The provisional definition itself remains unchanged and still
+  //   unconfirmed (customer-review-decision-package.md D-5).
   // - 発注作成中: DashboardService.draftCount is STATUS_DRAFT only -
   //   READY_TO_ORDER is excluded, matching Label ("作成中" reads as "still
   //   editable", not "confirmed but unsent") - no change needed (6-D 4章).
@@ -73,8 +75,8 @@ export function DashboardPage() {
   //   existing API already sends - no new Attention Filter API (6-D 6章).
   const kpis = [
     { key: 'candidateCount', label: t('kpi.candidates'), value: data.candidateCount, onClick: () => navigate('/candidates?recommendedOnly=true') },
-    { key: 'outOfStockCount', label: t('kpi.outOfStock'), value: data.outOfStockCount, onClick: () => navigate('/candidates') },
-    { key: 'longTermOutOfStockCount', label: t('kpi.longTermOutOfStock'), value: data.longTermOutOfStockCount, onClick: () => navigate('/candidates') },
+    { key: 'outOfStockCount', label: t('kpi.outOfStock'), value: data.outOfStockCount, onClick: () => navigate('/candidates?outOfStockOnly=true') },
+    { key: 'longTermOutOfStockCount', label: t('kpi.longTermOutOfStock'), value: data.longTermOutOfStockCount, onClick: () => navigate('/candidates?longTermOutOfStockOnly=true') },
     { key: 'draftCount', label: t('kpi.draft'), value: data.draftCount, onClick: () => navigate('/orders/history?status=DRAFT') },
     // Phase 7-C1 14章: ADMIN's approval queue entry point - minimal design,
     // reusing the same Dashboard KPI -> pre-filtered Order List pattern as
@@ -136,7 +138,7 @@ export function DashboardPage() {
                   </Button>
                 </TableCell>
                 <TableCell align="right">
-                  <Button size="small" onClick={() => navigate(`/candidates?brandCode=${b.brandCode}`)}>
+                  <Button size="small" onClick={() => navigate(`/candidates?brandCode=${b.brandCode}&outOfStockOnly=true`)}>
                     {b.outOfStockCount}
                   </Button>
                 </TableCell>

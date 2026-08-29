@@ -100,7 +100,9 @@ export function SupplierContactPage() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    // Phase 7-F Header/List UX Audit (Sticky Table Header): see the same
+    // structural note in CandidateListPage.tsx.
+    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Stack direction="row" spacing={2} sx={{ mb: 1, alignItems: 'center' }}>
         <Typography variant="h5" component="h1">{t('title')}</Typography>
         <Button variant="contained" onClick={openCreate} data-testid="supplier-contact-create-button">
@@ -111,8 +113,8 @@ export function SupplierContactPage() {
 
       {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
       {data && data.length > 0 && (
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
+        <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 0 }} data-testid="supplier-contact-table-container">
+          <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
             <TableHead>
               <TableRow>
                 <TableCell>{t('table.supplierCode')}</TableCell>

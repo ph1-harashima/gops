@@ -33,7 +33,18 @@
     "FOLLOW_UP": "FOLLOW_UP（フォローアップ）",
     "CANCELLATION": "CANCELLATION（取消）"
   },
-  "variablesHelp": "利用可能な変数: {{supplierName}} {{contactName}} {{poNo}} {{orderDate}} {{requestedDelivery}} {{senderName}} {{senderEmail}} {{revisionNo}}",
+  "variablesInsertHelp": "クリック（またはドラッグ&ドロップ）で、直前にカーソルがあったSubjectまたはBodyへ変数を挿入します。",
+  "variable": {
+    "supplierName": "メーカー名",
+    "contactName": "担当者名",
+    "poNo": "PO番号",
+    "orderDate": "発注日",
+    "requestedDelivery": "希望納期",
+    "senderName": "送信者名",
+    "senderEmail": "送信者メール",
+    "revisionNo": "Revision番号"
+  },
+  "variablesHelp": "内部保存形式（参考）: {{supplierName}} {{contactName}} {{poNo}} {{orderDate}} {{requestedDelivery}} {{senderName}} {{senderEmail}} {{revisionNo}}",
   "save": "保存",
   "cancel": "キャンセル",
   "saveSuccess": "保存しました。",

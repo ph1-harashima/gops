@@ -127,15 +127,46 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
     }
   })
 
-  test('欠品 / 長期欠品 KPI still link to Candidate List, unfiltered (no new business definition introduced)', async ({ page }) => {
+  // Phase 7-F Header/List UX Audit: previously this test asserted the KNOWN
+  // GAP (unfiltered List, count deliberately not matching) as the expected
+  // behavior. CandidateListPage now has outOfStockOnly/longTermOutOfStockOnly
+  // client-side Filters reusing the EXACT SAME provisional Predicate
+  // DashboardService already counts with (no Business Rule change - see
+  // that Filter's own comment) - so both KPIs' Deep Link now lands on a
+  // correctly pre-filtered, count-matching List instead.
+  test('欠品 KPI -> Candidate List with outOfStockOnly, count matches', async ({ page }) => {
     await login(page)
+    const expected = await kpiValue(page, '欠品')
+
     await kpiTile(page, '欠品').click()
-    await expect(page).toHaveURL(/\/candidates$/)
-    await expect(page.getByTestId('recommended-only-checkbox').locator('input')).not.toBeChecked()
+    await expect(page).toHaveURL(/\/candidates\?outOfStockOnly=true/)
+    await expect(page.getByTestId('out-of-stock-only-checkbox').locator('input')).toBeChecked()
+    await expect(page.getByTestId('filter-chip-outOfStockOnly')).toBeVisible()
+    await waitForListSettled(page, /件の発注候補|発注候補が見つかりませんでした/)
+
+    const resultText = await page.getByText(/件の発注候補/).textContent()
+    expect(Number(resultText?.match(/(\d+)件/)?.[1])).toBe(expected)
   })
 
-  test('Brand row Deep Links: 発注候補 carries recommendedOnly, 要確認 carries hasAttention', async ({ page }) => {
+  test('長期欠品 KPI -> Candidate List with longTermOutOfStockOnly, count matches', async ({ page }) => {
     await login(page)
+    const expected = await kpiValue(page, '長期欠品')
+
+    await kpiTile(page, '長期欠品').click()
+    await expect(page).toHaveURL(/\/candidates\?longTermOutOfStockOnly=true/)
+    await expect(page.getByTestId('long-term-out-of-stock-only-checkbox').locator('input')).toBeChecked()
+    await expect(page.getByTestId('filter-chip-longTermOutOfStockOnly')).toBeVisible()
+    await waitForListSettled(page, /件の発注候補|発注候補が見つかりませんでした/)
+
+    const resultText = await page.getByText(/件の発注候補/).textContent()
+    expect(Number(resultText?.match(/(\d+)件/)?.[1])).toBe(expected)
+  })
+
+  test('Brand row Deep Links: 発注候補 carries recommendedOnly, 欠品 carries outOfStockOnly, 要確認 carries hasAttention', async ({ page }) => {
+    await login(page)
+    const brandNameCell = page.locator('table tbody tr').first().locator('td').first()
+    const brandName = (await brandNameCell.textContent())?.trim()
+
     const firstBrandCandidateCell = page.locator('table tbody tr').first().locator('td').nth(1).getByRole('button')
     const brandCandidateCount = Number((await firstBrandCandidateCell.textContent())?.trim())
     await firstBrandCandidateCell.click()
@@ -145,6 +176,33 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
       const resultText = await page.getByText(/件の発注候補/).textContent()
       expect(Number(resultText?.match(/(\d+)件/)?.[1])).toBe(brandCandidateCount)
     }
+
+    // Phase 7-F: Brand + 状態 Filter Chips both visible, each independently
+    // removable - the "現在の条件が見えるように" requirement.
+    await expect(page.getByTestId('filter-chip-brandCode')).toContainText(brandName ?? '')
+    await expect(page.getByTestId('filter-chip-recommendedOnly')).toBeVisible()
+
+    await page.goto('/')
+    const firstBrandOutOfStockCell = page.locator('table tbody tr').first().locator('td').nth(2).getByRole('button')
+    const brandOutOfStockCount = Number((await firstBrandOutOfStockCell.textContent())?.trim())
+    await firstBrandOutOfStockCell.click()
+    await expect(page).toHaveURL(/\/candidates\?brandCode=.+&outOfStockOnly=true/)
+    await waitForListSettled(page, /件の発注候補|発注候補が見つかりませんでした/)
+    if (brandOutOfStockCount > 0) {
+      const resultText = await page.getByText(/件の発注候補/).textContent()
+      expect(Number(resultText?.match(/(\d+)件/)?.[1])).toBe(brandOutOfStockCount)
+    }
+    await expect(page.getByTestId('filter-chip-brandCode')).toContainText(brandName ?? '')
+    await expect(page.getByTestId('filter-chip-outOfStockOnly')).toBeVisible()
+
+    // Removing the 状態 Chip drops that Filter but keeps Brand. MUI's Chip
+    // delete affordance is its `MuiChip-deleteIcon` SVG (aria-hidden, no own
+    // role) - the outer Chip itself carries role="button" for keyboard
+    // support, so the click must target the icon specifically, not the
+    // whole Chip (which has no onClick of its own and would no-op).
+    await page.getByTestId('filter-chip-outOfStockOnly').locator('.MuiChip-deleteIcon').click()
+    await expect(page).not.toHaveURL(/outOfStockOnly=true/)
+    await expect(page.getByTestId('filter-chip-brandCode')).toBeVisible()
 
     await page.goto('/')
     const firstBrandAttentionCell = page.locator('table tbody tr').first().locator('td').nth(5).getByRole('button')
