@@ -140,3 +140,43 @@ INSERT INTO tr_po_dtl (po_no, line_no, item_cd, qty_po, prc_unit, amt_line, del_
 
 -- MS_FORMULA: stretch goal, per-item Formula for 1 SKU (all others fall back to Legacy Default 4EU)
 INSERT INTO ms_formula (id, formula_11, formula_12, formula_13, formula_14, del_flg, create_datetime, update_datetime) VALUES ('OD-TENT-001','IF([AT]<=5,(ROUNDUP([AT]*1-[AR]+[AT]*1/2,0)),IF([AT]<=10,(ROUNDUP([AT]*1-[AR]+[AT]*2/2,0)),ROUNDUP([AT]*1-[AR]+[AT]*3/2,0)))','IF(ROUNDDOWN([AZ]-([AT]*1/2),0)<0,0,ROUNDDOWN([AZ]-([AT]*1/2),0))','IF([AZ]-[BA]+(SUM([U]:[AO]))>[AT]*3/2,[AT]*3/2-(SUM([U]:[AO])),[AZ]-[BA])','IF([BB]<=1,0,ROUNDDOWN([BB],0))',b'0',NOW(),NOW());
+
+-- Phase 7-C7A: Fulfillment READ ONLY Test Fixtures (docs/fulfillment-follow-up-foundation.md
+-- 5章 - test-only, safe to reset, never Production data). Reuses the existing
+-- PO-OUTDOOR-01/02/05 TR_PO/TR_PO_DTL rows above (Section 5's explicit
+-- permission: "既知のOfficial PO/Test Fixtureを使ってREAD ONLY計算Testを
+-- 行ってよい"). No TR_ARR rows are added - FulfillmentReadRepository never
+-- reads TR_ARR (see its own Javadoc on why: MS_STK/TR_ARR answer a broader,
+-- ITEM-level question that this Phase's PO-level Outstanding calculation
+-- does not need).
+
+-- PO-OUTDOOR-01 (OD-TENT-001, qty_po=3): fully invoiced and fully stocked in -> FULFILLED.
+INSERT INTO tr_inv (supplier_cd, inv_no, status, tran_type, brand_cd, qty_ttl, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('SUP_ALPHA','INV-OUTDOOR-01','STOCK_IN','30','BR_OUTDOOR',3,3411.00,b'0',NOW(),NOW());
+INSERT INTO tr_inv_dtl (supplier_cd, inv_no, line_no, item_cd, qty_ordr, qty, qty_stk_in, po_no, del_flg, create_datetime, update_datetime) VALUES ('SUP_ALPHA','INV-OUTDOOR-01',1,'OD-TENT-001',3,3,3,'PO-OUTDOOR-01',b'0',NOW(),NOW());
+
+-- PO-OUTDOOR-02 (OD-TENT-002, qty_po=3): invoiced 3, only 2 physically
+-- confirmed stocked in so far (no discrepancy/Credit PO raised yet - this
+-- represents "still RECEIVING") -> PARTIAL.
+INSERT INTO tr_inv (supplier_cd, inv_no, status, tran_type, brand_cd, qty_ttl, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('SUP_ALPHA','INV-OUTDOOR-02','RECEIVING','30','BR_OUTDOOR',3,3822.00,b'0',NOW(),NOW());
+INSERT INTO tr_inv_dtl (supplier_cd, inv_no, line_no, item_cd, qty_ordr, qty, qty_stk_in, po_no, del_flg, create_datetime, update_datetime) VALUES ('SUP_ALPHA','INV-OUTDOOR-02',1,'OD-TENT-002',3,3,2,'PO-OUTDOOR-02',b'0',NOW(),NOW());
+
+-- PO-OUTDOOR-05 (OD-BAG-001, qty_po=3): a discrepancy occurred - invoiced 3,
+-- but only 2 actually arrived. Mirrors PrStkInReportImportBatch's exact
+-- reconciliation mechanism (docs/fulfillment-follow-up-foundation.md 2章):
+-- the ORIGINAL TR_INV_DTL.qty_stk_in is capped at its own invoiced qty (3,
+-- never the true received amount), and a linked Credit PO/Invoice
+-- ("{originalPoNo}-{arrCode}", PO_TYPE=CREDIT) carries the exact signed
+-- difference (2 - 3 = -1) in ITS OWN qty_stk_in. True stock-in = 3 + (-1) = 2.
+-- This fixture exists specifically to prove FulfillmentReadRepository nets
+-- the two together correctly (without Credit netting this would misread as
+-- fully FULFILLED at qty 3, instead of the true PARTIAL at qty 2).
+INSERT INTO tr_inv (supplier_cd, inv_no, status, tran_type, brand_cd, qty_ttl, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('SUP_BETA','INV-OUTDOOR-05','RECEIVING','30','BR_OUTDOOR',3,5055.00,b'0',NOW(),NOW());
+INSERT INTO tr_inv_dtl (supplier_cd, inv_no, line_no, item_cd, qty_ordr, qty, qty_stk_in, po_no, del_flg, create_datetime, update_datetime) VALUES ('SUP_BETA','INV-OUTDOOR-05',1,'OD-BAG-001',3,3,3,'PO-OUTDOOR-05',b'0',NOW(),NOW());
+INSERT INTO tr_po (po_no, status, po_type, supplier_cd, brand_cd, ccy, ordr_date, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('PO-OUTDOOR-05-ARR001','OFFICIAL','CREDIT','SUP_BETA','BR_OUTDOOR','JPY','2026-07-06',-1685.00,b'0',NOW(),NOW());
+INSERT INTO tr_po_dtl (po_no, line_no, item_cd, qty_po, prc_unit, amt_line, del_flg, create_datetime, update_datetime) VALUES ('PO-OUTDOOR-05-ARR001',1,'OD-BAG-001',-1,1685.00000,-1685.00000,b'0',NOW(),NOW());
+INSERT INTO tr_inv (supplier_cd, inv_no, status, tran_type, brand_cd, qty_ttl, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('SUP_BETA','INV-OUTDOOR-05-ARR001','RECEIVING','70','BR_OUTDOOR',-1,-1685.00,b'0',NOW(),NOW());
+INSERT INTO tr_inv_dtl (supplier_cd, inv_no, line_no, item_cd, qty_ordr, qty, qty_stk_in, po_no, del_flg, create_datetime, update_datetime) VALUES ('SUP_BETA','INV-OUTDOOR-05-ARR001',1,'OD-BAG-001',-1,-1,-1,'PO-OUTDOOR-05-ARR001',b'0',NOW(),NOW());
+
+-- PO-OUTDOOR-03/04/06/07 are deliberately left WITHOUT any TR_INV/TR_INV_DTL
+-- row - the "nothing invoiced yet" OPEN test case needs no new fixture at
+-- all (absence of an invoice line is itself the OPEN state).

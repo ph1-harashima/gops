@@ -82,6 +82,10 @@ export function DashboardPage() {
     { key: 'pendingApprovalCount', label: t('kpi.pendingApproval'), value: data.pendingApprovalCount, onClick: () => navigate('/orders/history?status=PENDING_APPROVAL') },
     { key: 'awaitingSupplierCount', label: t('kpi.awaitingSupplier'), value: data.awaitingSupplierCount, onClick: () => navigate('/orders/history?status=AWAITING_SUPPLIER') },
     { key: 'attentionCount', label: t('kpi.attention'), value: data.attentionCount, onClick: () => navigate('/orders/history?hasAttention=true') },
+    // Phase 7-C7A 19章: no dedicated Order List Filter exists for "has an
+    // Open Follow-up Case" this Phase (same "count only, unfiltered target"
+    // precedent as 欠品/長期欠品 above) - the count itself is exact.
+    { key: 'openFollowUpCaseCount', label: t('kpi.openFollowUpCase'), value: data.openFollowUpCaseCount, onClick: () => navigate('/orders/history') },
   ]
 
   return (

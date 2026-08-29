@@ -406,6 +406,19 @@ Phase 7-C5（Supplier Response Revision / Agreement Workflow）を実装・全�
 - G-SYS再Import（11.3章最終行）・Official PO Excel再生成は本Phaseの範囲外（7-C2B以降）で、Integration Requestの`revisionNo`がOrder Revisionと同一の値を指すよう整合させたのみ（実際のExcel再生成・Legacy投入はまだ発生しない）。
 - Backend Full Test 275/275、Frontend Build/Lint/E2E、Legacy `phasep-gulliver` 変更ゼロを確認済み（詳細は実装ファイル参照）。
 
+## 26. Phase 7-C7A実装結果まとめ
+
+Phase 7-C7A（Fulfillment / Follow-up Foundation）を実装・全回帰確認済み。13章（Partial / Unfulfilled）・14章（Follow-up / Reorder）の設計のうち、Fulfillment Status算出・Follow-up Case管理・Follow-up Mail Preview・Reorder Draft作成のFoundationを実装。詳細は別ファイル **[docs/fulfillment-follow-up-foundation.md](./fulfillment-follow-up-foundation.md)** に記録（実装前Legacy Source監査の全結果を含む）。
+
+要点のみ:
+- 13章が示す3軸目Fulfillment Status（`OPEN → PARTIAL → FULFILLED`）を設計どおり実装。ただし`CANCELLED`はG-SYSデータのみからは自動判定できないと判断し、本Phaseでは実装していない（13章の想定どおり「CUSTOMER REVIEW #7-8」に留め置き）。加えて13章には明示されていなかった軸として、Official PO Noが未設定/Legacy未発見の状態を`NOT_LINKED`/`PO_NOT_FOUND`というLink Stateで明示的に区別し、「0件」「未納」と誤表示しない設計を追加した。
+- 13章の「PO数量 vs Invoice数量 vs 入荷数量」という想定どおりTR_PO_DTL/TR_INV_DTLのみをSourceとして算出できたが、**Credit PO（16章で概念参照のみとされていたもの）を含めないと入荷数量が正しく算出できない**ことを実装時のSource監査で確定させた（元TR_INV_DTL.qty_stk_inはInvoice記載数量に固定され、実際の差分はCredit Invoiceのqty_stk_inに記録される仕組みを確認）。16章が示した「Credit POの思想をRevision/Correction/Reorderの原則として採用する」だけでなく、**Fulfillment数量計算そのものにCredit POの参照が実装上必須**だったことが本Phaseの主要な追加知見。MS_STKのPOスロット読取は採用しなかった（Item横断の別スコープの指標と判断、13章が示唆した「MS_STKのPOスロット」との差異）。
+- 14章の`FOLLOW_UP_REQUIRED → INQUIRY_SENT → SUPPLIER_REPLY → REORDER/CANCEL_REMAINDER`というイベント列は、実送信機能（7-C4）が存在しない現時点の制約に合わせて縮退させた: 到達可能なStatusは`OPEN → INQUIRY_PREPARED → CLOSED`の3値のみとし、`INQUIRY_SENT`（実送信を意味する）や`SUPPLIER_REPLY`の自動記録は実装していない。`INQUIRY_PREPARED`への遷移はMail Previewの成功時点で自動発生させ、「実送信していないのにSENT扱いにする」設計を避けた。
+- 14章の「問い合わせメールは10章のMail Template基盤を共用（templateType=INQUIRY）」は、7-C3時点で既に予約されていた`TEMPLATE_TYPE_FOLLOW_UP`定数を使う形でそのまま実装。
+- 14章の「再発注は新しいPO No.の新規注文とし、元POへの参照（reorderFrom）を持たせる」は、既存の`OrderDraftService.createDraft()`を変更せずに呼び出す薄いラッパー（`ReorderService`）として実装し、`portal_order.source_order_id`/`source_follow_up_case_id`で参照を保持した。元PO残数量の継続方式・数量自動決定の是非（CUSTOMER REVIEW #8）は未確定のまま、数量は常にLegacy推奨数量が初期値になる通常のDraft作成と同じ挙動に留めた。
+- 未納検知のTiming（CUSTOMER REVIEW #7）は本Phaseでも未着手 - 自動督促ルールは一切実装せず、人が明示的にFollow-up Caseを起票するFoundationのみを実装した。
+- Backend Full Test 299/299、Frontend Build/Lint/E2E（50/50 ×2回）、Legacy `phasep-gulliver` 変更ゼロを確認済み（詳細は実装ファイル参照）。
+
 ---
 
 ## 付録: Current G-SYS Flow（7-A要約のMermaid）

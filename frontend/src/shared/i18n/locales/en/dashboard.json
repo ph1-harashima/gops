@@ -1,6 +1,7 @@
 {
   "_comment": "Placeholder only, per common.json's English convention - only the Phase 7-C1 new key is added here, existing keys fall back to ja.",
   "kpi": {
-    "pendingApproval": "Pending Approval"
+    "pendingApproval": "Pending Approval",
+    "openFollowUpCase": "Open Follow-up Cases"
   }
 }

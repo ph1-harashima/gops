@@ -107,6 +107,16 @@ public class AuditEvent {
      * deliberately never cleared by this - see that entity's Javadoc. */
     public static final String AGREEMENT_REOPENED = "AGREEMENT_REOPENED";
 
+    // --- Phase 7-C7A: Fulfillment / Follow-up Foundation ---
+    /** "問い合わせ対象にする" (7-C7A 12章) - never auto-generated from a
+     * Fulfillment calculation, only an explicit human action. */
+    public static final String FOLLOW_UP_CREATED = "FOLLOW_UP_CREATED";
+    /** Note edited on an existing Follow-up Case. */
+    public static final String FOLLOW_UP_UPDATED = "FOLLOW_UP_UPDATED";
+    public static final String FOLLOW_UP_CLOSED = "FOLLOW_UP_CLOSED";
+    /** A Reorder Draft was created from a Follow-up Case (7-C7A 16章). */
+    public static final String REORDER_CREATED = "REORDER_CREATED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

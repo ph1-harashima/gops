@@ -146,5 +146,61 @@
     "current": "現在",
     "agreedBy": "{{by}}が合意",
     "reopenedBy": "{{by}}が取り消し"
+  },
+  "fulfillment": {
+    "title": "G-SYS入荷状況",
+    "notLinked": "G-SYS正式PO未連携です。正式PO番号が採番されるまで入荷状況は取得できません。",
+    "poNotFound": "設定されている正式PO番号がG-SYS上に見つかりません。",
+    "officialPoNoLabel": "正式PO番号",
+    "status": {
+      "OPEN": "未納",
+      "PARTIAL": "一部納品",
+      "FULFILLED": "完納"
+    },
+    "table": {
+      "sku": "SKU",
+      "itemName": "商品名",
+      "ordered": "発注数量",
+      "invoiced": "Invoice数量",
+      "stockIn": "入荷数量",
+      "outstanding": "残数量",
+      "status": "状況"
+    }
+  },
+  "followUp": {
+    "title": "問い合わせ",
+    "createButton": "問い合わせ対象にする",
+    "createButtonShort": "問い合わせ",
+    "empty": "問い合わせはまだありません。",
+    "errorGeneric": "処理に失敗しました。",
+    "status": {
+      "OPEN": "未対応",
+      "INQUIRY_PREPARED": "問い合わせ準備済み",
+      "CLOSED": "完了"
+    },
+    "reason": {
+      "DELIVERY_OVERDUE": "納期超過",
+      "PARTIAL_DELIVERY": "一部納品",
+      "NO_ARRIVAL": "未着",
+      "QUANTITY_DIFFERENCE": "数量差異",
+      "OTHER": "その他"
+    },
+    "previewButton": "メールプレビュー",
+    "editNoteButton": "メモを編集",
+    "closeButton": "完了にする",
+    "reorderButton": "再発注Draftを作成",
+    "createDialogTitle": "問い合わせ対象にしますか？",
+    "reasonLabel": "理由",
+    "skuLabel": "SKU（任意）",
+    "skuHelperText": "空欄の場合、発注全体に対する問い合わせになります。",
+    "noteLabel": "メモ",
+    "createDialogCancel": "キャンセル",
+    "createDialogConfirm": "作成する",
+    "editNoteDialogTitle": "メモを編集",
+    "editNoteDialogConfirm": "保存する",
+    "reorderDialogTitle": "再発注Draftを作成しますか？",
+    "reorderDialogBody": "この問い合わせのSKUを元に、新しい発注Draftを作成します。数量は自動的には決定されません（Legacy推奨数量が初期値になります）。",
+    "reorderReasonLabel": "再発注理由",
+    "reorderDialogConfirm": "作成する"
   }
 }

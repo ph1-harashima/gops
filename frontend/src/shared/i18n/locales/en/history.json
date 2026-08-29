@@ -146,5 +146,61 @@
     "current": "current",
     "agreedBy": "Agreed by {{by}}",
     "reopenedBy": "Reopened by {{by}}"
+  },
+  "fulfillment": {
+    "title": "G-SYS Fulfillment",
+    "notLinked": "Not yet linked to a G-SYS Official PO. Fulfillment cannot be shown until an Official PO No. is assigned.",
+    "poNotFound": "The configured Official PO No. was not found in G-SYS.",
+    "officialPoNoLabel": "Official PO No.",
+    "status": {
+      "OPEN": "Open",
+      "PARTIAL": "Partial",
+      "FULFILLED": "Fulfilled"
+    },
+    "table": {
+      "sku": "SKU",
+      "itemName": "Item Name",
+      "ordered": "Ordered",
+      "invoiced": "Invoiced",
+      "stockIn": "Stock-in",
+      "outstanding": "Outstanding",
+      "status": "Status"
+    }
+  },
+  "followUp": {
+    "title": "Follow-up",
+    "createButton": "Raise Follow-up",
+    "createButtonShort": "Follow-up",
+    "empty": "No Follow-up Cases yet.",
+    "errorGeneric": "The operation failed.",
+    "status": {
+      "OPEN": "Open",
+      "INQUIRY_PREPARED": "Inquiry Prepared",
+      "CLOSED": "Closed"
+    },
+    "reason": {
+      "DELIVERY_OVERDUE": "Delivery Overdue",
+      "PARTIAL_DELIVERY": "Partial Delivery",
+      "NO_ARRIVAL": "No Arrival",
+      "QUANTITY_DIFFERENCE": "Quantity Difference",
+      "OTHER": "Other"
+    },
+    "previewButton": "Mail Preview",
+    "editNoteButton": "Edit Note",
+    "closeButton": "Close",
+    "reorderButton": "Create Reorder Draft",
+    "createDialogTitle": "Raise a Follow-up Case?",
+    "reasonLabel": "Reason",
+    "skuLabel": "SKU (optional)",
+    "skuHelperText": "Leave blank for an Order-level inquiry.",
+    "noteLabel": "Note",
+    "createDialogCancel": "Cancel",
+    "createDialogConfirm": "Create",
+    "editNoteDialogTitle": "Edit Note",
+    "editNoteDialogConfirm": "Save",
+    "reorderDialogTitle": "Create a Reorder Draft?",
+    "reorderDialogBody": "Creates a new Order Draft for this Case's SKU. Quantity is never auto-decided (Legacy Recommended Qty is the initial value).",
+    "reorderReasonLabel": "Reorder Reason",
+    "reorderDialogConfirm": "Create"
   }
 }

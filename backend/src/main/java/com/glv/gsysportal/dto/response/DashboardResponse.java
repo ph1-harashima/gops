@@ -18,6 +18,11 @@ public record DashboardResponse(
         int pendingApprovalCount,
         int awaitingSupplierCount,
         int attentionCount,
+        /** Phase 7-C7A 19章: Open Follow-up Case count (OPEN + INQUIRY_PREPARED) -
+         * no "納期超過" KPI exists (no due-date/threshold concept is defined
+         * anywhere in this codebase yet, 19章's explicit caution against
+         * inventing one). */
+        int openFollowUpCaseCount,
         List<DashboardBrandRow> brands
 ) {
 }

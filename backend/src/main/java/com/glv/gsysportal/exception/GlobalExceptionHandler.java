@@ -180,4 +180,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleReopenReasonRequired(ReopenReasonRequiredException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "REOPEN_REASON_REQUIRED"));
     }
+
+    // --- Phase 7-C7A: Fulfillment / Follow-up Foundation ---
+
+    @ExceptionHandler(FollowUpCaseNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleFollowUpCaseNotFound(FollowUpCaseNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("errorCode", "FOLLOW_UP_CASE_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(FollowUpCaseAlreadyClosedException.class)
+    public ResponseEntity<Map<String, Object>> handleFollowUpCaseAlreadyClosed(FollowUpCaseAlreadyClosedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "FOLLOW_UP_CASE_ALREADY_CLOSED"));
+    }
+
+    @ExceptionHandler(InvalidFollowUpReasonException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidFollowUpReason(InvalidFollowUpReasonException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_FOLLOW_UP_REASON"));
+    }
 }

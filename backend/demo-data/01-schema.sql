@@ -108,9 +108,17 @@ CREATE TABLE ms_formula (
 -- Included so that Supplier can be derived from PO history (Legacy Adapter join),
 -- since MS_ITEM has NO supplier_cd column at all (confirmed Phase 0 audit F章) -
 -- Supplier is only ever a transactional attribute of a PO in real Legacy.
+-- po_type added in Phase 7-C7A (Fulfillment / Follow-up Foundation) - real
+-- Legacy TR_PO.PO_TYPE distinguishes an ordinary PO from a Credit PO
+-- (PO_TYPE=CREDIT, Const.TR_PO_PO_TYPE_CREDIT in phasep-gulliver), which
+-- FulfillmentReadRepository's Outstanding calculation must be able to net
+-- against the original PO it corrects (see that Repository's Javadoc and
+-- docs/fulfillment-follow-up-foundation.md 2章 for the full Source-derived
+-- mechanism).
 CREATE TABLE tr_po (
   po_no              VARCHAR(30)  NOT NULL,
   status             VARCHAR(10)  NULL,
+  po_type            VARCHAR(10)  NULL,
   supplier_cd        VARCHAR(10)  NULL,
   brand_cd           VARCHAR(10)  NULL,
   ccy                VARCHAR(10)  NULL,
@@ -134,4 +142,48 @@ CREATE TABLE tr_po_dtl (
   create_datetime    DATETIME      NULL,
   update_datetime    DATETIME      NULL,
   PRIMARY KEY (po_no, line_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Mirrors TR_INV (subset). PK: (SUPPLIER_CD, INV_NO). Added in Phase 7-C7A
+-- (0章's Source audit of jp.ne.glv.model.TrInv - PrOfficialPoImportBatch /
+-- PrStkInReportImportBatch are the authoritative writers in real Legacy;
+-- this Demo instance only ever reads these rows, never writes them, matching
+-- the existing tr_po/tr_po_dtl "reduce columns, not business rules" pattern
+-- above). tran_type mirrors Const.TR_INV_TRAN_TYPE_* ('30'=INVOICE,
+-- '70'=CREDIT) - only the 2 values this Phase's Fulfillment calculation
+-- actually distinguishes are meaningfully exercised by seed data.
+CREATE TABLE tr_inv (
+  supplier_cd        VARCHAR(10)   NOT NULL,
+  inv_no             VARCHAR(100)  NOT NULL,
+  status             VARCHAR(10)   NULL,
+  tran_type          VARCHAR(10)   NULL,
+  brand_cd           VARCHAR(10)   NULL,
+  qty_ttl            INT           NULL,
+  amt_ttl            DECIMAL(10,2) NULL,
+  del_flg            BIT(1)        NULL,
+  create_datetime    DATETIME      NULL,
+  update_datetime    DATETIME      NULL,
+  PRIMARY KEY (supplier_cd, inv_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Mirrors TR_INV_DTL (subset). PK: (SUPPLIER_CD, INV_NO, LINE_NO). Added in
+-- Phase 7-C7A. qty = invoiced/transit qty; qty_stk_in = actual
+-- physically-received qty (NULL until Stock-in Report Import sets it in real
+-- Legacy - this Demo instance seeds it directly). po_no links back to the PO
+-- this Invoice line belongs to (a Credit line's po_no is the linked Credit
+-- PO's own po_no, e.g. "{originalPoNo}-{arrCode}" - never the original PO's
+-- po_no directly - see FulfillmentReadRepository's Javadoc).
+CREATE TABLE tr_inv_dtl (
+  supplier_cd        VARCHAR(10)  NOT NULL,
+  inv_no             VARCHAR(100) NOT NULL,
+  line_no            INT          NOT NULL,
+  item_cd            VARCHAR(30)  NULL,
+  qty_ordr           INT          NULL,
+  qty                INT          NULL,
+  qty_stk_in         INT          NULL,
+  po_no              VARCHAR(100) NULL,
+  del_flg            BIT(1)       NULL,
+  create_datetime    DATETIME     NULL,
+  update_datetime    DATETIME     NULL,
+  PRIMARY KEY (supplier_cd, inv_no, line_no)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

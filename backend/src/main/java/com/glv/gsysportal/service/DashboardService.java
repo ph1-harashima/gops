@@ -1,10 +1,12 @@
 package com.glv.gsysportal.service;
 
+import com.glv.gsysportal.domain.FollowUpCase;
 import com.glv.gsysportal.domain.OrderAttention;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.dto.response.DashboardBrandRow;
 import com.glv.gsysportal.dto.response.DashboardResponse;
 import com.glv.gsysportal.dto.response.OrderCandidateResponse;
+import com.glv.gsysportal.repository.prototype.FollowUpCaseRepository;
 import com.glv.gsysportal.repository.prototype.OrderAttentionRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import org.springframework.stereotype.Service;
@@ -35,13 +37,16 @@ public class DashboardService {
     private final OrderCandidateService orderCandidateService;
     private final PortalOrderRepository portalOrderRepository;
     private final OrderAttentionRepository orderAttentionRepository;
+    private final FollowUpCaseRepository followUpCaseRepository;
 
     public DashboardService(OrderCandidateService orderCandidateService,
                              PortalOrderRepository portalOrderRepository,
-                             OrderAttentionRepository orderAttentionRepository) {
+                             OrderAttentionRepository orderAttentionRepository,
+                             FollowUpCaseRepository followUpCaseRepository) {
         this.orderCandidateService = orderCandidateService;
         this.portalOrderRepository = portalOrderRepository;
         this.orderAttentionRepository = orderAttentionRepository;
+        this.followUpCaseRepository = followUpCaseRepository;
     }
 
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
@@ -60,12 +65,14 @@ public class DashboardService {
         int pendingApprovalCount = (int) orders.stream().filter(o -> PortalOrder.STATUS_PENDING_APPROVAL.equals(o.getStatus())).count();
         int awaitingSupplierCount = (int) orders.stream().filter(o -> PortalOrder.STATUS_AWAITING_SUPPLIER.equals(o.getStatus())).count();
         int attentionCount = (int) orders.stream().filter(o -> orderIdsWithActiveAttention.contains(o.getId())).count();
+        int openFollowUpCaseCount = (int) followUpCaseRepository.countByStatusIn(
+                List.of(FollowUpCase.STATUS_OPEN, FollowUpCase.STATUS_INQUIRY_PREPARED));
 
         List<DashboardBrandRow> brands = buildBrandRows(candidates, orders, orderIdsWithActiveAttention);
 
         return new DashboardResponse(
                 candidateCount, outOfStockCount, longTermOutOfStockCount,
-                draftCount, pendingApprovalCount, awaitingSupplierCount, attentionCount, brands
+                draftCount, pendingApprovalCount, awaitingSupplierCount, attentionCount, openFollowUpCaseCount, brands
         );
     }
 

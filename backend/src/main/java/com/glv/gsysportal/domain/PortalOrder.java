@@ -142,6 +142,19 @@ public class PortalOrder {
     @Version
     private int version;
 
+    /** Phase 7-C7A 15章/16章: Reorder Foundation - set only on a Reorder
+     * Draft (created via the ordinary {@code OrderDraftService.createDraft}
+     * path, then stamped with these 3 Reference columns; the create path
+     * itself is untouched). NULL for every ordinary Order. */
+    @Column(name = "source_order_id")
+    private Long sourceOrderId;
+
+    @Column(name = "source_follow_up_case_id")
+    private Long sourceFollowUpCaseId;
+
+    @Column(name = "reorder_reason")
+    private String reorderReason;
+
     @OneToMany(mappedBy = "portalOrder", cascade = CascadeType.ALL, orphanRemoval = false)
     @OrderBy("lineNo ASC")
     private List<PortalOrderDetail> details = new ArrayList<>();

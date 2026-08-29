@@ -20,5 +20,7 @@ export interface Dashboard {
   pendingApprovalCount: number
   awaitingSupplierCount: number
   attentionCount: number
+  /** Phase 7-C7A 19章: Open Follow-up Case count (OPEN + INQUIRY_PREPARED). */
+  openFollowUpCaseCount: number
   brands: DashboardBrandRow[]
 }

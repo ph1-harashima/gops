@@ -24,10 +24,16 @@ import DialogContentText from '@mui/material/DialogContentText'
 import DialogActions from '@mui/material/DialogActions'
 
 import Chip from '@mui/material/Chip'
+import MenuItem from '@mui/material/MenuItem'
 
 import { useOrderHistoryDetail, useOrderEvents } from './api'
 import { useOfficialPoIntegration, useRequestOfficialPoIntegration } from './officialPoIntegrationApi'
 import { useMailPreview } from './mailPreviewApi'
+import { useFulfillment } from './fulfillmentApi'
+import {
+  useFollowUpCases, useCreateFollowUpCase, useUpdateFollowUpCaseNote,
+  useCloseFollowUpCase, usePreviewFollowUpMail, useCreateReorderDraft,
+} from './followUpApi'
 import { useApprove, useReturnForCorrection } from '../drafts/poPreviewApi'
 import { useOrderRevisions, useResponseHistory } from '../supplierResponse/api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
@@ -37,6 +43,8 @@ import { useAuth } from '../auth/AuthContext'
 import { ROLE_ADMIN } from '../../shared/types/auth'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
 import type { TFunction } from 'i18next'
+
+const FOLLOW_UP_REASONS = ['DELIVERY_OVERDUE', 'PARTIAL_DELIVERY', 'NO_ARRIVAL', 'QUANTITY_DIFFERENCE', 'OTHER']
 
 /** Audit Timeline i18n audit: oldValue/newValue are raw strings on the wire
  * for every event type (implementation instructions - internal Code exposure
@@ -96,6 +104,8 @@ export function OrderHistoryDetailPage() {
   const { data: integration } = useOfficialPoIntegration(orderId)
   const { data: revisions } = useOrderRevisions(orderId)
   const { data: responseHistory } = useResponseHistory(orderId)
+  const { data: fulfillment } = useFulfillment(orderId)
+  const { data: followUpCases } = useFollowUpCases(orderId)
 
   const { user } = useAuth()
   const isAdmin = user?.role === ROLE_ADMIN
@@ -103,13 +113,56 @@ export function OrderHistoryDetailPage() {
   const returnMutation = useReturnForCorrection(orderId)
   const requestIntegrationMutation = useRequestOfficialPoIntegration(orderId)
   const mailPreviewMutation = useMailPreview(orderId)
+  const createFollowUpCaseMutation = useCreateFollowUpCase(orderId)
+  const updateFollowUpNoteMutation = useUpdateFollowUpCaseNote(orderId)
+  const closeFollowUpCaseMutation = useCloseFollowUpCase(orderId)
+  const previewFollowUpMailMutation = usePreviewFollowUpMail(orderId)
+  const createReorderDraftMutation = useCreateReorderDraft()
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [returnDialogOpen, setReturnDialogOpen] = useState(false)
   const [returnReason, setReturnReason] = useState('')
   const [requestDialogOpen, setRequestDialogOpen] = useState(false)
+  const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false)
+  const [followUpSku, setFollowUpSku] = useState('')
+  const [followUpReason, setFollowUpReason] = useState('OTHER')
+  const [followUpNote, setFollowUpNote] = useState('')
+  const [previewingCaseId, setPreviewingCaseId] = useState<number | null>(null)
+  const [reorderDialogCaseId, setReorderDialogCaseId] = useState<number | null>(null)
+  const [reorderReason, setReorderReason] = useState('')
+  const [editNoteCaseId, setEditNoteCaseId] = useState<number | null>(null)
+  const [editNoteValue, setEditNoteValue] = useState('')
 
   function handleRequestIntegration() {
     requestIntegrationMutation.mutate(undefined, { onSuccess: () => setRequestDialogOpen(false) })
+  }
+
+  function openFollowUpDialog(sku?: string) {
+    setFollowUpSku(sku ?? '')
+    setFollowUpReason('OTHER')
+    setFollowUpNote('')
+    setFollowUpDialogOpen(true)
+  }
+
+  function handleCreateFollowUpCase() {
+    createFollowUpCaseMutation.mutate(
+      { skuCode: followUpSku || null, reason: followUpReason, note: followUpNote || null },
+      { onSuccess: () => setFollowUpDialogOpen(false) },
+    )
+  }
+
+  function handleCreateReorderDraft() {
+    const followUpCase = followUpCases?.find((c) => c.id === reorderDialogCaseId)
+    if (!followUpCase) return
+    createReorderDraftMutation.mutate(
+      { caseId: followUpCase.id, request: { skus: followUpCase.skuCode ? [followUpCase.skuCode] : [], reorderReason: reorderReason || null } },
+      {
+        onSuccess: (created) => {
+          setReorderDialogCaseId(null)
+          setReorderReason('')
+          navigate(`/orders/drafts/${created.id}`)
+        },
+      },
+    )
   }
 
   function handleApprove() {
@@ -528,6 +581,158 @@ export function OrderHistoryDetailPage() {
         </Paper>
       )}
 
+      {/* Phase 7-C7A 4章/6章: G-SYS入荷状況 - always rendered (once loaded),
+          even when NOT_LINKED, so that state is explicit rather than a
+          misleading "0件"/"未納" (4章's explicit instruction). */}
+      {fulfillment && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="fulfillment-section">
+          <Typography variant="subtitle1" gutterBottom>{t('fulfillment.title')}</Typography>
+          {fulfillment.linkState === 'NOT_LINKED' && (
+            <Alert severity="info" data-testid="fulfillment-not-linked">{t('fulfillment.notLinked')}</Alert>
+          )}
+          {fulfillment.linkState === 'PO_NOT_FOUND' && (
+            <Alert severity="warning" data-testid="fulfillment-po-not-found">{t('fulfillment.poNotFound')}</Alert>
+          )}
+          {fulfillment.linkState === 'LINKED' && (
+            <>
+              <Stack direction="row" spacing={4} sx={{ flexWrap: 'wrap', rowGap: 1, alignItems: 'center', mb: 1 }}>
+                <Typography variant="body2">
+                  {t('fulfillment.officialPoNoLabel')}: <strong>{fulfillment.officialPoNo}</strong>
+                </Typography>
+                <Chip
+                  size="small"
+                  label={t(`fulfillment.status.${fulfillment.fulfillmentStatus}`)}
+                  color={fulfillment.fulfillmentStatus === 'FULFILLED' ? 'success'
+                    : fulfillment.fulfillmentStatus === 'PARTIAL' ? 'warning' : 'default'}
+                  data-testid="fulfillment-status-chip"
+                />
+              </Stack>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>{t('fulfillment.table.sku')}</TableCell>
+                      <TableCell>{t('fulfillment.table.itemName')}</TableCell>
+                      <TableCell align="right">{t('fulfillment.table.ordered')}</TableCell>
+                      <TableCell align="right">{t('fulfillment.table.invoiced')}</TableCell>
+                      <TableCell align="right">{t('fulfillment.table.stockIn')}</TableCell>
+                      <TableCell align="right">{t('fulfillment.table.outstanding')}</TableCell>
+                      <TableCell>{t('fulfillment.table.status')}</TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {fulfillment.lines.map((line) => (
+                      <TableRow key={line.skuCode} hover data-testid={`fulfillment-line-${line.skuCode}`}>
+                        <TableCell>{line.skuCode}</TableCell>
+                        <TableCell>{line.itemName}</TableCell>
+                        <TableCell align="right">{line.orderedQty}</TableCell>
+                        <TableCell align="right">{line.invoicedQty}</TableCell>
+                        <TableCell align="right">{line.stockInQty}</TableCell>
+                        <TableCell align="right">{line.outstandingQty}</TableCell>
+                        <TableCell>{t(`fulfillment.status.${line.lineStatus}`)}</TableCell>
+                        <TableCell>
+                          <Button size="small" onClick={() => openFollowUpDialog(line.skuCode)}
+                                  data-testid={`fulfillment-follow-up-button-${line.skuCode}`}>
+                            {t('followUp.createButtonShort')}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+        </Paper>
+      )}
+
+      {/* Phase 7-C7A 9章/12章/18章: 問い合わせ (Follow-up Case) - always
+          Portal-only, never auto-generated. */}
+      <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="follow-up-section">
+        <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 1 }}>
+          <Typography variant="subtitle1">{t('followUp.title')}</Typography>
+          <Button size="small" variant="outlined" onClick={() => openFollowUpDialog()} data-testid="create-follow-up-case-button">
+            {t('followUp.createButton')}
+          </Button>
+        </Stack>
+
+        {createFollowUpCaseMutation.isError && (
+          <Alert severity="error" sx={{ mb: 1 }}>{t('followUp.errorGeneric')}</Alert>
+        )}
+        {previewFollowUpMailMutation.isError && (
+          <Alert severity="error" sx={{ mb: 1 }}>{t('followUp.errorGeneric')}</Alert>
+        )}
+
+        {(!followUpCases || followUpCases.length === 0) && (
+          <Alert severity="info">{t('followUp.empty')}</Alert>
+        )}
+
+        <Stack spacing={1.5}>
+          {followUpCases?.map((c) => (
+            <Paper key={c.id} variant="outlined" sx={{ p: 1.5 }} data-testid={`follow-up-case-${c.id}`}>
+              <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                <Chip size="small" label={t(`followUp.status.${c.status}`)}
+                      color={c.status === 'CLOSED' ? 'default' : c.status === 'INQUIRY_PREPARED' ? 'info' : 'warning'} />
+                <Typography variant="body2">{t(`followUp.reason.${c.reason}`)}</Typography>
+                {c.skuCode && <Typography variant="body2" color="text.secondary">SKU: {c.skuCode}</Typography>}
+                <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                  {c.createdBy} - {new Date(c.createdAt).toLocaleString('ja-JP')}
+                </Typography>
+              </Stack>
+              {c.note && <Typography variant="body2" sx={{ mt: 0.5 }}>{c.note}</Typography>}
+
+              {c.status !== 'CLOSED' && (
+                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                  <Button size="small" variant="outlined"
+                          onClick={() => { setPreviewingCaseId(c.id); previewFollowUpMailMutation.mutate(c.id) }}
+                          disabled={previewFollowUpMailMutation.isPending}
+                          data-testid={`follow-up-mail-preview-button-${c.id}`}>
+                    {t('followUp.previewButton')}
+                  </Button>
+                  <Button size="small" variant="outlined"
+                          onClick={() => { setEditNoteCaseId(c.id); setEditNoteValue(c.note ?? '') }}
+                          data-testid={`follow-up-edit-note-button-${c.id}`}>
+                    {t('followUp.editNoteButton')}
+                  </Button>
+                  {isAdmin && (
+                    <>
+                      <Button size="small" variant="outlined" color="error"
+                              onClick={() => closeFollowUpCaseMutation.mutate({ caseId: c.id, request: {} })}
+                              disabled={closeFollowUpCaseMutation.isPending}
+                              data-testid={`follow-up-close-button-${c.id}`}>
+                        {t('followUp.closeButton')}
+                      </Button>
+                      <Button size="small" variant="outlined"
+                              onClick={() => { setReorderDialogCaseId(c.id); setReorderReason('') }}
+                              data-testid={`follow-up-reorder-button-${c.id}`}>
+                        {t('followUp.reorderButton')}
+                      </Button>
+                    </>
+                  )}
+                </Stack>
+              )}
+
+              {previewingCaseId === c.id && previewFollowUpMailMutation.data && (
+                <Stack spacing={0.5} sx={{ mt: 1 }} data-testid={`follow-up-mail-preview-result-${c.id}`}>
+                  {previewFollowUpMailMutation.data.issues.map((issue, i) => (
+                    <Alert key={i} severity={issue.severity === 'BLOCKED' ? 'error' : 'warning'}>
+                      {t(`mailPreview.issue.${issue.code}`, { defaultValue: issue.code })}
+                    </Alert>
+                  ))}
+                  {previewFollowUpMailMutation.data.subject && (
+                    <>
+                      <Typography variant="body2">{t('mailPreview.subject')}: <strong>{previewFollowUpMailMutation.data.subject}</strong></Typography>
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{previewFollowUpMailMutation.data.body}</Typography>
+                    </>
+                  )}
+                </Stack>
+              )}
+            </Paper>
+          ))}
+        </Stack>
+      </Paper>
+
       <Divider sx={{ my: 3 }} />
 
       <Typography variant="h6" gutterBottom>{t('timelineTitle')}</Typography>
@@ -627,6 +832,118 @@ export function OrderHistoryDetailPage() {
             data-testid="official-po-request-dialog-confirm"
           >
             {requestIntegrationMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.requestDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={followUpDialogOpen} onClose={() => setFollowUpDialogOpen(false)}>
+        <DialogTitle>{t('followUp.createDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1, minWidth: 320 }}>
+            <TextField
+              select
+              label={t('followUp.reasonLabel')}
+              value={followUpReason}
+              onChange={(e) => setFollowUpReason(e.target.value)}
+              data-testid="follow-up-reason-select"
+            >
+              {FOLLOW_UP_REASONS.map((reason) => (
+                <MenuItem key={reason} value={reason}>{t(`followUp.reason.${reason}`)}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label={t('followUp.skuLabel')}
+              value={followUpSku}
+              onChange={(e) => setFollowUpSku(e.target.value)}
+              helperText={t('followUp.skuHelperText')}
+              data-testid="follow-up-sku-input"
+            />
+            <TextField
+              label={t('followUp.noteLabel')}
+              value={followUpNote}
+              onChange={(e) => setFollowUpNote(e.target.value)}
+              multiline
+              minRows={2}
+              data-testid="follow-up-note-input"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFollowUpDialogOpen(false)} disabled={createFollowUpCaseMutation.isPending}>
+            {t('followUp.createDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleCreateFollowUpCase}
+            disabled={createFollowUpCaseMutation.isPending}
+            data-testid="follow-up-create-dialog-confirm"
+          >
+            {createFollowUpCaseMutation.isPending ? <CircularProgress size={20} /> : t('followUp.createDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={editNoteCaseId !== null} onClose={() => setEditNoteCaseId(null)}>
+        <DialogTitle>{t('followUp.editNoteDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={2}
+            sx={{ mt: 1, minWidth: 320 }}
+            value={editNoteValue}
+            onChange={(e) => setEditNoteValue(e.target.value)}
+            data-testid="follow-up-edit-note-input"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditNoteCaseId(null)} disabled={updateFollowUpNoteMutation.isPending}>
+            {t('followUp.createDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              if (editNoteCaseId === null) return
+              updateFollowUpNoteMutation.mutate(
+                { caseId: editNoteCaseId, request: { note: editNoteValue || null } },
+                { onSuccess: () => setEditNoteCaseId(null) },
+              )
+            }}
+            disabled={updateFollowUpNoteMutation.isPending}
+            data-testid="follow-up-edit-note-dialog-confirm"
+          >
+            {updateFollowUpNoteMutation.isPending ? <CircularProgress size={20} /> : t('followUp.editNoteDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={reorderDialogCaseId !== null} onClose={() => setReorderDialogCaseId(null)}>
+        <DialogTitle>{t('followUp.reorderDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{t('followUp.reorderDialogBody')}</DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={2}
+            label={t('followUp.reorderReasonLabel')}
+            value={reorderReason}
+            onChange={(e) => setReorderReason(e.target.value)}
+            data-testid="follow-up-reorder-reason-input"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReorderDialogCaseId(null)} disabled={createReorderDraftMutation.isPending}>
+            {t('followUp.createDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleCreateReorderDraft}
+            disabled={createReorderDraftMutation.isPending}
+            data-testid="follow-up-reorder-dialog-confirm"
+          >
+            {createReorderDraftMutation.isPending ? <CircularProgress size={20} /> : t('followUp.reorderDialogConfirm')}
           </Button>
         </DialogActions>
       </Dialog>
