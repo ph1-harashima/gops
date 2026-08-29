@@ -127,6 +127,33 @@ export function SupplierResponsePage() {
   // 確定できる".
   const canConfirm = response ? response.summary.unansweredCount === 0 : false
 
+  // Phase 7-E Section 2/3 audit: the same "local unsaved state vs Server
+  // state" gap the original confirmation bug came from also applies to
+  // Confirm's relationship with `lines` - canConfirm above is correctly
+  // server-derived, but nothing previously stopped a user from editing a
+  // value after their last Save (e.g. bumping confirmedQty from 5 to 7) and
+  // clicking Confirm before Saving again: the server (and therefore the
+  // Confirm action) would silently act on the OLD value 5 while the screen
+  // still shows 7. Mirrors the equivalent isDirty guard added to
+  // OrderDraftPage's submit-for-approval-button in this same audit.
+  const isDirty = Boolean(
+    response && (
+      (response.responseDate ?? '') !== responseDate ||
+      (response.responseNote ?? '') !== responseNote ||
+      response.details.some((d) => {
+        const edit = lines[d.detailId]
+        if (!edit) return false
+        const savedQty = d.confirmedQty === null ? '' : String(d.confirmedQty)
+        return (
+          edit.confirmedQty !== savedQty ||
+          edit.confirmedDelivery !== (d.confirmedDelivery ?? '') ||
+          edit.responseNote !== (d.responseNote ?? '') ||
+          edit.supplyStatus !== (d.supplyStatus ?? '')
+        )
+      })
+    ),
+  )
+
   // Defensive fix for the same bug: whenever the server response is
   // replaced (a fresh GET, or the authoritative post-Save state written
   // into the cache), any earlier Confirm failure is no longer necessarily
@@ -551,6 +578,11 @@ export function SupplierResponsePage() {
           so no bottom row renders at all. The former standalone "履歴を見る"
           button is gone - Confirm now lands on 発注詳細 itself, and 戻る
           already goes there too, so it was a redundant third path. */}
+      {isEditable && isDirty && (
+        <Alert severity="warning" sx={{ mt: 2 }} data-testid="response-unsaved-changes-banner">
+          {t('unsavedChangesBanner')}
+        </Alert>
+      )}
       {isEditable && (
         <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
           <Button variant="contained" onClick={handleSave} disabled={saveMutation.isPending} data-testid="save-response-button">
@@ -559,7 +591,7 @@ export function SupplierResponsePage() {
           <Button
             variant="outlined"
             onClick={() => setConfirmDialogOpen(true)}
-            disabled={!canConfirm || confirmMutation.isPending}
+            disabled={!canConfirm || isDirty || confirmMutation.isPending}
             data-testid="confirm-response-button"
           >
             {t('confirmResponse')}
@@ -607,7 +639,16 @@ export function SupplierResponsePage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={agreeDialogOpen} onClose={() => setAgreeDialogOpen(false)}>
+      {/* Phase 7-E Section 2 audit: same backdropClick/escapeKeyDown hardening
+          as the Confirm Dialog fix above, applied to Agree/Reopen/Revision
+          too - all three confirm a one-shot Workflow Status transition. */}
+      <Dialog
+        open={agreeDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setAgreeDialogOpen(false)
+        }}
+      >
         <DialogTitle>{t('agreement.agreeDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ whiteSpace: 'pre-wrap', mb: 1 }}>{t('agreement.agreeDialogBody')}</DialogContentText>
@@ -628,7 +669,13 @@ export function SupplierResponsePage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={reopenDialogOpen} onClose={() => setReopenDialogOpen(false)}>
+      <Dialog
+        open={reopenDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setReopenDialogOpen(false)
+        }}
+      >
         <DialogTitle>{t('agreement.reopenDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{t('agreement.reopenDialogBody')}</DialogContentText>
@@ -659,7 +706,13 @@ export function SupplierResponsePage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={revisionDialogOpen} onClose={() => setRevisionDialogOpen(false)}>
+      <Dialog
+        open={revisionDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setRevisionDialogOpen(false)
+        }}
+      >
         <DialogTitle>{t('revision.createDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{t('revision.createDialogBody')}</DialogContentText>

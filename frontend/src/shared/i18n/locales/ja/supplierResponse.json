@@ -41,6 +41,7 @@
   "saveResponse": "回答を保存",
   "saveSuccess": "回答を保存しました。",
   "saveFailed": "保存に失敗しました（{{code}}）。",
+  "unsavedChangesBanner": "保存されていない変更があります。確定する前に保存してください。",
   "confirmResponse": "メーカー回答を確定",
   "confirmDialogTitle": "メーカー回答を確定しますか？",
   "confirmDialogBody": "全SKUの回答を確定します。確定後は編集できません。",

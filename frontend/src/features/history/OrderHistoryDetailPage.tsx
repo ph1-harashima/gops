@@ -858,7 +858,20 @@ export function OrderHistoryDetailPage() {
         </Stack>
       )}
 
-      <Dialog open={approveDialogOpen} onClose={() => setApproveDialogOpen(false)}>
+      {/* Phase 7-E Section 2 audit: same backdropClick/escapeKeyDown hardening
+          as the Supplier Response Confirm Dialog fix, applied here and to
+          Return/Official-PO-Request/Reorder below - all four confirm a
+          Workflow Status transition or an equivalent one-shot business
+          action, the same Dialog class the original bug was found in.
+          Follow-up Create and Edit-Note below are left as plain data-entry
+          forms (like the Master Maintenance dialogs) - not touched. */}
+      <Dialog
+        open={approveDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setApproveDialogOpen(false)
+        }}
+      >
         <DialogTitle>{t('approveDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('approveDialogBody')}</DialogContentText>
@@ -878,7 +891,13 @@ export function OrderHistoryDetailPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={returnDialogOpen} onClose={() => setReturnDialogOpen(false)}>
+      <Dialog
+        open={returnDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setReturnDialogOpen(false)
+        }}
+      >
         <DialogTitle>{t('returnDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{t('returnDialogBody')}</DialogContentText>
@@ -909,7 +928,13 @@ export function OrderHistoryDetailPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={requestDialogOpen} onClose={() => setRequestDialogOpen(false)}>
+      <Dialog
+        open={requestDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setRequestDialogOpen(false)
+        }}
+      >
         <DialogTitle>{t('officialPoIntegration.requestDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('officialPoIntegration.requestDialogBody')}</DialogContentText>
@@ -1011,7 +1036,13 @@ export function OrderHistoryDetailPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={reorderDialogCaseId !== null} onClose={() => setReorderDialogCaseId(null)}>
+      <Dialog
+        open={reorderDialogCaseId !== null}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setReorderDialogCaseId(null)
+        }}
+      >
         <DialogTitle>{t('followUp.reorderDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{t('followUp.reorderDialogBody')}</DialogContentText>

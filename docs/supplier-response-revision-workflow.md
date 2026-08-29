@@ -177,6 +177,7 @@ Order History Detailページに2つの新セクションを追加:
 - Revision再送信時の再承認要否の正式ルール（既存の単一段階承認をそのまま流用したが、これが正式仕様として十分かはCUSTOMER REVIEW）。
 - AGREEDの正式な完了条件、Reopenを行える権限の正式な範囲・回数上限。
 - 修正版のPO番号採番規則（Official PO No.の採番規則自体が7-C2A以降ずっと未確定のCUSTOMER REVIEW - 7-C5でも変わらず）。
+- **[Phase 7-E Section 8で追加] Revision跨ぎのAttentionが「解消済み」として区別されない問題。** `OrderAttention`（`backend/src/main/java/com/glv/gsysportal/domain/OrderAttention.java`）には元々Revisionへの参照Fieldが一切存在せず、`portalOrderId`/`portalOrderDetailId`のみでOrder全体にスコープされる（`OrderHistoryService.findByPortalOrderIdAndActiveTrue`が発注詳細画面の表示に使う唯一のSourceで、これもRevision非スコープ）。QUANTITY_CHANGED/DELIVERY_CHANGED/SUPPLY_STATUS_CHANGEDは「ACTIVEのまま、ユーザーが確認するまで残り続ける」設計（8章）だが、Revision 1で数量差異が発生してAttentionがACTIVEになった後、Revision 2でその差異が解消（発注数量と回答数量が一致）しても、Revision 1由来のAttentionはACTIVEのまま画面に表示され続ける - 「過去のRevisionで発生し既に解消済みのAttention」と「現在のRevisionで未解決のAttention」が画面上で区別されない。実際に7-C6以降のBug Report調査で、Revision 2で数量差異が存在しないOrderに対して「数量変更あり」Attentionが表示され続ける事例として発見（推測ではなくSource確認済み: `SupplierResponseService.applyLineUpdate`のQUANTITY_CHANGED発火ロジック自体は正しく、単に過去分をRevision跨ぎで自動Resolveする仕組みが存在しないだけ）。本Phaseはこの挙動を仕様変更しない（監査のみ、Section 8の指示どおり）。将来的な選択肢: (a) Attentionに`portalOrderRevisionId`を追加しRevision単位でスコープする、(b) Revision作成時に旧Revision由来のACTIVE Attentionを自動的にRESOLVEDへ遷移させる、(c) 画面表示側で「これはどのRevision由来か」を明示するLabelを追加する（データは変えず表示のみ改善）。どれを採るかはCUSTOMER REVIEW。
 
 ## 27. Legacy変更ゼロ確認
 

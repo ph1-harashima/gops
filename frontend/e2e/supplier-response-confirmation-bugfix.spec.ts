@@ -151,4 +151,26 @@ test.describe('Supplier Response Confirmation bugfix regression', () => {
     await page.getByTestId('confirm-response-dialog-confirm').click()
     await expect(page.getByRole('heading', { name: '発注詳細' })).toBeVisible()
   })
+
+  test('E: Phase 7-E Section 2/3 audit - Save後に未保存で再編集するとConfirmがblockされる', async ({ page }) => {
+    const SKU_A = 'HM-RUG-001'
+    const SKU_B = 'HM-RUG-002'
+    await createAwaitingSupplierResponse(page, SKU_A, SKU_B)
+
+    await page.getByTestId(`confirmed-qty-input-${SKU_A}`).locator('input').fill('5')
+    await page.getByTestId(`confirmed-qty-input-${SKU_B}`).locator('input').fill('8')
+    await page.getByTestId('save-response-button').click()
+    await expect(page.getByText('回答を保存しました。')).toBeVisible()
+    await expect(page.getByTestId('confirm-response-button')).toBeEnabled()
+
+    // Edit again WITHOUT saving - without this guard, Confirm would silently
+    // act on the OLD saved value (5), not the 7 now on screen.
+    await page.getByTestId(`confirmed-qty-input-${SKU_A}`).locator('input').fill('7')
+    await expect(page.getByTestId('response-unsaved-changes-banner')).toBeVisible()
+    await expect(page.getByTestId('confirm-response-button')).toBeDisabled()
+
+    await page.getByTestId('save-response-button').click()
+    await expect(page.getByText('回答を保存しました。')).toBeVisible()
+    await expect(page.getByTestId('confirm-response-button')).toBeEnabled()
+  })
 })

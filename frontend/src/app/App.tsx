@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import AppBar from '@mui/material/AppBar'
@@ -9,6 +10,8 @@ import Chip from '@mui/material/Chip'
 import Stack from '@mui/material/Stack'
 import CircularProgress from '@mui/material/CircularProgress'
 import Box from '@mui/material/Box'
+import Menu from '@mui/material/Menu'
+import MenuItem from '@mui/material/MenuItem'
 
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { CandidateListPage } from '../features/candidates/CandidateListPage'
@@ -38,6 +41,16 @@ export function App() {
   const isAdmin = user?.role === ROLE_ADMIN
 
   const isHistorySection = location.pathname.startsWith('/orders/history') || /^\/orders\/\d+$/.test(location.pathname)
+  // Phase 7-E Section 6: Information-Architecture-only reorganization - the
+  // two ADMIN Master screens (Supplier Contact / Mail Template) move from
+  // separate top-level Nav buttons into one "マスタメンテナンス" submenu, so
+  // the Top Nav stops mixing per-record Portal Master upkeep with the
+  // business menus (Dashboard/発注候補/発注一覧). No Route, no functional
+  // change - both pages, their data-testids, and the Backend's own
+  // @PreAuthorize gate are all untouched.
+  const isMasterMaintenanceSection =
+    location.pathname === '/admin/supplier-contacts' || location.pathname === '/admin/mail-templates'
+  const [masterMenuAnchor, setMasterMenuAnchor] = useState<HTMLElement | null>(null)
 
   return (
     <>
@@ -80,31 +93,42 @@ export function App() {
               >
                 {t('navHistory')}
               </Button>
-              {/* Phase 7-C3 12章: ADMIN-only Master management screens.
-                  Backend also enforces this (403 for OPERATOR on every
-                  underlying API call) - hiding the Nav entry is UX
-                  convenience, not the access control. */}
+              {/* Phase 7-C3 12章 / Phase 7-E Section 6: ADMIN-only Master
+                  management, now grouped under one submenu. Backend also
+                  enforces this (403 for OPERATOR on every underlying API
+                  call) - hiding the Nav entry is UX convenience, not the
+                  access control. */}
               {isAdmin && (
-                <Button
-                  size="small"
-                  component={Link}
-                  to="/admin/supplier-contacts"
-                  color={location.pathname === '/admin/supplier-contacts' ? 'primary' : 'inherit'}
-                  data-testid="nav-admin-supplier-contacts"
-                >
-                  {t('navAdminSupplierContacts')}
-                </Button>
-              )}
-              {isAdmin && (
-                <Button
-                  size="small"
-                  component={Link}
-                  to="/admin/mail-templates"
-                  color={location.pathname === '/admin/mail-templates' ? 'primary' : 'inherit'}
-                  data-testid="nav-admin-mail-templates"
-                >
-                  {t('navAdminMailTemplates')}
-                </Button>
+                <>
+                  <Button
+                    size="small"
+                    color={isMasterMaintenanceSection ? 'primary' : 'inherit'}
+                    onClick={(e) => setMasterMenuAnchor(e.currentTarget)}
+                    data-testid="nav-master-maintenance"
+                  >
+                    {t('navMasterMaintenance')}
+                  </Button>
+                  <Menu anchorEl={masterMenuAnchor} open={Boolean(masterMenuAnchor)} onClose={() => setMasterMenuAnchor(null)}>
+                    <MenuItem
+                      component={Link}
+                      to="/admin/supplier-contacts"
+                      selected={location.pathname === '/admin/supplier-contacts'}
+                      onClick={() => setMasterMenuAnchor(null)}
+                      data-testid="nav-admin-supplier-contacts"
+                    >
+                      {t('navAdminSupplierContacts')}
+                    </MenuItem>
+                    <MenuItem
+                      component={Link}
+                      to="/admin/mail-templates"
+                      selected={location.pathname === '/admin/mail-templates'}
+                      onClick={() => setMasterMenuAnchor(null)}
+                      data-testid="nav-admin-mail-templates"
+                    >
+                      {t('navAdminMailTemplates')}
+                    </MenuItem>
+                  </Menu>
+                </>
               )}
               <Typography variant="body2" data-testid="current-user-display">
                 {user.displayName}

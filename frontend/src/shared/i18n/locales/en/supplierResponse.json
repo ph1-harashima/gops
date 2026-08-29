@@ -41,6 +41,7 @@
   "saveResponse": "Save Response",
   "saveSuccess": "Response saved.",
   "saveFailed": "Save failed ({{code}}).",
+  "unsavedChangesBanner": "There are unsaved changes. Save before confirming.",
   "confirmResponse": "Confirm Supplier Response",
   "confirmDialogTitle": "Confirm the Supplier Response?",
   "confirmDialogBody": "Confirms every SKU's response. Cannot be edited afterwards.",

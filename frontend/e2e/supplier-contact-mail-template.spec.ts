@@ -209,10 +209,26 @@ test.describe('Phase 7-C3: Supplier Contact / Mail Template Foundation', () => {
     expect(templateResponse.status()).toBe(403)
     expect((await templateResponse.json()).errorCode).toBe('FORBIDDEN')
 
-    // The Nav entries themselves are also hidden for OPERATOR.
+    // The Nav entries themselves are also hidden for OPERATOR - including
+    // the マスタメンテナンス submenu trigger itself (Phase 7-E Section 6/7).
     await page.goto('/')
+    await expect(page.getByTestId('nav-master-maintenance')).toHaveCount(0)
     await expect(page.getByTestId('nav-admin-supplier-contacts')).toHaveCount(0)
     await expect(page.getByTestId('nav-admin-mail-templates')).toHaveCount(0)
+  })
+
+  test('Phase 7-E Section 6: ADMIN - マスタメンテナンス submenu exposes both Master screens', async ({ page }) => {
+    await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
+
+    await page.getByTestId('nav-master-maintenance').click()
+    await page.getByTestId('nav-admin-supplier-contacts').click()
+    await expect(page).toHaveURL(/\/admin\/supplier-contacts$/)
+    await expect(page.getByTestId('supplier-contact-create-button')).toBeVisible()
+
+    await page.getByTestId('nav-master-maintenance').click()
+    await page.getByTestId('nav-admin-mail-templates').click()
+    await expect(page).toHaveURL(/\/admin\/mail-templates$/)
+    await expect(page.getByTestId('mail-template-create-button')).toBeVisible()
   })
 
   test('Scenario E: officialPoNo not yet assigned -> Preview explicitly shows "正式PO番号未設定" as a Blocker', async ({ page }) => {

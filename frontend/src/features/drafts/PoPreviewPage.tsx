@@ -306,7 +306,16 @@ export function PoPreviewPage() {
         )}
       </Stack>
 
-      <Dialog open={demoSendDialogOpen} onClose={() => setDemoSendDialogOpen(false)}>
+      {/* Phase 7-E Section 2 audit: same backdropClick/escapeKeyDown hardening
+          as the Supplier Response Confirm Dialog fix - Demo Send is an
+          equivalent "confirm a Workflow Status transition" Dialog. */}
+      <Dialog
+        open={demoSendDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setDemoSendDialogOpen(false)
+        }}
+      >
         <DialogTitle>{t('demoSendDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('demoSendDialogBody')}</DialogContentText>

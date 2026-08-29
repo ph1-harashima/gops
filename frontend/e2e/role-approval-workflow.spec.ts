@@ -202,4 +202,20 @@ test.describe('Phase 7-C1: Role / Approval Workflow', () => {
     await page.reload()
     await expect(page.getByTestId('pending-approval-indicator')).toBeVisible()
   })
+
+  test('Phase 7-E Section 2/3 audit: 承認依頼 is blocked while there are unsaved edits (Save-then-Next server-authoritative gating)', async ({ page }) => {
+    const draftId = await createOrderableDraft(page)
+    await page.goto(`/orders/drafts/${draftId}`)
+
+    // Edit locally WITHOUT saving - without this guard, 承認依頼 would submit
+    // the OLD saved orderQty (6), silently ignoring what is now on screen (9).
+    const qtyInput = page.getByTestId(`order-qty-input-${SKU}`).locator('input')
+    await qtyInput.fill('9')
+    await expect(page.getByTestId('submit-for-approval-button')).toBeDisabled()
+
+    // Saving clears the gate again.
+    await page.getByTestId('save-draft-button').click()
+    await expect(page.getByText('保存しました。')).toBeVisible()
+    await expect(page.getByTestId('submit-for-approval-button')).toBeEnabled()
+  })
 })

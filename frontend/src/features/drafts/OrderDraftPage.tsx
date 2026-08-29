@@ -395,12 +395,23 @@ export function OrderDraftPage() {
               creator or an ADMIN can submit (OrderStatusTransitionService.
               submitForApproval's ownership check) - hidden rather than
               shown-then-403'd for the common case, though the Backend
-              enforces this regardless (17章). */}
+              enforces this regardless (17章).
+              Phase 7-E Section 2/3 audit: submitForApproval transitions the
+              already-PERSISTED Draft's Status only - it does not carry any
+              Qty/Date/Remark payload of its own. Without this isDirty guard,
+              a user who edits a value on screen and clicks 承認申請 without
+              an intervening Save would silently submit the OLD saved values
+              (matching what the Backend actually has), not what is currently
+              typed - the same "local unsaved state vs Server state" gap that
+              caused the Supplier Response confirmation bug, just on this
+              screen's own Next action instead of a stale error message. The
+              existing unsavedChangesBanner Alert above already explains why,
+              same as the Save button's own isDirty-independent disable. */}
           {canSubmitForApproval && (
             <Button
               variant="contained"
               onClick={() => setSubmitDialogOpen(true)}
-              disabled={submitMutation.isPending}
+              disabled={submitMutation.isPending || isDirty}
               data-testid="submit-for-approval-button"
             >
               {submitMutation.isPending ? <CircularProgress size={20} /> : t('drafts:submitForApproval')}
@@ -409,7 +420,18 @@ export function OrderDraftPage() {
         </Stack>
       </Paper>
 
-      <Dialog open={submitDialogOpen} onClose={() => setSubmitDialogOpen(false)}>
+      {/* Phase 7-E Section 2 audit: same backdropClick/escapeKeyDown hardening
+          as the Supplier Response Confirm Dialog fix (found via live
+          reproduction on that screen) - applied here for consistency since
+          this is the same kind of "confirm a Workflow Status transition"
+          Dialog, not a plain data-entry form. */}
+      <Dialog
+        open={submitDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setSubmitDialogOpen(false)
+        }}
+      >
         <DialogTitle>{t('drafts:submitDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('drafts:submitDialogBody')}</DialogContentText>
