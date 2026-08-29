@@ -192,6 +192,50 @@ class SupplierResponseServiceIntegrationTest {
                 "implementation instructions 13章: null confirmedDelivery must not be treated as a difference");
     }
 
+    /** Regression for the Supplier Response Confirmation bugfix (found via
+     * live demo testing on PO-DEMO-20260829-0001): {@code response.differences()}
+     * is a SEPARATE computation from Attention (OrderRevisionService.computeDifferences,
+     * comparing the Revision snapshot's requestedDelivery against the
+     * Response's confirmedDelivery) - proves it reports no DELIVERY_CHANGED
+     * difference when the Supplier confirms the SAME delivery that was
+     * originally requested. */
+    @Test
+    void sameRequestedDeliveryProducesNoDeliveryDifference() {
+        OrderDraftResponse draft = orderDraftService.createDraft(
+                new CreateDraftRequest(List.of(SKU_TENT_1), null, LocalDate.of(2026, 9, 15), null), "tester01");
+        PortalOrder ready = approveViaWorkflow(draft.id());
+        PortalOrder order = statusTransitionService.demoSend(ready.getId(), "tester01");
+        Long detailId = detailId(order, 0);
+
+        SupplierResponseView view = supplierResponseService.saveSupplierResponse(order.getId(),
+                new SaveSupplierResponseRequest(null, null, List.of(line(detailId, 3, LocalDate.of(2026, 9, 15)))), "tester01");
+
+        assertTrue(view.differences().stream().noneMatch(d -> d.type().equals("DELIVERY_CHANGED")),
+                "confirming the SAME delivery that was requested must not be reported as a difference");
+    }
+
+    /** Same setup as above, but the Supplier confirms a DIFFERENT delivery -
+     * {@code response.differences()} must report DELIVERY_CHANGED with the
+     * Revision snapshot's requestedDelivery as orderedValue (never the
+     * live/current Draft state - 7-D2 現象2 investigation confirmed the
+     * comparison is always against the Revision snapshot, per
+     * OrderRevisionService.snapshotForSend). */
+    @Test
+    void differentRequestedDeliveryProducesDeliveryDifference() {
+        OrderDraftResponse draft = orderDraftService.createDraft(
+                new CreateDraftRequest(List.of(SKU_TENT_1), null, LocalDate.of(2026, 9, 15), null), "tester01");
+        PortalOrder ready = approveViaWorkflow(draft.id());
+        PortalOrder order = statusTransitionService.demoSend(ready.getId(), "tester01");
+        Long detailId = detailId(order, 0);
+
+        SupplierResponseView view = supplierResponseService.saveSupplierResponse(order.getId(),
+                new SaveSupplierResponseRequest(null, null, List.of(line(detailId, 3, LocalDate.of(2026, 9, 20)))), "tester01");
+
+        var diff = view.differences().stream().filter(d -> d.type().equals("DELIVERY_CHANGED")).findFirst().orElseThrow();
+        assertEquals("2026-09-15", diff.orderedValue());
+        assertEquals("2026-09-20", diff.confirmedValue());
+    }
+
     @Test
     void partialAnswerSetsOrderLevelPartialConfirmationAttention() {
         PortalOrder order = createAwaitingSupplierOrder(SKU_TENT_1, SKU_TENT_2);

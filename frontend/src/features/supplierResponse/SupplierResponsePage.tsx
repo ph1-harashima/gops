@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
@@ -113,10 +113,30 @@ export function SupplierResponsePage() {
 
   const isEditable = response?.status === 'AWAITING_SUPPLIER'
 
-  const allAnswered = useMemo(
-    () => Object.values(lines).every((l) => l.confirmedQty !== ''),
-    [lines],
-  )
+  // Bug fix (found via live demo testing, PO-DEMO-20260829-0001): this MUST
+  // be derived from the server-persisted summary, never from unsaved local
+  // `lines` edit state. Filling in every field locally (without clicking
+  // "回答を保存" first) used to make the Confirm button clickable even
+  // though the Backend still held the old (unanswered) values - clicking it
+  // then failed with SUPPLIER_RESPONSE_INCOMPLETE, and nothing ever cleared
+  // that stale confirmMutation error afterward (see the useEffect below), so
+  // the error banner kept contradicting an already-correct summary even
+  // after a subsequent successful Save. Gating on
+  // response.summary.unansweredCount instead makes the button reflect only
+  // what is actually saved - exactly "全SKUについて回答数量が保存済みなら
+  // 確定できる".
+  const canConfirm = response ? response.summary.unansweredCount === 0 : false
+
+  // Defensive fix for the same bug: whenever the server response is
+  // replaced (a fresh GET, or the authoritative post-Save state written
+  // into the cache), any earlier Confirm failure is no longer necessarily
+  // still true - drop it rather than let a stale SUPPLIER_RESPONSE_INCOMPLETE
+  // Alert linger on screen after the underlying data has since become fully
+  // answered.
+  useEffect(() => {
+    confirmMutation.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [response])
 
   // Phase 7-C5 11章: Agreement's forceAgree checkbox must appear whenever ANY
   // ACTIVE Attention exists - order-level (response.orderAttentions) OR
@@ -539,7 +559,7 @@ export function SupplierResponsePage() {
           <Button
             variant="outlined"
             onClick={() => setConfirmDialogOpen(true)}
-            disabled={!allAnswered || confirmMutation.isPending}
+            disabled={!canConfirm || confirmMutation.isPending}
             data-testid="confirm-response-button"
           >
             {t('confirmResponse')}
