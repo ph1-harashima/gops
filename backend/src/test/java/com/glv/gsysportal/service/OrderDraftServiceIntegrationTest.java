@@ -165,7 +165,7 @@ class OrderDraftServiceIntegrationTest {
         LegacyStockRow badRow = new LegacyStockRow(
                 "BAD-SKU", null, "BR_KITCHEN", "Kitchen", "10", "NEW", false,
                 5, 10, 1, 0, 0, 0, null, null, null, null,
-                "SUP_ALPHA", "Alpha", BigDecimal.TEN, "JPY"
+                "SUP_ALPHA", "Alpha", BigDecimal.TEN, "JPY", null
         );
 
         long ordersBefore = portalOrderRepository.count();

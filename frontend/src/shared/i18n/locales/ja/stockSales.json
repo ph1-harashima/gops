@@ -1,0 +1,42 @@
+{
+  "listTitle": "在庫・販売確認",
+  "empty": "該当するデータがありません。",
+  "viewDetail": "詳細を見る",
+  "viewWarehouseStock": "倉庫在庫を見る",
+  "viewSkuDetail": "商品詳細（発注履歴等）を見る",
+  "referenceValue": "参考値",
+  "filter": {
+    "skuKeyword": "SKU / 商品名",
+    "brandCode": "ブランドコード",
+    "supplierCode": "メーカーコード",
+    "minStock": "現在庫（以上）",
+    "maxStock": "現在庫（以下）",
+    "minSales": "当月販売数量（以上）",
+    "maxSales": "当月販売数量（以下）"
+  },
+  "table": {
+    "sku": "SKU",
+    "itemName": "商品名",
+    "brand": "ブランド",
+    "supplier": "メーカー",
+    "currentStock": "現在庫",
+    "currentMonthSalesQty": "当月販売数量",
+    "openPoQty": "発注残",
+    "openArrivalQty": "入荷予定数",
+    "updatedAt": "G-SYSデータ更新日時"
+  },
+  "field": {
+    "currentStock": "現在庫",
+    "currentMonthSalesQty": "当月販売数量",
+    "openPoQty": "発注残",
+    "openArrivalQty": "入荷予定数",
+    "recommendedQty": "推奨発注数",
+    "updatedAt": "G-SYSデータ更新日時"
+  },
+  "tooltip": {
+    "currentMonthSalesQty": "当月分の累計出荷数量です（Tempostar受注データ由来）。日次の販売数や過去の販売傾向を示すものではありません。"
+  },
+  "drawer": {
+    "title": "在庫・販売詳細"
+  }
+}

@@ -16,6 +16,7 @@ import jaMailTemplate from './locales/ja/mailTemplate.json'
 import jaPriceChanges from './locales/ja/priceChanges.json'
 import jaArrivals from './locales/ja/arrivals.json'
 import jaWarehouseStock from './locales/ja/warehouseStock.json'
+import jaStockSales from './locales/ja/stockSales.json'
 import enCommon from './locales/en/common.json'
 import enStatus from './locales/en/status.json'
 import enHistory from './locales/en/history.json'
@@ -35,6 +36,7 @@ import enDashboard from './locales/en/dashboard.json'
 import enPriceChanges from './locales/en/priceChanges.json'
 import enArrivals from './locales/en/arrivals.json'
 import enWarehouseStock from './locales/en/warehouseStock.json'
+import enStockSales from './locales/en/stockSales.json'
 
 // Japanese is the initial display language (Requirements MD 28.1).
 // Display text is never hardcoded into React components - it always comes
@@ -59,6 +61,7 @@ void i18n.use(initReactI18next).init({
       priceChanges: jaPriceChanges,
       arrivals: jaArrivals,
       warehouseStock: jaWarehouseStock,
+      stockSales: jaStockSales,
     },
     en: {
       common: enCommon,
@@ -74,6 +77,7 @@ void i18n.use(initReactI18next).init({
       priceChanges: enPriceChanges,
       arrivals: enArrivals,
       warehouseStock: enWarehouseStock,
+      stockSales: enStockSales,
     },
   },
   interpolation: {

@@ -28,15 +28,25 @@ public class LegacyStockReadRepository {
 
     private static final String QUERY_RESOURCE = "legacy/RecommendedQtyReadQuery.sql";
     private static final String PO_HISTORY_QUERY_RESOURCE = "legacy/SkuPoHistoryReadQuery.sql";
+    private static final String STOCK_SALES_LIST_QUERY_RESOURCE = "legacy/StockSalesListQuery.sql";
+    private static final String STOCK_SALES_LIST_COUNT_QUERY_RESOURCE = "legacy/StockSalesListCountQuery.sql";
+    private static final String BASE_QUERY_PLACEHOLDER = "${BASE_QUERY}";
 
     private final NamedParameterJdbcTemplate legacyJdbc;
     private final String sql;
     private final String poHistorySql;
+    private final String stockSalesListSql;
+    private final String stockSalesListCountSql;
 
     public LegacyStockReadRepository(NamedParameterJdbcTemplate legacyNamedParameterJdbcTemplate) {
         this.legacyJdbc = legacyNamedParameterJdbcTemplate;
         this.sql = loadSql(QUERY_RESOURCE);
         this.poHistorySql = loadSql(PO_HISTORY_QUERY_RESOURCE);
+        // Phase 8-H: both compose the SAME loaded base query text (this.sql,
+        // unchanged) as a derived table - never a second, independently
+        // maintained copy of the JOIN/exclusion logic (8章).
+        this.stockSalesListSql = loadSql(STOCK_SALES_LIST_QUERY_RESOURCE).replace(BASE_QUERY_PLACEHOLDER, this.sql);
+        this.stockSalesListCountSql = loadSql(STOCK_SALES_LIST_COUNT_QUERY_RESOURCE).replace(BASE_QUERY_PLACEHOLDER, this.sql);
     }
 
     /**
@@ -85,8 +95,73 @@ public class LegacyStockReadRepository {
                 rs.getString("supplier_cd"),
                 rs.getString("supplier_name"),
                 rs.getBigDecimal("unit_price"),
-                rs.getString("currency")
+                rs.getString("currency"),
+                rs.getObject("update_datetime", java.time.LocalDateTime.class)
         ));
+    }
+
+    /**
+     * Stock/Sales List (Phase 8-H 4章/6章) - Backend-paginated, reusing
+     * {@link #findOrderCandidates}'s exact query (see constructor) plus 2
+     * pure-numeric range filters that query does not support. SKU/Item
+     * keyword and Brand/Supplier filtering go through unchanged as the
+     * SAME :keyword/:brandCode/:supplierCode params {@link #findOrderCandidates}
+     * itself uses - not a second filtering mechanism.
+     */
+    @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
+    public List<LegacyStockRow> findStockSalesList(StockSalesListFilter filter, int limit, int offset) {
+        return legacyJdbc.query(stockSalesListSql, toStockSalesParams(filter).addValue("limit", limit).addValue("offset", offset),
+                (rs, rowNum) -> new LegacyStockRow(
+                        rs.getString("item_cd"),
+                        rs.getString("item_name"),
+                        rs.getString("brand_cd"),
+                        rs.getString("brand_name"),
+                        rs.getString("lead_time"),
+                        rs.getString("item_status"),
+                        rs.getObject("discon") == null ? null : rs.getBoolean("discon"),
+                        nullableInt(rs, "current_stock"),
+                        nullableInt(rs, "stk_standard"),
+                        nullableInt(rs, "monthly_sales"),
+                        nullableInt(rs, "open_po"),
+                        nullableInt(rs, "open_arrival"),
+                        nullableInt(rs, "open_ship"),
+                        rs.getString("formula_11"),
+                        rs.getString("formula_12"),
+                        rs.getString("formula_13"),
+                        rs.getString("formula_14"),
+                        rs.getString("supplier_cd"),
+                        rs.getString("supplier_name"),
+                        rs.getBigDecimal("unit_price"),
+                        rs.getString("currency"),
+                        rs.getObject("update_datetime", java.time.LocalDateTime.class)));
+    }
+
+    @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
+    public long countStockSalesList(StockSalesListFilter filter) {
+        Long count = legacyJdbc.queryForObject(stockSalesListCountSql, toStockSalesParams(filter), Long.class);
+        return count == null ? 0L : count;
+    }
+
+    private static MapSqlParameterSource toStockSalesParams(StockSalesListFilter f) {
+        return new MapSqlParameterSource()
+                .addValue("brandCode", f.brandCode())
+                .addValue("supplierCode", f.supplierCode())
+                .addValue("keyword", f.skuKeyword())
+                .addValue("keywordLike", f.skuKeyword() == null ? null : "%" + f.skuKeyword() + "%")
+                .addValue("minStock", f.minStock())
+                .addValue("maxStock", f.maxStock())
+                .addValue("minSales", f.minSales())
+                .addValue("maxSales", f.maxSales());
+    }
+
+    /** Phase 8-H 6章's minimum candidate Filter list. {@code skuKeyword}
+     * matches SKU or Item Name (reuses RecommendedQtyReadQuery.sql's own
+     * item_cd/description LIKE, see {@link #findOrderCandidates}).
+     * {@code minStock}/{@code maxStock}/{@code minSales}/{@code maxSales}
+     * are plain numeric ranges - not a Stock/Sales Business Rule (10章's
+     * explicit instruction not to widen 欠品/長期欠品 scope). */
+    public record StockSalesListFilter(String skuKeyword, String brandCode, String supplierCode,
+                                        Integer minStock, Integer maxStock, Integer minSales, Integer maxSales) {
     }
 
     /**

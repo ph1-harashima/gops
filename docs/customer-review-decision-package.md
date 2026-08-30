@@ -1,6 +1,6 @@
-# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E / 7-J / 8-A / 8-C / 8-D / 8-E / 8-F / 8-G
+# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E / 7-J / 8-A / 8-C / 8-D / 8-E / 8-F / 8-G / 8-H
 
-**Status**: Docs Only（Phase 7-D／7-D2／7-E／7-J／8-A／8-C／8-D／8-E／8-F追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。**Phase 8-Gのみ例外的にCode変更を伴う**（Arrival/Warehouse Stock Visibility Foundation実装、Legacy Source変更ゼロ・Portal DB Migrationゼロ、詳細は`legacy-warehouse-logistics-logizero-reverse-engineering.md`27章）。本Document自体はDocs Only（16.2章#19の実装状況欄を更新したのみ）。
+**Status**: Docs Only（Phase 7-D／7-D2／7-E／7-J／8-A／8-C／8-D／8-E／8-F追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。**Phase 8-G・8-Hのみ例外的にCode変更を伴う**（Arrival/Warehouse Stock Visibility Foundation・Stock/Sales Visibility Foundation実装、いずれもLegacy Source変更ゼロ・Portal DB Migrationゼロ、詳細は`legacy-warehouse-logistics-logizero-reverse-engineering.md`27章、`legacy-stock-sales-data-reverse-engineering.md`実装結果追記）。本Document自体はDocs Only（16.2章#13・#19の実装状況欄を更新したのみ）。
 
 **目的**: Phase 7-A〜7-C6の各Documentに散在する`CUSTOMER REVIEW`項目をすべて回収し、「何を顧客に確認しないと本番実装できないか」を一本化する（Phase 7-D）。さらにPhase 7-D2で、**「Sourceコードから分からない」＝「Gulliver社へ質問する」ではない**という前提のもと、Phase1社内（特にG-SYS保守担当のErnest）への確認で解決可能な項目を切り分け、最終的にGulliver社へ聞く質問を最小化する。
 
@@ -917,7 +917,7 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 
 ---
 
-## 16. 案件全体のModule/Option構成方針（Phase 8-B追加、Phase 8-Cで#13-15追加、Phase 8-Dで#10更新+#16-18追加、Phase 8-Eで#10更新、Phase 8-Fで#19-21追加、Phase 8-Gで#19実装状況更新、共通前提）
+## 16. 案件全体のModule/Option構成方針（Phase 8-B追加、Phase 8-Cで#13-15追加、Phase 8-Dで#10更新+#16-18追加、Phase 8-Eで#10更新、Phase 8-Fで#19-21追加、Phase 8-Gで#19実装状況更新、Phase 8-Hで#13実装状況更新、共通前提）
 
 **この章は、以降のすべてのPhaseで維持する共通前提である。** 最終提案は「全機能を一括導入する固定Scope」を前提とせず、機能領域（Module/Option）ごとにGulliver社が採否を選択できる提案構造を目指す。最終Scopeは `Customer Requirement × Priority × Dependency × Implementation Cost × Customer Budget` によって決まる想定であり、**現時点で価格・工数を推測せず、正式なPackage構成も独自に決定しない**。目的は、機能境界とDependencyを先に明確にしておくことである。
 
@@ -950,7 +950,7 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 | 10 | Invoice / Purchase / Sales / Gross Profit（総称） | Optional | **Phase 8-DでRE完了、Phase 8-EでImplementation Gate Audit実施** | 一部可（#16-18参照） | Phase 8-DでReverse Engineering完了。**Phase 8-Eで「仕入確認」Foundation実装をGate: STOPと判定（Gross Amount定義がSourceから一意に確定できないため、Docs Onlyで停止）** | 低（READ ONLYの範囲は既存Table参照のみ） | 間接（Sales金額はTempostar由来だが現状永続化されていない） | Theme K（K-1〜K-6b） |
 | 11 | Warehouse / Logistics連携 | Optional | 無 | 可 | 未着手（RE未実施） | 未確認（Logizero連携部分の詳細未調査） | Logizero | 未整理 |
 | 12 | External System Integration（EC各モール・Tempostar等） | Optional | 無（Price Changeと概念的に隣接するが、Portal側は現状未実装） | 可 | 未着手 | 高（Selenium画面操作等、Legacy側の実装が特殊） | Tempostar、Rakuten、Yahoo、Amazon、Qoo10、Ponpare、Wowma | 未整理 |
-| 13 | Stock/Sales Data Update（表示改善） | Optional | 無（Ordering非依存で成立、10章 legacy-stock-sales-data-reverse-engineering） | 可 | 低（既存Legacy値のREAD ONLY表示のみ） | 低（READ ONLY） | 無 | J-1a/J-1b |
+| 13 | Stock/Sales Data Update（表示改善） | Optional | 無（Ordering非依存で成立、10章 legacy-stock-sales-data-reverse-engineering） | 可 | **Current Snapshot VisibilityはPhase 8-HでFoundation実装済み**（在庫・販売確認画面、SOLD_QTY/STK_QTY/Open PO/Open Arrivalの横断表示。History蓄積・Trendは未実装のまま） | 低（READ ONLY） | 無 | J-1a/J-1b |
 | 14 | Stock/Sales Data Update（Sales History蓄積、Portal側） | Optional | 13とは独立に単独導入可 | 可 | 中（新規蓄積の仕組みが必要） | 低（READ ONLY、PortalがHistoryのみ新規保持） | 間接（SOLD_QTYがTempostar由来） | J-3/J-4/J-6 |
 | 15 | Stock/Sales Data Update（Trend可視化・calc4改善・Alert改善） | Optional | **14（Sales History蓄積）へのTechnical Dependency**、一部D-5（欠品/長期欠品定義）確定へのBusiness/Estimate Dependency | 不可（14の完成、またはD-5確定が前提） | 中〜高（calc4改変は特に慎重な検証が必要） | 低〜中 | 無 | J-5、D-5 |
 | 16 | Invoice/Purchase/Sales/Gross Profit（Purchase可視化・仕入確認・理論Margin表示） | Optional | 無（Ordering非依存、Price ChangeのMarginCalculatorを再利用可能） | 可（ただし仕入金額集計＝仕入確認機能自体はGate STOP中、下記参照） | **理論Margin表示部分は低。仕入金額集計（仕入確認）部分はPhase 8-EでGate: STOP**（`TR_INV.AMT_TTL`/`TR_INV_DTL.AMT_LINE`がBatch間で非等価な計算式のため、Gross Amount定義がK-6b確定まで実装不可） | 低（READ ONLY） | 無 | K-5a/K-5b/K-6a/K-6b |

@@ -1,6 +1,6 @@
-# Legacy Stock / Sales Data Reverse Engineering & Target Analysis（Phase 8-C）
+# Legacy Stock / Sales Data Reverse Engineering & Target Analysis（Phase 8-C、Phase 8-Hで末尾に実装結果追記）
 
-**Status**: Docs / Audit Only。Frontend / Backend / DB Migration / API追加 / Legacy Source変更は一切行っていない。本Documentは「在庫・販売実績データ更新」を独立した改善Optionとして整理できるかの調査であり、実装ではない（実装は本Phaseでは禁止）。
+**Status**: Phase 8-C時点はDocs / Audit Onlyのみ。**Phase 8-Hで、本Documentの調査結果に基づき「在庫・販売確認」Current Snapshot Visibility Foundationを実装した**（末尾の「Phase 8-H 実装結果」章参照）。Sales/Stock History蓄積・Trend・Forecast等は今回も未実装のまま。
 
 **目的**: `customer-review-decision-package.md` 16章のModule/Option構成方針を前提に、在庫・販売実績データ更新（Stock/Sales Data Update）を、Ordering・Price Changeと並ぶ独立した改善Optionとして提案できるかどうかを、Legacy Source・既存Document・Gulliver打ち合わせ原文に基づいて検証する。**Stock/Sales Data Updateを必ず実装する前提ではない** — 将来Gulliver社が機能単位で選択し、Customer Budgetに応じてScopeを決められるようにするための、機能境界とDependencyの整理が目的。
 
@@ -371,4 +371,32 @@ READ ONLYでの監査のみ、Source変更は一切行っていない。
 | S-8 | 欠品/長期欠品の正式定義 | D（既存D-5、重複なし） | 11章 |
 | S-9 | Portal Sales History System of Record化の承認 | D | 14章・16章 |
 
-**変更したFrontend/Backend/DB Migration/Legacy Source: 0件。** 本Documentと既存3 QA Documentの更新のみ。
+**Phase 8-C時点で変更したFrontend/Backend/DB Migration/Legacy Source: 0件。** 本Documentと既存3 QA Documentの更新のみ（実装はPhase 8-Hで下記のとおり一部着手）。
+
+---
+
+## Phase 8-H 実装結果: Stock / Sales Visibility Foundation
+
+**Status**: 本Phaseで確認したSource Fact（`MS_STK.SOLD_QTY`＝当月累計・`MS_STK.STK_QTY`＝現在庫・Legacy Sales Historyの不在）に基づき、**Current Snapshot Visibilityのみ**を実装した。Sales/Stock History蓄積・Trend Graph・Forecast・Alert・自動発注は一切実装していない（Phase 8-H 20章の禁止事項どおり）。
+
+### 実装したFoundation
+
+- **在庫・販売確認**（`/stock-sales`）: SKU単位の一覧、Backend Filter（SKU/Item Keyword・Brand・Supplier・在庫数量範囲・当月販売数量範囲）・Backend Pagination。列: SKU/商品名/ブランド/メーカー/現在庫/**当月販売数量**（Tooltipで「当月分の累計出荷数量、日次・過去傾向ではない」旨を明示）/発注残/入荷予定数/G-SYSデータ更新日時。
+- SKU行からDrawerで詳細表示（新規Route追加なし）。推奨発注数（calc4、既存Logic）を「参考値」として表示。Warehouse Stock（Phase 8-G）・既存SKU Detail画面（`/items/:sku`）へのNavigationのみ（Business Joinはしない）。
+
+### Backend実装
+
+- 既存`LegacyStockReadRepository`（Order Candidate List/SKU Detailが依存する`RecommendedQtyReadQuery.sql`）を再利用。**新しい計算Logicは一切追加していない** — `RecommendedQtyReadQuery.sql`をSubqueryとして包み込み、Backend Pagination（`LIMIT`/`OFFSET`）と2つの純粋数値範囲Filter（在庫数量・当月販売数量）のみを外側に追加した。SKU/Item Keyword・Brand・Supplier FilterはOrder Candidate Listと**全く同じParam**（`:keyword`/`:brandCode`/`:supplierCode`）を再利用。
+- `RecommendedQtyReadQuery.sql`へ`update_datetime`列を追加（同じ`'XX'`集約行の既存Timestamp、追加のみでJOIN/WHERE変更なし）。`LegacyStockRow`へ`updateDatetime`Fieldを追加（既存呼び出し元＝Order Candidate List/SKU Detail/Create Draftは無変更で動作継続、全Backend Testで回帰確認済み）。
+- 推奨発注数（Reference値）は既存`RecommendedQtyCalculator.calc4()`をそのまま呼び出し。**Recommended Qty Logicの変更ゼロ**（SKU Detailと同一SKUで完全に同じ値を返すことをTestで確認）。
+
+### Portal DB追加
+
+**ゼロ**。Legacy Adapter→Query→DTO→UIで完結。Sales/Stock History Persistence Tableは作成していない。
+
+### Test
+
+- Backend: `StockSalesServiceIntegrationTest`（13件、List/Filter/Pagination/SOLD_QTY/STK_QTY/Open PO・Arrival分離/Timestamp/calc4一致/未知SKU）。既存Test（`SkuDetailServiceIntegrationTest`・`OrderDraftServiceIntegrationTest`含む）全Green、既存425件＋新規13件＝**全438件Green**。新規Legacy書込み経路を追加していないため`LegacyReadOnlyIntegrationTest`への追加は不要と判断。
+- Frontend: `stock-sales-visibility-foundation.spec.ts`（12 E2E Scenario、Navigation・Search・数値範囲Filter・Drawer・SOLD_QTY表記確認・Warehouse Stock/SKU Detail Navigation・Pagination・既存Ordering/Price Change/Arrival/Warehouse Stock/SKU Detail回帰）。既存E2E（Phase 8-G・Price Change・Stock Judgement等、計26件）と合わせて全Green確認。
+
+**変更したFrontend/Backend: Phase 8-H分（上記のとおり）。DB Migration（Flyway、Portal Prototype DB）: 0件。Legacy（`phasep-gulliver`）Source変更: 0件。**

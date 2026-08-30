@@ -32,6 +32,7 @@ import { PriceChangeDetailPage } from '../features/priceChanges/PriceChangeDetai
 import { ArrivalListPage } from '../features/arrivals/ArrivalListPage'
 import { ArrivalDetailPage } from '../features/arrivals/ArrivalDetailPage'
 import { WarehouseStockListPage } from '../features/warehouseStock/WarehouseStockListPage'
+import { StockSalesListPage } from '../features/stockSales/StockSalesListPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { useAuth } from '../features/auth/AuthContext'
 import { ROLE_ADMIN } from '../shared/types/auth'
@@ -158,6 +159,18 @@ export function App() {
                 >
                   {t('navWarehouseStock')}
                 </Button>
+                {/* Phase 8-H: Stock/Sales Visibility Foundation - same
+                    independent-of-Ordering reasoning as Arrival/Warehouse
+                    Stock above. */}
+                <Button
+                  size="small"
+                  component={Link}
+                  to="/stock-sales"
+                  color={location.pathname.startsWith('/stock-sales') ? 'primary' : 'inherit'}
+                  data-testid="nav-stock-sales"
+                >
+                  {t('navStockSales')}
+                </Button>
                 {/* Phase 7-C3 12章 / Phase 7-E Section 6: ADMIN-only Master
                     management, grouped under one submenu. Backend also
                     enforces this (403 for OPERATOR on every underlying API
@@ -267,6 +280,7 @@ export function App() {
             <Route path="/arrivals" element={<ArrivalListPage />} />
             <Route path="/arrivals/:supplierCode/:poNumber/:invoiceNumber" element={<ArrivalDetailPage />} />
             <Route path="/warehouse-stock" element={<WarehouseStockListPage />} />
+            <Route path="/stock-sales" element={<StockSalesListPage />} />
             {/* Phase 7-C3 12章: Backend enforces ADMIN-only on every
                 underlying API (403 for OPERATOR) regardless of this Route
                 being reachable - no client-side route guard is the sole

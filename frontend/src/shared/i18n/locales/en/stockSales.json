@@ -1,0 +1,42 @@
+{
+  "listTitle": "Stock / Sales Check",
+  "empty": "No matching data.",
+  "viewDetail": "View Detail",
+  "viewWarehouseStock": "View Warehouse Stock",
+  "viewSkuDetail": "View Item Detail (Order History, etc.)",
+  "referenceValue": "reference",
+  "filter": {
+    "skuKeyword": "SKU / Item Name",
+    "brandCode": "Brand Code",
+    "supplierCode": "Supplier Code",
+    "minStock": "Current Stock (min)",
+    "maxStock": "Current Stock (max)",
+    "minSales": "Current Month Sales Qty (min)",
+    "maxSales": "Current Month Sales Qty (max)"
+  },
+  "table": {
+    "sku": "SKU",
+    "itemName": "Item Name",
+    "brand": "Brand",
+    "supplier": "Supplier",
+    "currentStock": "Current Stock",
+    "currentMonthSalesQty": "Current Month Sales Qty",
+    "openPoQty": "Open PO Qty",
+    "openArrivalQty": "Open Arrival Qty",
+    "updatedAt": "G-SYS Data Updated At"
+  },
+  "field": {
+    "currentStock": "Current Stock",
+    "currentMonthSalesQty": "Current Month Sales Qty",
+    "openPoQty": "Open PO Qty",
+    "openArrivalQty": "Open Arrival Qty",
+    "recommendedQty": "Recommended Order Qty",
+    "updatedAt": "G-SYS Data Updated At"
+  },
+  "tooltip": {
+    "currentMonthSalesQty": "Cumulative shipment quantity for the current month (from Tempostar order data). Not a daily figure or a sales trend."
+  },
+  "drawer": {
+    "title": "Stock / Sales Detail"
+  }
+}

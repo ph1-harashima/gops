@@ -1,5 +1,10 @@
 -- Reduced Legacy Read Query for Order Candidate List + Recommended Qty (calc4 inputs).
 --
+-- Phase 8-H (Stock/Sales Visibility Foundation) addition: update_datetime
+-- (agg.update_datetime, the SAME 'XX' aggregate ms_stk row every other
+-- column here already comes from - additive column only, no JOIN/WHERE
+-- change, reused as-is by StockSalesReadRepository's pagination wrapper).
+--
 -- Extracted from (NOT copied verbatim from, per Technical Design 4.2 - "reduce columns,
 -- keep JOIN/WHERE/exclusion rules unchanged"):
 --   phasep-gulliver/gulliver/src/main/java/jp/ne/glv/repository/impl/MsStkRepositoryImpl.java
@@ -62,7 +67,8 @@ SELECT
     latest_po.supplier_cd,
     sup.code_name         AS supplier_name,
     latest_po.prc_unit    AS unit_price,
-    latest_po.ccy         AS currency
+    latest_po.ccy         AS currency,
+    agg.update_datetime   AS update_datetime
 FROM ms_item i
 LEFT JOIN ms_stk agg
        ON agg.item_cd = i.item_cd AND agg.wh_cd = 'XX'
