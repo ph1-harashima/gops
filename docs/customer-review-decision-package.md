@@ -1,13 +1,13 @@
-# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E
+# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E / 7-J
 
-**Status**: Docs Only（Phase 7-D／7-D2／7-E追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。
+**Status**: Docs Only（Phase 7-D／7-D2／7-E／7-J追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。
 
 **目的**: Phase 7-A〜7-C6の各Documentに散在する`CUSTOMER REVIEW`項目をすべて回収し、「何を顧客に確認しないと本番実装できないか」を一本化する（Phase 7-D）。さらにPhase 7-D2で、**「Sourceコードから分からない」＝「Gulliver社へ質問する」ではない**という前提のもと、Phase1社内（特にG-SYS保守担当のErnest）への確認で解決可能な項目を切り分け、最終的にGulliver社へ聞く質問を最小化する。
 
 **対象読者**: 9/17顧客レビューに向けて準備するTechlead（ChatGPT）・SEPG（Claude Code）・Ernest（Phase1 G-SYS保守担当）・実際に顧客へ質問する担当者。
 
 **関連Document**:
-- `docs/ernest-current-operation-question-sheet.md`（Phase 7-D2新規 — Ernestへ確認する13項目）
+- `docs/ernest-current-operation-question-sheet.md`（Phase 7-D2新規、Phase 7-JでEDI関連4項目追加 — Ernestへ確認する14項目）
 - `docs/customer-review-question-sheet.md`（Gulliver社向け質問票Draft — **Ernest確認前のDraftであり、最終版として確定していない**）
 
 ---
@@ -59,6 +59,27 @@ Phase 7-EのNavigation / Save-to-Next UX Audit（Section 4: Master Maintenance I
 
 Splitの結果、64項目は**72項目**に増える。内訳は3章のQuick Referenceおよび15章の集計を参照。
 
+## 1d. Phase 7-J: QA/Decision Document運用原則の明文化 + Official PO Excel生成元Fact反映
+
+Phase 7-JではLegacy Source調査により、Official PO Excelの生成元がG-SYS自体には存在しないこと（G-SYSはImport専業でありExport/生成は行わない）が確認された。この確認に伴い、以下2点を実施した。
+
+**(1) 新事実の反映（A-1・A-2、9章参照）**: 上記の確認結果を各該当項目の「Current G-SYS Fact」欄へ追記した。既存のQuestion文（誰が・いつExcelを作成するか等、Source単独では確定できない残りの論点）はそのまま維持している——「Source Confirmedになった部分」と「依然として未確定な部分」を機械的に混同しないため。
+
+**(2) C-10のErnest/Gulliver分割**: Phase 7-Hで追加したC-10（Supplier発注Channel）を、本原則に従いC-10a（現在の事実、B分類、Ernestへ）／C-10b（将来の決定、D分類、Gulliverへ）に再分割した。
+
+**今後この2つのDocument（および`docs/ernest-current-operation-question-sheet.md`）を更新する際は、新規QA Documentを都度作成せず、既存の本Document体系へ反映することを標準運用とする。** 判定基準は1b章の4分類表をそのまま適用する:
+
+| 新たに判明した情報の性質 | 反映先 | 扱い |
+|---|---|---|
+| Source（Legacy Code）で確定できた事実 | 該当項目の「Current G-SYS Fact」欄（A分類） | Questionから除外し、Fact欄へ記載。Questionのうち依然未確定な部分は残す |
+| Phase1/Ernestが確認できる可能性が高い技術的実態・運用手順 | `docs/ernest-current-operation-question-sheet.md`（B分類） | 新規Q番号を追記、または既存Qを拡充。優先度別/Theme別サマリ表も更新する |
+| Gulliver社固有の現行業務運用（Ernestでは確定できない） | 該当Theme内の項目（C分類） | 既存項目と重複しないか必ず確認し、重複する場合は既存項目を拡充する（新規ID化しない） |
+| Portal導入後の新しい業務ルール・権限・運用方針（意思決定） | 該当Theme内の項目（D分類） | 同上。新規IDは既存項目で表現できない場合のみ追加する |
+
+**新規ID発番は最終手段とする**（1b章で確立したa/b分割パターン——例: A-1a/A-1b、C-10a/C-10bのように、既存Question内での分割で表現できないかを先に検討する）。`docs/customer-review-question-sheet.md`（Gulliver向けDraft）は、Ernest確認前の暫定版という位置付け（同Document冒頭の注記）を維持し、Ernestの回答が得られ次第、🟣マーク項目を随時更新・削除する運用を継続する。
+
+3章のQuick Reference・14章のTraceability・15章の集計は、今回の反映によりC-10a/C-10bの2項目が正式にカウントされ、**72項目→74項目**（B分類13→14、D分類51→52）に更新した。詳細は各章を参照。
+
 ---
 
 ## 2. 分類基準（Phase 7-D、Timing/Blocker/Theme）
@@ -87,7 +108,7 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 
 ---
 
-## 3. Quick Reference（全72項目、Phase 7-D2分類つき。B-7〜B-14はPhase 7-E追加分。A-7はPhase 7-H追加分だが、旧Appendix Iの1項目を移動・再整理したものであり総数への純増はない）
+## 3. Quick Reference（全74項目、Phase 7-D2分類つき。B-7〜B-14はPhase 7-E追加分。A-7はPhase 7-H追加分だが、旧Appendix Iの1項目を移動・再整理したものであり総数への純増はない。C-10a/C-10bはPhase 7-H時点で本文のみ存在しQuick Referenceへの反映漏れがあったものをPhase 7-Jで是正・Ernest/Gulliver分割した2項目で、正味+2）
 
 凡例: **7-D2分類** = A(Source Confirmed) / B(Ernest Confirm) / C(Gulliver Current Operation) / D(Gulliver Future Decision)
 
@@ -131,6 +152,8 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 | C-8a | Supplier Mail | 現在、メーカー担当者連絡先はどこで管理されているか | B | IMPORTANT | **B**（Ernest Q11） |
 | C-8b | Supplier Mail | 将来G-SYS本体Master化するか | B | IMPORTANT | **D** |
 | C-9 | Supplier Mail | 各Mail Template種別の内容確定 | C | LATER | **C** |
+| C-10a | Supplier Communication (EDI) | 現在、EDI Supplierへの実際の発注方式・PO File作成有無・識別方法・回答管理方法 | B | IMPORTANT | **B**（Ernest Q14-Q17） |
+| C-10b | Supplier Communication (EDI) | 将来、EDI Supplierの正式な特定・管理方法、連携方式の統一性 | B | IMPORTANT | **D** |
 | D-1 | Response/Revision | メーカー回答差異を誰が・どう受け入れるか（AGREED判定条件） | B | IMPORTANT | **D** |
 | D-2 | Response/Revision | Revisionをいつ作るか、Sendの瞬間確定でよいか | B | IMPORTANT | **D** |
 | D-3 | Response/Revision | AGREED後のReopen権限の範囲・回数上限 | C | LATER | **D** |
@@ -203,6 +226,7 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 ### A-1. 正式PO番号の採番規則・採番主体
 
 - **Current G-SYS Fact**: G-SYS自身はOfficial PO番号を自動採番しない。番号はExcel側に既に入力された状態でImportされ、G-SYSはその文字列からSupplier Code（4桁）・Brand Code（3桁）・ID Code（2桁）部分を解析・Master照合するのみ（`SSSS-BBB-II...`形式）。11桁目以降の規則・ID Codeの値域はSourceからは確定不能。
+  - **（Phase 7-J追加）G-SYS自身にOfficial PO Excel/PDFを生成する機能は存在しない**（Source Confirmed）: `jp.ne.glv.utilities.export`配下にはArrivalList/ArrivalSchedule/PriceList/ProductDescription/StockList(History)/TariffQuota等の帳票Export Classが存在するが、PO/PurchaseOrder相当のExport Classは存在しない。PO番号はG-SYSが生成するのではなく、外部で作成済みのExcelから読み取るのみ。
 - **Target Portal Proposal**: 現時点でPortalは正式PO番号を一切採番しない（`officialPoNo`は常にNULL）。
 - **A-1a（現在の事実）**: 「現在、正式PO番号は誰が、どのルールで採番していますか？11桁目以降の規則、ID Codeの値域を教えてください。」　**7-D2分類: B（Ernest Q1）**　**Timing**: A　**Blocker**: BLOCKER
 - **A-1b（将来の決定）**: 「将来的にPortalがこの番号を採番してよいでしょうか？」　**7-D2分類: D（Gulliver Future Decision）**　**Timing**: A　**Blocker**: BLOCKER
@@ -212,11 +236,13 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 
 ### A-2. 正式PO番号の決定者・Excel作成/配置の実運用フロー
 
-- **Current G-SYS Fact**: Import Pipelineの構造（Upload/Work/Backupフォルダ）はSourceから確認できたが、「誰が」「どのタイミングで」配置しているかはSourceからは追えない。
+- **Current G-SYS Fact**: Import Pipelineの構造（Upload/Work/Backupフォルダ）はSourceから確認できたが、「誰が」「どのタイミングで」配置しているかはSourceからは追えない。G-SYSは常にImport側（既に作成されたExcelを読み込む側）であり、Excelの作成元（どの部署・ツール・システムで作られているか）はSource上一切特定できない（A-1の追記のとおり、G-SYS自身に生成機能がないため必然的に外部で作られている）。
+  - **（Phase 7-J追加）`PrOfficialPoImportBatch`/`PrInitialPoImportBatch`はどちらも「所定Folderに置かれたExcelを読む」処理のみで構成されており（Source Confirmed）、生成・Downloadに相当する処理は存在しない。**
+  - **（Phase 7-J追加）Test用Fixtureとの区別**: `gulliver/testfile/OfficialPO.xlsx`はPrOfficialPoImportBatchの単体Test用Import Test Dataであり、正式なExcel生成Template・雛形ではない（Source Confirmed - このファイルを書き出すコードは存在せず、Testコードから読み込まれるだけ）。将来Portalが正式Excelを生成する際、このFile自体をTemplateとして流用できるとは限らない点に注意。
 - **Target Portal Proposal**: 将来的にPortalが承認済みOrderからExcelを自動生成し、Import Folderへ配置する（7-C2B）ことを目標とする。
 - **Question**: 「現在、正式Official PO Excelは誰が作成し、どのフォルダへ、どのタイミングで配置していますか。」　**7-D2分類: B（Ernest Q2）**　**Timing**: A　**Blocker**: BLOCKER
 - **Our Recommendation**: 承認直後に自動生成・投入する設計を提案するが、既存の人手フローとの並走期間を設けるか要確認。
-- **Source**: official-po-integration-detailed-design 21章#2/#3
+- **Source**: official-po-integration-detailed-design 21章#2/#3／Phase 7-J Source監査（`jp.ne.glv.utilities.export`配下・testfile確認）
 
 ### A-3. 修正版・再送時のPO番号の扱い
 
@@ -365,7 +391,7 @@ Phase 7-EのPortalUser仕様調査（Source: `PortalUser.java`／`SecurityConfig
 
 ---
 
-## 7. Theme C: Supplier Communication（メール）
+## 7. Theme C: Supplier Communication（メール・Phase 7-JでEDI等その他Channelを追加）
 
 ### C-1. メーカーへの送信基盤
 
@@ -421,15 +447,14 @@ Phase 7-EのPortalUser仕様調査（Source: `PortalUser.java`／`SecurityConfig
 - **Question**: 「修正版・問い合わせ・取消の連絡について、既存の文面があれば共有してほしい。」　**7-D2分類: C（Gulliver Current Operation — 具体的な文面の中身はGulliverの業務コミュニケーション内容そのものであり、Ernestの技術知見では代替できない。ただしQ10でErnestが「文面が存在する」ことまでは確認できる可能性がある）**　**Timing**: C　**Blocker**: LATER
 - **Source**: supplier-contact-mail-template-foundation 20章
 
-### C-10. Supplier発注Channel（EDI等）の正式運用（Phase 7-H追加）
+### C-10. Supplier発注Channel（EDI等）の正式運用（Phase 7-H追加、Phase 7-JでErnest/Gulliver分割）
 
 - **Current G-SYS Fact（Source Confirmed）**: 現行Source（Backend全体・全docs）に「EDI」「communicationChannel」「procurementMethod」に相当する概念・列・Masterは一切存在しない（`\bEDI\b`でSource全体を検索し0件、Phase 7-H監査で確認）。Legacy Supplier Master（`MS_COMM CATE_ID='MS_SUPPL'`）も、Portal側が現在READする範囲ではコード・名称のみで、発注方法に関する属性は無い。
 - **手動確認で判明した新業務前提**: メーカーとの発注方法は約90%がEmail、約10%がメーカー側EDI Systemとのこと（Source外の実運用情報、口頭確認）。EDI Supplierの場合、PortalからのMail Send自体を行わず、メーカー側EDI Systemで発注する運用の可能性がある。
 - **Phase 7-Hの対応**: 「Order/POが確定したこと」と「どのChannelでSupplierへ伝えたか」を分離するFoundationのみ実装（`portal_order.communication_channel`列、EMAIL/EDIの記録、Supplier Response到達性の確保）。実際のEDI連携（File Format・API・認証・SFTP等）は一切実装していない。どのSupplierが実際にEDIを使うかというMasterデータも追加していない（架空のSupplier区分を推測で作らないため） - PO Preview画面でADMIN/OPERATORが送信のたびに手動選択する設計に留めている。
-- **Question**: 「①実際にEDIで発注しているSupplierを正式にどう特定・管理すべきか（Supplier Master拡張／Portal専用Master／その都度手動選択のまま、等）。②将来的に実際のEDI連携（File/API等）を実装する場合、Supplierごとに方式が異なりうるか。③EDI発注時、メーカーへの実際の発注手段（Fileの受け渡し方法等）は現状どう行われているか。」
-- **7-D2分類**: **D（Gulliver Future Decision）** - Foundation自体はSource監査のみで安全に実装できたが、実際の運用・Supplier区分・連携方式はGulliver/顧客側の意思決定・実運用情報が必要で、Sourceだけでは確定できない。
-- **Timing**: B（9/17デモ当日に確認 - 現Prototypeの9割主流であるEmailシナリオはそのまま見せられるが、EDI Supplier分の本番設計に入る前に確認したい）　**Blocker**: IMPORTANT
-- **Source**: Phase 7-H Source監査（Backend全体・docs全体、EDI関連ゼロ件を確認）
+- **C-10a（現在の事実）**: 「①EDI Supplierへの実際の発注方式は何か（手操作／メーカー側Web Portal手入力／File授受（SFTP等）／API連携等）。②EDI発注の場合、G-SYS側でもPO File（Excel/PDF等）を作成・保存しているか、それともTR_PO登録のみか。③現在、どのSupplierがEDI対象かをどこで・どうやって識別しているか。④EDI発注後のメーカー回答（数量・納期確定等）を現在どう受け取り・記録しているか。」　**7-D2分類: B（Ernest Q14-Q17）**　**Timing**: B　**Blocker**: IMPORTANT
+- **C-10b（将来の決定）**: 「①実際にEDIで発注しているSupplierを正式にどう特定・管理すべきか（Supplier Master拡張／Portal専用Master／その都度手動選択のまま、等）。②将来的に実際のEDI連携（File/API等）を実装する場合、Supplierごとに方式が異なりうるか。」　**7-D2分類: D（Gulliver Future Decision）**　**Timing**: B　**Blocker**: IMPORTANT
+- **Source**: Phase 7-H Source監査（Backend全体・docs全体、EDI関連ゼロ件を確認）／ernest-current-operation-question-sheet Q14-Q17（Phase 7-J追加）
 
 ---
 
@@ -568,6 +593,7 @@ Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（6項
 | B-1〜B-6 | target-production#2,#3／7-A#1／role-approval-implementation／supplier-response-revision-workflow |
 | B-7〜B-14 | Phase 7-E PortalUser仕様調査（本Doc初出、他Docからの統合ではない）／target-production17章（B-12,B-13,B-14） |
 | C-1〜C-9 | supplier-contact-mail-template-foundation（8項目）／target-production#11,#13／7-A#6 |
+| C-10a/C-10b | Phase 7-H Source監査／ernest-current-operation-question-sheet Q14-Q17（Phase 7-J追加） |
 | D-1〜D-9 | target-production#4,#6,#9,#10／supplier-response-revision-workflow／requirements27.4／production-ux-workflow-redesign15.4 |
 | E-1〜E-7 | target-production#7,#8／7-A#5／fulfillment-follow-up-foundation |
 | F-1〜F-5 | target-production#12／excel-legacy-concurrency-control／official-po-integration-detailed-design17章 |
@@ -583,21 +609,21 @@ Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（6項
 
 - 全47項目（Theme A-H）＋Appendix I 7項目 ＝ 計54項目。Timing=A（9/17前必須）は11項目、Blocker=BLOCKERは9項目。
 
-### 15.2 Phase 7-D2時点＋Phase 7-E/7-H追加後（4分類軸、72項目）
+### 15.2 Phase 7-D2時点＋Phase 7-E/7-H/7-J追加後（4分類軸、74項目）
 
 | 分類 | 件数 | 質問先 |
 |---|---|---|
 | **A. SOURCE CONFIRMED** | **0** | なし（詳細は15.3参照） |
-| **B. PHASE1 / ERNEST CONFIRM** | **13** | `docs/ernest-current-operation-question-sheet.md` |
+| **B. PHASE1 / ERNEST CONFIRM** | **14**（Phase 7-D2時点13 ＋ Phase 7-J追加分C-10aの1、Ernest Q14-Q17に対応） | `docs/ernest-current-operation-question-sheet.md` |
 | **C. GULLIVER CURRENT OPERATION CONFIRM** | **8** | Gulliver（現行業務の事実確認） |
-| **D. GULLIVER FUTURE DECISION** | **51**（Phase 7-D2時点43 ＋ Phase 7-E追加分B-7〜B-14の8。Phase 7-Hで旧Appendix Iの1項目をA-7として再整理したが、D内での移動のため総数は変わらない） | Gulliver（将来方針の意思決定） |
-| **合計** | **72** | |
+| **D. GULLIVER FUTURE DECISION** | **52**（Phase 7-D2時点43 ＋ Phase 7-E追加分B-7〜B-14の8 ＋ Phase 7-J追加分C-10bの1。Phase 7-Hで旧Appendix Iの1項目をA-7として再整理したのはD内での移動のため総数は変わらない） | Gulliver（将来方針の意思決定） |
+| **合計** | **74** | |
 
 ### 15.3 なぜ「A. SOURCE CONFIRMED」が0件なのか
 
 Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻さない」という原則を適用済みだったため（1章）、この47項目＋Appendix I自体が、そもそもSourceで解決できなかった残りである。したがって7-D2で改めて「Sourceだけで完全に解決する」項目を探しても新たに見つからなかった（0件）。ただし各項目の"Current G-SYS Fact"欄には、Source Confirmedな前提事実（例: A-3の「同一PO No.への再Import機構自体の存在」、B-6の「現行は誰でも訂正可能」、C-1の「SYS_SEND_MAILキューの存在」）が引き続き記載されており、これらは質問化されていない。**「0件」はSource監査の手抜きではなく、Phase 7-Dの設計原則が正しく機能していたことの裏付け**と解釈する。
 
-### 15.4 Ernest確認で解決が期待される13項目（B分類）の内訳
+### 15.4 Ernest確認で解決が期待される14項目（B分類）の内訳
 
 | Theme | 件数 | Ernest Sheet番号 |
 |---|---|---|
@@ -606,19 +632,20 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 | Mail関連 | 4 | Q8, Q9, Q10, Q11 |
 | Cancellation関連 | 1 | Q12 |
 | Infrastructure関連 | 1 | Q13 |
+| EDI発注関連（Phase 7-J追加） | 1 | C-10a（Ernest Sheet Q14-Q17として4項目を展開、Decision Package上は1トピック=C-10aとして計上） |
 
-優先度: P1（7-C2B/7-C4のBlocker）6件、P2（9/17前に把握したい）5件、P3（本番設計まででよい）2件。
+優先度: P1（7-C2B/7-C4のBlocker）6件、P2（9/17前に把握したい）9件（Q3,Q9,Q10,Q11,Q12に加えPhase 7-J追加のQ14-Q17）、P3（本番設計まででよい）2件。
 
 ### 15.5 Ernest回答で「消える」可能性があるGulliver質問
 
-`docs/customer-review-question-sheet.md`（Ernest確認前Draft）には、上記13項目（B分類）が現時点でGulliver向け質問としてそのまま含まれている。Ernestの回答が得られ次第、この**13項目はGulliver向け質問票から削除、または「確認済み事実の共有」に置き換える**（Ernestが確定的な回答をできなかった場合のみ、C分類＝Gulliver Current Operationとして質問票に残る）。したがって、Ernest回答によって最終的にGulliverへ聞く質問がゼロになる可能性がある項目は**最大13件**。
+`docs/customer-review-question-sheet.md`（Ernest確認前Draft）には、上記14項目（B分類）が現時点でGulliver向け質問としてそのまま含まれている（うちC-10aはEDI関連4論点をまとめた1トピックとして🟣マーク）。Ernestの回答が得られ次第、この**14項目はGulliver向け質問票から削除、または「確認済み事実の共有」に置き換える**（Ernestが確定的な回答をできなかった場合のみ、C分類＝Gulliver Current Operationとして質問票に残る）。したがって、Ernest回答によって最終的にGulliverへ聞く質問がゼロになる可能性がある項目は**最大14件**。
 
 ### 15.6 Ernest確認後も確実にGulliver判断が必要な項目
 
 - **C. GULLIVER CURRENT OPERATION CONFIRM（8件）**: Ernestが技術保守担当として確定できない、Gulliver社の業務運用・組織構造に関する事実（例: メーカー担当者のBrand別割当、複数宛先送信の実際の運用、欠品/廃番の業務定義）。Ernestに聞いても解決しない可能性が高いため、最初からGulliver向けとして扱う。
-- **D. GULLIVER FUTURE DECISION（51件、うちAppendix I 6件＋Theme A側のA-7として再整理された1件、Phase 7-E追加分B-7〜B-14の8件含む）**: Portal導入後の新しい業務ルール・権限・運用方針そのものであり、これは「事実確認」ではなく「意思決定」であるため、Ernestが何を答えても消えない。Gulliverの最終承認が必須。
-- **合計 59件が、Ernest確認後も確実にGulliverへの確認が必要な項目数。**
+- **D. GULLIVER FUTURE DECISION（52件、うちAppendix I 6件＋Theme A側のA-7として再整理された1件、Phase 7-E追加分B-7〜B-14の8件、Phase 7-J追加分C-10bの1件を含む）**: Portal導入後の新しい業務ルール・権限・運用方針そのものであり、これは「事実確認」ではなく「意思決定」であるため、Ernestが何を答えても消えない。Gulliverの最終承認が必須。
+- **合計 60件が、Ernest確認後も確実にGulliverへの確認が必要な項目数。**
 
 ### 15.7 「件数を減らすこと」自体を目的にしない
 
-上記のとおり、B分類13件をEarnestへ振り分けても、Gulliverへの質問自体は最大59件（C:8＋D:51）残る。これは「件数を無理に減らした」結果ではなく、**「Phase1として調べれば分かることをGulliverに聞かない」**という本Phaseの目的を優先した結果である。件数の多寡よりも、各質問が正しい相手（Ernest / Gulliver Current Operation / Gulliver Future Decision）に向いていることを優先した。
+上記のとおり、B分類14件をEarnestへ振り分けても、Gulliverへの質問自体は最大60件（C:8＋D:52）残る。これは「件数を無理に減らした」結果ではなく、**「Phase1として調べれば分かることをGulliverに聞かない」**という本Phaseの目的を優先した結果である。件数の多寡よりも、各質問が正しい相手（Ernest / Gulliver Current Operation / Gulliver Future Decision）に向いていることを優先した。

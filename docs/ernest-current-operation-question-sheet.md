@@ -1,6 +1,6 @@
-# Ernest Current Operation Question Sheet — Phase 7-D2
+# Ernest Current Operation Question Sheet — Phase 7-D2（Phase 7-J追加あり）
 
-**Status**: Docs Only（Phase 7-D2）。Code変更・DB Migration・Legacy変更は一切なし。
+**Status**: Docs Only（Phase 7-D2、Phase 7-JでEDI関連4項目を追加）。Code変更・DB Migration・Legacy変更は一切なし。
 
 **宛先**: Ernest（Phase1社内、G-SYS保守担当）
 **目的**: `docs/customer-review-decision-package.md`（Phase 7-D）で「Sourceコードだけでは分からない」と分類した項目のうち、**Gulliver社（顧客）へ聞く前に、Phase1社内・特にG-SYS保守担当のErnestに確認すれば解決できる可能性が高い項目**を切り出したもの。「Sourceから分からない」＝「Gulliver社へ質問する」ではない、という前提で作成している（Phase 7-D2指示）。
@@ -35,9 +35,11 @@
 
 ### Q2. 〔P1〕Official PO Excelの作成者・配置Folder・投入Timing
 
-- **What we already know**: Import Pipeline自体の構造（Upload/Work/Backupフォルダ構成）はSourceから確認済み。Import Folderへファイルが配置されればBatchが処理することも構造上明らか。
-- **What we need to confirm**: 実際に「誰が」（部署・担当者）「どのタイミングで」（発注確定直後か、日次でまとめてか）Official PO ExcelをUploadフォルダへ配置しているか。
-- **Why it matters**: 7-C2BでPortalがこの人手作業をどこまで代替すべきか、投入Timing設計（即時か、バッチ化か）を決めるために必須。
+- **What we already know**: Import Pipeline自体の構造（Upload/Work/Backupフォルダ構成）はSourceから確認済み。Import Folderへファイルが配置されればBatchが処理することも構造上明らか。**（Phase 7-J追加）G-SYS自身にOfficial PO Excel/PDFを生成する機能は存在しない**（`jp.ne.glv.utilities.export`配下にArrivalList/PriceList/StockList等の帳票Export Classはあるが、PO相当のExport Classはない）ため、G-SYSは常にImport（受け取る）側であることもSource確認済み。`testfile/OfficialPO.xlsx`はImport Batchの単体Test用Fixtureであり、正式な生成Templateではないことも確認済み。
+- **What we need to confirm**:
+  - 実際に「誰が」（部署・担当者）「どのタイミングで」（発注確定直後か、日次でまとめてか）Official PO ExcelをUploadフォルダへ配置しているか。
+  - **（Phase 7-J追加）実際にメーカーへ送付しているPO文書（Excel／PDF／その他）は何か。それは、G-SYSのImport Folderへ配置しているOfficial PO Excelと同一のファイルか、それとも別に作成しているものか。**
+- **Why it matters**: 7-C2BでPortalがこの人手作業をどこまで代替すべきか、投入Timing設計（即時か、バッチ化か）を決めるために必須。メーカー送付物とG-SYS投入物が別物であれば、Portalが生成すべき成果物も2種類になりうる。
 
 ### Q3. 〔P2〕修正版発注時の実際の再Import運用
 
@@ -119,14 +121,44 @@
 
 ---
 
+## E. EDI発注関連（4項目、Phase 7-J追加）
+
+Phase 7-Jの手動確認で、メーカーとの発注方法が約90%Email・約10%メーカー側EDI Systemという業務前提が判明した。EDI関連の概念（Channel区分・Master等）はSource上一切存在しない（`\bEDI\b`でSource全体検索し0件）ため、以下はすべて実運用のヒアリングであり、Sourceからの裏付けは持てない。
+
+### Q14. 〔P2〕EDI Supplierへの実際の発注物・保存有無
+
+- **What we already know**: 該当なし（G-SYSにEDIという概念自体が存在しない）。
+- **What we need to confirm**: メーカー側のEDI Systemで発注している場合、G-SYS側でもPO File（Excel/PDF等）を作成・保存しているか。それとも、EDI発注の場合はTR_PO登録のみで、目に見えるPO文書自体を作らないか。
+- **Why it matters**: EDI発注時にPortal側でPO文書生成が必要かどうかの判断材料。
+
+### Q15. 〔P2〕EDI対象Supplierの識別方法
+
+- **What we already know**: 該当なし。Legacy Supplier Master（`MS_COMM CATE_ID='MS_SUPPL'`）をPortalが読む範囲ではコード・名称のみで、発注方法を区別する項目は確認できない。
+- **What we need to confirm**: どのSupplierがEDI対象か、現在どこで・どうやって判別しているか（Master項目、担当者の記憶、別Excel台帳等）。
+- **Why it matters**: 将来Portalが正式にChannel区分を持つ場合の初期データ整備方法。
+
+### Q16. 〔P2〕EDIの実際の発注方式
+
+- **What we already know**: 該当なし。
+- **What we need to confirm**: EDIとは具体的にどの方式か（担当者による手操作、メーカー側Web Portalへの手入力、File授受（SFTP等）、API連携等）。Supplierによって方式が異なるか。
+- **Why it matters**: 将来の実EDI連携設計（本Phaseでは対象外）の前提情報。
+
+### Q17. 〔P2〕EDI発注後のSupplier Response管理方法
+
+- **What we already know**: 該当なし。
+- **What we need to confirm**: EDIで発注した場合、メーカーからの回答（数量・納期の確定連絡等）は現在どう受け取り、どう記録しているか（EDI Systemの画面で完結するか、別途メールや電話で確認しているか）。
+- **Why it matters**: PortalのSupplier Response画面がEDI発注後もそのまま使える設計になっているか（Phase 7-H Foundationで「Channel非依存」とした前提）を実運用と付き合わせるため。
+
+---
+
 ## 優先度別サマリ
 
 | 優先度 | 件数 | 項目 |
 |---|---|---|
 | P1 | 6 | Q1, Q2, Q4, Q7, Q8, Q13 |
-| P2 | 5 | Q3, Q9, Q10, Q11, Q12 |
+| P2 | 9 | Q3, Q9, Q10, Q11, Q12, Q14, Q15, Q16, Q17 |
 | P3 | 2 | Q5, Q6 |
-| **合計** | **13** | |
+| **合計** | **17** | |
 
 ## Theme別サマリ
 
@@ -136,3 +168,4 @@
 | メーカーメール送信 | 4 | Q8-Q11 |
 | Cancellation | 1 | Q12 |
 | Infrastructure | 1 | Q13 |
+| EDI発注（Phase 7-J追加） | 4 | Q14-Q17 |
