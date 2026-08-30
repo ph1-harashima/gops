@@ -1,6 +1,6 @@
-# Ernest Current Operation Question Sheet — Phase 7-D2（Phase 7-J／8-A／8-C追加あり）
+# Ernest Current Operation Question Sheet — Phase 7-D2（Phase 7-J／8-A／8-C／8-D追加あり）
 
-**Status**: Docs Only（Phase 7-D2、Phase 7-JでEDI関連4項目、Phase 8-Aで価格変更関連6項目、Phase 8-Cで在庫・販売実績データ更新関連5項目を追加）。Code変更・DB Migration・Legacy変更は一切なし。
+**Status**: Docs Only（Phase 7-D2、Phase 7-JでEDI関連4項目、Phase 8-Aで価格変更関連6項目、Phase 8-Cで在庫・販売実績データ更新関連5項目、Phase 8-Dで請求・仕入・売上・粗利関連5項目を追加）。Code変更・DB Migration・Legacy変更は一切なし。
 
 **宛先**: Ernest（Phase1社内、G-SYS保守担当）
 **目的**: `docs/customer-review-decision-package.md`（Phase 7-D）で「Sourceコードだけでは分からない」と分類した項目のうち、**Gulliver社（顧客）へ聞く前に、Phase1社内・特にG-SYS保守担当のErnestに確認すれば解決できる可能性が高い項目**を切り出したもの。「Sourceから分からない」＝「Gulliver社へ質問する」ではない、という前提で作成している（Phase 7-D2指示）。
@@ -229,14 +229,50 @@ Phase 8-Cの`docs/legacy-stock-sales-data-reverse-engineering.md`で確認した
 
 ---
 
+## H. 請求・仕入・売上・粗利関連（5項目、Phase 8-D追加）
+
+Phase 8-Cの`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md`で確認した、請求・仕入・売上・粗利の仕組みのうち、Ernestが確認できる可能性が高い運用実態をここに正式なQuestionとして展開する。9/17デモは発注(Ordering)機能のみが対象であり本領域は含まれないため、全項目P3（本番設計まででよい）とする。
+
+### Q29. 〔P3〕Supplier Invoiceの実際の受領形式
+
+- **What we already know**: `PrOfficialPoImportBatch`はOfficial PO Excel自体に埋め込まれた「Invoice区画」からTR_INV/TR_INV_DTLを生成する（RE 3章）。これがSupplierから実際に受領する請求書と同一のものか、別に請求書を受け取っているのかはSource上判断できない。
+- **What we need to confirm**: 実際にSupplierからどんな形式（PDF/Excel/紙等）で請求書を受け取っているか。それはOfficial PO Excel内のInvoice区画と同一のものか、別物か。
+- **Why it matters**: `docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md` 12章（Integration Alternatives）・18章K-5bの前提。
+
+### Q30. 〔P3〕PO単価とInvoice単価が実際に異なるケースの実例
+
+- **What we already know**: Official PO Excel生成時点では、PO明細行とInvoice明細行の単価は同一Excelセル（固定列9）から読み取られるため、生成時点では構造的に一致する（RE 3章）。
+- **What we need to confirm**: 実際の業務で、発注価格と請求価格が異なるケースがあるか。あるとすればどんな場面か（価格改定・為替調整等）。
+- **Why it matters**: `docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md` 8章（Reconciliation Target Proposal）で、価格突合機能に意味があるかどうかの判断材料。
+
+### Q31. 〔P3〕Credit PO/Invoiceによる差額調整の実際の発生頻度
+
+- **What we already know**: 既存Invoice行に対する差額調整（Credit PO/Invoice）の仕組みはSource上確認済み（`legacy-procurement-workflow-reverse-engineering.md`・本Phase RE 4章）。
+- **What we need to confirm**: 実際にどのくらいの頻度で発生しているか。
+- **Why it matters**: 差異管理機能（RE 9章・13章Option C）の必要性の判断材料。
+
+### Q32. 〔P3〕送金金額（RMT_AMT）の実際の消込・支払実行運用
+
+- **What we already know**: `TR_INV_PO.RMT_CCY`/`RMT_AMT`という送金通貨・送金金額のフィールドが存在するが、実際の支払実行・消込のBusiness LogicはSource上未調査（RE 7章）。
+- **What we need to confirm**: 実際の支払実行・消込がどう行われているか。
+- **Why it matters**: PO→InvoiceのTraceabilityを支払まで含めて考える場合の前提情報。
+
+### Q33. 〔P3〕「発注・請求・売上・粗利を一連で確認したい」という要望の具体的な利用場面
+
+- **What we already know**: 2026/08/26打ち合わせSlide 12に将来テーマとしての言及はあるが、具体的な利用場面・頻度への言及はない（`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md` 2章）。
+- **What we need to confirm**: 実際にどんな場面・頻度でこの確認・分析が必要になるか。
+- **Why it matters**: 13章の改善Option（A〜G）のうち、どれを優先すべきかの判断材料。
+
+---
+
 ## 優先度別サマリ
 
 | 優先度 | 件数 | 項目 |
 |---|---|---|
 | P1 | 6 | Q1, Q2, Q4, Q7, Q8, Q13 |
 | P2 | 9 | Q3, Q9, Q10, Q11, Q12, Q14, Q15, Q16, Q17 |
-| P3 | 13 | Q5, Q6, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28 |
-| **合計** | **28** | |
+| P3 | 18 | Q5, Q6, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33 |
+| **合計** | **33** | |
 
 ## Theme別サマリ
 
@@ -249,3 +285,4 @@ Phase 8-Cの`docs/legacy-stock-sales-data-reverse-engineering.md`で確認した
 | EDI発注（Phase 7-J追加） | 4 | Q14-Q17 |
 | 価格変更（Phase 8-A追加） | 6 | Q18-Q23 |
 | 在庫・販売実績データ更新（Phase 8-C追加） | 5 | Q24-Q28 |
+| 請求・仕入・売上・粗利（Phase 8-D追加） | 5 | Q29-Q33 |

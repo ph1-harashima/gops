@@ -1,16 +1,17 @@
-# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E / 7-J / 8-A / 8-C
+# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E / 7-J / 8-A / 8-C / 8-D
 
-**Status**: Docs Only（Phase 7-D／7-D2／7-E／7-J／8-A／8-C追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。
+**Status**: Docs Only（Phase 7-D／7-D2／7-E／7-J／8-A／8-C／8-D追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。
 
 **目的**: Phase 7-A〜7-C6の各Documentに散在する`CUSTOMER REVIEW`項目をすべて回収し、「何を顧客に確認しないと本番実装できないか」を一本化する（Phase 7-D）。さらにPhase 7-D2で、**「Sourceコードから分からない」＝「Gulliver社へ質問する」ではない**という前提のもと、Phase1社内（特にG-SYS保守担当のErnest）への確認で解決可能な項目を切り分け、最終的にGulliver社へ聞く質問を最小化する。
 
 **対象読者**: 9/17顧客レビューに向けて準備するTechlead（ChatGPT）・SEPG（Claude Code）・Ernest（Phase1 G-SYS保守担当）・実際に顧客へ質問する担当者。
 
 **関連Document**:
-- `docs/ernest-current-operation-question-sheet.md`（Phase 7-D2新規、Phase 7-JでEDI関連4項目・Phase 8-Aで価格変更関連6項目・Phase 8-Cで在庫販売実績データ更新関連5項目追加 — Ernestへ確認する28項目）
+- `docs/ernest-current-operation-question-sheet.md`（Phase 7-D2新規、Phase 7-JでEDI関連4項目・Phase 8-Aで価格変更関連6項目・Phase 8-Cで在庫販売実績データ更新関連5項目・Phase 8-Dで請求仕入売上粗利関連5項目追加 — Ernestへ確認する33項目）
 - `docs/customer-review-question-sheet.md`（Gulliver社向け質問票Draft — **Ernest確認前のDraftであり、最終版として確定していない**）
 - `docs/target-price-change-workflow.md`（Phase 8-A新規 — 価格変更Target Design。Theme I（12b章）のCUSTOMER REVIEW項目I-1〜I-12の一次情報）
 - `docs/legacy-stock-sales-data-reverse-engineering.md`（Phase 8-C新規 — 在庫・販売実績データ更新のReverse Engineering & Target Analysis。Theme J（12c章）のCUSTOMER REVIEW項目J-1〜J-6の一次情報）
+- `docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md`（Phase 8-D新規 — 請求・仕入・売上・粗利のReverse Engineering & Target Analysis。Theme K（12d章）のCUSTOMER REVIEW項目K-1〜K-5bの一次情報）
 
 ---
 
@@ -94,6 +95,12 @@ Phase 7-JではLegacy Source調査により、Official PO Excelの生成元がG-
 
 3章のQuick Reference・14章のTraceability・15章の集計は、今回の反映によりJ-1a・J-1b・J-2・J-3・J-4・J-5・J-6（計7項目）が追加され、**89項目→96項目**（B分類17→19、D分類64→69）に更新した。詳細は各章を参照。
 
+## 1g. Phase 8-D: Invoice / Purchase / Sales / Gross Profit Reverse Engineering & Target Analysis（Theme K追加）
+
+`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md`（Invoice/Purchase/Sales/Gross Profit Reverse Engineering & Target Analysis）18章のCUSTOMER REVIEW項目を、1d章の運用原則に従い新設**Theme K: Invoice / Purchase / Sales / Gross Profit**（12d章）として追加した。既存Theme A-Jとの重複は無いことを確認済み。Ernestが確認可能な「現在の事実」成分（Supplier Invoiceの実際の受領形式）はa/b分割し、`docs/ernest-current-operation-question-sheet.md`へQ29-Q33として追加した（うちa成分に対応するのはQ29の1件、Q30/Q31/Q32/Q33はInvoice機能自体の詳細確認事項でありDecision Package上のトピックとしては計上しない — Theme J章のQ26/Q27等と同種の扱い）。
+
+3章のQuick Reference・14章のTraceability・15章の集計は、今回の反映によりK-1・K-2・K-3・K-4・K-5a・K-5b（計6項目）が追加され、**96項目→102項目**（B分類19→20、D分類69→74）に更新した。詳細は各章を参照。
+
 ---
 
 ## 2. 分類基準（Phase 7-D、Timing/Blocker/Theme）
@@ -116,13 +123,13 @@ Phase 7-JではLegacy Source調査により、Official PO Excelの生成元がG-
 | **IMPORTANT** | 本番設計上重要だが、回答なしでも次の実装に一旦着手できる |
 | **LATER** | 優先度は低いが記録しておくべき論点 |
 
-### 2.3 Theme（10分類、Phase 8-AでTheme I、Phase 8-CでTheme J追加）
+### 2.3 Theme（11分類、Phase 8-AでTheme I、Phase 8-CでTheme J、Phase 8-DでTheme K追加）
 
-A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication　D. Supplier Response / Revision　E. Fulfillment / Follow-up　F. Excel coexistence / Conflict　G. Cancellation / Correction　H. Infrastructure / Operation　I. Price Change（Phase 8-A追加）　J. Stock / Sales Data Update（Phase 8-C追加）
+A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication　D. Supplier Response / Revision　E. Fulfillment / Follow-up　F. Excel coexistence / Conflict　G. Cancellation / Correction　H. Infrastructure / Operation　I. Price Change（Phase 8-A追加）　J. Stock / Sales Data Update（Phase 8-C追加）　K. Invoice / Purchase / Sales / Gross Profit（Phase 8-D追加）
 
 ---
 
-## 3. Quick Reference（全96項目、Phase 7-D2分類つき。B-7〜B-14はPhase 7-E追加分。A-7はPhase 7-H追加分だが、旧Appendix Iの1項目を移動・再整理したものであり総数への純増はない。C-10a/C-10bはPhase 7-H時点で本文のみ存在しQuick Referenceへの反映漏れがあったものをPhase 7-Jで是正・Ernest/Gulliver分割した2項目で、正味+2。I-1〜I-12（a/b分割込みで15項目）はPhase 8-Aで新規追加。J-1a〜J-6（7項目）はPhase 8-Cで新規追加）
+## 3. Quick Reference（全102項目、Phase 7-D2分類つき。B-7〜B-14はPhase 7-E追加分。A-7はPhase 7-H追加分だが、旧Appendix Iの1項目を移動・再整理したものであり総数への純増はない。C-10a/C-10bはPhase 7-H時点で本文のみ存在しQuick Referenceへの反映漏れがあったものをPhase 7-Jで是正・Ernest/Gulliver分割した2項目で、正味+2。I-1〜I-12（a/b分割込みで15項目）はPhase 8-Aで新規追加。J-1a〜J-6（7項目）はPhase 8-Cで新規追加。K-1〜K-5b（6項目）はPhase 8-Dで新規追加）
 
 凡例: **7-D2分類** = A(Source Confirmed) / B(Ernest Confirm) / C(Gulliver Current Operation) / D(Gulliver Future Decision)
 
@@ -218,6 +225,12 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 | J-4 | Stock/Sales Data | 過去Sales Trend参照期間 | C | LATER | **D** |
 | J-5 | Stock/Sales Data | Recommended Qty（calc4）へのSales Trend組み込み要否 | C | LATER | **D** |
 | J-6 | Stock/Sales Data | Portal Sales History System of Record化の承認 | C | LATER | **D** |
+| K-1 | Invoice/Purchase/Sales | PO/Invoice Qty比較機能の要否 | C | LATER | **D** |
+| K-2 | Invoice/Purchase/Sales | 差異管理Business Rule | C | LATER | **D** |
+| K-3 | Invoice/Purchase/Sales | Sales Amount蓄積・System of Record判断 | C | LATER | **D** |
+| K-4 | Invoice/Purchase/Sales | 実績粗利可視化の要否 | C | LATER | **D** |
+| K-5a | Invoice/Purchase/Sales | 現在、Supplier Invoiceの実際の受領形式 | C | LATER | **B**（Ernest Q29） |
+| K-5b | Invoice/Purchase/Sales | 将来、Supplier Invoice Integration方式の正式決定 | C | LATER | **D** |
 | AppI-1〜6 | (Appendix I) | Phase 0由来のPrototype UI/計算仕様細部（6項目、13章参照。Requested Deliveryの必須/任意はA-7へ移動済み） | C | LATER | **D**（全項目） |
 
 ---
@@ -705,6 +718,38 @@ Phase 8-Aの`docs/target-price-change-workflow.md`（Target Design）17章のCUS
 
 ---
 
+## 12d. Theme K: Invoice / Purchase / Sales / Gross Profit（Phase 8-D追加）
+
+`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md`（Invoice/Purchase/Sales/Gross Profit Reverse Engineering & Target Analysis）18章のCUSTOMER REVIEW項目を整理する。9/17デモは発注(Ordering)機能のみが対象であり請求・仕入・売上・粗利は含まれないため、全項目**Timing: C（デモ後・本番設計時でよい）**とする。
+
+### K-1. PO/Invoice Qty比較機能の要否
+
+- **Question**: 「発注数量とInvoice数量（TR_PO_DTL.QTY_PO vs TR_INV_DTL.QTY）を比較する機能が必要か。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
+- **Source**: legacy-invoice-purchase-sales-gross-profit-reverse-engineering 8章・13章Option B
+
+### K-2. 差異管理Business Rule
+
+- **Question**: 「PO/Invoice間で差異が検出された場合、誰が確認し、許容差・自動承認・手動確認・差戻し・Supplier問い合わせ・Closeをどう運用すべきか。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
+- **Source**: legacy-invoice-purchase-sales-gross-profit-reverse-engineering 9章・13章Option C
+
+### K-3. Sales Amount蓄積・System of Record判断
+
+- **Question**: 「Tempostar由来の売上金額データ（現在はLegacyのどこにも永続化されていない）をPortal側で新規蓄積すべきか。その場合のSystem of Record責任分担は。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
+- **Source**: legacy-invoice-purchase-sales-gross-profit-reverse-engineering 5章・11章・13章Option D
+
+### K-4. 実績粗利可視化の要否
+
+- **Question**: 「実際の売上・仕入に基づく実績粗利（Item Master上の理論利益率とは別概念）を可視化する機能が必要か。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
+- **Source**: legacy-invoice-purchase-sales-gross-profit-reverse-engineering 6章・13章Option E
+
+### K-5a/K-5b. Supplier Invoice Integration方式
+
+- **K-5a（現在の事実）**: 「Supplier Invoiceは実際にどの形式（PDF/Excel/紙等）で受領しているか。Official PO Excel内のInvoice区画と同一のものか、別物か。」　**7-D2分類: B（Ernest Q29）**　**Timing**: C　**Blocker**: LATER
+- **K-5b（将来の決定）**: 「Supplier Invoiceを新Portalへ取り込む場合、Excel Upload／CSV Upload／既存Legacy Import再利用／External System連携／Manual Entryのどれを正式な方式とすべきか。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
+- **Source**: legacy-invoice-purchase-sales-gross-profit-reverse-engineering 3章・12章・18章
+
+---
+
 ## 13. Appendix I: Phase 0/0.5由来の未決事項
 
 Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（6項目）。いずれもPrototypeは暫定値で正常に動作しており、9/17デモの成立を妨げない。**全項目 7-D2分類: D（Gulliver Future Decision、LATER）** — Portal UI・計算方針そのものの採否であり、Ernestの技術保守範囲でもGulliverの現行業務運用でもなく、純粋にPortalの仕様として将来決めればよい事項のため。
@@ -743,6 +788,7 @@ Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（6項
 | H-1,H-2 | 指示14章／official-po-integration-detailed-design#9,#10 |
 | I-1〜I-12 | target-price-change-workflow 17章PC-1〜PC-14／legacy-price-change-reverse-engineering／ernest-current-operation-question-sheet Q18-Q23（Phase 8-A追加） |
 | J-1a〜J-6 | legacy-stock-sales-data-reverse-engineering 16章／ernest-current-operation-question-sheet Q24-Q28（Phase 8-C追加） |
+| K-1〜K-5b | legacy-invoice-purchase-sales-gross-profit-reverse-engineering 18章／ernest-current-operation-question-sheet Q29-Q33（Phase 8-D追加） |
 | Appendix I | requirements27.4 |
 
 ---
@@ -753,21 +799,21 @@ Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（6項
 
 - 全47項目（Theme A-H）＋Appendix I 7項目 ＝ 計54項目。Timing=A（9/17前必須）は11項目、Blocker=BLOCKERは9項目。
 
-### 15.2 Phase 7-D2時点＋Phase 7-E/7-H/7-J/8-A/8-C追加後（4分類軸、96項目）
+### 15.2 Phase 7-D2時点＋Phase 7-E/7-H/7-J/8-A/8-C/8-D追加後（4分類軸、102項目）
 
 | 分類 | 件数 | 質問先 |
 |---|---|---|
 | **A. SOURCE CONFIRMED** | **0** | なし（詳細は15.3参照） |
-| **B. PHASE1 / ERNEST CONFIRM** | **19**（Phase 7-D2時点13 ＋ Phase 7-J追加分C-10aの1 ＋ Phase 8-A追加分I-6a/I-8a/I-11aの3 ＋ Phase 8-C追加分J-1a/J-2の2、Ernest Q14-Q28に対応） | `docs/ernest-current-operation-question-sheet.md` |
+| **B. PHASE1 / ERNEST CONFIRM** | **20**（Phase 7-D2時点13 ＋ Phase 7-J追加分C-10aの1 ＋ Phase 8-A追加分I-6a/I-8a/I-11aの3 ＋ Phase 8-C追加分J-1a/J-2の2 ＋ Phase 8-D追加分K-5aの1、Ernest Q14-Q33に対応） | `docs/ernest-current-operation-question-sheet.md` |
 | **C. GULLIVER CURRENT OPERATION CONFIRM** | **8** | Gulliver（現行業務の事実確認） |
-| **D. GULLIVER FUTURE DECISION** | **69**（Phase 7-D2時点43 ＋ Phase 7-E追加分B-7〜B-14の8 ＋ Phase 7-J追加分C-10bの1 ＋ Phase 8-A追加分I-1,2,3,4,5,6b,7,8b,9,10,11b,12の12 ＋ Phase 8-C追加分J-1b,3,4,5,6の5。Phase 7-Hで旧Appendix Iの1項目をA-7として再整理したのはD内での移動のため総数は変わらない） | Gulliver（将来方針の意思決定） |
-| **合計** | **96** | |
+| **D. GULLIVER FUTURE DECISION** | **74**（Phase 7-D2時点43 ＋ Phase 7-E追加分B-7〜B-14の8 ＋ Phase 7-J追加分C-10bの1 ＋ Phase 8-A追加分I-1,2,3,4,5,6b,7,8b,9,10,11b,12の12 ＋ Phase 8-C追加分J-1b,3,4,5,6の5 ＋ Phase 8-D追加分K-1,2,3,4,5bの5。Phase 7-Hで旧Appendix Iの1項目をA-7として再整理したのはD内での移動のため総数は変わらない） | Gulliver（将来方針の意思決定） |
+| **合計** | **102** | |
 
 ### 15.3 なぜ「A. SOURCE CONFIRMED」が0件なのか
 
 Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻さない」という原則を適用済みだったため（1章）、この47項目＋Appendix I自体が、そもそもSourceで解決できなかった残りである。したがって7-D2で改めて「Sourceだけで完全に解決する」項目を探しても新たに見つからなかった（0件）。ただし各項目の"Current G-SYS Fact"欄には、Source Confirmedな前提事実（例: A-3の「同一PO No.への再Import機構自体の存在」、B-6の「現行は誰でも訂正可能」、C-1の「SYS_SEND_MAILキューの存在」）が引き続き記載されており、これらは質問化されていない。**「0件」はSource監査の手抜きではなく、Phase 7-Dの設計原則が正しく機能していたことの裏付け**と解釈する。
 
-### 15.4 Ernest確認で解決が期待される19項目（B分類）の内訳
+### 15.4 Ernest確認で解決が期待される20項目（B分類）の内訳
 
 | Theme | 件数 | Ernest Sheet番号 |
 |---|---|---|
@@ -779,26 +825,27 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 | EDI発注関連（Phase 7-J追加） | 1 | C-10a（Ernest Sheet Q14-Q17として4項目を展開、Decision Package上は1トピック=C-10aとして計上） |
 | 価格変更関連（Phase 8-A追加） | 3 | I-6a（Ernest Q22）、I-8a（Ernest Q20）、I-11a（Ernest Q21）。Ernest SheetにはQ18/Q19/Q23も存在するが、Price Change Target Design 17章のCUSTOMER REVIEW項目と直接対応しない技術確認事項のためDecision Package上はトピック計上しない |
 | 在庫・販売実績データ更新関連（Phase 8-C追加） | 2 | J-1a（Ernest Sheet Q24/Q25/Q28として3項目を展開）、J-2（Ernest Sheet Q26/Q27として2項目を展開） |
+| 請求・仕入・売上・粗利関連（Phase 8-D追加） | 1 | K-5a（Ernest Q29）。Ernest SheetにはQ30/Q31/Q32/Q33も存在するが、Decision Package上のCUSTOMER REVIEW項目と直接対応しない詳細確認事項のためトピック計上しない |
 
-優先度: P1（7-C2B/7-C4のBlocker）6件、P2（9/17前に把握したい）9件（Q3,Q9,Q10,Q11,Q12に加えPhase 7-J追加のQ14-Q17）、P3（本番設計まででよい）13件（Q5,Q6に加えPhase 8-A追加のQ18-Q23、Phase 8-C追加のQ24-Q28）。
+優先度: P1（7-C2B/7-C4のBlocker）6件、P2（9/17前に把握したい）9件（Q3,Q9,Q10,Q11,Q12に加えPhase 7-J追加のQ14-Q17）、P3（本番設計まででよい）18件（Q5,Q6に加えPhase 8-A追加のQ18-Q23、Phase 8-C追加のQ24-Q28、Phase 8-D追加のQ29-Q33）。
 
 ### 15.5 Ernest回答で「消える」可能性があるGulliver質問
 
-`docs/customer-review-question-sheet.md`（Ernest確認前Draft）には、上記19項目（B分類）が現時点でGulliver向け質問としてそのまま含まれている（うちC-10a・J-1aはそれぞれ複数論点をまとめた1トピックとして🟣マーク）。Ernestの回答が得られ次第、この**19項目はGulliver向け質問票から削除、または「確認済み事実の共有」に置き換える**（Ernestが確定的な回答をできなかった場合のみ、C分類＝Gulliver Current Operationとして質問票に残る）。したがって、Ernest回答によって最終的にGulliverへ聞く質問がゼロになる可能性がある項目は**最大19件**。
+`docs/customer-review-question-sheet.md`（Ernest確認前Draft）には、上記20項目（B分類）が現時点でGulliver向け質問としてそのまま含まれている（うちC-10a・J-1aはそれぞれ複数論点をまとめた1トピックとして🟣マーク）。Ernestの回答が得られ次第、この**20項目はGulliver向け質問票から削除、または「確認済み事実の共有」に置き換える**（Ernestが確定的な回答をできなかった場合のみ、C分類＝Gulliver Current Operationとして質問票に残る）。したがって、Ernest回答によって最終的にGulliverへ聞く質問がゼロになる可能性がある項目は**最大20件**。
 
 ### 15.6 Ernest確認後も確実にGulliver判断が必要な項目
 
 - **C. GULLIVER CURRENT OPERATION CONFIRM（8件）**: Ernestが技術保守担当として確定できない、Gulliver社の業務運用・組織構造に関する事実（例: メーカー担当者のBrand別割当、複数宛先送信の実際の運用、欠品/廃番の業務定義）。Ernestに聞いても解決しない可能性が高いため、最初からGulliver向けとして扱う。
-- **D. GULLIVER FUTURE DECISION（69件、うちAppendix I 6件＋Theme A側のA-7として再整理された1件、Phase 7-E追加分B-7〜B-14の8件、Phase 7-J追加分C-10bの1件、Phase 8-A追加分I-1〜I-12（b分含む）の12件、Phase 8-C追加分J-1b/J-3/J-4/J-5/J-6の5件を含む）**: Portal導入後の新しい業務ルール・権限・運用方針そのものであり、これは「事実確認」ではなく「意思決定」であるため、Ernestが何を答えても消えない。Gulliverの最終承認が必須。
-- **合計 77件が、Ernest確認後も確実にGulliverへの確認が必要な項目数。**
+- **D. GULLIVER FUTURE DECISION（74件、うちAppendix I 6件＋Theme A側のA-7として再整理された1件、Phase 7-E追加分B-7〜B-14の8件、Phase 7-J追加分C-10bの1件、Phase 8-A追加分I-1〜I-12（b分含む）の12件、Phase 8-C追加分J-1b/J-3/J-4/J-5/J-6の5件、Phase 8-D追加分K-1/K-2/K-3/K-4/K-5bの5件を含む）**: Portal導入後の新しい業務ルール・権限・運用方針そのものであり、これは「事実確認」ではなく「意思決定」であるため、Ernestが何を答えても消えない。Gulliverの最終承認が必須。
+- **合計 82件が、Ernest確認後も確実にGulliverへの確認が必要な項目数。**
 
 ### 15.7 「件数を減らすこと」自体を目的にしない
 
-上記のとおり、B分類19件をEarnestへ振り分けても、Gulliverへの質問自体は最大77件（C:8＋D:69）残る。これは「件数を無理に減らした」結果ではなく、**「Phase1として調べれば分かることをGulliverに聞かない」**という本Phaseの目的を優先した結果である。件数の多寡よりも、各質問が正しい相手（Ernest / Gulliver Current Operation / Gulliver Future Decision）に向いていることを優先した。
+上記のとおり、B分類20件をEarnestへ振り分けても、Gulliverへの質問自体は最大82件（C:8＋D:74）残る。これは「件数を無理に減らした」結果ではなく、**「Phase1として調べれば分かることをGulliverに聞かない」**という本Phaseの目的を優先した結果である。件数の多寡よりも、各質問が正しい相手（Ernest / Gulliver Current Operation / Gulliver Future Decision）に向いていることを優先した。
 
 ---
 
-## 16. 案件全体のModule/Option構成方針（Phase 8-B追加、Phase 8-Cで#13-15追加、共通前提）
+## 16. 案件全体のModule/Option構成方針（Phase 8-B追加、Phase 8-Cで#13-15追加、Phase 8-Dで#10更新+#16-18追加、共通前提）
 
 **この章は、以降のすべてのPhaseで維持する共通前提である。** 最終提案は「全機能を一括導入する固定Scope」を前提とせず、機能領域（Module/Option）ごとにGulliver社が採否を選択できる提案構造を目指す。最終Scopeは `Customer Requirement × Priority × Dependency × Implementation Cost × Customer Budget` によって決まる想定であり、**現時点で価格・工数を推測せず、正式なPackage構成も独自に決定しない**。目的は、機能境界とDependencyを先に明確にしておくことである。
 
@@ -828,12 +875,15 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 | 7 | Price Change（Foundation） | Optional | 無（Ordering非依存で成立） | **可**（Ordering非導入でも単独価値あり） | Foundation実装中（8-B） | 中（MS_ITEM/MS_ITEM_GRP、Excel Import Pipeline） | 無（Tempostar等は対象外） | Theme I（I-1〜I-12） |
 | 8 | Future Price / Scheduled Price | Optional | **Price Change（Technical Dependency: Change Set構造に依存）** | 不可（Price Change無しに成立しない） | 未着手（Customer Review待ち） | 低（Legacyにこの概念自体が無いためPortal内で完結） | 無 | I-2, I-3 |
 | 9 | Margin / Loss Warning | Optional | **Price Change（Technical Dependency: 価格入力画面に付随）** | 不可 | 計算ロジックの土台のみ実装中（8-B）、Warning Action自体は未着手 | 低（`Formula.java`ロジック参照のみ） | 無 | I-4 |
-| 10 | Invoice / Purchase / Sales / Gross Profit | Optional | 無（概念上はOrdering/Price Changeの実績データを使うが、Module境界は独立させ得る） | 可（分析系機能として単独導入も理論上可能） | 未着手（RE未実施、次々Phase） | 未確認（Legacy自体に横断分析画面があるか未調査） | 未調査 | 未整理（次Phaseで洗い出し予定） |
+| 10 | Invoice / Purchase / Sales / Gross Profit（総称） | Optional | **Phase 8-DでRE完了**、詳細は#16-18の3行に分解 | 一部可（#16-18参照） | Phase 8-DでReverse Engineering完了 | 低（READ ONLYの範囲は既存Table参照のみ） | 間接（Sales金額はTempostar由来だが現状永続化されていない） | Theme K（K-1〜K-5b） |
 | 11 | Warehouse / Logistics連携 | Optional | 無 | 可 | 未着手（RE未実施） | 未確認（Logizero連携部分の詳細未調査） | Logizero | 未整理 |
 | 12 | External System Integration（EC各モール・Tempostar等） | Optional | 無（Price Changeと概念的に隣接するが、Portal側は現状未実装） | 可 | 未着手 | 高（Selenium画面操作等、Legacy側の実装が特殊） | Tempostar、Rakuten、Yahoo、Amazon、Qoo10、Ponpare、Wowma | 未整理 |
 | 13 | Stock/Sales Data Update（表示改善） | Optional | 無（Ordering非依存で成立、10章 legacy-stock-sales-data-reverse-engineering） | 可 | 低（既存Legacy値のREAD ONLY表示のみ） | 低（READ ONLY） | 無 | J-1a/J-1b |
 | 14 | Stock/Sales Data Update（Sales History蓄積、Portal側） | Optional | 13とは独立に単独導入可 | 可 | 中（新規蓄積の仕組みが必要） | 低（READ ONLY、PortalがHistoryのみ新規保持） | 間接（SOLD_QTYがTempostar由来） | J-3/J-4/J-6 |
 | 15 | Stock/Sales Data Update（Trend可視化・calc4改善・Alert改善） | Optional | **14（Sales History蓄積）へのTechnical Dependency**、一部D-5（欠品/長期欠品定義）確定へのBusiness/Estimate Dependency | 不可（14の完成、またはD-5確定が前提） | 中〜高（calc4改変は特に慎重な検証が必要） | 低〜中 | 無 | J-5、D-5 |
+| 16 | Invoice/Purchase/Sales/Gross Profit（Purchase可視化・理論Margin表示） | Optional | 無（Ordering非依存、Price ChangeのMarginCalculatorを再利用可能） | 可 | 低（既存TR_INV/TR_PO・既存Formula参照のREAD ONLY表示のみ） | 低（READ ONLY） | 無 | K-5a/K-5b |
+| 17 | Invoice/Purchase/Sales/Gross Profit（PO/Invoice Qty比較） | Optional | 16とは独立に単独導入可（7章のJoinのみで完結） | 可 | 低（READ ONLY、Join自体はSource Confirmed） | 中（比較目的の確定が必要） | 無 | K-1 |
+| 18 | Invoice/Purchase/Sales/Gross Profit（差異管理・Sales Amount蓄積・実績粗利・Dashboard） | Optional | **Sales Amount蓄積へのTechnical Dependency（実績粗利側）**、差異管理Business Rule確定へのBusiness/Estimate Dependency。Stock/Sales Data UpdateのOption B（14番）と同じTempostar CSV拡張ポイントを共有し得る（16.3章参照） | 不可（Sales Amount蓄積の完成、または差異管理Business Rule確定が前提） | 中〜高 | 高（複数の未確定Business Rule次第） | 間接（Tempostar由来） | K-2/K-3/K-4 |
 
 **Business/Estimate上のDependencyとTechnical Dependencyの区別**（指示による）:
 - 例: 「Future Price / Scheduled Price」は**Technical Dependency**として Price Change の Change Set 構造に依存する（Change Setという入れ物が無ければ予約日時を持たせる先が無い）。一方、Approval・Fulfillment等が Ordering に依存するのは主として**Business/Estimate上のDependency**（Orderingという業務プロセスが無ければ承認や納品追跡という概念自体が発生しない）であり、Technicalには疎結合な実装（別Table・別Service）を既に採っている（7-C系のPortalOrderRevision/AuditEvent等はOrdering専用Tableであり、Approval機能を外してもOrdering自体のCore Tableは壊れない設計）。
@@ -847,4 +897,4 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 
 ### 16.4 未確定の明示
 
-本章の実装難易度・Dependency評価は、Phase 7/8時点でReverse Engineering/Target Designが完了した機能領域（Ordering、Price Change、**Phase 8-CでStock/Sales Data Updateも追加**）についてのみ確度が高い。Invoice/Purchase/Sales/Gross Profit、Warehouse/Logistics、External System Integrationは依然未調査であり、表内の評価は暫定である。**価格・工数の数値化、正式なPackage名の確定は、本Documentでは一切行わない。**
+本章の実装難易度・Dependency評価は、Phase 7/8時点でReverse Engineering/Target Designが完了した機能領域（Ordering、Price Change、Phase 8-CでStock/Sales Data Update、**Phase 8-DでInvoice/Purchase/Sales/Gross Profitも追加**）についてのみ確度が高い。Warehouse/Logistics、External System Integrationは依然未調査であり、表内の評価は暫定である。**価格・工数の数値化、正式なPackage名の確定は、本Documentでは一切行わない。**
