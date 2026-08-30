@@ -166,7 +166,7 @@ test.describe('Supplier Response Confirmation bugfix regression', () => {
     // Edit again WITHOUT saving - without this guard, Confirm would silently
     // act on the OLD saved value (5), not the 7 now on screen.
     await page.getByTestId(`confirmed-qty-input-${SKU_A}`).locator('input').fill('7')
-    await expect(page.getByTestId('response-unsaved-changes-banner')).toBeVisible()
+    await expect(page.getByTestId('response-unsaved-changes-toast')).toBeVisible()
     await expect(page.getByTestId('confirm-response-button')).toBeDisabled()
 
     await page.getByTestId('save-response-button').click()

@@ -44,6 +44,14 @@ public class AuditEvent {
      * Send, alongside two STATUS_CHANGED rows (READY_TO_ORDER->SENT and
      * SENT->AWAITING_SUPPLIER) in the same transaction. */
     public static final String DEMO_SENT = "DEMO_SENT";
+    /** Phase 7-H (EDI発注Workflow Foundation): the EDI-path counterpart to
+     * {@link #DEMO_SENT} - written once per {@code
+     * OrderStatusTransitionService.recordEdiSend}, alongside the SAME two
+     * STATUS_CHANGED rows (APPROVED->SENT and SENT->AWAITING_SUPPLIER) in
+     * the same transaction. Records "the Order was communicated to the
+     * Supplier via their own EDI system" as a fact for Audit/History - no
+     * real EDI file/API/connection is ever involved. */
+    public static final String EDI_SEND_RECORDED = "EDI_SEND_RECORDED";
     /** Supplier Response confirmed (implementation instructions 21章). */
     public static final String SUPPLIER_RESPONSE_RECEIVED = "SUPPLIER_RESPONSE_RECEIVED";
     /** confirmedQty changed on a line (old/new = previous/new confirmedQty,

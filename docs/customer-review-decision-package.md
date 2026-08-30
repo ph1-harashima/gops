@@ -421,6 +421,16 @@ Phase 7-EのPortalUser仕様調査（Source: `PortalUser.java`／`SecurityConfig
 - **Question**: 「修正版・問い合わせ・取消の連絡について、既存の文面があれば共有してほしい。」　**7-D2分類: C（Gulliver Current Operation — 具体的な文面の中身はGulliverの業務コミュニケーション内容そのものであり、Ernestの技術知見では代替できない。ただしQ10でErnestが「文面が存在する」ことまでは確認できる可能性がある）**　**Timing**: C　**Blocker**: LATER
 - **Source**: supplier-contact-mail-template-foundation 20章
 
+### C-10. Supplier発注Channel（EDI等）の正式運用（Phase 7-H追加）
+
+- **Current G-SYS Fact（Source Confirmed）**: 現行Source（Backend全体・全docs）に「EDI」「communicationChannel」「procurementMethod」に相当する概念・列・Masterは一切存在しない（`\bEDI\b`でSource全体を検索し0件、Phase 7-H監査で確認）。Legacy Supplier Master（`MS_COMM CATE_ID='MS_SUPPL'`）も、Portal側が現在READする範囲ではコード・名称のみで、発注方法に関する属性は無い。
+- **手動確認で判明した新業務前提**: メーカーとの発注方法は約90%がEmail、約10%がメーカー側EDI Systemとのこと（Source外の実運用情報、口頭確認）。EDI Supplierの場合、PortalからのMail Send自体を行わず、メーカー側EDI Systemで発注する運用の可能性がある。
+- **Phase 7-Hの対応**: 「Order/POが確定したこと」と「どのChannelでSupplierへ伝えたか」を分離するFoundationのみ実装（`portal_order.communication_channel`列、EMAIL/EDIの記録、Supplier Response到達性の確保）。実際のEDI連携（File Format・API・認証・SFTP等）は一切実装していない。どのSupplierが実際にEDIを使うかというMasterデータも追加していない（架空のSupplier区分を推測で作らないため） - PO Preview画面でADMIN/OPERATORが送信のたびに手動選択する設計に留めている。
+- **Question**: 「①実際にEDIで発注しているSupplierを正式にどう特定・管理すべきか（Supplier Master拡張／Portal専用Master／その都度手動選択のまま、等）。②将来的に実際のEDI連携（File/API等）を実装する場合、Supplierごとに方式が異なりうるか。③EDI発注時、メーカーへの実際の発注手段（Fileの受け渡し方法等）は現状どう行われているか。」
+- **7-D2分類**: **D（Gulliver Future Decision）** - Foundation自体はSource監査のみで安全に実装できたが、実際の運用・Supplier区分・連携方式はGulliver/顧客側の意思決定・実運用情報が必要で、Sourceだけでは確定できない。
+- **Timing**: B（9/17デモ当日に確認 - 現Prototypeの9割主流であるEmailシナリオはそのまま見せられるが、EDI Supplier分の本番設計に入る前に確認したい）　**Blocker**: IMPORTANT
+- **Source**: Phase 7-H Source監査（Backend全体・docs全体、EDI関連ゼロ件を確認）
+
 ---
 
 ## 8. Theme D: Supplier Response / Revision（全項目 7-D2分類: D、一部C）

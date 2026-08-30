@@ -188,9 +188,13 @@ test.describe('Supplier Response Confirm Dialog stability regression', () => {
 
     await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))
     await expect(page.getByRole('heading', { name: '発注詳細' })).toBeVisible()
-    // Scoped to the status Chip specifically (a plain getByText('メーカー確定済み')
-    // also matches the Timeline's "メーカー回答待ち → メーカー確定済み" row).
-    await expect(page.getByText('メーカー確定済み', { exact: true })).toBeVisible()
+    // .first() - the Status Chip in the header, not the Audit Timeline's own
+    // "メーカー回答待ち [Arrow] メーカー確定済み" row (Phase 7-H's Timeline
+    // redesign renders each side as its own isolated text node with exactly
+    // "メーカー確定済み" as its text, so a plain exact-text match can now
+    // resolve to both - this comment's own original claim of being "scoped"
+    // was no longer true after that redesign; fixed to actually be so).
+    await expect(page.getByText('メーカー確定済み', { exact: true }).first()).toBeVisible()
   })
 
   test('H: confirmedQty=0 -> Dialog動作も従来どおり -> Confirm可能', async ({ page }) => {

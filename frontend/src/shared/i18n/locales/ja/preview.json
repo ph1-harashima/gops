@@ -46,6 +46,16 @@
   "demoSendDialogCancel": "キャンセル",
   "demoSendDialogConfirm": "Demo Send",
   "demoSendFailed": "処理に失敗しました。",
+  "ediSend": "EDI発注済みとして記録",
+  "ediSendDialogTitle": "この発注をEDI発注済みとして記録しますか？",
+  "ediSendDialogBody": "メーカー側のEDIシステムで発注済みであることをPortal上に記録します。\nPortalから実際のEDI送信・ファイル連携は一切行われません。",
+  "ediSendDialogCancel": "キャンセル",
+  "ediSendDialogConfirm": "記録する",
+  "ediSendFailed": "処理に失敗しました。",
   "goToSupplierResponseInput": "メーカー回答を入力",
-  "goToSupplierResponseReview": "メーカー回答を確認する"
+  "goToSupplierResponseReview": "メーカー回答を確認する",
+  "communicationChannel": {
+    "EMAIL": "発注方法: Email",
+    "EDI": "発注方法: EDI"
+  }
 }

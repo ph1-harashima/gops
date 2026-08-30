@@ -32,6 +32,7 @@ import {
 } from './api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
+import { Toast } from '../../shared/components/Toast'
 import { withReturnTo } from '../../shared/navigation/returnTo'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_ADMIN } from '../../shared/types/auth'
@@ -293,27 +294,23 @@ export function SupplierResponsePage() {
         <AttentionChips attentions={response.orderAttentions} acknowledgeable />
       </Stack>
 
-      {saveMutation.isSuccess && <Alert severity="success" sx={{ mb: 2 }}>{t('saveSuccess')}</Alert>}
-      {saveErrorCode === 'INVALID_CONFIRMED_QTY' && (
-        <Alert severity="error" sx={{ mb: 2 }}>{t('errorGeneric')}</Alert>
-      )}
-      {saveErrorCode === 'INVALID_STATUS_TRANSITION' && (
-        <Alert severity="error" sx={{ mb: 2 }}>{t('errorInvalidStatusTransition')}</Alert>
-      )}
+      {/* Phase 7-I (Layout Shift audit): one-shot mutation results, moved to
+          the shared Toast - same reasoning/precedent as Order Draft's
+          identical conversion (this screen has the exact same
+          Number-Input-stepper-plus-inline-Alert layout shape). */}
+      <Toast open={saveMutation.isSuccess} severity="success" message={t('saveSuccess')} onClose={() => saveMutation.reset()} testId="save-success-toast" />
+      <Toast open={saveErrorCode === 'INVALID_CONFIRMED_QTY'} severity="error" message={t('errorGeneric')} onClose={() => saveMutation.reset()} />
+      <Toast open={saveErrorCode === 'INVALID_STATUS_TRANSITION'} severity="error" message={t('errorInvalidStatusTransition')} onClose={() => saveMutation.reset()} />
       {/* Phase 6-E: confirmMutation.isSuccess Alert removed - handleConfirm's
           onSuccess always navigate()s to 発注詳細 in the same synchronous
           callback (Phase 6-C), so this component unmounts before isSuccess
           can ever render true here. Confirmed via source. The actually-
           visible equivalent Message now lives on 発注詳細
           (OrderHistoryDetailPage's supplierResponseConfirmSuccessMessage).
-          confirmErrorCode Alerts below are unaffected - only onSuccess
+          confirmErrorCode Toasts below are unaffected - only onSuccess
           navigates. */}
-      {confirmErrorCode === 'SUPPLIER_RESPONSE_INCOMPLETE' && (
-        <Alert severity="error" sx={{ mb: 2 }}>{t('errorIncomplete')}</Alert>
-      )}
-      {confirmErrorCode === 'INVALID_STATUS_TRANSITION' && (
-        <Alert severity="error" sx={{ mb: 2 }}>{t('errorInvalidStatusTransition')}</Alert>
-      )}
+      <Toast open={confirmErrorCode === 'SUPPLIER_RESPONSE_INCOMPLETE'} severity="error" message={t('errorIncomplete')} onClose={() => confirmMutation.reset()} />
+      <Toast open={confirmErrorCode === 'INVALID_STATUS_TRANSITION'} severity="error" message={t('errorInvalidStatusTransition')} onClose={() => confirmMutation.reset()} />
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" spacing={4} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
@@ -495,26 +492,26 @@ export function SupplierResponsePage() {
       {response.status === 'SUPPLIER_CONFIRMED' && (
         <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="agreement-section">
           <Typography variant="subtitle1" gutterBottom>{t('agreement.title')}</Typography>
-          {agreeMutation.isError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {(() => {
-                const code = errorCodeOf(agreeMutation.error)
-                if (code === 'UNACKNOWLEDGED_ATTENTION') return t('agreement.errorUnacknowledgedAttention')
-                if (code === 'FORBIDDEN') return t('agreement.errorForbidden')
-                return t('agreement.errorGeneric')
-              })()}
-            </Alert>
-          )}
-          {createRevisionMutation.isError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {(() => {
-                const code = errorCodeOf(createRevisionMutation.error)
-                if (code === 'REVISION_REASON_REQUIRED') return t('revision.errorReasonRequired')
-                if (code === 'FORBIDDEN') return t('agreement.errorForbidden')
-                return t('agreement.errorGeneric')
-              })()}
-            </Alert>
-          )}
+          <Toast
+            open={agreeMutation.isError}
+            severity="error"
+            message={
+              errorCodeOf(agreeMutation.error) === 'UNACKNOWLEDGED_ATTENTION' ? t('agreement.errorUnacknowledgedAttention') :
+              errorCodeOf(agreeMutation.error) === 'FORBIDDEN' ? t('agreement.errorForbidden') :
+              t('agreement.errorGeneric')
+            }
+            onClose={() => agreeMutation.reset()}
+          />
+          <Toast
+            open={createRevisionMutation.isError}
+            severity="error"
+            message={
+              errorCodeOf(createRevisionMutation.error) === 'REVISION_REASON_REQUIRED' ? t('revision.errorReasonRequired') :
+              errorCodeOf(createRevisionMutation.error) === 'FORBIDDEN' ? t('agreement.errorForbidden') :
+              t('agreement.errorGeneric')
+            }
+            onClose={() => createRevisionMutation.reset()}
+          />
           {isAdmin ? (
             <Stack direction="row" spacing={2}>
               <Button
@@ -591,11 +588,18 @@ export function SupplierResponsePage() {
           so no bottom row renders at all. The former standalone "履歴を見る"
           button is gone - Confirm now lands on 発注詳細 itself, and 戻る
           already goes there too, so it was a redundant third path. */}
-      {isEditable && isDirty && (
-        <Alert severity="warning" sx={{ mt: 2 }} data-testid="response-unsaved-changes-banner">
-          {t('unsavedChangesBanner')}
-        </Alert>
-      )}
+      {/* Phase 7-I (Layout Shift audit): same isDirty-Alert-above-a-Number-
+          Input pattern as Order Draft's own reported bug - moved to the
+          shared Toast (fixed-position, never pushes the confirmedQty
+          Inputs above it). */}
+      <Toast
+        open={isEditable && isDirty}
+        severity="warning"
+        message={t('unsavedChangesBanner')}
+        autoHideDuration={null}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        testId="response-unsaved-changes-toast"
+      />
       {isEditable && (
         <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
           <Button variant="contained" onClick={handleSave} disabled={saveMutation.isPending} data-testid="save-response-button">

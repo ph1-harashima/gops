@@ -19,6 +19,9 @@ const OPERATOR_USERNAME = 'purchase01'
 const OPERATOR_PASSWORD = 'DemoPass123!'
 const ADMIN_USERNAME = 'admin01'
 const ADMIN_PASSWORD = 'DemoPass123!'
+// Phase 7-H (User表示 audit): agreedByDisplayName is preferred over the raw
+// Login ID wherever agreedBy is shown - admin01's Demo display_name.
+const ADMIN_DISPLAY_NAME = '鈴木 花子'
 
 const SKU = 'OD-CHAIR-002'
 
@@ -118,7 +121,7 @@ test('Scenario A: Order Rev1 -> Response1 -> Qty一致 -> Confirm -> Agree -> AG
   await page.getByTestId('agree-dialog-confirm').click()
 
   await expect(page.getByTestId('agreed-section')).toBeVisible()
-  await expect(page.getByTestId('agreed-info')).toContainText(ADMIN_USERNAME)
+  await expect(page.getByTestId('agreed-info')).toContainText(ADMIN_DISPLAY_NAME)
 })
 
 test('Scenario B: Rev1 Qty差異 -> Attention -> 差異確認 -> 差異のまま合意 -> Rev1は変更されない', async ({ page }) => {

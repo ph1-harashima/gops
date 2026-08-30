@@ -26,6 +26,7 @@ import { useCreateDraft } from '../drafts/api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
 import { StockJudgementChip } from '../../shared/components/StockJudgementChip'
+import { Toast } from '../../shared/components/Toast'
 import { computeStockJudgement } from '../../shared/domain/stockJudgement'
 import { listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 import type { OrderCandidateFilter } from '../../shared/types/orderCandidate'
@@ -320,16 +321,21 @@ export function CandidateListPage() {
         </Stack>
       )}
 
-      {createDraftErrorCode === 'MIXED_SUPPLIER_NOT_ALLOWED' && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {t('candidates:createDraftMixedSupplier')}
-        </Alert>
-      )}
-      {createDraftErrorCode && createDraftErrorCode !== 'MIXED_SUPPLIER_NOT_ALLOWED' && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {t('candidates:createDraftFailed', { code: createDraftErrorCode })}
-        </Alert>
-      )}
+      {/* Phase 7-I (Layout Shift audit): mutation-result error, previously
+          an inline <Alert> mounted directly above the Table (would push
+          selection Checkboxes down mid-selection) - moved to shared Toast. */}
+      <Toast
+        open={createDraftErrorCode === 'MIXED_SUPPLIER_NOT_ALLOWED'}
+        severity="error"
+        message={t('candidates:createDraftMixedSupplier')}
+        onClose={() => createDraftMutation.reset()}
+      />
+      <Toast
+        open={Boolean(createDraftErrorCode) && createDraftErrorCode !== 'MIXED_SUPPLIER_NOT_ALLOWED'}
+        severity="error"
+        message={t('candidates:createDraftFailed', { code: createDraftErrorCode })}
+        onClose={() => createDraftMutation.reset()}
+      />
 
       {isLoading && (
         <Stack direction="row" spacing={1} sx={{ my: 4, alignItems: 'center' }}>

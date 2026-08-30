@@ -50,7 +50,9 @@ class PrototypeFlywayMigrationTest {
         // legacy_po_baseline, official_po_integration_request.integration_intent.
         // V14 (Phase 7-H): demo portal_user.display_name updated to fictional
         // person names (User表示 audit) - data-only, no schema change.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"), versions);
+        // V15 (Phase 7-H): EDI発注Workflow Foundation -
+        // portal_order.communication_channel, EDI_SEND_RECORDED Audit type.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"), versions);
     }
 
     @Test

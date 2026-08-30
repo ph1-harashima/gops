@@ -23,6 +23,13 @@ public record OrderHistoryDetailResponse(
         int totalQty,
         BigDecimal totalAmount,
         List<OrderHistoryDetailLineView> details,
-        List<AttentionSummary> orderAttentions
+        List<AttentionSummary> orderAttentions,
+        // Phase 7-H (EDI発注Workflow Foundation): null until the first Send
+        // (either Channel) - see PortalOrder.communicationChannel's Javadoc.
+        // Shown here (not on PO Preview, which is unreachable once an Order
+        // has moved past APPROVED - PoPreviewService's own existing Status
+        // Gate) since Order Detail is the one screen reachable for every
+        // Status, Send included.
+        String communicationChannel
 ) {
 }

@@ -44,6 +44,10 @@ export interface PoPreview {
   summary: PoPreviewSummary
   manufacturerCommunication: ManufacturerCommunication
   demoMode: boolean
+  // Phase 7-H (EDI発注Workflow Foundation): null until the first Send (either
+  // channel) - 'EMAIL' (demoSend) or 'EDI' (recordEdiSend/ediSend). Independent
+  // of `status` - see PortalOrder.communicationChannel's Javadoc.
+  communicationChannel: 'EMAIL' | 'EDI' | null
 }
 
 /** Mirrors OrderStatusChangeResponse (Confirm Order / Return to Draft). */

@@ -84,7 +84,7 @@ public class PoPreviewService {
                 order.getSupplierCode(), order.getSupplierNameSnapshot(),
                 order.getBrandCode(), order.getBrandNameSnapshot(),
                 order.getOrderDate(), order.getRequestedDelivery(), order.getCurrency(), order.getRemark(),
-                order.getStatus(), details, summary, communication, true
+                order.getStatus(), details, summary, communication, true, order.getCommunicationChannel()
         );
     }
 }

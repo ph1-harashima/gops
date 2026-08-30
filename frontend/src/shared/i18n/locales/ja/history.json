@@ -52,6 +52,11 @@
   },
   "notAvailable": "—",
   "demoSendSuccessMessage": "メーカーへの発注を記録しました。現在、メーカー回答待ちです。デモモードのため、実際のメールは送信されていません。",
+  "ediSendSuccessMessage": "EDI発注済みとして記録しました。現在、メーカー回答待ちです。実際のEDI送信・ファイル連携は行われていません。",
+  "communicationChannel": {
+    "EMAIL": "発注方法: Email",
+    "EDI": "発注方法: EDI"
+  },
   "supplierResponseConfirmSuccessMessage": "メーカー回答を確定しました。",
   "goToDraftEdit": "ドラフトを編集",
   "goToPreview": "PO Previewを見る",

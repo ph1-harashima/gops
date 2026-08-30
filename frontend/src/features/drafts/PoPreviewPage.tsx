@@ -23,8 +23,9 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogContentText from '@mui/material/DialogContentText'
 import DialogActions from '@mui/material/DialogActions'
 
-import { usePoPreview, useReturnToDraft, useDemoSend } from './poPreviewApi'
+import { usePoPreview, useReturnToDraft, useDemoSend, useEdiSend } from './poPreviewApi'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
+import { Toast } from '../../shared/components/Toast'
 import { resolveBackTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_ADMIN } from '../../shared/types/auth'
@@ -79,7 +80,9 @@ export function PoPreviewPage() {
   const { data: preview, isLoading, isError, error, refetch } = usePoPreview(draftId)
   const returnMutation = useReturnToDraft(draftId)
   const demoSendMutation = useDemoSend(draftId)
+  const ediSendMutation = useEdiSend(draftId)
   const [demoSendDialogOpen, setDemoSendDialogOpen] = useState(false)
+  const [ediSendDialogOpen, setEdiSendDialogOpen] = useState(false)
 
   // Phase 7-C1 16章: the old DRAFT->READY_TO_ORDER "確定" transition no
   // longer exists - "発注内容を修正" is now purely a navigation aid, not a
@@ -118,6 +121,22 @@ export function PoPreviewPage() {
         // bucket instead - the order's new home now that it has been sent.
         navigate(withReturnTo(`/orders/${draftId}`, '/orders/history?status=AWAITING_SUPPLIER'), {
           state: { demoSendSuccess: true },
+        })
+      },
+    })
+  }
+
+  /** Phase 7-H (EDI発注Workflow Foundation): same shape as handleDemoSend -
+   * a distinct Business Action (recordEdiSend, not demoSend), landing on the
+   * same 発注詳細 as every other Send, with its own one-shot Message
+   * (ediSendSuccess, not demoSendSuccess) so 発注詳細 can say which Channel
+   * was actually used. */
+  function handleEdiSend() {
+    ediSendMutation.mutate(undefined, {
+      onSuccess: () => {
+        setEdiSendDialogOpen(false)
+        navigate(withReturnTo(`/orders/${draftId}`, '/orders/history?status=AWAITING_SUPPLIER'), {
+          state: { ediSendSuccess: true },
         })
       },
     })
@@ -170,13 +189,25 @@ export function PoPreviewPage() {
         </Typography>
         <OrderStatusChip status={preview.status} />
         <Chip size="small" variant="outlined" color="info" label={t('demoModeChip')} />
+        {/* Phase 7-H (EDI発注Workflow Foundation): shown only once a Send has
+            actually happened (communicationChannel is null before that) -
+            makes "どのChannelで発注したか" visible without touching
+            OrderStatusChip's own Status semantics. */}
+        {preview.communicationChannel && (
+          <Chip size="small" variant="outlined" label={t(`communicationChannel.${preview.communicationChannel}`)} data-testid="communication-channel-chip" />
+        )}
       </Stack>
 
-      {returnErrorCode && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {t('returnToDraftFailed')}
-        </Alert>
-      )}
+      {/* Phase 7-I (Layout Shift audit): both are one-shot mutation-result
+          errors, previously inline <Alert>s mounted directly above the
+          summary Paper/Table below - moved to the shared Toast so they
+          never push that content (fixed-position Snackbar). */}
+      <Toast
+        open={Boolean(returnErrorCode)}
+        severity="error"
+        message={t('returnToDraftFailed')}
+        onClose={() => returnMutation.reset()}
+      />
       {/* Phase 6-E (docs/production-ux-workflow-redesign.md 8章): a
           demoSendMutation.isSuccess Alert used to render here, but
           handleDemoSend's onSuccess always navigate()s away in the same
@@ -185,17 +216,28 @@ export function PoPreviewPage() {
           source (not guessed) and removed; the equivalent, actually-visible
           Message now lives on 発注詳細 (OrderHistoryDetailPage's
           demoSendSuccessMessage). demoSendMutation.isError below is
-          unaffected - only onSuccess navigates, so the Error Alert still
+          unaffected - only onSuccess navigates, so the Error Toast still
           renders normally when Demo Send fails. */}
-      {demoSendMutation.isError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {(() => {
-            const code = errorCodeOf(demoSendMutation.error)
-            if (code === 'INVALID_STATUS_TRANSITION') return t('errorInvalidStatusTransition')
-            return t('demoSendFailed')
-          })()}
-        </Alert>
-      )}
+      <Toast
+        open={demoSendMutation.isError}
+        severity="error"
+        message={
+          errorCodeOf(demoSendMutation.error) === 'INVALID_STATUS_TRANSITION'
+            ? t('errorInvalidStatusTransition')
+            : t('demoSendFailed')
+        }
+        onClose={() => demoSendMutation.reset()}
+      />
+      <Toast
+        open={ediSendMutation.isError}
+        severity="error"
+        message={
+          errorCodeOf(ediSendMutation.error) === 'INVALID_STATUS_TRANSITION'
+            ? t('errorInvalidStatusTransition')
+            : t('ediSendFailed')
+        }
+        onClose={() => ediSendMutation.reset()}
+      />
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" spacing={4} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
@@ -291,6 +333,25 @@ export function PoPreviewPage() {
             {demoSendMutation.isPending ? <CircularProgress size={20} /> : t('demoSend')}
           </Button>
         )}
+        {/* Phase 7-H (EDI発注Workflow Foundation): "PO確定" (this Order being
+            APPROVED) and "どのChannelでSupplierへ発注したか" are deliberately
+            NOT conflated (7-H 9章の設計原則) - shown side by side with 送信
+            rather than gated by any per-Supplier Master setting, since no
+            such "this Supplier uses EDI" data exists anywhere in Source yet
+            (Phase 7-H audit finding - inventing it would be guessing a
+            Business Rule). The ADMIN/OPERATOR picks per-Order which actually
+            happened; Supplier Response/Revision/Agreement afterward are
+            fully unaffected by which one was clicked. */}
+        {preview.status === 'APPROVED' && (
+          <Button
+            variant="outlined"
+            onClick={() => setEdiSendDialogOpen(true)}
+            disabled={ediSendMutation.isPending}
+            data-testid="edi-send-button"
+          >
+            {ediSendMutation.isPending ? <CircularProgress size={20} /> : t('ediSend')}
+          </Button>
+        )}
         {/* Phase 6-E (docs/production-ux-workflow-redesign.md 6章): a stale
             Preview URL (reached via Browser Back/Forward or a bookmark from
             before Send) can still be viewed after the order has moved past
@@ -338,6 +399,27 @@ export function PoPreviewPage() {
           </Button>
           <Button variant="contained" onClick={handleDemoSend} disabled={demoSendMutation.isPending} data-testid="demo-send-dialog-confirm">
             {demoSendMutation.isPending ? <CircularProgress size={20} /> : t('demoSendDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={ediSendDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setEdiSendDialogOpen(false)
+        }}
+      >
+        <DialogTitle>{t('ediSendDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('ediSendDialogBody')}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEdiSendDialogOpen(false)} disabled={ediSendMutation.isPending}>
+            {t('ediSendDialogCancel')}
+          </Button>
+          <Button variant="contained" onClick={handleEdiSend} disabled={ediSendMutation.isPending} data-testid="edi-send-dialog-confirm">
+            {ediSendMutation.isPending ? <CircularProgress size={20} /> : t('ediSendDialogConfirm')}
           </Button>
         </DialogActions>
       </Dialog>

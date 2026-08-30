@@ -181,7 +181,7 @@ public class OrderHistoryService {
                 order.getBrandCode(), order.getBrandNameSnapshot(),
                 order.getOrderDate(), order.getRequestedDelivery(), order.getCurrency(), order.getRemark(),
                 order.getStatus(), order.getTotalQty(), order.getTotalAmount(),
-                lines, orderAttentions
+                lines, orderAttentions, order.getCommunicationChannel()
         );
     }
 

@@ -48,6 +48,8 @@ export interface OrderHistoryDetail {
   totalAmount: number
   details: OrderHistoryDetailLine[]
   orderAttentions: AttentionSummary[]
+  // Phase 7-H (EDI発注Workflow Foundation): null until the first Send.
+  communicationChannel: 'EMAIL' | 'EDI' | null
 }
 
 export interface AuditEventItem {

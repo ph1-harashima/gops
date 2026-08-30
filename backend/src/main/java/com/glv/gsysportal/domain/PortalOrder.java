@@ -105,6 +105,29 @@ public class PortalOrder {
     @Column(nullable = false, length = 30)
     private String status = STATUS_DRAFT;
 
+    /** Phase 7-H (EDI発注Workflow監査): deliberately separate from {@code
+     * status} - "the Order/PO is confirmed and was communicated to the
+     * Supplier" (the Status transition to AWAITING_SUPPLIER) and "which
+     * Channel that communication used" are two independent facts, per this
+     * Phase's own design principle. NULL until the first Send (either path
+     * below); never read by any Approval/Supplier Response/Fulfillment/
+     * Follow-up logic - Supplier Response, Revision, and Agreement all key
+     * off {@code status} alone, unaffected by which value this holds
+     * (confirmed via Source audit before adding this field - SupplierResponseService
+     * never reads this column). Two values so far, both written only by
+     * {@link com.glv.gsysportal.service.OrderStatusTransitionService}:
+     * {@link #CHANNEL_EMAIL} (existing Demo Send path, unchanged behavior) and
+     * {@link #CHANNEL_EDI} (new Phase 7-H Foundation path - records that a
+     * Supplier was ordered from over their own EDI system rather than
+     * Email, WITHOUT implementing any real EDI integration - see that
+     * Service's Javadoc). Real EDI file formats/APIs/auth are explicitly
+     * out of this Phase's scope and remain CUSTOMER REVIEW. */
+    @Column(name = "communication_channel", length = 20)
+    private String communicationChannel;
+
+    public static final String CHANNEL_EMAIL = "EMAIL";
+    public static final String CHANNEL_EDI = "EDI";
+
     /** Phase 7-C5 3章: the Revision most recently sent to the Supplier - the
      * SAME concept as {@link OfficialPoIntegrationRequest#getRevisionNo()},
      * not a separate numbering scheme. NULL until the first Demo Send

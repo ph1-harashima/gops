@@ -259,6 +259,35 @@ public class OrderStatusTransitionService {
      */
     @Transactional(transactionManager = "prototypeTransactionManager")
     public PortalOrder demoSend(Long id, String performedBy) {
+        return send(id, PortalOrder.CHANNEL_EMAIL, AuditEvent.DEMO_SENT, performedBy);
+    }
+
+    /**
+     * Phase 7-H (EDI発注Workflow Foundation, docs audit confirmed via Source:
+     * OrderStatusTransitionService.demoSend was the ONLY code path anywhere
+     * that ever creates a {@link PortalOrderRevision}/{@link SupplierResponse}
+     * - i.e. a Supplier who is never Email-sent could never reach Supplier
+     * Response at all before this method existed). Same APPROVED ->
+     * AWAITING_SUPPLIER transition, same Revision snapshot, same Supplier
+     * Response initialization as {@link #demoSend} - the ONLY difference is
+     * {@code communicationChannel} and which one-shot Audit event marks how
+     * this Send happened ({@link AuditEvent#EDI_SEND_RECORDED} instead of
+     * {@link AuditEvent#DEMO_SENT}). No real EDI file/API/connection - this
+     * only records "an ADMIN/OPERATOR is telling the Portal this Order was
+     * placed with the Supplier over their own EDI system, not by Email" so
+     * that Supplier Response/Revision/Agreement (all channel-agnostic,
+     * confirmed via Source - none of them read this field) become reachable
+     * without requiring a Demo Send that never happened. Same Permission as
+     * demoSend (no @PreAuthorize at the Controller - any authenticated
+     * user), same [PROTOTYPE DECISION] framing: which Suppliers actually use
+     * EDI, and the real integration design, remain CUSTOMER REVIEW.
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public PortalOrder recordEdiSend(Long id, String performedBy) {
+        return send(id, PortalOrder.CHANNEL_EDI, AuditEvent.EDI_SEND_RECORDED, performedBy);
+    }
+
+    private PortalOrder send(Long id, String channel, String sendEventType, String performedBy) {
         PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
 
         if (!PortalOrder.STATUS_APPROVED.equals(order.getStatus())) {
@@ -270,11 +299,12 @@ public class OrderStatusTransitionService {
 
         events.add(new AuditEvent(order.getId(), null, AuditEvent.STATUS_CHANGED, "status",
                 PortalOrder.STATUS_APPROVED, PortalOrder.STATUS_SENT, performedBy, now));
-        events.add(new AuditEvent(order.getId(), null, AuditEvent.DEMO_SENT, null, null, null, performedBy, now));
+        events.add(new AuditEvent(order.getId(), null, sendEventType, null, null, null, performedBy, now));
         events.add(new AuditEvent(order.getId(), null, AuditEvent.STATUS_CHANGED, "status",
                 PortalOrder.STATUS_SENT, PortalOrder.STATUS_AWAITING_SUPPLIER, performedBy, now));
 
         order.setStatus(PortalOrder.STATUS_AWAITING_SUPPLIER);
+        order.setCommunicationChannel(channel);
         order.setUpdatedBy(performedBy);
         order.setUpdatedAt(now);
 

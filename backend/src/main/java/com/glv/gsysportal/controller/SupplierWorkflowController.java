@@ -55,6 +55,18 @@ public class SupplierWorkflowController {
         return toStatusChangeResponse(order);
     }
 
+    /** Phase 7-H (EDI発注Workflow Foundation): same APPROVED -> SENT ->
+     * AWAITING_SUPPLIER transition as demoSend, for a Supplier ordered from
+     * over their own EDI system rather than Email - see
+     * OrderStatusTransitionService.recordEdiSend's Javadoc. No real EDI
+     * file/connection - a record only. Same Permission as demo-send (no
+     * @PreAuthorize - any authenticated user). */
+    @PostMapping("/api/orders/{id}/edi-send")
+    public OrderStatusChangeResponse ediSend(@PathVariable Long id) {
+        PortalOrder order = statusTransitionService.recordEdiSend(id, currentUserProvider.currentUsername());
+        return toStatusChangeResponse(order);
+    }
+
     @GetMapping("/api/orders/{id}/supplier-response")
     public SupplierResponseView getSupplierResponse(@PathVariable Long id) {
         return supplierResponseService.getSupplierResponse(id);

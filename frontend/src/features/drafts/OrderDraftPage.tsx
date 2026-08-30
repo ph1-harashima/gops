@@ -30,6 +30,7 @@ import { useSubmitForApproval } from './poPreviewApi'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
+import { Toast } from '../../shared/components/Toast'
 import { resolveReturnTo, withBackTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_ADMIN } from '../../shared/types/auth'
@@ -228,35 +229,56 @@ export function OrderDraftPage() {
           {t('drafts:pendingApprovalNotice')}
         </Alert>
       )}
-      {updateMutation.isSuccess && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {t('drafts:saveSuccess')}
-        </Alert>
-      )}
-      {saveErrorCode && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {t('drafts:saveFailed', { code: saveErrorCode })}
-        </Alert>
-      )}
-      {submitMutation.isSuccess && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {t('drafts:submitSuccess')}
-        </Alert>
-      )}
-      {submitErrorCode && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {(() => {
-            if (submitErrorCode === 'NO_ORDERABLE_ITEMS') return t('drafts:errorNoOrderableItems')
-            if (submitErrorCode === 'FORBIDDEN') return t('drafts:errorForbidden')
-            return t('drafts:errorGeneric')
-          })()}
-        </Alert>
-      )}
-      {isDirty && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          {t('drafts:unsavedChangesBanner')}
-        </Alert>
-      )}
+      {/* Phase 7-I (Layout Shift audit): these 5 were previously inline
+          <Alert>s mounted directly above the Number Input Table below -
+          confirmed Root Cause of the reported bug (isDirty toggling true on
+          the very first click of the qty stepper pushed the Table, and the
+          mouse pointer with it, down out from under the ▲ the user was still
+          clicking). All 5 are TRANSIENT (a one-shot mutation result, or a
+          live edit-session state bounded to "until Saved/Loaded") per this
+          audit's own dividing line - moved to the shared Toast (Snackbar,
+          fixed-position, never affects document flow). returnReason banner/
+          pendingApprovalNotice above are deliberately NOT converted - they
+          are standing Business state (loaded once with the Draft, not
+          toggled by in-progress editing). */}
+      <Toast
+        open={updateMutation.isSuccess}
+        severity="success"
+        message={t('drafts:saveSuccess')}
+        onClose={() => updateMutation.reset()}
+        testId="save-success-toast"
+      />
+      <Toast
+        open={Boolean(saveErrorCode)}
+        severity="error"
+        message={t('drafts:saveFailed', { code: saveErrorCode })}
+        onClose={() => updateMutation.reset()}
+        testId="save-error-toast"
+      />
+      <Toast
+        open={submitMutation.isSuccess}
+        severity="success"
+        message={t('drafts:submitSuccess')}
+        onClose={() => submitMutation.reset()}
+      />
+      <Toast
+        open={Boolean(submitErrorCode)}
+        severity="error"
+        message={
+          submitErrorCode === 'NO_ORDERABLE_ITEMS' ? t('drafts:errorNoOrderableItems') :
+          submitErrorCode === 'FORBIDDEN' ? t('drafts:errorForbidden') :
+          t('drafts:errorGeneric')
+        }
+        onClose={() => submitMutation.reset()}
+      />
+      <Toast
+        open={isDirty}
+        severity="warning"
+        message={t('drafts:unsavedChangesBanner')}
+        autoHideDuration={null}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        testId="unsaved-changes-toast"
+      />
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', rowGap: 2 }}>

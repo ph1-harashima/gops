@@ -43,6 +43,7 @@ import { useApprove, useReturnForCorrection } from '../drafts/poPreviewApi'
 import { useOrderRevisions, useResponseHistory } from '../supplierResponse/api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
+import { Toast } from '../../shared/components/Toast'
 import { resolveReturnTo, withBackTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_ADMIN } from '../../shared/types/auth'
@@ -97,6 +98,9 @@ export function OrderHistoryDetailPage() {
   // Router state - read once per navigation, not persisted, so a manual
   // reload of this URL correctly shows neither.
   const demoSendSuccess = Boolean((location.state as { demoSendSuccess?: boolean } | null)?.demoSendSuccess)
+  // Phase 7-H (EDI発注Workflow Foundation): same one-shot handoff idiom as
+  // demoSendSuccess above, for the EDI Send path (PoPreviewPage.handleEdiSend).
+  const ediSendSuccess = Boolean((location.state as { ediSendSuccess?: boolean } | null)?.ediSendSuccess)
   const supplierResponseConfirmSuccess = Boolean(
     (location.state as { supplierResponseConfirmSuccess?: boolean } | null)?.supplierResponseConfirmSuccess,
   )
@@ -257,40 +261,45 @@ export function OrderHistoryDetailPage() {
           {t('detailTitle')} - {detail.prototypePoNo ?? detail.draftNo}
         </Typography>
         <OrderStatusChip status={detail.status} />
+        {/* Phase 7-H (EDI発注Workflow Foundation): shown here, not on PO
+            Preview (unreachable once past APPROVED - PoPreviewService's own
+            pre-existing Status Gate) - Order Detail is the one screen
+            reachable for every Status, Send included. */}
+        {detail.communicationChannel && (
+          <Chip size="small" variant="outlined" label={t(`communicationChannel.${detail.communicationChannel}`)} data-testid="communication-channel-chip" />
+        )}
         <AttentionChips attentions={detail.orderAttentions} acknowledgeable />
       </Stack>
 
-      {demoSendSuccess && (
-        <Alert severity="success" sx={{ mb: 2 }}>{t('demoSendSuccessMessage')}</Alert>
-      )}
-      {supplierResponseConfirmSuccess && (
-        <Alert severity="success" sx={{ mb: 2 }}>{t('supplierResponseConfirmSuccessMessage')}</Alert>
-      )}
-      {approveMutation.isSuccess && (
-        <Alert severity="success" sx={{ mb: 2 }}>{t('approveSuccess')}</Alert>
-      )}
-      {approveMutation.isError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {(() => {
-            const code = errorCodeOf(approveMutation.error)
-            if (code === 'FORBIDDEN') return t('errorForbidden')
-            return t('errorGeneric')
-          })()}
-        </Alert>
-      )}
-      {returnMutation.isSuccess && (
-        <Alert severity="success" sx={{ mb: 2 }}>{t('returnSuccess')}</Alert>
-      )}
-      {returnMutation.isError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {(() => {
-            const code = errorCodeOf(returnMutation.error)
-            if (code === 'RETURN_REASON_REQUIRED') return t('errorReturnReasonRequired')
-            if (code === 'FORBIDDEN') return t('errorForbidden')
-            return t('errorGeneric')
-          })()}
-        </Alert>
-      )}
+      {/* Phase 7-I (Layout Shift audit): every one of these is a one-shot
+          event Message (a just-completed navigation handoff, or a mutation
+          result) - none is a standing fact about the Order (those stay
+          inline below: pendingApprovalIndicator, official-po-no-unassigned-
+          note, fulfillment/concurrency status panels, etc.). Moved to the
+          shared Toast so a Save/Approve/Return click doesn't reflow this
+          screen's own Action buttons and Fulfillment/Follow-up sections
+          beneath it. */}
+      <Toast open={demoSendSuccess} severity="success" message={t('demoSendSuccessMessage')} />
+      <Toast open={ediSendSuccess} severity="success" message={t('ediSendSuccessMessage')} />
+      <Toast open={supplierResponseConfirmSuccess} severity="success" message={t('supplierResponseConfirmSuccessMessage')} />
+      <Toast open={approveMutation.isSuccess} severity="success" message={t('approveSuccess')} onClose={() => approveMutation.reset()} />
+      <Toast
+        open={approveMutation.isError}
+        severity="error"
+        message={errorCodeOf(approveMutation.error) === 'FORBIDDEN' ? t('errorForbidden') : t('errorGeneric')}
+        onClose={() => approveMutation.reset()}
+      />
+      <Toast open={returnMutation.isSuccess} severity="success" message={t('returnSuccess')} onClose={() => returnMutation.reset()} />
+      <Toast
+        open={returnMutation.isError}
+        severity="error"
+        message={
+          errorCodeOf(returnMutation.error) === 'RETURN_REASON_REQUIRED' ? t('errorReturnReasonRequired') :
+          errorCodeOf(returnMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+          t('errorGeneric')
+        }
+        onClose={() => returnMutation.reset()}
+      />
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" spacing={4} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
@@ -400,19 +409,17 @@ export function OrderHistoryDetailPage() {
             {t('officialPoIntegration.subtitle')}
           </Typography>
 
-          {requestIntegrationMutation.isSuccess && (
-            <Alert severity="success" sx={{ mb: 2 }}>{t('officialPoIntegration.requestSuccess')}</Alert>
-          )}
-          {requestIntegrationMutation.isError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {(() => {
-                const code = errorCodeOf(requestIntegrationMutation.error)
-                if (code === 'ORDER_NOT_APPROVED') return t('officialPoIntegration.errorNotApproved')
-                if (code === 'FORBIDDEN') return t('errorForbidden')
-                return t('errorGeneric')
-              })()}
-            </Alert>
-          )}
+          <Toast open={requestIntegrationMutation.isSuccess} severity="success" message={t('officialPoIntegration.requestSuccess')} onClose={() => requestIntegrationMutation.reset()} />
+          <Toast
+            open={requestIntegrationMutation.isError}
+            severity="error"
+            message={
+              errorCodeOf(requestIntegrationMutation.error) === 'ORDER_NOT_APPROVED' ? t('officialPoIntegration.errorNotApproved') :
+              errorCodeOf(requestIntegrationMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+              t('errorGeneric')
+            }
+            onClose={() => requestIntegrationMutation.reset()}
+          />
 
           {integration && (
             <Stack spacing={1} sx={{ mb: 2 }}>
@@ -484,21 +491,20 @@ export function OrderHistoryDetailPage() {
           <Divider sx={{ my: 2 }} />
           <Typography variant="subtitle2" gutterBottom>{t('legacyPoConcurrency.title')}</Typography>
 
-          {captureBaselineMutation.isSuccess && (
-            <Alert severity="success" sx={{ mb: 2 }}>{t('legacyPoConcurrency.captureSuccess')}</Alert>
-          )}
-          {captureBaselineMutation.isError && (
-            <Alert severity="error" sx={{ mb: 2 }} data-testid="legacy-po-baseline-capture-error">
-              {(() => {
-                const code = errorCodeOf(captureBaselineMutation.error)
-                if (code === 'OFFICIAL_PO_NOT_LINKED') return t('legacyPoConcurrency.errorNotLinked')
-                if (code === 'LEGACY_PO_NOT_FOUND_FOR_BASELINE') return t('legacyPoConcurrency.errorPoNotFound')
-                if (code === 'INTEGRATION_REQUEST_REQUIRED') return t('legacyPoConcurrency.errorIntegrationRequestRequired')
-                if (code === 'FORBIDDEN') return t('errorForbidden')
-                return t('errorGeneric')
-              })()}
-            </Alert>
-          )}
+          <Toast open={captureBaselineMutation.isSuccess} severity="success" message={t('legacyPoConcurrency.captureSuccess')} onClose={() => captureBaselineMutation.reset()} />
+          <Toast
+            open={captureBaselineMutation.isError}
+            severity="error"
+            testId="legacy-po-baseline-capture-error"
+            message={
+              errorCodeOf(captureBaselineMutation.error) === 'OFFICIAL_PO_NOT_LINKED' ? t('legacyPoConcurrency.errorNotLinked') :
+              errorCodeOf(captureBaselineMutation.error) === 'LEGACY_PO_NOT_FOUND_FOR_BASELINE' ? t('legacyPoConcurrency.errorPoNotFound') :
+              errorCodeOf(captureBaselineMutation.error) === 'INTEGRATION_REQUEST_REQUIRED' ? t('legacyPoConcurrency.errorIntegrationRequestRequired') :
+              errorCodeOf(captureBaselineMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+              t('errorGeneric')
+            }
+            onClose={() => captureBaselineMutation.reset()}
+          />
 
           {concurrency && (
             <Stack spacing={1} sx={{ mb: 2 }} data-testid="legacy-po-concurrency-section">
@@ -573,15 +579,12 @@ export function OrderHistoryDetailPage() {
           <Typography variant="subtitle1" gutterBottom>{t('mailPreview.title')}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('mailPreview.subtitle')}</Typography>
 
-          {mailPreviewMutation.isError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {(() => {
-                const code = errorCodeOf(mailPreviewMutation.error)
-                if (code === 'FORBIDDEN') return t('mailPreview.errorForbidden')
-                return t('mailPreview.errorGeneric')
-              })()}
-            </Alert>
-          )}
+          <Toast
+            open={mailPreviewMutation.isError}
+            severity="error"
+            message={errorCodeOf(mailPreviewMutation.error) === 'FORBIDDEN' ? t('mailPreview.errorForbidden') : t('mailPreview.errorGeneric')}
+            onClose={() => mailPreviewMutation.reset()}
+          />
 
           <Button
             variant="outlined"
@@ -786,12 +789,8 @@ export function OrderHistoryDetailPage() {
           </Button>
         </Stack>
 
-        {createFollowUpCaseMutation.isError && (
-          <Alert severity="error" sx={{ mb: 1 }}>{t('followUp.errorGeneric')}</Alert>
-        )}
-        {previewFollowUpMailMutation.isError && (
-          <Alert severity="error" sx={{ mb: 1 }}>{t('followUp.errorGeneric')}</Alert>
-        )}
+        <Toast open={createFollowUpCaseMutation.isError} severity="error" message={t('followUp.errorGeneric')} onClose={() => createFollowUpCaseMutation.reset()} />
+        <Toast open={previewFollowUpMailMutation.isError} severity="error" message={t('followUp.errorGeneric')} onClose={() => previewFollowUpMailMutation.reset()} />
 
         {(!followUpCases || followUpCases.length === 0) && (
           <Alert severity="info">{t('followUp.empty')}</Alert>

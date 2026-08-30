@@ -27,6 +27,7 @@ public record PoPreviewResponse(
         List<PoPreviewDetailResponse> details,
         PoPreviewSummaryResponse summary,
         ManufacturerCommunicationResponse manufacturerCommunication,
-        boolean demoMode
+        boolean demoMode,
+        String communicationChannel
 ) {
 }

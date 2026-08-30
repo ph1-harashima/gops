@@ -59,6 +59,8 @@ class OrderStatusTransitionServiceIntegrationTest {
     private SupplierResponseRepository supplierResponseRepository;
     @Autowired
     private PortalOrderRevisionRepository revisionRepository;
+    @Autowired
+    private SupplierResponseService supplierResponseService;
 
     private OrderDraftResponse createDraft(String... skus) {
         return orderDraftService.createDraft(new CreateDraftRequest(List.of(skus), null, null, null), OPERATOR);
@@ -418,5 +420,71 @@ class OrderStatusTransitionServiceIntegrationTest {
     @Test
     void demoSendOnUnknownOrderThrowsNotFound() {
         assertThrows(DraftNotFoundException.class, () -> statusTransitionService.demoSend(-1L, OPERATOR));
+    }
+
+    // ---- Phase 7-H: EDI発注Workflow Foundation ---------------------------
+
+    @Test
+    void demoSendRecordsEmailAsTheCommunicationChannel() {
+        PortalOrder approved = createApprovedOrder(SKU_TENT_1);
+
+        PortalOrder sent = statusTransitionService.demoSend(approved.getId(), OPERATOR);
+
+        assertEquals(PortalOrder.CHANNEL_EMAIL, sent.getCommunicationChannel());
+    }
+
+    @Test
+    void recordEdiSendTransitionsApprovedToAwaitingSupplierSameAsDemoSend() {
+        PortalOrder approved = createApprovedOrder(SKU_TENT_1);
+
+        PortalOrder sent = statusTransitionService.recordEdiSend(approved.getId(), ADMIN);
+
+        assertEquals(PortalOrder.STATUS_AWAITING_SUPPLIER, sent.getStatus());
+        assertEquals(PortalOrder.CHANNEL_EDI, sent.getCommunicationChannel());
+    }
+
+    @Test
+    void recordEdiSendWritesEdiSendRecordedAuditNotDemoSent() {
+        PortalOrder approved = createApprovedOrder(SKU_TENT_1);
+
+        statusTransitionService.recordEdiSend(approved.getId(), ADMIN);
+
+        List<AuditEvent> events = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(approved.getId());
+        assertTrue(events.stream().anyMatch(e -> AuditEvent.EDI_SEND_RECORDED.equals(e.getEventType())));
+        assertTrue(events.stream().noneMatch(e -> AuditEvent.DEMO_SENT.equals(e.getEventType())),
+                "an EDI Send must never also claim a Demo (Email) Send happened");
+    }
+
+    /** The central Foundation requirement (Phase 7-H 7章/10章): a Supplier
+     * ordered from over EDI, who is never Email-sent via demoSend, must
+     * still be able to reach Supplier Response - confirmed via the actual
+     * Service call, not just repository state, since that Service is what
+     * the real Frontend screen depends on. */
+    @Test
+    void recordEdiSendMakesSupplierResponseReachableWithoutAnyDemoSend() {
+        PortalOrder approved = createApprovedOrder(SKU_TENT_1);
+
+        PortalOrder sent = statusTransitionService.recordEdiSend(approved.getId(), ADMIN);
+
+        var response = supplierResponseService.getSupplierResponse(sent.getId());
+        assertEquals(1, response.details().size());
+        assertEquals(null, response.details().get(0).confirmedQty(), "unanswered, same as the Email path");
+
+        assertEquals(1, sent.getCurrentRevisionNo(), "EDI Send must crystallize a Revision exactly like Demo Send does");
+        var revision = revisionRepository.findByPortalOrderIdAndRevisionNo(sent.getId(), 1).orElseThrow();
+        assertEquals(PortalOrderRevision.TYPE_INITIAL, revision.getRevisionType());
+    }
+
+    @Test
+    void recordEdiSendOnNonApprovedOrderIsRejected() {
+        OrderDraftResponse draft = createDraft(SKU_TENT_1);
+
+        assertThrows(InvalidStatusTransitionException.class,
+                () -> statusTransitionService.recordEdiSend(draft.id(), ADMIN));
+    }
+
+    @Test
+    void recordEdiSendOnUnknownOrderThrowsNotFound() {
+        assertThrows(DraftNotFoundException.class, () -> statusTransitionService.recordEdiSend(-1L, ADMIN));
     }
 }

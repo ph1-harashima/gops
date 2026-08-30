@@ -111,3 +111,23 @@ export function useDemoSend(draftId: number) {
     },
   })
 }
+
+/** Phase 7-H (EDI発注Workflow Foundation): same APPROVED -> SENT ->
+ * AWAITING_SUPPLIER transition as demoSend, for a Supplier ordered from over
+ * their own EDI system - see OrderStatusTransitionService.recordEdiSend's
+ * Javadoc. No real EDI file/connection is ever involved. */
+async function ediSend(draftId: number): Promise<OrderStatusChange> {
+  const { data } = await apiClient.post<OrderStatusChange>(`/orders/${draftId}/edi-send`)
+  return data
+}
+
+export function useEdiSend(draftId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => ediSend(draftId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['po-preview', draftId] })
+      void queryClient.invalidateQueries({ queryKey: ['order-draft', draftId] })
+    },
+  })
+}
