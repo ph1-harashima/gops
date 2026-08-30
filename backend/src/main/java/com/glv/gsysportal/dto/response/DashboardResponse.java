@@ -23,6 +23,11 @@ public record DashboardResponse(
          * anywhere in this codebase yet, 19章's explicit caution against
          * inventing one). */
         int openFollowUpCaseCount,
+        /** Phase 8-J 11章/13章: Price Change Sets currently in DRAFT status -
+         * added because Dashboard's information design predated Phase 8-B/
+         * 8-D (Price Change Foundation) and had zero entry point into it
+         * until this Phase. */
+        int priceChangeDraftCount,
         List<DashboardBrandRow> brands
 ) {
 }

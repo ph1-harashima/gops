@@ -43,11 +43,19 @@ class OrderHistoryServiceIntegrationTest {
     @Autowired
     private OrderHistoryService orderHistoryService;
 
+    /** Phase 8-J 3章/4章: list() is now DB-paginated (PageResponse), so these
+     * tests read {@code .content()} and pass a generously large size (200)
+     * to keep "does the created Order appear anywhere in the unfiltered
+     * result" assertions robust regardless of how many other Orders already
+     * exist in the shared test DB - the SAME robustness the pre-8-J
+     * unpaginated List gave for free. */
+    private static final int GENEROUS_SIZE = 200;
+
     @Test
     void listIncludesCreatedOrderAndIsReadOnly() {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
 
-        List<OrderHistorySummaryResponse> list = orderHistoryService.list(null, null, null, null, null, null, null);
+        List<OrderHistorySummaryResponse> list = orderHistoryService.list(null, null, null, null, null, null, null, null, null, GENEROUS_SIZE).content();
 
         assertTrue(list.stream().anyMatch(o -> o.id().equals(draft.id())));
     }
@@ -56,8 +64,8 @@ class OrderHistoryServiceIntegrationTest {
     void listFiltersBySupplierBrandAndStatus() {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
 
-        List<OrderHistorySummaryResponse> matched = orderHistoryService.list("SUP_ALPHA", "BR_OUTDOOR", "DRAFT", null, null, null, null);
-        List<OrderHistorySummaryResponse> unmatched = orderHistoryService.list("SUP_BETA", null, null, null, null, null, null);
+        List<OrderHistorySummaryResponse> matched = orderHistoryService.list("SUP_ALPHA", "BR_OUTDOOR", "DRAFT", null, null, null, null, null, null, GENEROUS_SIZE).content();
+        List<OrderHistorySummaryResponse> unmatched = orderHistoryService.list("SUP_BETA", null, null, null, null, null, null, null, null, GENEROUS_SIZE).content();
 
         assertTrue(matched.stream().anyMatch(o -> o.id().equals(draft.id())));
         assertTrue(unmatched.stream().noneMatch(o -> o.id().equals(draft.id())));
@@ -71,8 +79,8 @@ class OrderHistoryServiceIntegrationTest {
         // draftNo is always assigned at creation - matches on a substring,
         // case-insensitively.
         String keywordFragment = draft.draftNo().substring(0, 8).toLowerCase(java.util.Locale.ROOT);
-        List<OrderHistorySummaryResponse> matched = orderHistoryService.list(null, null, null, keywordFragment, null, null, null);
-        List<OrderHistorySummaryResponse> unmatched = orderHistoryService.list(null, null, null, "NO-SUCH-ORDER-NUMBER", null, null, null);
+        List<OrderHistorySummaryResponse> matched = orderHistoryService.list(null, null, null, keywordFragment, null, null, null, null, null, GENEROUS_SIZE).content();
+        List<OrderHistorySummaryResponse> unmatched = orderHistoryService.list(null, null, null, "NO-SUCH-ORDER-NUMBER", null, null, null, null, null, GENEROUS_SIZE).content();
 
         assertTrue(matched.stream().anyMatch(o -> o.id().equals(draft.id())));
         assertTrue(unmatched.stream().noneMatch(o -> o.id().equals(draft.id())));
@@ -83,8 +91,8 @@ class OrderHistoryServiceIntegrationTest {
     void listFiltersByItemKeyword() {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
 
-        List<OrderHistorySummaryResponse> matchedBySku = orderHistoryService.list(null, null, null, null, "od-tent-001", null, null);
-        List<OrderHistorySummaryResponse> unmatched = orderHistoryService.list(null, null, null, null, "NO-SUCH-ITEM", null, null);
+        List<OrderHistorySummaryResponse> matchedBySku = orderHistoryService.list(null, null, null, null, "od-tent-001", null, null, null, null, GENEROUS_SIZE).content();
+        List<OrderHistorySummaryResponse> unmatched = orderHistoryService.list(null, null, null, null, "NO-SUCH-ITEM", null, null, null, null, GENEROUS_SIZE).content();
 
         assertTrue(matchedBySku.stream().anyMatch(o -> o.id().equals(draft.id())));
         assertTrue(unmatched.stream().noneMatch(o -> o.id().equals(draft.id())));
@@ -96,13 +104,47 @@ class OrderHistoryServiceIntegrationTest {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
         java.time.LocalDate today = java.time.LocalDate.now();
 
-        List<OrderHistorySummaryResponse> withinRange = orderHistoryService.list(null, null, null, null, null, today, today);
-        List<OrderHistorySummaryResponse> beforeRange = orderHistoryService.list(null, null, null, null, null, null, today.minusDays(1));
-        List<OrderHistorySummaryResponse> afterRange = orderHistoryService.list(null, null, null, null, null, today.plusDays(1), null);
+        List<OrderHistorySummaryResponse> withinRange = orderHistoryService.list(null, null, null, null, null, today, today, null, null, GENEROUS_SIZE).content();
+        List<OrderHistorySummaryResponse> beforeRange = orderHistoryService.list(null, null, null, null, null, null, today.minusDays(1), null, null, GENEROUS_SIZE).content();
+        List<OrderHistorySummaryResponse> afterRange = orderHistoryService.list(null, null, null, null, null, today.plusDays(1), null, null, null, GENEROUS_SIZE).content();
 
         assertTrue(withinRange.stream().anyMatch(o -> o.id().equals(draft.id())));
         assertTrue(beforeRange.stream().noneMatch(o -> o.id().equals(draft.id())));
         assertTrue(afterRange.stream().noneMatch(o -> o.id().equals(draft.id())));
+    }
+
+    /** Phase 8-J 3章: new coverage for hasAttentionOnly, moved from a
+     * Frontend-only display filter to a DB-level EXISTS predicate - was
+     * previously untested at the Service layer since it never reached
+     * OrderHistoryService.list() before this Phase. */
+    @Test
+    void listFiltersByHasAttentionOnly() {
+        OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+
+        List<OrderHistorySummaryResponse> withoutFilter = orderHistoryService.list(null, null, null, null, null, null, null, null, null, GENEROUS_SIZE).content();
+        List<OrderHistorySummaryResponse> attentionOnly = orderHistoryService.list(null, null, null, null, null, null, null, true, null, GENEROUS_SIZE).content();
+
+        assertTrue(withoutFilter.stream().anyMatch(o -> o.id().equals(draft.id())));
+        // A freshly-created Draft has no Attention yet, so it must be
+        // excluded once hasAttentionOnly=true - the SAME "no active
+        // Attention -> not shown" result the pre-8-J client-side filter gave.
+        assertTrue(attentionOnly.stream().noneMatch(o -> o.id().equals(draft.id())));
+    }
+
+    /** Phase 8-J 3章/4章: confirms page/size actually bound the DB-level
+     * result (LIMIT/OFFSET), not just a post-fetch slice - size=1 must never
+     * return more than 1 row, and totalElements must reflect the full
+     * matching count regardless of page size. */
+    @Test
+    void listIsBackendPaginated() {
+        orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+        orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+
+        var onePerPage = orderHistoryService.list(null, null, null, null, null, null, null, null, 0, 1);
+
+        assertEquals(1, onePerPage.content().size());
+        assertEquals(1, onePerPage.size());
+        assertTrue(onePerPage.totalElements() >= 2);
     }
 
     @Test

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -38,6 +38,7 @@ function qty(value: number | null): string {
  */
 function WarehouseStockDrawer({ sku, onClose }: { sku: string | null; onClose: () => void }) {
   const { t } = useTranslation(['warehouseStock', 'common'])
+  const navigate = useNavigate()
   const { data, isLoading, isError } = useWarehouseStockDetail(sku)
 
   return (
@@ -55,6 +56,27 @@ function WarehouseStockDrawer({ sku, onClose }: { sku: string | null; onClose: (
             <Typography variant="body2" color="text.secondary" gutterBottom>
               {data.itemName ?? '—'} / {data.brandName ?? data.brandCode ?? '—'}
             </Typography>
+            {/* Phase 8-J 8章: SKU used only as a search condition / direct
+                identifier lookup on these 2 other screens - never a
+                Warehouse Stock <-> Arrival link (that stays forbidden, no
+                Source-confirmed Key joins them - see
+                docs/legacy-warehouse-logistics-logizero-reverse-engineering.md). */}
+            <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+              <Button
+                size="small"
+                onClick={() => navigate(`/items/${encodeURIComponent(data.sku)}`)}
+                data-testid="warehouse-stock-drawer-sku-detail-link"
+              >
+                {t('drawer.viewSkuDetail')}
+              </Button>
+              <Button
+                size="small"
+                onClick={() => navigate(`/stock-sales?skuKeyword=${encodeURIComponent(data.sku)}`)}
+                data-testid="warehouse-stock-drawer-stock-sales-link"
+              >
+                {t('drawer.viewStockSales')}
+              </Button>
+            </Stack>
             <TableContainer sx={{ mt: 2 }}>
               <Table size="small" data-testid="warehouse-stock-drawer-table">
                 <TableHead>

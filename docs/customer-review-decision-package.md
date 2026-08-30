@@ -810,6 +810,7 @@ Phase 8-Aの`docs/target-price-change-workflow.md`（Target Design）17章のCUS
 
 - **Question**: 「既存の在庫差異検知（`StkQtyDiscrepancyCheckerService`）の結果をPortalへ表示する機能が必要か。差異発生時に誰がどう対応すべきかの運用ルールは。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
 - **Source**: legacy-warehouse-logistics-logizero-reverse-engineering 11章・18章Option C
+- **（Phase 8-J追記）実装状況の補足**: Phase 8-I時点では「安全に着手可能な開発候補」として一時検討されたが、Phase 8-Jで**あえて実装しない**方針とした。理由：`QTY_STK_IN`（Stock In実績）と`STK_QTY`（Warehouse Stock）をTransaction単位で結ぶSource確認済みKeyが存在しないことがPhase 8-F/8-Gで既に判明しており、本Question（差異発生時の運用ルール）が未回答のまま「差異」「不足」等のBusiness Meaningを持つ画面を作ることは危険と判断したため。「機能の要否」自体の分類（D）・状態は変わらず未回答のまま。詳細は`requirements-coverage-and-remaining-gap-audit.md` 20章#11・21.1章参照。
 
 ### L-4. G-SYS→倉庫 変更情報連携の自動化範囲
 

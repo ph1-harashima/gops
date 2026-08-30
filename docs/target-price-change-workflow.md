@@ -1,6 +1,8 @@
 # Target Price Change Workflow（Phase 8-A）
 
-**Status**: Docs / Design Only。Frontend実装・Backend実装・DB Migration・API追加・Legacy変更は一切行っていない。本Documentは価格変更機能の**Target Design（Workflow / Architecture / Business Rule Classification）**であり、実装はPhase 8-Aでは禁止されている。
+**Status**: Docs / Design Only（Phase 8-A当時）。Frontend実装・Backend実装・DB Migration・API追加・Legacy変更は一切行っていない。本Documentは価格変更機能の**Target Design（Workflow / Architecture / Business Rule Classification）**であり、実装はPhase 8-Aでは禁止されていた。
+
+**Phase 8-J追記（Documentation Inventory, ドキュメント自体は変更していない）**: 16章A（Foundation）の一部はPhase 8-B/8-Dで**FOUNDATION IMPLEMENTED**（Current Price/Margin Preview表示、Change Set DRAFT作成・編集・Baseline Snapshot・Concurrency Check — `docs/legacy-price-change-reverse-engineering.md`および実装コード参照）。**Submit/Approve/Apply/G-SYS反映・赤字警告Threshold・EC個別価格考慮はいずれもPhase 8-Jまで未実装**（Status Enumに`SUBMITTED`/`APPLIED`/`FAILED`/`CANCELLED`は定義されているが到達不可能な状態のまま）。本章以下のTarget Design自体は歴史的記録としてそのまま残す — 17章のCUSTOMER REVIEW事項（PC-1〜PC-15）はいずれも未解決のまま。
 
 **目的**: Phase 7-Jで完了したLegacy Price ChangeのSource Reverse Engineering（`docs/legacy-price-change-reverse-engineering.md`）を基準線とし、Gulliver社の要望（2026/08/26打ち合わせ Slide 11）を踏まえた新Portalの価格変更機能について、Target Workflow・State Model・データ所有権・G-SYS反映方式・Concurrency対策・UI構成を設計する。未確定のBusiness Ruleは独自に決定せず、すべてCUSTOMER REVIEWとして明示する。
 

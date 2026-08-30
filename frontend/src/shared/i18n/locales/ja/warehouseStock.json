@@ -18,6 +18,8 @@
     "updatedAt": "Legacy更新日時"
   },
   "drawer": {
-    "title": "倉庫別在庫"
+    "title": "倉庫別在庫",
+    "viewSkuDetail": "SKU詳細を見る",
+    "viewStockSales": "在庫・販売確認を見る"
   }
 }

@@ -22,5 +22,7 @@ export interface Dashboard {
   attentionCount: number
   /** Phase 7-C7A 19章: Open Follow-up Case count (OPEN + INQUIRY_PREPARED). */
   openFollowUpCaseCount: number
+  /** Phase 8-J 11章/13章: Price Change Sets currently in DRAFT status. */
+  priceChangeDraftCount: number
   brands: DashboardBrandRow[]
 }

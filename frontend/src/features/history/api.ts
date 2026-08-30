@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../../shared/api/client'
 import type { AuditEventItem, OrderHistoryDetail, OrderHistorySummary } from '../../shared/types/orderHistory'
+import type { PageResponse } from '../../shared/types/pagination'
 
 export interface OrderHistoryFilter {
   supplierCode?: string
@@ -14,10 +15,16 @@ export interface OrderHistoryFilter {
   itemKeyword?: string
   updatedFrom?: string
   updatedTo?: string
+  // Phase 8-J 3章: was a Frontend-only display filter (over the full
+  // fetched set) until this Phase - now a real Backend query param, the
+  // SAME move orderNoKeyword/itemKeyword/updatedFrom/updatedTo already made
+  // in Phase 7-H, required once List itself became Backend-paginated (a
+  // per-page-only client filter would otherwise silently under-count).
+  hasAttentionOnly?: boolean
 }
 
-async function fetchHistory(filter: OrderHistoryFilter): Promise<OrderHistorySummary[]> {
-  const { data } = await apiClient.get<OrderHistorySummary[]>('/orders/history', {
+async function fetchHistory(filter: OrderHistoryFilter, page: number, size: number): Promise<PageResponse<OrderHistorySummary>> {
+  const { data } = await apiClient.get<PageResponse<OrderHistorySummary>>('/orders/history', {
     params: {
       supplierCode: filter.supplierCode || undefined,
       brandCode: filter.brandCode || undefined,
@@ -26,15 +33,21 @@ async function fetchHistory(filter: OrderHistoryFilter): Promise<OrderHistorySum
       itemKeyword: filter.itemKeyword || undefined,
       updatedFrom: filter.updatedFrom || undefined,
       updatedTo: filter.updatedTo || undefined,
+      hasAttention: filter.hasAttentionOnly || undefined,
+      page,
+      size,
     },
   })
   return data
 }
 
-export function useOrderHistory(filter: OrderHistoryFilter) {
+// Phase 8-J 3章/4章: Backend-paginated + Backend-filtered, matching
+// useArrivalList/useWarehouseStockList/useStockSalesList - never a Frontend
+// fetch-all.
+export function useOrderHistory(filter: OrderHistoryFilter, page: number, size: number) {
   return useQuery({
-    queryKey: ['order-history', filter],
-    queryFn: () => fetchHistory(filter),
+    queryKey: ['order-history', filter, page, size],
+    queryFn: () => fetchHistory(filter, page, size),
   })
 }
 

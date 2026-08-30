@@ -8,7 +8,14 @@
     "pendingApproval": "承認待ち",
     "awaitingSupplier": "メーカー回答待ち",
     "attention": "要確認",
-    "openFollowUpCase": "問い合わせ中"
+    "openFollowUpCase": "問い合わせ中",
+    "priceChangeDraft": "価格変更（下書き）"
+  },
+  "nav": {
+    "title": "その他の画面へ",
+    "arrivals": "入荷確認",
+    "warehouseStock": "倉庫在庫",
+    "stockSales": "在庫・販売確認"
   },
   "brandBreakdown": "ブランド別内訳",
   "table": {

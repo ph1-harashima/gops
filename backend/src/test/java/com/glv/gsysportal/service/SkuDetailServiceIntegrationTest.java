@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.math.BigDecimal;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,6 +33,22 @@ class SkuDetailServiceIntegrationTest {
         assertEquals(3, detail.recommendedQty(), "calc4-derived, same as Order Candidate List");
         assertEquals("DEMO_LEGACY", detail.dataSource());
         assertFalse(detail.poHistory().isEmpty(), "seeded Demo Data includes at least one TR_PO/TR_PO_DTL row for this SKU");
+    }
+
+    /** Phase 8-J 9章: reuses MarginCalculator (Price Change Foundation) as-is
+     * against Legacy's Seed values for OD-TENT-001 (prc_sell_w_tax=1930.00,
+     * cost_this_month_avg=1137.00, free_ship_flg=true, ship_fee=300.00,
+     * backend/demo-data/02-seed.sql) - same expected numbers a Price Change
+     * screen for this SKU would show, confirming no divergent calculation
+     * was introduced for SKU Detail. */
+    @Test
+    void marginReferenceIsComputedFromLegacyPriceDataSameAsMarginCalculator() {
+        SkuDetailResponse detail = skuDetailService.getDetail("OD-TENT-001");
+
+        assertEquals(0, new BigDecimal("793.00").compareTo(detail.theoreticalMarginAmount()),
+                "793.00 = prc_sell_w_tax(1930.00) - cost_this_month_avg(1137.00), tax-included");
+        assertEquals(0, new BigDecimal("0.3521").compareTo(detail.theoreticalMarginRate()),
+                "verbatim Formula.PROFIT_RATE_SELL result - see MarginCalculator");
     }
 
     @Test

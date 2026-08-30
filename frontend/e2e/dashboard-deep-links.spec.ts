@@ -219,4 +219,45 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
     await page.goForward()
     await expect(page).toHaveURL(filteredUrl)
   })
+
+  /** Phase 8-J 11章/13章: Dashboard's information design predated Phase
+   * 8-B/8-D (Price Change Foundation) - this is the first Dashboard entry
+   * point into it. */
+  test('価格変更（下書き） KPI -> Price Change List with status=DRAFT, count matches', async ({ page }) => {
+    await login(page)
+    const expected = await kpiValue(page, '価格変更（下書き）')
+
+    await kpiTile(page, '価格変更（下書き）').click()
+    await expect(page).toHaveURL(/\/price-changes\?status=DRAFT/)
+    await page.waitForLoadState('networkidle')
+
+    const rowCount = await page.locator('[data-testid="price-change-list-table-container"] table tbody tr').count()
+    expect(rowCount).toBe(expected)
+  })
+
+  /** Phase 8-J 11章/13章: plain Navigation Cards (no count) into Arrival/
+   * Warehouse Stock/Stock-Sales - Dashboard had zero entry point into any
+   * of these 3 screens (Phase 8-G/8-H) until this Phase. */
+  test('Navigation Cards reach 入荷確認/倉庫在庫/在庫・販売確認, with no count attached to any of them', async ({ page }) => {
+    await login(page)
+
+    await expect(page.getByTestId('nav-card-arrivals')).toBeVisible()
+    await expect(page.getByTestId('nav-card-warehouseStock')).toBeVisible()
+    await expect(page.getByTestId('nav-card-stockSales')).toBeVisible()
+    // No <h4> (the KPI tiles' value element) inside any Navigation Card -
+    // confirms these are genuinely count-less per §13's "plain Navigation
+    // Card" allowance, not a KPI tile in disguise.
+    await expect(page.getByTestId('nav-card-arrivals').locator('h4')).toHaveCount(0)
+
+    await page.getByTestId('nav-card-arrivals').click()
+    await expect(page).toHaveURL(/\/arrivals$/)
+
+    await page.goto('/')
+    await page.getByTestId('nav-card-warehouseStock').click()
+    await expect(page).toHaveURL(/\/warehouse-stock$/)
+
+    await page.goto('/')
+    await page.getByTestId('nav-card-stockSales').click()
+    await expect(page).toHaveURL(/\/stock-sales$/)
+  })
 })

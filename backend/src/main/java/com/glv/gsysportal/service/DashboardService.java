@@ -3,12 +3,14 @@ package com.glv.gsysportal.service;
 import com.glv.gsysportal.domain.FollowUpCase;
 import com.glv.gsysportal.domain.OrderAttention;
 import com.glv.gsysportal.domain.PortalOrder;
+import com.glv.gsysportal.domain.PriceChangeSet;
 import com.glv.gsysportal.dto.response.DashboardBrandRow;
 import com.glv.gsysportal.dto.response.DashboardResponse;
 import com.glv.gsysportal.dto.response.OrderCandidateResponse;
 import com.glv.gsysportal.repository.prototype.FollowUpCaseRepository;
 import com.glv.gsysportal.repository.prototype.OrderAttentionRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import com.glv.gsysportal.repository.prototype.PriceChangeSetRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,15 +40,18 @@ public class DashboardService {
     private final PortalOrderRepository portalOrderRepository;
     private final OrderAttentionRepository orderAttentionRepository;
     private final FollowUpCaseRepository followUpCaseRepository;
+    private final PriceChangeSetRepository priceChangeSetRepository;
 
     public DashboardService(OrderCandidateService orderCandidateService,
                              PortalOrderRepository portalOrderRepository,
                              OrderAttentionRepository orderAttentionRepository,
-                             FollowUpCaseRepository followUpCaseRepository) {
+                             FollowUpCaseRepository followUpCaseRepository,
+                             PriceChangeSetRepository priceChangeSetRepository) {
         this.orderCandidateService = orderCandidateService;
         this.portalOrderRepository = portalOrderRepository;
         this.orderAttentionRepository = orderAttentionRepository;
         this.followUpCaseRepository = followUpCaseRepository;
+        this.priceChangeSetRepository = priceChangeSetRepository;
     }
 
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
@@ -67,12 +72,15 @@ public class DashboardService {
         int attentionCount = (int) orders.stream().filter(o -> orderIdsWithActiveAttention.contains(o.getId())).count();
         int openFollowUpCaseCount = (int) followUpCaseRepository.countByStatusIn(
                 List.of(FollowUpCase.STATUS_OPEN, FollowUpCase.STATUS_INQUIRY_PREPARED));
+        // Phase 8-J 11章/13章: Price Change Draft count - see DashboardResponse Javadoc.
+        int priceChangeDraftCount = (int) priceChangeSetRepository.countByStatus(PriceChangeSet.STATUS_DRAFT);
 
         List<DashboardBrandRow> brands = buildBrandRows(candidates, orders, orderIdsWithActiveAttention);
 
         return new DashboardResponse(
                 candidateCount, outOfStockCount, longTermOutOfStockCount,
-                draftCount, pendingApprovalCount, awaitingSupplierCount, attentionCount, openFollowUpCaseCount, brands
+                draftCount, pendingApprovalCount, awaitingSupplierCount, attentionCount, openFollowUpCaseCount,
+                priceChangeDraftCount, brands
         );
     }
 

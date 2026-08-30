@@ -1,11 +1,13 @@
 {
   "back": "発注候補一覧へ戻る",
   "notFound": "指定されたSKUが見つかりませんでした。",
+  "viewArrivals": "入荷確認を見る",
   "notAvailable": "—",
   "section": {
     "product": "商品情報",
     "inventory": "在庫情報",
     "ordering": "発注情報",
+    "margin": "理論利益率（参考）",
     "history": "履歴（Legacy PO実績）"
   },
   "field": {
@@ -19,7 +21,10 @@
     "monthlySales": "当月販売数",
     "leadTime": "リードタイム",
     "recommendedQty": "推奨発注数",
-    "unitPrice": "単価"
+    "unitPrice": "単価",
+    "theoreticalMarginRate": "理論利益率",
+    "theoreticalMarginAmount": "理論利益額",
+    "marginDisclaimer": "Legacyの現在の売価と当月平均原価から算出した参考値です。実績の粗利益（Actual Gross Profit）ではありません。"
   },
   "historyEmpty": "この商品のLegacy PO実績はありません。",
   "historyTable": {

@@ -14,4 +14,10 @@ public interface PriceChangeSetRepository extends JpaRepository<PriceChangeSet, 
      * convention. Status filter is optional (null = all). */
     @Query("SELECT s FROM PriceChangeSet s WHERE (:status IS NULL OR s.status = :status) ORDER BY s.createdAt DESC")
     List<PriceChangeSet> findAllForList(@Param("status") String status);
+
+    /** Phase 8-J 11章/13章: Dashboard's Price Change Draft count (§13
+     * whitelist item - a precisely-defined count, DRAFT is a single
+     * unambiguous status value). A plain {@code COUNT(*)}, not a fetch of
+     * every PriceChangeSet + its Details like {@link #findAllForList}. */
+    long countByStatus(String status);
 }

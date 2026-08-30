@@ -7,7 +7,7 @@
 
 本書は9/17 Prototypeの技術設計を確定するための文書である。Order Candidate List Vertical Slice（Step 0/1）は実装・Regression確認済みでBaseline確定した（17章）。それ以外の画面・機能は本書確定後、別指示で実装を開始する。
 
----
+**Phase 8-J追記（Documentation Inventory）**: 本書の章単位Baseline追記（17〜19章）はImplementation Step 5（Phase 6相当、2026-08-28）で止まっており、Phase 7-A以降（Role/Approval、Official PO Integration、Supplier Response Revision、Fulfillment/Follow-up、Excel Concurrency、Price Change、Arrival/Warehouse Stock/Stock-Sales Visibility、および本Phase 8-JのPagination/Navigation/Dashboard/Margin Reference改善）はここに追記されていない。Phase 7以降の実装状況の一次情報は各Phase毎の個別Document（`fulfillment-follow-up-foundation.md`等の`*-foundation.md`/`*-implementation.md`群）および`docs/requirements-coverage-and-remaining-gap-audit.md`（Phase 8-I/8-J時点の全機能横断Coverage表）を参照のこと。本書自体をPhase 7以降分まで逐次追記することはPhase 8-Jのスコープでは行わない（Documentation Consolidationの主眼はRequirements Coverageへの集約であり、本書の重複拡張ではないため）。
 
 # 0. Technical Designの目的とApproach
 

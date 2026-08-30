@@ -38,6 +38,20 @@ public record SkuDetailResponse(
         String currency,
         String dataSource,
         // History
-        List<SkuPoHistoryLine> poHistory
+        List<SkuPoHistoryLine> poHistory,
+        // Phase 8-J 9章/10章: reuses Price Change Foundation's MarginCalculator
+        // (com.glv.gsysportal.legacy.calc.MarginCalculator, verbatim-ported
+        // Legacy Formula.PROFIT_RATE_SELL) as-is - no new calculation logic.
+        // Null when Legacy has no matching Price row for this SKU, or when
+        // costThisMonthAvg is null/zero (division-by-zero avoidance, same
+        // as Price Change Foundation - see MarginCalculator Javadoc).
+        // theoreticalMarginRate is a THEORETICAL reference figure derived
+        // from Legacy's current Sell price and current-month average cost -
+        // it is NOT Actual Gross Profit (that requires Transaction-level
+        // Invoice data, out of scope per
+        // docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md
+        // Gate STOP finding) and must always be labeled accordingly on screen.
+        BigDecimal theoreticalMarginAmount,
+        BigDecimal theoreticalMarginRate
 ) {
 }

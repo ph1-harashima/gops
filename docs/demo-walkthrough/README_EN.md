@@ -2,7 +2,7 @@
 
 This walkthrough is not the 9/17 customer demo script (`docs/9-17-demo-script.md`) - it's a reference for understanding what the system does and how it works, screen by screen.
 
-**Revision history**: This document was fully revised in Phase 7-E. The original version predated the Approval Workflow, Revision/Agreement, Supplier Contact/Mail Template, Official PO Integration, Fulfillment, Follow-up, and Legacy PO Concurrency Foundation, and referenced a "Confirm Order" button and a "Ready to Order" Status that were both removed by Phase 7-C1's V8 migration and no longer exist in the current screens. Screenshots (01-06) have been retaken against the current UI.
+**Revision history**: This document was fully revised in Phase 7-E. The original version predated the Approval Workflow, Revision/Agreement, Supplier Contact/Mail Template, Official PO Integration, Fulfillment, Follow-up, and Legacy PO Concurrency Foundation, and referenced a "Confirm Order" button and a "Ready to Order" Status that were both removed by Phase 7-C1's V8 migration and no longer exist in the current screens. Screenshots (01-06) have been retaken against the current UI. **Phase 8-J update**: section 11 adds the 4 screens built after this document's original scope - Price Change (Phase 8-A/8-B), Arrival Confirmation / Warehouse Stock (Phase 8-G), and Stock/Sales (Phase 8-H) - plus the Phase 8-J Dashboard entry points into them. Section 11 has **no screenshots yet** (see that section).
 
 ## Business Flow
 
@@ -45,7 +45,9 @@ The first screen after login. It's the entry point for seeing, at a glance, how 
 - Awaiting Supplier Response: orders sent to the supplier and waiting on an answer
 - Needs Attention: number of Attentions still waiting to be acknowledged
 - Open Follow-up Cases: follow-up inquiries still waiting to be closed
+- **Price Change (Draft)** (Phase 8-J addition): number of Price Change Sets currently in DRAFT status
 - Brand breakdown table: the same counts broken down by Brand
+- **Navigation Cards into Arrival Confirmation / Warehouse Stock / Stock-Sales** (Phase 8-J addition): plain entry points with no count attached (see section 11)
 
 ### What happens next
 
@@ -231,3 +233,24 @@ Lets you trace, after the fact, both the quantity's journey - "Recommended → H
 ### What happens next
 
 This completes one full pass through the Core Workflow. Going back to the Dashboard, you'll see the "Needs Attention" count and related figures now reflect this order's state.
+
+---
+
+## 11. Price Changes / Arrivals / Warehouse Stock / Stock-Sales (Phase 8-J addition)
+
+**No screenshots yet**: screenshots 01-06 were taken for the Core Workflow (sections 1-10) only; the 4 screens in this section have not been captured. Automated capture via the existing E2E specs (e.g. `arrival-warehouse-stock-visibility-foundation.spec.ts`) was not run this Phase - text-only description for now, revisit automated capture in a future revision.
+
+### What these screens are
+
+Read-only reference screens against Legacy G-SYS data, independent of the Order Core flow (sections 1-10). Price Changes was added in Phase 8-A/8-B; Arrivals and Warehouse Stock in Phase 8-G; Stock/Sales in Phase 8-H. Reachable from the Nav Bar, and as of Phase 8-J also from the Dashboard.
+
+### What to look at
+
+- **Price Changes** (Nav: "Price Changes"): shows the current selling price, cost, and theoretical margin rate, and lets you create/simulate a Price Change Draft. **Applying a change to G-SYS is not implemented** (only the DRAFT status is reachable).
+- **Arrivals** (Nav: "Arrivals"): search and list PO/Invoice/Arrival/Stock-in quantities per SKU across suppliers. SKU Detail now has a button linking here pre-filtered by that SKU (Phase 8-J addition - the SKU is used only as a search condition, not a new Business Traceability link).
+- **Warehouse Stock** (Nav: "Warehouse Stock"): per-warehouse (WH_CD) stock quantity by SKU. Its Detail Drawer now links to "View SKU Detail" and "View Stock/Sales" (Phase 8-J addition). **Deliberately not linked to Arrivals** - no Source-confirmed Key ties Stock-in records to Warehouse Stock at the Transaction level, so this screen never links to Arrivals.
+- **Stock/Sales** (Nav: "Stock / Sales"): current stock and this month's sales, reusing the same Legacy query as the Candidate List. Its Drawer links to "View Warehouse Stock" and "View Item Detail (Order History, etc.)".
+
+### What happens next
+
+All 4 are read-only reference screens - no ordering action originates here. Use the Nav Bar to return to the Order Candidate List or SKU Detail.

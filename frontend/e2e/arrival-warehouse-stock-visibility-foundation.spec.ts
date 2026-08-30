@@ -150,6 +150,29 @@ test.describe('Phase 8-G: Arrival / Warehouse Stock Visibility Foundation', () =
     await expect(page.getByTestId('warehouse-stock-drawer')).not.toBeVisible()
   })
 
+  test('E2 (Phase 8-J 8章): Warehouse Stock Drawer -> SKU Detail / 在庫・販売確認 Navigation (never -> Arrival)', async ({ page }) => {
+    await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
+    await page.getByTestId('nav-warehouse-stock').click()
+    await page.getByTestId('warehouse-stock-filter-sku').locator('input').fill('OD-TENT-001')
+    await page.getByTestId('warehouse-stock-filter-sku').locator('input').blur()
+    await page.getByTestId('warehouse-stock-detail-button-OD-TENT-001').first().click()
+    await expect(page.getByTestId('warehouse-stock-drawer')).toBeVisible()
+
+    // No Arrival link exists on this Drawer - confirmed no
+    // Source-confirmed Key joins Warehouse Stock and Arrival (Phase 8-F/8-G).
+    await expect(page.getByTestId('warehouse-stock-drawer').getByRole('button', { name: /入荷/ })).toHaveCount(0)
+
+    await page.getByTestId('warehouse-stock-drawer-stock-sales-link').click()
+    await expect(page).toHaveURL(/\/stock-sales\?skuKeyword=OD-TENT-001/)
+
+    await page.goto('/warehouse-stock')
+    await page.getByTestId('warehouse-stock-filter-sku').locator('input').fill('OD-TENT-001')
+    await page.getByTestId('warehouse-stock-filter-sku').locator('input').blur()
+    await page.getByTestId('warehouse-stock-detail-button-OD-TENT-001').first().click()
+    await page.getByTestId('warehouse-stock-drawer-sku-detail-link').click()
+    await expect(page).toHaveURL(/\/items\/OD-TENT-001/)
+  })
+
   test('F: Pagination controls are present and Backend-driven (page/size reflected in the URL)', async ({ page }) => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-warehouse-stock').click()
@@ -175,6 +198,31 @@ test.describe('Phase 8-G: Arrival / Warehouse Stock Visibility Foundation', () =
     // PO-OUTDOOR-03 deliberately has no tr_inv/tr_arr row seeded (backend/
     // demo-data/02-seed.sql) - an honest empty result, not a fabricated row.
     await expect(page.getByText('該当する入荷データがありません。')).toBeVisible()
+  })
+
+  test('G2 (Phase 8-J 6章): SKU Detail -> 入荷確認を見る Navigation filters the Arrival List by skuKeyword', async ({ page }) => {
+    await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
+    await page.getByTestId('nav-candidates').click()
+    await expect(page.getByTestId('candidate-row-OD-TENT-001')).toBeVisible()
+    await page.getByRole('button', { name: 'OD-TENT-001' }).click()
+    await expect(page).toHaveURL(/\/items\/OD-TENT-001/)
+
+    // Phase 8-J 9章/10章: Theoretical Margin Reference, reusing Price
+    // Change Foundation's MarginCalculator - 793.00/35.21% from Seed
+    // (prc_sell_w_tax=1930.00, cost_this_month_avg=1137.00, free_ship_flg=true,
+    // ship_fee=300.00 - see SkuDetailServiceIntegrationTest for the
+    // calculation). Must never read as Actual Gross Profit.
+    await expect(page.getByTestId('sku-detail-margin-section')).toContainText('35.21%')
+    await expect(page.getByTestId('sku-detail-margin-section')).toContainText('¥793')
+    await expect(page.getByTestId('sku-detail-margin-section')).toContainText('実績の粗利益（Actual Gross Profit）ではありません。')
+
+    await page.getByTestId('sku-detail-view-arrivals-button').click()
+
+    // SKU used only as a search condition on the Arrival List, matching the
+    // existing officialPoNo-based Order Detail -> Arrival link (Test G) -
+    // never a Transaction Trace.
+    await expect(page).toHaveURL(/\/arrivals\?skuKeyword=OD-TENT-001/)
+    await expect(page.getByTestId('arrival-filter-sku').locator('input')).toHaveValue('OD-TENT-001')
   })
 
   test('H: Existing Ordering Workflow (Candidate List -> Create Draft) is unaffected', async ({ page }) => {

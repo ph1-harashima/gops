@@ -2,7 +2,7 @@
 
 このウォークスルーは、9/17デモ台本（`docs/9-17-demo-script.md`）ではなく、システムの全体像を理解するための資料である。
 
-**改訂履歴**: 本書は初版（承認Workflow・Revision・Supplier Contact/Mail Template・G-SYS正式PO連携・Fulfillment・Follow-up・Legacy PO Concurrency Foundationのいずれも実装前）をPhase 7-Eで全面改訂した。旧版が参照していた「発注内容を確定」ボタン・「発注準備完了」Statusは、Phase 7-C1のV8 migrationで廃止済みであり、現行画面には存在しない。スクリーンショット（01〜06）は現行UIで撮り直し済み。
+**改訂履歴**: 本書は初版（承認Workflow・Revision・Supplier Contact/Mail Template・G-SYS正式PO連携・Fulfillment・Follow-up・Legacy PO Concurrency Foundationのいずれも実装前）をPhase 7-Eで全面改訂した。旧版が参照していた「発注内容を確定」ボタン・「発注準備完了」Statusは、Phase 7-C1のV8 migrationで廃止済みであり、現行画面には存在しない。スクリーンショット（01〜06）は現行UIで撮り直し済み。**Phase 8-J追記**: 価格変更（Phase 8-A/8-B）・入荷確認／倉庫在庫（Phase 8-G）・在庫・販売確認（Phase 8-H）の4画面が11章として追加された。これらは元々Order Coreフロー（1〜10章）より後に実装されたため未掲載だったもので、Phase 8-J時点でDashboardからの導線（Navigation Card・KPI）も新設された。11章の4画面には**スクリーンショットは未取得**（後述）。
 
 ## 業務フロー
 
@@ -45,7 +45,9 @@ Demo Send
 - メーカー回答待ち：メーカーへ送信済みで回答待ちの件数
 - 要確認：Acknowledge待ちの確認事項件数
 - 問い合わせ中：Close待ちの問い合わせ件数
+- **価格変更（下書き）**（Phase 8-J追加）：価格変更DRAFT件数
 - ブランド別内訳：上記をBrand単位で分解した表
+- **入荷確認／倉庫在庫／在庫・販売確認への遷移カード**（Phase 8-J追加）：件数は付けず、各画面への入口のみを提供する素のNavigation Card（11章参照）
 
 ### 次に何をするか
 
@@ -231,3 +233,24 @@ ADMIN限定の画面群。既存G-SYSにはメーカー担当者・メールア�
 ### 次に何をするか
 
 これでCore Workflow一巡は完了。Dashboardに戻ると、「要確認」件数などがこの発注の状態を反映していることが確認できる。
+
+---
+
+## 11. 価格変更 / 入荷確認 / 倉庫在庫 / 在庫・販売確認（Phase 8-J追記）
+
+**スクリーンショット未取得**: 01〜06番のスクリーンショットは既存のCore Workflow（1〜10章）用に撮影されたものであり、本章の4画面は撮り直していない。E2E Test（`arrival-warehouse-stock-visibility-foundation.spec.ts`等）による自動化スクリーンショット取得は今回実施せず、テキストのみの説明に留める（Production接続や手作業を要さない範囲でのみ自動化する方針のため、次回改訂時にE2E経由でのスクリーンショット取得を検討する）。
+
+### この画面群は何か
+
+1〜10章のOrder Coreフローとは独立した、Legacy G-SYSデータのREAD ONLY参照画面群。Phase 8-A/8-B（価格変更）・Phase 8-G（入荷確認・倉庫在庫）・Phase 8-H（在庫・販売確認）でそれぞれ追加された。Nav Bar、およびPhase 8-JからはDashboardからも到達できる。
+
+### ここで見るもの
+
+- **価格変更**（ナビゲーション「価格変更」）: 現在の売価・原価・理論利益率を表示し、価格変更案をDRAFTとして作成・シミュレーションできる。**G-SYSへの反映（Apply）機能は未実装**（DRAFT状態のみ到達可能）。
+- **入荷確認**（ナビゲーション「入荷確認」）: PO・Invoice・Arrival・入荷実績数量をSKU単位で横断的に検索・一覧できる。SKU Detail画面から「入荷確認を見る」ボタンで、そのSKUに絞り込んだ状態へ直接遷移できる（Phase 8-J追加、SKUは検索条件として使うのみで、遷移先の一覧に業務的な紐付けが追加されるわけではない）。
+- **倉庫在庫**（ナビゲーション「倉庫在庫」）: 倉庫別（WH_CD）の在庫数量をSKU単位で確認できる。Detail Drawerから「SKU詳細を見る」「在庫・販売確認を見る」の2つの遷移ボタンがある（Phase 8-J追加）。**入荷確認とは意図的に非連携**（Legacy Source上、入荷実績と倉庫在庫をTransaction単位で結ぶKeyが存在しないため、Warehouse Stock画面から入荷確認へのリンクは存在しない）。
+- **在庫・販売確認**（ナビゲーション「在庫・販売確認」）: 現在庫・当月販売数を一覧確認できる。Candidate Listと同じLegacy Queryを再利用。Drawerから「倉庫在庫を見る」「商品詳細（発注履歴等）を見る」への遷移がある。
+
+### 次に何をするか
+
+いずれもREAD ONLYの参照画面であり、ここから発注等の操作は発生しない。Order Candidate ListまたはSKU Detail画面へ戻る場合はNav Barを使う。

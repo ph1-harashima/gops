@@ -1,8 +1,10 @@
-# Requirements Coverage & Remaining Gap Audit（Phase 8-I）
+# Requirements Coverage & Remaining Gap Audit（Phase 8-I、Phase 8-J追記）
 
-**Status**: 監査・整理のみ。Frontend/Backend/DB Migration/API変更は0件。Legacy（`phasep-gulliver`）はREAD/Grepのみで一切変更していない。Test実行なし（実装変更が無いため）。
+**Status（Phase 8-I時点）**: 監査・整理のみ。Frontend/Backend/DB Migration/API変更は0件。Legacy（`phasep-gulliver`）はREAD/Grepのみで一切変更していない。Test実行なし（実装変更が無いため）。
 
-**目的**: 2026/08/26 Gulliver改善要望（`docs/G-Sys_mtg_20260826_02.pptx`全15枚）に対し、Phase 7〜8-Hで実装・調査してきた内容が現在どこまでCoverしているかを横断監査する。個別Phaseの詳細調査（Reverse Engineering）を繰り返さず、既存Documentの集約・突合・優先順位付けに専念する。
+**Status（Phase 8-J追記）**: Phase 8-Iで特定したTop 5候補のうち4件（Backend Pagination retrofit＝Order History Listのみ、Theoretical Margin Reference、Dashboard統合、SKU Detail⇄Arrival Navigation）を実装した。候補1（Stock Discrepancy Visibility）は**今回実装しない**（21章参照、理由付きで再分類）。Candidate ListのBackend Paginationは**意図的に見送り**（recommendedQty=calc4がJava側Legacy Formula逐語移植のためSQL側に複製できない、24章参照）。本章以下、Phase 8-J時点で更新した箇所には「（Phase 8-J追記）」と明記する。未追記の章はPhase 8-I時点の記載のまま有効。
+
+**目的**: 2026/08/26 Gulliver改善要望（`docs/G-Sys_mtg_20260826_02.pptx`全15枚）に対し、Phase 7〜8-Jで実装・調査してきた内容が現在どこまでCoverしているかを横断監査する。個別Phaseの詳細調査（Reverse Engineering）を繰り返さず、既存Documentの集約・突合・優先順位付けに専念する。
 
 ---
 
@@ -253,7 +255,7 @@ Legacy Source Factを前提に整理する（**勝手にGross Profitが算出可
 
 | 機能 | 状況 | Dependency |
 |---|---|---|
-| Theoretical Margin表示 | **IMPLEMENTED**（Price Change画面のみ、Stock/Sales画面では意図的に非表示） | 無 |
+| Theoretical Margin表示 | **IMPLEMENTED**（Price Change画面、Phase 8-J追記: SKU Detail画面にも追加。Stock/Sales Drawerは意図的に非表示のまま — 10章の「Customer Valueが低い場合は無理に複数画面へ追加しない」判断、SKU Detailから遷移可能なため重複実装を避けた） | 無 |
 | Sales Amount Persistence | **CUSTOMER REVIEW WAIT**（K-3、SoR責任分担が前提） | Portal DB新規Table追加が必要（現在ゼロ件の前提を破る初のOption） |
 | Actual Gross Profit | **BLOCKED（技術的前提欠如）**（Sales Amount Persistence実装完了後のみ着手可能） | Sales Amount Persistence |
 | Brand Performance | **OUT OF SCOPE**（Written Requirement上はSlide 12の「将来テーマ」域を出ない、具体設計無し） | Actual Gross Profit |
@@ -382,6 +384,16 @@ Prototype/Demo FoundationとProduction Readyを区別する。**「Demoで動く
 - **Production DB接続情報・Secrets管理は未設計**（Demo環境はDocker Compose固定Credential）。
 - **Legacy側Hosting/Network情報自体がErnest確認待ち**（H-1/Q13）であり、これが分からない限りProduction接続方式そのものを設計できない。
 
+### 16.1 Phase 8-J追記（Production Readiness Gap再確認）
+
+Phase 8-JはPortal内部の品質・Scalability改善（Pagination／Navigation／Dashboard／Margin Reference）に限定され、**外部接続・Legacy Write・SMTP・Secrets・Hosting/Networkのいずれにも変更はない**。したがって上記16章の共通Gap（Legacy書込未実装・実SMTP未実装・Production DB/Secrets未設計・Legacy Hosting/Network情報未確認）は**Phase 8-J後も変わらず未解消**である。Phase 8-Jで新たに確認できたProduction Gapは以下の1件のみ：
+
+| # | 項目 | 内容 |
+|---|---|---|
+| 1 | Order History List Backend Pagination | Phase 8-Jで`JpaSpecificationExecutor`ベースのDB-level Filter/Sort/Paginationへ移行済み（実データ規模でのRegression Riskは低減）。ただしこれはProduction Readiness（外部接続・Secrets等）とは別軸のScalability改善であり、Production Integration Pending項目を減らすものではない。 |
+
+**結論**: Production Readiness Gapの全体像（16章冒頭の表）はPhase 8-J後も不変。Phase 8-JはDemo/Prototype内部の技術的品質を高めたのみで、Production化に向けた新たな前進項目は無い（Legacy Write・SMTP・Secrets・Hosting/Networkはすべて依然未着手）。
+
 ---
 
 ## 17. Cross-Cutting Gap
@@ -390,11 +402,12 @@ Prototype/Demo FoundationとProduction Readyを区別する。**「Demoで動く
 
 | Gap | 該当箇所 | 内容 |
 |---|---|---|
-| Backend Pagination未適用 | Candidate List・Order History List | Phase 8-G/8-Hで確立した`PageResponse<T>`パターンが、それ以前に実装されたList画面（Candidate List・Order History List）には未適用。現Demo Instance件数では問題化していないが、実データ規模でのScalabilityに懸念。 |
-| Search scalability | 同上 | Frontend側で全件取得後Filter（Order History List・Candidate List）を行っている箇所が残存。 |
+| Backend Pagination未適用（Phase 8-J追記: Order History Listは解消） | Candidate List | Phase 8-G/8-Hで確立した`PageResponse<T>`パターンが、Order History Listには**Phase 8-Jで適用済み**（`JpaSpecificationExecutor` + `Pageable`によるDB-level Filter/Sort/Pagination、`hasAttentionOnly`含む全FilterをDB述語化）。**Candidate Listは意図的にPagination未適用のまま**：`recommendedQty`（calc4）はJava側でLegacy Formulaを逐語移植した値であり、SQL WHERE句には存在しない。DB Paginationのために calc4 ロジックをSQLへ複製することは、Legacy Formula Single Sourceを壊すRiskがあるため行わない方針とした（Business Rule変更禁止の原則を優先）。将来、実データ量で性能問題が確認された場合のScalability Gapとして記録する（Java側Single Source維持のまま解決する設計、例えば全件Java Filter後にPaginateする方式等は、次Phase以降で改めて検討する）。 |
+| Search scalability（Phase 8-J追記: Order History Listは解消） | Candidate List | Order History ListはPhase 8-JでBackend-paginated化済み（Frontend全件取得は解消）。Candidate Listは上記の理由によりFrontend側で全件取得後にJudgement系Filter（欠品/長期欠品/発注候補）を適用する構造が残存 — Candidate Listの実データ規模はLegacy Master（品目マスタ）に比例し、Order History（発注履歴）のような無制限な累積増加とは性質が異なるため、リスクの優先度はOrder History Listより低いと評価する。 |
 | User Management UI/API不在 | Theme T | `portal_user`のCRUD API・画面が一切存在しない（Flyway seedのみ）。Business Rule未確定（B-7〜B-14）だが、機能自体の不在は技術的Gapとしても記録すべき。 |
-| Discrepancy Detection未活用 | Theme L/M | Legacy側`StkQtyDiscrepancyCheckerService`が既に存在するにもかかわらず、Portalからの可視化が無い（Foundation Classification A、21章のTop候補）。 |
-| Dashboard未統合 | Theme R | Phase 8-F/G/Hで追加した3画面（入荷確認・倉庫在庫・在庫販売確認）が、既存Dashboard（KPI Tile）から到達できない。Nav Bar経由のみ。 |
+| Discrepancy Detection未活用 | Theme L/M | Legacy側`StkQtyDiscrepancyCheckerService`が既に存在するにもかかわらず、Portalからの可視化が無い（Foundation Classification A）。**Phase 8-J追記**: 21章の通り、今回はあえて実装しない方針とした（`QTY_STK_IN`と`STK_QTY`をTransaction単位で結ぶSource確認済みKeyが無いため、Business Rule無しに「差異」「不足」等の意味を付与するのは危険 — Phase 8-F/8-Gの確認結果）。CUSTOMER REVIEW / SOURCE LIMITATIONとして21章で再分類。 |
+| Dashboard未統合（Phase 8-J追記: 解消） | Theme R | Phase 8-F/G/Hで追加した3画面（入荷確認・倉庫在庫・在庫販売確認）は、**Phase 8-Jで**Dashboardに素のNavigation Card（件数なし）として追加した。加えてPrice Change Draft件数KPIも新規追加（Dashboardの情報設計がPhase 8-B/8-D以前で止まっていたGapを解消）。§12禁止事項（欠品/長期欠品/Arrival Delay/Stock Discrepancy/Gross Amount差異/実績粗利/Forecast/自動発注）は新規KPIとして一切追加していない。 |
+| SKU Detail⇄Arrival Navigation不在（Phase 8-J追記: 解消） | Theme A/L/M | SKU DetailからArrival List（SKUを検索条件として使用、既存のOrder Detail→Arrival Listと同じPattern）への遷移を追加。Warehouse Stock DrawerからもSKU Detail/在庫・販売確認への遷移を追加。いずれもSKUを検索条件として使うのみで、新規Business Traceabilityは作成していない（Warehouse Stock→Arrivalの直接連携は引き続き作成禁止）。 |
 | 実送信/実Handoff機構の不在 | Theme A/C | 7-C2B/7-C4がいずれも未着手のため、「実際に外部へ影響を与える」操作が一切存在しない（Prototype全体の性質として意図的だが、Production化の最大のGap）。 |
 | Error Handling/Retry | 全Backend Adapter | Legacy READ ONLY Adapterに明示的なRetry機構は無い（DB接続断時は例外がそのままHTTPエラーへ伝播）。Demo規模では問題化していないが、Production化時は要検討。 |
 
@@ -484,10 +497,13 @@ User Management UI/API
 | 8 | 実Official PO Handoff（7-C2B）・実メール送信（7-C4） | A-1b/A-2/A-4b・C-1a/C-1b/C-2/C-6b未回答。Legacy側への実書込・実送信という不可逆的操作を伴うため、最も慎重な合意形成が必要。 |
 | 9 | User Management（CRUD実装） | B-7〜B-14の8項目全てGulliver Future Decision。Password運用・削除可否等、セキュリティに関わるBusiness Ruleを推測で実装しない。 |
 | 10 | EDI実連携（File/API） | Q16（Ernest）・EDI Vendor仕様（External Spec）双方待ち。 |
+| 11（Phase 8-J追加） | Stock Discrepancy Visibility | Phase 8-Iでは「安全に着手可能なTop候補1位」と評価していたが、Phase 8-Jで再検討の結果**あえて実装しない**方針とした。理由：Phase 8-F/8-Gの調査で、`QTY_STK_IN`（Stock In実績）と`STK_QTY`（Warehouse Stock）をTransaction単位で結ぶSource確認済みKeyが存在しないことが判明済みであり、Customer合意なしに「差異」「不足」「異常」といったBusiness Meaningを付与した画面を作ることは、Gross Amount Visual Checkと同種の危険（不正確な情報をあたかも確定事実として提示するRisk）を伴う。既存`StkQtyDiscrepancyCheckerService`（Legacy側）の計算式自体がCustomer未確認のBusiness Ruleを内包している可能性があり、単純にQuery結果を表示するだけでも実質的なBusiness Rule追加になりかねない。CUSTOMER REVIEW（Discrepancyの定義自体をGulliver社へ確認）またはSOURCE LIMITATION（Key不在という技術的制約）として扱う。21章で順位を最下位へ再評価した。 |
 
 ---
 
 ## 21. Development Candidate Ranking（Top 5）
+
+**Phase 8-J追記**: 以下はPhase 8-I時点のTop 5である。Phase 8-Jでの実施結果を各候補に追記した。21.1章にPhase 8-J後の状態を反映した最新Rankingを追加した。
 
 未実装項目のうち、**Customer回答なしで安全に着手可能**なものを、指示18章の7判断軸で抽出した。
 
@@ -497,6 +513,7 @@ User Management UI/API
 - **なぜ今まで やらなかったか**: Phase 8-GではOption A/Bを優先し、Option C（本候補）は次点として意図的に見送った（Phase 8-G 22章）。
 - **Dependency**: 無（L-3は「要否」自体はD分類だが、表示のみのVisibility機能はArrival/Warehouse Visibilityと同じ論理でFoundation実装可能）。
 - **推奨順序**: 1位。
+- **Phase 8-J実施結果**: **実装しない方針に変更**。20章#11の通り、QTY_STK_INとSTK_QTYを結ぶSource確認済みKeyが無いままBusiness Meaningを付与するRiskを再評価し、CUSTOMER REVIEW / SOURCE LIMITATIONへ再分類した。21.1章で最下位へ移動。
 
 ### 候補2: Backend Pagination retrofit（Candidate List / Order History List）
 
@@ -504,6 +521,7 @@ User Management UI/API
 - **なぜ今まで やらなかったか**: これまでのDemo Instance規模ではPagination無しでも問題化しなかったため、後回しにされていた。
 - **Dependency**: 無。
 - **推奨順序**: 2位（技術的負債の早期解消）。
+- **Phase 8-J実施結果**: **Order History Listは実装完了**（`JpaSpecificationExecutor`+`Pageable`によるDB-level Filter/Sort/Pagination、`hasAttentionOnly`含む全FilterをDB述語化、Backend Test 2件追加）。**Candidate Listは意図的に見送り**：`recommendedQty`（calc4）がJava側のLegacy Formula逐語移植であり、SQL側に複製すると計算ロジックの二重管理・divergence Riskが生じるため、Single Source維持を優先した。将来のScalability Gapとして17章に記録。
 
 ### 候補3: Theoretical Margin Reference表示（Stock/Sales or SKU Detail拡張）
 
@@ -511,6 +529,7 @@ User Management UI/API
 - **なぜ今まで やらなかったか**: Phase 8-H自身が「画面複雑化を避ける」ため明示的に見送った（Phase 8-H Section 17）。今回は独立した小さな追加として再評価する。
 - **Dependency**: 無。
 - **推奨順序**: 3位（優先度は中、画面設計の慎重な検討が必要）。
+- **Phase 8-J実施結果**: **実装完了**。SKU Detail画面に「理論利益率（参考）」セクションを追加（`MarginCalculator.compute`をそのまま再利用、新規計算ロジック無し）。Stock/Sales Drawerへの追加は見送り（SKU Detailへの遷移で代替可能なため画面複雑化を避けた）。「理論利益率」ラベル・実績粗利ではない旨の注記を必ず併記。
 
 ### 候補4: Dashboard統合（Arrival/Warehouse/Stock-Sales KPI Tile）
 
@@ -518,6 +537,7 @@ User Management UI/API
 - **なぜ今まで やらなかったか**: 各Phaseが個別の画面実装に専念しており、Dashboard統合は各PhaseのScope外だった。
 - **Dependency**: 無（候補1が完了していればDiscrepancy件数もTile化できるが、必須ではない）。
 - **推奨順序**: 4位。
+- **Phase 8-J実施結果**: **実装完了**。Dashboardに入荷確認/倉庫在庫/在庫・販売確認への素のNavigation Card（件数なし）を追加。加えてPrice Change Draft件数KPIも新規追加した（候補外だが同じ「Dashboard未統合」Gapの一部として一括対応）。Stock Discrepancy件数のTile化は候補1の見送りに伴い実施していない。
 
 ### 候補5: SKU Detail ⇄ Arrival Detail 相互Navigation拡張
 
@@ -525,8 +545,22 @@ User Management UI/API
 - **なぜ今まで やらなかったか**: 各Phaseのタイミングでは相手画面が未実装だったため。
 - **Dependency**: 無。
 - **推奨順序**: 5位（優先度は最も低いが、実装コストも最小）。
+- **Phase 8-J実施結果**: **実装完了**。SKU Detailから入荷確認（Arrival List、SKU検索条件でPre-filter）への遷移Buttonを追加した。逆方向（Arrival→SKU Detail）は既存のOrder Detail→Arrival Linkと同じ「戻り導線を作らない」Precedentに合わせ、追加していない。
 
 **選外理由（主要なもの）**: Purchase Visibility・EDI実連携・Sales Amount Persistence・Official PO Handoff・実メール送信は、いずれもCustomer Review WaitまたはExternal Spec Waitが前提のため対象外（20章参照）。
+
+### 21.1 Phase 8-J後のRanking再評価
+
+Phase 8-Iの候補2〜5は実装完了、候補1は実装しない方針へ再分類した。次に安全に着手可能な候補を、同じ7判断軸（Customer回答なしで安全か）で再評価する。
+
+| 順位 | 項目 | 状況 |
+|---|---|---|
+| — | Stock Discrepancy Visibility | **対象外（20章#11）**。CUSTOMER REVIEW / SOURCE LIMITATIONであり、「安全に着手可能」の条件を満たさなくなったため次点候補からも除外する。 |
+| 1 | Candidate List Backend Pagination（設計方式の確定） | 17章の通り、calc4をSQLへ複製せずにDB-level Paginationを実現する方式（例: Java側でFilter確定後にPaginateする中間案、または別の技術的アプローチ）の設計判断が必要。Techlead（ChatGPT）を交えた技術方針確認が前提となるため、次点候補としつつCustomer Review WaitではなくTechlead確認待ちとして扱う。 |
+| 2 | User Management（Option 12、CRUD） | 既存`PortalUser` Entityを再利用でき技術的障害は無いが、Password運用・削除可否等のBusiness RuleがB-7〜B-14で全てGulliver Future Decision。Business Rule確定前に安易にCRUD UIを作ると、後から作り直すコストが生じるため、優先度は中程度に留める。 |
+| 3 | Error Handling/Retry改善（17章） | Legacy READ ONLY Adapter全般への横断的な技術改善。Business Rule非依存で安全だが、Customer Valueとしては目立たない内部品質改善。 |
+
+**結論**: Phase 8-Iで特定した安全な候補は、Phase 8-Jでそのほとんどが解消された。残る安全な候補は技術的難易度が高い（Candidate List Pagination）か、Customer Review依存度が高い（User Management）ものに限られる。次のPhaseは、9/17説明後のGulliver/Ernest回答を待つ（22章選択肢B）ことが最も合理的である。
 
 ---
 
@@ -534,13 +568,11 @@ User Management UI/API
 
 複数の妥当な進め方があるため、断定せず選択肢として提示する。
 
-**選択肢A（技術的負債解消優先）**: 21章候補1・2（Discrepancy Visibility + Pagination retrofit）を1 Phaseにまとめる。Customer回答を一切必要とせず、既存3画面の完成度を高める。
+**（Phase 8-J追記）選択肢A・Cは実施済み**: Phase 8-Iの選択肢A（Pagination retrofit、ただしOrder History Listのみ）・選択肢C（Dashboard統合）はPhase 8-Jで実施した。Discrepancy Visibilityは20章#11の通り実装しない方針へ変更したため、選択肢Aの「Discrepancy Visibility」部分は対象から外れている。
 
-**選択肢B（Customer Review回答待ち）**: 9/17説明後のGulliver回答・Ernest回答（22項目）を待ち、回答内容に応じて13章のBlocking Top Items（Official PO Handoff、実送信、Price Change Approval等）のいずれかへ進む。
+**選択肢B（Customer Review回答待ち）**: 9/17説明後のGulliver回答・Ernest回答（22項目）を待ち、回答内容に応じて13章のBlocking Top Items（Official PO Handoff、実送信、Price Change Approval等）のいずれかへ進む。**Phase 8-J時点で最も推奨される進め方**（21.1章参照 — 残る安全な候補が技術判断待ち・Business Rule依存に限られるため）。
 
-**選択肢C（Dashboard統合による説明力強化）**: 21章候補4を優先し、次回Demo/説明の際にPhase 8-F〜8-Hの成果を一望できる形に整理する。
-
-いずれの場合も、**Gross Amount Visual Check・G-SYS→倉庫連携・Sales/Stock History・Price Change Advanced・User Managementへは進まない**（20章のSTOP/WAIT List）。
+いずれの場合も、**Gross Amount Visual Check・G-SYS→倉庫連携・Sales/Stock History・Price Change Advanced・User Management・Stock Discrepancy Visibilityへは進まない**（20章のSTOP/WAIT List）。
 
 ---
 
@@ -551,6 +583,79 @@ User Management UI/API
 - 仕入Gross Amount可視化とG-SYS→倉庫連携（いずれもSlide 12・13の将来テーマ）は、技術的事実（計算式の非等価性、書込経路の不在）により現時点でBLOCKED/EXTERNAL SPEC WAITであり、これは調査不足ではなくSource自体の限界である。
 - 残る110件のCustomer Review項目・22件のErnest確認事項の回答が、次のScope・優先順位を最終的に決定する。本監査で特定した21章のTop 5候補は、その回答を待たずに着手可能な範囲に限定されている。
 
+**Phase 8-J追記**: 21章Top 5のうち4件（Pagination retrofit=Order History Listのみ／Theoretical Margin Reference／Dashboard統合／SKU Detail⇄Arrival Navigation）を実装した。残る1件（Stock Discrepancy Visibility）はSource制約により実装しない方針へ再分類した（20章#11・21.1章）。Candidate ListのBackend Paginationは、Legacy Formula逐語移植（calc4）をSQLへ複製しないという原則を優先し、意図的に見送った（17章・24章）。Phase 8-Jで新たに安全に着手可能な候補は限定的であり（21.1章）、次のPhaseはCustomer Review回答待ちが最も合理的である。
+
 ---
 
-**変更したFrontend/Backend/DB Migration/API/Legacy Source: 0件。** 本Documentと（必要な範囲での）既存QA Document更新のみ。
+## 24. Documentation Inventory（Phase 8-J追記）
+
+Phase 8-J §2の指示に基づき、`docs/`配下の全ファイルを実ディレクトリから確認し（推測ではない）、以下の分類基準で棚卸しした。**大量削除は行わず**、Currentドキュメントで陳腐化していた記載のみ本Phaseで補正した（24.3章）。
+
+### 24.1 分類基準
+
+| 分類 | 意味 |
+|---|---|
+| A. Current/Active | 現在の実装状態を正確に反映すべき、継続更新対象のDocument |
+| B. Historical/RE | 実装当時のReverse Engineering記録・設計記録として、歴史的記録のまま保持するDocument |
+| C. Customer Review | Gulliver社／Ernest氏への確認事項を集約したQA Document |
+| D. Demo | 9/17デモ運用のための台本・手順・データ加工記録 |
+| E. Handover/Release | 引き継ぎ資料・リリースノート |
+| F. Obsolete Candidate | 内容が完全に陳腐化し、削除を検討すべき候補 |
+| G. Duplicate Candidate | 別Documentと内容が重複し、統合を検討すべき候補 |
+| Source Material | Gulliver社提供の原資料（当プロジェクトの成果物ではない） |
+
+### 24.2 棚卸し結果（全31ファイル）
+
+| ファイル | 分類 | 備考 |
+|---|---|---|
+| `requirements-coverage-and-remaining-gap-audit.md` | A | 本Document自体。Phase 8-I/8-J時点の全機能横断Coverageの一次情報。 |
+| `G-SYS_Online-Ordering_Prototype_Technical_Design.md` | A（一部陳腐化、Phase 8-J追記で補正済み） | §17〜19のBaseline追記がImplementation Step 5（≒Phase 6相当）で停止しており、Phase 7以降が反映されていない。本Phaseで冒頭にPointer追記のみ実施（24.3章）。 |
+| `official-po-integration-detailed-design.md` | A | Phase 7-C2-Design、Official PO Integrationの詳細設計として現在も有効（実装はFoundationまでで設計自体は未超過）。 |
+| `official-po-integration-foundation.md` | A | Phase 7-C2A実装結果。現在の実装状態と一致。 |
+| `role-approval-implementation.md` | A | Phase 7-C1実装結果。現在の実装状態と一致。 |
+| `supplier-contact-mail-template-foundation.md` | A | Phase 7-C3実装結果。現在の実装状態と一致。 |
+| `supplier-response-revision-workflow.md` | A | Phase 7-C5実装結果。現在の実装状態と一致。 |
+| `fulfillment-follow-up-foundation.md` | A | Phase 7-C7A実装結果。現在の実装状態と一致。 |
+| `excel-legacy-concurrency-control.md` | A | Phase 7-C6実装結果。現在の実装状態と一致。 |
+| `local-dev-environment-notes.md` | A | 開発環境固有のTips集。継続的に有効。 |
+| `target-price-change-workflow.md` | A（一部陳腐化、Phase 8-J追記で補正済み） | Phase 8-A Target Design。Phase 8-B/8-Dの実装結果を反映する専用Documentが存在しなかった（他Themeの`*-foundation.md`パターンと異なる）ため、本Phaseで冒頭にFOUNDATION IMPLEMENTED範囲の追記を実施（24.3章）。 |
+| `customer-review-decision-package.md` | C | 全110項目のCustomer Review集約。25章で軽微補正。 |
+| `customer-review-question-sheet.md` | C | 同上。 |
+| `ernest-current-operation-question-sheet.md` | C | Ernest向け39問。25章で確認・補正。 |
+| `9-17-demo-script.md` | D | Demo台本。26章でNavigation整合確認・補正。 |
+| `demo-walkthrough/README.md` | D | Demo Walkthrough JP。26章で補正。 |
+| `demo-walkthrough/README_EN.md` | D | Demo Walkthrough EN。26章で補正。 |
+| `demo-walkthrough/01〜06-*.jpg`（6枚） | D | Demo Walkthroughのスクリーンショット。26章でRegenerate要否を判断。 |
+| `demo-data-anonymization.md` | D | Demo Seedデータの匿名化記録。追加のSeed変更を伴わない本Phaseでは変更不要。 |
+| `legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md` | B | Phase 8-E RE Document。歴史的記録として保持。 |
+| `legacy-price-change-reverse-engineering.md` | B | Phase 7-J RE Document。歴史的記録として保持。 |
+| `legacy-procurement-workflow-reverse-engineering.md` | B | Phase 7-A RE Document。歴史的記録として保持。 |
+| `legacy-stock-sales-data-reverse-engineering.md` | B | Phase 8-C RE Document。歴史的記録として保持。 |
+| `legacy-warehouse-logistics-logizero-reverse-engineering.md` | B | Phase 8-F RE Document（Phase 8-G実装結果を§27に追記済み）。歴史的記録として保持。 |
+| `production-ux-workflow-redesign.md` | B | Phase 6設計書。自己申告で「歴史的記録」と明記済み（末尾§15に実装結果まとめあり）。 |
+| `target-production-procurement-workflow.md` | B | Phase 7-B Target Design。多くの7-C*実装結果Documentの一次設計根拠として現在も参照される。 |
+| `G-Sys_mtg_20260826_02.pptx` | Source Material | Gulliver社打ち合わせ原資料。 |
+| `G-SYS_Online-Ordering_Prototype_Requirements.md` | Source Material | Gulliver社提供の元仕様書。 |
+| `GSYS_Specification.md` | Source Material | 元仕様書から起こしたG-SYS全体仕様MD版。 |
+
+**Handover/Release Notesについて**: `grep -rli "handover\|release note" docs/*.md`を実行した結果、該当Documentは**存在しない**（専用ファイルとしても、他Document内のSectionとしても未作成）。存在しないものを実装済みと報告しない原則に従い、正直に「未作成」として記録する（29章参照）。
+
+### 24.3 F/G分類候補の監査結果
+
+`official-po-integration-detailed-design.md`（設計）と`official-po-integration-foundation.md`（実装結果）、および`production-ux-workflow-redesign.md`（設計）と`target-production-procurement-workflow.md`（別Theme設計）を重複候補として個別に確認した結果、**いずれも設計→実装の時系列関係、または対象Themeが異なる別文書であり、内容が重複するDuplicate Candidateには該当しない**。同様に全31ファイルを確認したが、**内容が完全に陳腐化したObsolete Candidate（F分類）も、内容が重複するDuplicate Candidate（G分類）も発見されなかった**。唯一の「陳腐化」はA分類の2件（Technical Design・target-price-change-workflow）における部分的な記載の古さであり、いずれも本Phaseで軽微な追記により補正済み（24.2章参照）。
+
+### 24.4 補正実施記録
+
+本Phaseで実際に内容を追記・補正したCurrent Document：
+
+1. `G-SYS_Online-Ordering_Prototype_Technical_Design.md` — 冒頭StatusにPhase 7以降のBaseline追記が止まっている旨のPointer注記を追加。
+2. `target-price-change-workflow.md` — 冒頭StatusにPhase 8-B/8-DのFOUNDATION IMPLEMENTED範囲を追記。
+3. 本Document（`requirements-coverage-and-remaining-gap-audit.md`）自体 — 5章・11章・16章・17章・20章・21章・22章・23章にPhase 8-J追記。
+
+新規Documentは作成していない（§28準拠、本Inventory自体も本Documentへ追記する形で対応）。
+
+---
+
+**Phase 8-Iの変更**: Frontend/Backend/DB Migration/API/Legacy Source 0件（監査・整理のみ）。
+
+**Phase 8-Jの変更**: Order History List Backend Pagination（`OrderHistoryService`/`OrderHistoryController`/`PortalOrderRepository`）、SKU Detail⇄Arrival Navigation・Warehouse Stock Drawer⇄SKU Detail/Stock-Sales Navigation（Frontend Route/Buttonのみ、新規Backend Endpoint無し）、Theoretical Margin Reference（`SkuDetailService`/`SkuDetailResponse`、既存`MarginCalculator`/`LegacyPriceReadRepository`を再利用）、Dashboard統合（`DashboardService`/`DashboardResponse`、Price Change Draft件数KPI + 3 Navigation Card）。**Portal DB Migrationの新規追加は無し**（24章参照）。**Legacy（`phasep-gulliver`）への変更は0件**（READ ONLY、既存Legacy Adapter Repositoryの再利用のみ）。詳細な変更ファイル一覧はPhase 8-J Completion Reportを参照。

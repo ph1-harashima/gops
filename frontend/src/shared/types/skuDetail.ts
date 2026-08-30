@@ -31,4 +31,10 @@ export interface SkuDetail {
   currency: string | null
   dataSource: string
   poHistory: SkuPoHistoryLine[]
+  // Phase 8-J 9章/10章: reuses Price Change Foundation's MarginCalculator -
+  // a THEORETICAL reference figure (Legacy current Sell price vs
+  // current-month average cost), NOT Actual Gross Profit. Null when Legacy
+  // has no matching Price row, or cost is null/zero.
+  theoreticalMarginAmount: number | null
+  theoreticalMarginRate: number | null
 }

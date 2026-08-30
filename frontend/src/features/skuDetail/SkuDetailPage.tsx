@@ -21,6 +21,14 @@ import { StockJudgementChip } from '../../shared/components/StockJudgementChip'
 import { computeStockJudgement } from '../../shared/domain/stockJudgement'
 import { resolveReturnTo } from '../../shared/navigation/returnTo'
 
+/** Phase 8-J 9章/10章: rate is a plain fraction (e.g. 0.3521) as returned by
+ * MarginCalculator.profitRateSell - displayed as a percentage here, no
+ * rounding/threshold logic beyond the 2-decimal display format. */
+function formatMarginRate(rate: number | null, notAvailable: string): string {
+  if (rate == null) return notAvailable
+  return `${(rate * 100).toFixed(2)}%`
+}
+
 /**
  * SKU Detail (implementation instructions Step 5 4章). READ ONLY reference
  * screen for order judgement - deliberately no Sales Trend chart, no
@@ -63,6 +71,23 @@ export function SkuDetailPage() {
         <Typography variant="h5" component="h1">{data.sku} - {data.itemName}</Typography>
         <ItemStatusChip status={data.itemStatus} />
         <DataSourceBadge dataSource={data.dataSource} />
+        <Box sx={{ flexGrow: 1 }} />
+        {/* Phase 8-J 6章: this SKU used only as a search condition on the
+            Arrival List (same officialPoNo-as-search-condition pattern
+            Order Detail's Fulfillment section already uses to reach
+            /arrivals?poNumber=...) - never a "this Warehouse Stock/Arrival
+            came from this SKU" Transaction Trace. No return-nav threading
+            back into Arrival List either, matching that same existing
+            precedent (Arrival List is always a fresh landing, not a
+            returnTo target). */}
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => navigate(`/arrivals?skuKeyword=${encodeURIComponent(data.sku)}`)}
+          data-testid="sku-detail-view-arrivals-button"
+        >
+          {t('viewArrivals')}
+        </Button>
       </Stack>
 
       <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
@@ -110,6 +135,27 @@ export function SkuDetailPage() {
             </Typography>
             <Typography variant="body2">
               {t('field.unitPrice')}: {data.unitPrice != null ? `¥${data.unitPrice.toLocaleString()}` : t('notAvailable')}
+            </Typography>
+          </Stack>
+        </Paper>
+
+        {/* Phase 8-J 9章/10章: reuses Price Change Foundation's
+            MarginCalculator - a THEORETICAL reference figure, never Actual
+            Gross Profit (that requires Transaction-level Invoice data, out
+            of Source scope). Kept as its own clearly-labeled Paper rather
+            than folded into 発注情報, so it reads as a distinct, separately
+            sourced reference value rather than an Ordering decision input. */}
+        <Paper variant="outlined" sx={{ p: 2, flex: 1, minWidth: 260 }} data-testid="sku-detail-margin-section">
+          <Typography variant="subtitle1" gutterBottom>{t('section.margin')}</Typography>
+          <Stack spacing={0.5}>
+            <Typography variant="body2">
+              {t('field.theoreticalMarginRate')}: <strong>{formatMarginRate(data.theoreticalMarginRate, t('notAvailable'))}</strong>
+            </Typography>
+            <Typography variant="body2">
+              {t('field.theoreticalMarginAmount')}: {data.theoreticalMarginAmount != null ? `¥${data.theoreticalMarginAmount.toLocaleString()}` : t('notAvailable')}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {t('field.marginDisclaimer')}
             </Typography>
           </Stack>
         </Paper>

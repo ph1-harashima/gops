@@ -95,6 +95,23 @@ export function DashboardPage() {
     // Open Follow-up Case" this Phase (same "count only, unfiltered target"
     // precedent as 欠品/長期欠品 above) - the count itself is exact.
     { key: 'openFollowUpCaseCount', label: t('kpi.openFollowUpCase'), value: data.openFollowUpCaseCount, onClick: () => navigate('/orders/history'), tooltip: undefined as string | undefined },
+    // Phase 8-J 11章/13章: Dashboard's information design predated Phase
+    // 8-B/8-D (Price Change Foundation) - DRAFT is a single, unambiguous
+    // Status value (§13 whitelist), same precedent as draftCount above.
+    { key: 'priceChangeDraftCount', label: t('kpi.priceChangeDraft'), value: data.priceChangeDraftCount, onClick: () => navigate('/price-changes?status=DRAFT'), tooltip: undefined as string | undefined },
+  ]
+
+  // Phase 8-J 11章/13章: plain Navigation Cards (no count) into Arrival/
+  // Warehouse Stock/Stock-Sales (Phase 8-G/8-H) - Dashboard had zero entry
+  // point into any of these 3 screens until this Phase. Deliberately no
+  // number attached to any of them (§12 forbids inventing a meaningful
+  // count here - e.g. an "Arrival count" or "Warehouse Stock count" implies
+  // a threshold/anomaly judgement this Phase does not define) - §13
+  // explicitly allows "a plain Navigation Card (no count)" instead.
+  const navCards = [
+    { key: 'arrivals', label: t('nav.arrivals'), onClick: () => navigate('/arrivals') },
+    { key: 'warehouseStock', label: t('nav.warehouseStock'), onClick: () => navigate('/warehouse-stock') },
+    { key: 'stockSales', label: t('nav.stockSales'), onClick: () => navigate('/stock-sales') },
   ]
 
   return (
@@ -122,6 +139,22 @@ export function DashboardPage() {
             </Grid>
           )
         })}
+      </Grid>
+
+      <Typography variant="h6" gutterBottom>{t('nav.title')}</Typography>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {navCards.map((card) => (
+          <Grid key={card.key} size={{ xs: 6, sm: 4, md: 2 }}>
+            <Paper
+              variant="outlined"
+              onClick={card.onClick}
+              sx={{ p: 2, textAlign: 'center', cursor: 'pointer', '&:hover': { boxShadow: 2 } }}
+              data-testid={`nav-card-${card.key}`}
+            >
+              <Typography variant="body2">{card.label}</Typography>
+            </Paper>
+          </Grid>
+        ))}
       </Grid>
 
       <Typography variant="h6" gutterBottom>{t('brandBreakdown')}</Typography>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
@@ -10,6 +10,7 @@ import TableCell from '@mui/material/TableCell'
 import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
+import TablePagination from '@mui/material/TablePagination'
 import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
@@ -34,6 +35,7 @@ const STATUS_OPTIONS = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'AWAITING_SUPPL
 // updatedFrom/updatedTo added the same way as the existing 3 - real Backend
 // query params (OrderHistoryService.list), not a client-only display Filter.
 const FILTER_PARAMS = ['supplierCode', 'brandCode', 'status', 'orderNoKeyword', 'itemKeyword', 'updatedFrom', 'updatedTo'] as const
+const DEFAULT_PAGE_SIZE = 20
 
 /** Read-only glance badges for the list view (no Acknowledge action here -
  * that lives on Order History Detail / Supplier Response, implementation
@@ -95,6 +97,7 @@ export function OrderHistoryListPage() {
           if (value) next.set(key, value)
           else next.delete(key)
         }
+        next.set('page', '0') // any Filter change resets to page 1
         return next
       },
       { replace: true },
@@ -102,10 +105,11 @@ export function OrderHistoryListPage() {
   }
 
   // Phase 6-D (docs/production-ux-workflow-redesign.md 6章/11章): Dashboard's
-  // 要確認 KPI counts orders with an active Attention over the SAME
-  // unfiltered order set this screen already fetches - activeAttentionTypes
-  // is already on every row (OrderHistorySummaryResponse), so this is a
-  // pure client-side display filter, not a new Backend/API Attention Filter.
+  // 要確認 KPI counts orders with an active Attention. Phase 8-J 3章: now a
+  // real Backend query param (hasAttention, see OrderHistoryService.list) -
+  // was a client-side display filter over the full fetched set until this
+  // Phase, which would only have filtered the current page once List itself
+  // became Backend-paginated below.
   const hasAttentionOnly = searchParams.get('hasAttention') === 'true'
 
   function toggleHasAttentionOnly(checked: boolean) {
@@ -114,6 +118,33 @@ export function OrderHistoryListPage() {
         const next = new URLSearchParams(prev)
         if (checked) next.set('hasAttention', 'true')
         else next.delete('hasAttention')
+        next.set('page', '0')
+        return next
+      },
+      { replace: true },
+    )
+  }
+
+  const page = Number(searchParams.get('page') ?? '0')
+  const size = Number(searchParams.get('size') ?? String(DEFAULT_PAGE_SIZE))
+
+  function changePage(newPage: number) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('page', String(newPage))
+        return next
+      },
+      { replace: true },
+    )
+  }
+
+  function changeSize(newSize: number) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('size', String(newSize))
+        next.set('page', '0')
         return next
       },
       { replace: true },
@@ -122,28 +153,10 @@ export function OrderHistoryListPage() {
 
   const listPath = listReturnTo('/orders/history', searchParams)
 
-  const { data, isLoading, isError, refetch } = useOrderHistory(filter)
-
-  const visibleData = useMemo(() => {
-    if (!data) return data
-    return hasAttentionOnly ? data.filter((row) => row.activeAttentionTypes.length > 0) : data
-  }, [data, hasAttentionOnly])
-
-  const supplierOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const row of data ?? []) {
-      if (row.supplierCode) map.set(row.supplierCode, row.supplierName ?? row.supplierCode)
-    }
-    return Array.from(map.entries())
-  }, [data])
-
-  const brandOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const row of data ?? []) {
-      if (row.brandCode) map.set(row.brandCode, row.brandName ?? row.brandCode)
-    }
-    return Array.from(map.entries())
-  }, [data])
+  // Phase 8-J 3章/4章: Backend-paginated + Backend-filtered (including
+  // hasAttentionOnly above) - this screen no longer fetches the whole
+  // portal_order table then filters/slices in the browser.
+  const { data, isLoading, isError, refetch } = useOrderHistory({ ...filter, hasAttentionOnly }, page, size)
 
   return (
     // Phase 7-F Header/List UX Audit (Sticky Table Header): see the same
@@ -157,32 +170,29 @@ export function OrderHistoryListPage() {
       </Typography>
 
       <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', gap: 2 }}>
+        {/* Phase 8-J 3章/4章: supplier/brand switched from a <select> whose
+            options were derived from the (now Backend-paginated, no longer
+            full-table) fetched rows - options built from a single page would
+            silently miss values on other pages - to free-text input, the
+            SAME convention ArrivalListPage/WarehouseStockListPage/
+            StockSalesListPage already use for their own Backend-paginated
+            code filters. */}
         <TextField
-          select
           size="small"
           label={t('filter.supplier')}
-          sx={{ minWidth: 200 }}
-          value={filter.supplierCode ?? ''}
-          onChange={(e) => updateFilter({ supplierCode: e.target.value || undefined })}
-        >
-          <MenuItem value="">{t('filter.all')}</MenuItem>
-          {supplierOptions.map(([code, name]) => (
-            <MenuItem key={code} value={code}>{name}</MenuItem>
-          ))}
-        </TextField>
+          sx={{ minWidth: 160 }}
+          defaultValue={filter.supplierCode ?? ''}
+          onBlur={(e) => updateFilter({ supplierCode: e.target.value || undefined })}
+          data-testid="order-history-filter-supplier"
+        />
         <TextField
-          select
           size="small"
           label={t('filter.brand')}
-          sx={{ minWidth: 200 }}
-          value={filter.brandCode ?? ''}
-          onChange={(e) => updateFilter({ brandCode: e.target.value || undefined })}
-        >
-          <MenuItem value="">{t('filter.all')}</MenuItem>
-          {brandOptions.map(([code, name]) => (
-            <MenuItem key={code} value={code}>{name}</MenuItem>
-          ))}
-        </TextField>
+          sx={{ minWidth: 160 }}
+          defaultValue={filter.brandCode ?? ''}
+          onBlur={(e) => updateFilter({ brandCode: e.target.value || undefined })}
+          data-testid="order-history-filter-brand"
+        />
         <TextField
           select
           size="small"
@@ -261,14 +271,14 @@ export function OrderHistoryListPage() {
         </Alert>
       )}
 
-      {!isLoading && !isError && visibleData && visibleData.length === 0 && (
+      {!isLoading && !isError && data && data.content.length === 0 && (
         <Alert severity="info" sx={{ my: 2 }}>{t('empty')}</Alert>
       )}
 
-      {!isLoading && !isError && visibleData && visibleData.length > 0 && (
+      {!isLoading && !isError && data && data.content.length > 0 && (
         <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {t('resultCount', { count: visibleData.length })}
+            {t('resultCount', { count: data.totalElements })}
           </Typography>
           <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 0 }} data-testid="order-history-table-container">
             <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
@@ -287,7 +297,7 @@ export function OrderHistoryListPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {visibleData.map((row) => (
+                {data.content.map((row) => (
                   <TableRow
                     key={row.id}
                     hover
@@ -309,6 +319,17 @@ export function OrderHistoryListPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          <TablePagination
+            component="div"
+            count={data.totalElements}
+            page={data.page}
+            rowsPerPage={data.size}
+            rowsPerPageOptions={[10, 20, 50, 100]}
+            onPageChange={(_e, newPage) => changePage(newPage)}
+            onRowsPerPageChange={(e) => changeSize(Number(e.target.value))}
+            labelRowsPerPage={t('common:rowsPerPage', { defaultValue: 'Rows per page:' })}
+            data-testid="order-history-pagination"
+          />
         </Box>
       )}
     </Box>

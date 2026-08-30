@@ -18,6 +18,8 @@
     "updatedAt": "Legacy Updated At"
   },
   "drawer": {
-    "title": "Stock by Warehouse"
+    "title": "Stock by Warehouse",
+    "viewSkuDetail": "View SKU Detail",
+    "viewStockSales": "View Stock/Sales"
   }
 }

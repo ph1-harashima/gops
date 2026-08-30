@@ -44,9 +44,13 @@ class OrderHistoryApiTest {
                 .andReturn().getResponse().getContentAsString();
         long id = ((Number) objectMapper.readValue(createResponse, Map.class).get("id")).longValue();
 
+        // Phase 8-J 3章/4章: response is now a PageResponse envelope
+        // ({content, page, size, totalElements, totalPages}), not a bare
+        // array - same shape as /api/arrivals, /api/warehouse-stock,
+        // /api/stock-sales (Phase 8-G/8-H).
         mockMvc.perform(get("/api/orders/history"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id == " + id + ")]").exists());
+                .andExpect(jsonPath("$.content[?(@.id == " + id + ")]").exists());
 
         mockMvc.perform(get("/api/orders/" + id))
                 .andExpect(status().isOk())

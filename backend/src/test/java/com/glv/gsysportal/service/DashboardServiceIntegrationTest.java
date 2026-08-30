@@ -23,6 +23,8 @@ class DashboardServiceIntegrationTest {
     private OrderDraftService orderDraftService;
     @Autowired
     private DashboardService dashboardService;
+    @Autowired
+    private PriceChangeSetService priceChangeSetService;
 
     @Test
     void dashboardReflectsCandidatesAndDraftCounts() {
@@ -35,6 +37,18 @@ class DashboardServiceIntegrationTest {
         assertTrue(after.candidateCount() >= candidatesBefore, "candidateCount is Legacy-derived and unaffected by Draft creation");
         assertTrue(after.draftCount() >= draftsBefore + 1);
         assertTrue(after.brands().stream().anyMatch(b -> "BR_OUTDOOR".equals(b.brandCode()) && b.draftCount() >= 1));
+    }
+
+    /** Phase 8-J 11章/13章: Dashboard had zero entry point into Price Change
+     * (Phase 8-B/8-D) until this Phase. */
+    @Test
+    void dashboardReflectsPriceChangeDraftCount() {
+        int before = dashboardService.getDashboard().priceChangeDraftCount();
+
+        priceChangeSetService.createDraft("Phase 8-J Dashboard test", "tester01");
+
+        DashboardResponse after = dashboardService.getDashboard();
+        assertTrue(after.priceChangeDraftCount() >= before + 1);
     }
 
     @Test
