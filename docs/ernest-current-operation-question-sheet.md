@@ -1,6 +1,6 @@
-# Ernest Current Operation Question Sheet — Phase 7-D2（Phase 7-J／8-A／8-C／8-D追加あり）
+# Ernest Current Operation Question Sheet — Phase 7-D2（Phase 7-J／8-A／8-C／8-D／8-E／8-F追加あり、Phase 8-Iで分類監査）
 
-**Status**: Docs Only（Phase 7-D2、Phase 7-JでEDI関連4項目、Phase 8-Aで価格変更関連6項目、Phase 8-Cで在庫・販売実績データ更新関連5項目、Phase 8-Dで請求・仕入・売上・粗利関連5項目を追加）。Code変更・DB Migration・Legacy変更は一切なし。
+**Status**: Docs Only（Phase 7-D2、Phase 7-JでEDI関連4項目、Phase 8-Aで価格変更関連6項目、Phase 8-Cで在庫・販売実績データ更新関連5項目、Phase 8-Dで請求・仕入・売上・粗利関連5項目、Phase 8-EでGross Amount定義1項目、Phase 8-Fで倉庫物流関連5項目を追加。**Phase 8-Iは新規項目追加なし、既存6項目（Q16/Q19/Q22/Q30/Q33/Q38）へエスカレーション候補の注記のみ追加**、`docs/requirements-coverage-and-remaining-gap-audit.md` 14章参照）。Code変更・DB Migration・Legacy変更は一切なし。合計39項目（変更なし）。
 
 **宛先**: Ernest（Phase1社内、G-SYS保守担当）
 **目的**: `docs/customer-review-decision-package.md`（Phase 7-D）で「Sourceコードだけでは分からない」と分類した項目のうち、**Gulliver社（顧客）へ聞く前に、Phase1社内・特にG-SYS保守担当のErnestに確認すれば解決できる可能性が高い項目**を切り出したもの。「Sourceから分からない」＝「Gulliver社へ質問する」ではない、という前提で作成している（Phase 7-D2指示）。
@@ -142,6 +142,7 @@ Phase 7-Jの手動確認で、メーカーとの発注方法が約90%Email・約
 - **What we already know**: 該当なし。
 - **What we need to confirm**: EDIとは具体的にどの方式か（担当者による手操作、メーカー側Web Portalへの手入力、File授受（SFTP等）、API連携等）。Supplierによって方式が異なるか。
 - **Why it matters**: 将来の実EDI連携設計（本Phaseでは対象外）の前提情報。
+- **（Phase 8-I追記）エスカレーション候補**: Ernestが把握していない場合、最終的にはEDI Vendor（メーカー側System）への仕様確認（External Specification）が必要になる可能性がある。`requirements-coverage-and-remaining-gap-audit.md` 14.1章参照。
 
 ### Q17. 〔P2〕EDI発注後のSupplier Response管理方法
 
@@ -166,6 +167,7 @@ Phase 7-Jの`docs/legacy-price-change-reverse-engineering.md`（Source Reverse E
 - **What we already know**: Export（`PriceList.java`）とImport（`MsPriceListImportBatch`）は別クラスであり、Sourceのみからは列フォーマットの完全一致は確認できていない（RE 11章Q-P2）。
 - **What we need to confirm**: 実際の運用で「Export結果のExcelをそのまま編集してImportに使っている」のか、それとも別フォーマットとして扱われているのか。
 - **Why it matters**: 将来Portalが生成するImport用Artifactの列フォーマットを設計する際、Export側の列と合わせるべきか独自に定義してよいかの判断材料（`docs/target-price-change-workflow.md` 12章・17章PC-15）。
+- **（Phase 8-I追記）エスカレーション候補**: フォーマットの正式仕様自体はExport/Import両ClassのSource再調査で解決できる可能性があり、優先度が低ければ次回RE時にSource確認へ差し戻すことも検討可。`requirements-coverage-and-remaining-gap-audit.md` 14.1章参照。
 
 ### Q20. 〔P3〕Item Group価格変更の配下SKUへの連動有無
 
@@ -184,6 +186,7 @@ Phase 7-Jの`docs/legacy-price-change-reverse-engineering.md`（Source Reverse E
 - **What we already know**: 変更幅超過時、Excel内`APPROVAL`列に`ACCEPT`と手入力しないとImportがエラーになる仕組みはSourceで確認済み（RE 4章）。ただし、この`ACCEPT`を実際に「誰が」「どういう基準で」入力しているかはSourceからは分からない。
 - **What we need to confirm**: 価格変更は現在どのくらいの頻度で行われているか。実施者・（変更幅超過時の）承認者は誰か。
 - **Why it matters**: `docs/target-price-change-workflow.md` 11章（Approval設計）・17章PC-6で、Approval Workflowの要否を検討する際の現状把握として必須。
+- **（Phase 8-I追記）エスカレーション候補**: 実施者・承認者は組織・体制に関する事実であり、Ernestの技術保守範囲というよりGulliver社内の人事・体制情報に近い可能性がある。Ernestが未回答の場合はGulliver Current Operation（C分類）へ合流させることを検討。`requirements-coverage-and-remaining-gap-audit.md` 14.1章参照。
 
 ### Q23. 〔P3〕Price関連Export/Import Endpoint・Batch起動のRole/Permission制限
 
@@ -244,6 +247,7 @@ Phase 8-Cの`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering
 - **What we already know**: Official PO Excel生成時点では、PO明細行とInvoice明細行の単価は同一Excelセル（固定列9）から読み取られるため、生成時点では構造的に一致する（RE 3章）。
 - **What we need to confirm**: 実際の業務で、発注価格と請求価格が異なるケースがあるか。あるとすればどんな場面か（価格改定・為替調整等）。
 - **Why it matters**: `docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md` 8章（Reconciliation Target Proposal）で、価格突合機能に意味があるかどうかの判断材料。
+- **（Phase 8-I追記）エスカレーション候補**: 価格交渉の実例は購買業務の実態であり、Ernestが技術保守範囲で把握しているとは限らない。未回答の場合はGulliver Current Operation（C分類）へ合流させることを検討。`requirements-coverage-and-remaining-gap-audit.md` 14.1章参照。
 
 ### Q31. 〔P3〕Credit PO/Invoiceによる差額調整の実際の発生頻度
 
@@ -262,6 +266,7 @@ Phase 8-Cの`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering
 - **What we already know**: 2026/08/26打ち合わせSlide 12に将来テーマとしての言及はあるが、具体的な利用場面・頻度への言及はない（`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md` 2章）。
 - **What we need to confirm**: 実際にどんな場面・頻度でこの確認・分析が必要になるか。
 - **Why it matters**: 13章の改善Option（A〜G）のうち、どれを優先すべきかの判断材料。
+- **（Phase 8-I追記）エスカレーション候補**: 「なぜその情報が必要か」という業務ニーズの言語化はGulliver社自身にしか答えられない可能性が高い。未回答の場合はGulliver Current Operation（C分類）へ合流させることを検討。`requirements-coverage-and-remaining-gap-audit.md` 14.1章参照。
 
 ---
 
@@ -300,6 +305,7 @@ Phase 8-Cの`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering
 - **What we already know**: `PrEtaWhMailBatch`が入荷予定日（ETA_WH）確定時に「WH DECISION - ETA WH UPDATE」Emailを送信する仕組みが既に存在する（同Document 7章・14章）。2026/08/26打ち合わせSlide 13では「倉庫側の情報を手作業で修正するケースがある」との課題が語られている。
 - **What we need to confirm**: このEmailを倉庫側の誰が受信し、その後どのように倉庫システム側（Logizero等）へ情報を反映しているか。
 - **Why it matters**: Slide 13の要望（G-SYS→倉庫連携）を検討する際の、現状の手作業実態の具体化。
+- **（Phase 8-I追記）エスカレーション候補**: 倉庫側の実際の作業手順はGulliver社の倉庫担当者の業務であり、G-SYS保守担当のErnestが把握しているとは限らない。未回答の場合はL-4のGulliver確認へ直接合流させることを検討。`requirements-coverage-and-remaining-gap-audit.md` 14.1章参照。
 
 ### Q39. 〔P3〕Stock In Report Fileの発行元
 

@@ -1,4 +1,4 @@
-# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E / 7-J / 8-A / 8-C / 8-D / 8-E / 8-F / 8-G / 8-H
+# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E / 7-J / 8-A / 8-C / 8-D / 8-E / 8-F / 8-G / 8-H / 8-I
 
 **Status**: Docs Only（Phase 7-D／7-D2／7-E／7-J／8-A／8-C／8-D／8-E／8-F追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。**Phase 8-G・8-Hのみ例外的にCode変更を伴う**（Arrival/Warehouse Stock Visibility Foundation・Stock/Sales Visibility Foundation実装、いずれもLegacy Source変更ゼロ・Portal DB Migrationゼロ、詳細は`legacy-warehouse-logistics-logizero-reverse-engineering.md`27章、`legacy-stock-sales-data-reverse-engineering.md`実装結果追記）。本Document自体はDocs Only（16.2章#13・#19の実装状況欄を更新したのみ）。
 
@@ -12,7 +12,8 @@
 - `docs/target-price-change-workflow.md`（Phase 8-A新規 — 価格変更Target Design。Theme I（12b章）のCUSTOMER REVIEW項目I-1〜I-12の一次情報）
 - `docs/legacy-stock-sales-data-reverse-engineering.md`（Phase 8-C新規 — 在庫・販売実績データ更新のReverse Engineering & Target Analysis。Theme J（12c章）のCUSTOMER REVIEW項目J-1〜J-6の一次情報）
 - `docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md`（Phase 8-D新規、Phase 8-Eで23〜25章追記 — 請求・仕入・売上・粗利のReverse Engineering & Target Analysis、およびGross Amount定義のImplementation Gate Audit。Theme K（12d章）のCUSTOMER REVIEW項目K-1〜K-6bの一次情報）
-- `docs/legacy-warehouse-logistics-logizero-reverse-engineering.md`（Phase 8-F新規 — 倉庫・物流・Logizero連携のReverse Engineering & Target Analysis。Theme L（12e章）のCUSTOMER REVIEW項目L-1〜L-5bの一次情報）
+- `docs/legacy-warehouse-logistics-logizero-reverse-engineering.md`（Phase 8-F新規、Phase 8-Gで27章追記 — 倉庫・物流・Logizero連携のReverse Engineering & Target Analysis。Theme L（12e章）のCUSTOMER REVIEW項目L-1〜L-5bの一次情報）
+- `docs/requirements-coverage-and-remaining-gap-audit.md`（Phase 8-I新規 — 2026/08/26 Gulliver要望に対する全Phase横断Coverage監査。新規CUSTOMER REVIEW項目は追加していない）
 
 ---
 
@@ -115,6 +116,10 @@ Phase 7-JではLegacy Source調査により、Official PO Excelの生成元がG-
 `docs/legacy-warehouse-logistics-logizero-reverse-engineering.md`（Warehouse/Logistics/Logizero Reverse Engineering & Target Analysis）21章のCUSTOMER REVIEW項目を、1d章の運用原則に従い新設**Theme L: Warehouse / Logistics / Logizero**（12e章）として追加した。既存Theme A-Kとの重複は無いことを確認済み（Theme J「在庫・販売実績データ更新」はTempostar発`SOLD_QTY`側のTiming論点であり、Theme L「倉庫・物流」はLogizero発`STK_QTY`側・Arrival側の論点であるため、重複ではなく隣接領域として整理した）。Ernestが確認可能な「現在の事実」成分（Selenium方式/SFTP方式のどちらが本番経路か）はa/b分割し、`docs/ernest-current-operation-question-sheet.md`へQ35-Q39として追加した（うちa成分に対応するのはQ35の1件、Q36-Q39はWarehouse機能の詳細確認事項でありDecision Package上のトピックとしては計上しない — Theme K章のQ30-Q33等と同種の扱い）。
 
 3章のQuick Reference・14章のTraceability・15章の集計は、今回の反映によりL-1・L-2・L-3・L-4・L-5a・L-5b（計6項目）が追加され、**104項目→110項目**（B分類21→22、D分類75→80）に更新した。詳細は各章を参照。
+
+## 1j. Phase 8-I: Requirements Coverage & Remaining Gap Audit（新規項目追加なし、記載更新のみ）
+
+Phase 8-Iは監査Phaseであり、新規CUSTOMER REVIEW項目の追加・新規QA Documentの作成は行っていない（`docs/requirements-coverage-and-remaining-gap-audit.md`参照）。既存記載の更新のみ2件実施した: (1) K-1へ「Phase 8-GのArrival Detailが並列表示をFoundation実装済み」という補足を追記（12d章）、(2) 16.2章#11（旧・未整理のままだった「Warehouse/Logistics連携」総称行）を、Phase 8-F/Gで#19-21として詳細分解済みである旨を明記する形に更新。**項目数（110項目、B分類22・D分類80）は変更なし。**
 
 ---
 
@@ -751,6 +756,7 @@ Phase 8-Aの`docs/target-price-change-workflow.md`（Target Design）17章のCUS
 
 - **Question**: 「発注数量とInvoice数量（TR_PO_DTL.QTY_PO vs TR_INV_DTL.QTY）を比較する機能が必要か。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
 - **Source**: legacy-invoice-purchase-sales-gross-profit-reverse-engineering 8章・13章Option B
+- **（Phase 8-I追記）実装状況の補足**: 「機能の要否」自体は依然D分類（Gulliver Future Decision）のまま未回答だが、Phase 8-GのArrival Detail画面（`/arrivals/:supplierCode/:poNumber/:invoiceNumber`）が、SKU単位でOrdered Qty/Invoice Qty/Stock-In Qtyを既に並列表示している（差異判定・Diff表示・OK/NG判定は行っていない）。したがって「並べて見る」という最小限の実現方法はFoundation実装済みであり、本質問はあくまで「Diff表示・許容差判定等の追加Business Ruleが必要か」という残りの論点に絞られる。詳細は`requirements-coverage-and-remaining-gap-audit.md` 13.4章参照。
 
 ### K-2. 差異管理Business Rule
 
@@ -948,7 +954,7 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 | 8 | Future Price / Scheduled Price | Optional | **Price Change（Technical Dependency: Change Set構造に依存）** | 不可（Price Change無しに成立しない） | 未着手（Customer Review待ち） | 低（Legacyにこの概念自体が無いためPortal内で完結） | 無 | I-2, I-3 |
 | 9 | Margin / Loss Warning | Optional | **Price Change（Technical Dependency: 価格入力画面に付随）** | 不可 | 計算ロジックの土台のみ実装中（8-B）、Warning Action自体は未着手 | 低（`Formula.java`ロジック参照のみ） | 無 | I-4 |
 | 10 | Invoice / Purchase / Sales / Gross Profit（総称） | Optional | **Phase 8-DでRE完了、Phase 8-EでImplementation Gate Audit実施** | 一部可（#16-18参照） | Phase 8-DでReverse Engineering完了。**Phase 8-Eで「仕入確認」Foundation実装をGate: STOPと判定（Gross Amount定義がSourceから一意に確定できないため、Docs Onlyで停止）** | 低（READ ONLYの範囲は既存Table参照のみ） | 間接（Sales金額はTempostar由来だが現状永続化されていない） | Theme K（K-1〜K-6b） |
-| 11 | Warehouse / Logistics連携 | Optional | 無 | 可 | 未着手（RE未実施） | 未確認（Logizero連携部分の詳細未調査） | Logizero | 未整理 |
+| 11 | Warehouse / Logistics連携（総称、旧行） | Optional | 無 | 可 | **Phase 8-FでRE完了、Phase 8-GでFoundation一部実装済み — 詳細は#19-21（Phase 8-F/G/H追記）へ分解済み。本行は履歴として残すのみで、以後は#19-21を参照する。** | Logizero | Logizero | Theme L |
 | 12 | External System Integration（EC各モール・Tempostar等） | Optional | 無（Price Changeと概念的に隣接するが、Portal側は現状未実装） | 可 | 未着手 | 高（Selenium画面操作等、Legacy側の実装が特殊） | Tempostar、Rakuten、Yahoo、Amazon、Qoo10、Ponpare、Wowma | 未整理 |
 | 13 | Stock/Sales Data Update（表示改善） | Optional | 無（Ordering非依存で成立、10章 legacy-stock-sales-data-reverse-engineering） | 可 | **Current Snapshot VisibilityはPhase 8-HでFoundation実装済み**（在庫・販売確認画面、SOLD_QTY/STK_QTY/Open PO/Open Arrivalの横断表示。History蓄積・Trendは未実装のまま） | 低（READ ONLY） | 無 | J-1a/J-1b |
 | 14 | Stock/Sales Data Update（Sales History蓄積、Portal側） | Optional | 13とは独立に単独導入可 | 可 | 中（新規蓄積の仕組みが必要） | 低（READ ONLY、PortalがHistoryのみ新規保持） | 間接（SOLD_QTYがTempostar由来） | J-3/J-4/J-6 |
