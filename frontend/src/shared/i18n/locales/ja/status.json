@@ -70,6 +70,11 @@
     "MAIL_PREVIEW_GENERATED": "メールプレビュー表示",
     "SUPPLIER_RESPONSE_AGREED": "合意",
     "ORDER_REVISION_CREATED": "修正版の作成",
-    "AGREEMENT_REOPENED": "合意の取り消し"
+    "AGREEMENT_REOPENED": "合意の取り消し",
+    "PRICE_CHANGE_SET_CREATED": "価格変更を作成",
+    "PRICE_CHANGE_DETAIL_ADDED": "商品を追加",
+    "PRICE_CHANGE_PROPOSED_PRICE_CHANGED": "新価格を変更",
+    "PRICE_CHANGE_DETAIL_REMOVED": "商品を削除",
+    "PRICE_CHANGE_NOTE_CHANGED": "メモを変更"
   }
 }

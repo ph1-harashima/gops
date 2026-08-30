@@ -24,21 +24,43 @@ CREATE DATABASE IF NOT EXISTS legacy_demo CHARACTER SET utf8mb4;
 USE legacy_demo;
 
 -- Mirrors MS_ITEM (subset). PK: ITEM_CD.
+--
+-- Phase 8-B (Price Change Foundation) addition: item_grp_cd/prc_sell_w_tax/
+-- cost_this_month_avg/free_ship_flg/ship_fee, mirroring the REAL Legacy
+-- jp.ne.glv.model.MsItem column names/types EXACTLY (@Column(name=...)
+-- confirmed via Source in docs/legacy-price-change-reverse-engineering.md
+-- 5章: ITEM_GRP_CD VARCHAR(30), PRC_SELL_W_TAX DECIMAL(10,2), COST_THIS_MONTH_AVG
+-- DECIMAL(10,2), FREE_SHIP_FLG BIT(1), SHIP_FEE DECIMAL(10,2)). These are
+-- exactly the fields jp.ne.glv.utilities.Formula.PROFIT_RATE_SELL() needs
+-- (PRC_SELL derived from PRC_SELL_W_TAX, COST_THIS_MONTH_AVG, FREE_SHIP_FLG,
+-- SHIP_FEE) - the ported calculator in this codebase
+-- (com.glv.gsysportal.legacy.calc.MarginCalculator) takes exactly these 4
+-- inputs, no more. LIST_PRC_W_TAX/PRC_SALE_W_TAX/PRC_GLV_B2B/PRC_WS_FOR_KOREA/
+-- the EC-mall-specific price columns are deliberately NOT mirrored here -
+-- Phase 8-B's Target Design (target-price-change-workflow.md 8章) scopes
+-- Foundation to "Current Selling Price" only; adding unused columns would
+-- violate this schema file's own "reduce columns, not business rules"
+-- principle (line 19).
 CREATE TABLE ms_item (
-  item_cd            VARCHAR(30)  NOT NULL,
-  brand_cd           VARCHAR(10)  NULL,
-  description        VARCHAR(200) NULL,
-  model              VARCHAR(400) NULL,
-  model_no           VARCHAR(150) NULL,
-  lead_time          VARCHAR(10)  NULL,
-  item_status        VARCHAR(30)  NULL,
-  discon             BIT(1)       NULL,
-  sale_flg           BIT(1)       NULL,
-  set_flg            BIT(1)       NULL,
-  col_stk_standard   VARCHAR(10)  NULL,
-  del_flg            BIT(1)       NULL,
-  create_datetime    DATETIME     NULL,
-  update_datetime    DATETIME     NULL,
+  item_cd              VARCHAR(30)  NOT NULL,
+  brand_cd             VARCHAR(10)  NULL,
+  description          VARCHAR(200) NULL,
+  model                VARCHAR(400) NULL,
+  model_no             VARCHAR(150) NULL,
+  lead_time            VARCHAR(10)  NULL,
+  item_status          VARCHAR(30)  NULL,
+  discon               BIT(1)       NULL,
+  sale_flg             BIT(1)       NULL,
+  set_flg              BIT(1)       NULL,
+  col_stk_standard     VARCHAR(10)  NULL,
+  item_grp_cd          VARCHAR(30)  NULL,
+  prc_sell_w_tax       DECIMAL(10,2) NULL,
+  cost_this_month_avg  DECIMAL(10,2) NULL,
+  free_ship_flg        BIT(1)       NULL,
+  ship_fee             DECIMAL(10,2) NULL,
+  del_flg              BIT(1)       NULL,
+  create_datetime      DATETIME     NULL,
+  update_datetime      DATETIME     NULL,
   PRIMARY KEY (item_cd)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

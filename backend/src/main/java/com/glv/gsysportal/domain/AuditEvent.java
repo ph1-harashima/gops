@@ -135,6 +135,20 @@ public class AuditEvent {
      * generating a row on every ordinary Order Detail page view. */
     public static final String LEGACY_PO_CHANGE_DETECTED = "LEGACY_PO_CHANGE_DETECTED";
 
+    // --- Phase 8-B: Price Change Foundation ---
+    /** Written once per Change Set creation (target-price-change-workflow.md
+     * Section 10's minimum list). */
+    public static final String PRICE_CHANGE_SET_CREATED = "PRICE_CHANGE_SET_CREATED";
+    /** A SKU was added to a Change Set (Baseline Snapshot captured in the
+     * same transaction). */
+    public static final String PRICE_CHANGE_DETAIL_ADDED = "PRICE_CHANGE_DETAIL_ADDED";
+    /** {@code proposedPrcSellWTax} changed on a Detail row - old/new values
+     * as strings, "null" is a valid old_value meaning "not yet entered"
+     * (same idiom as {@link #QUANTITY_CHANGED}). */
+    public static final String PRICE_CHANGE_PROPOSED_PRICE_CHANGED = "PRICE_CHANGE_PROPOSED_PRICE_CHANGED";
+    public static final String PRICE_CHANGE_DETAIL_REMOVED = "PRICE_CHANGE_DETAIL_REMOVED";
+    public static final String PRICE_CHANGE_NOTE_CHANGED = "PRICE_CHANGE_NOTE_CHANGED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -144,6 +158,17 @@ public class AuditEvent {
 
     @Column(name = "portal_order_detail_id")
     private Long portalOrderDetailId;
+
+    /** Phase 8-B: the sibling aggregate-root reference to
+     * {@link #portalOrderId} for Price Change events - exactly one of the two
+     * is ever set (DB-enforced by {@code ck_audit_event_aggregate_root}, V16
+     * migration). Kept on this SAME shared table rather than a new
+     * {@code price_change_audit_event} table per
+     * customer-review-decision-package.md 16.3章's "共通基盤は技術的に妥当な
+     * 形で共通化する" - the append-only Audit Trail behavior is identical for
+     * both aggregate roots and has no reason to fork. */
+    @Column(name = "price_change_set_id")
+    private Long priceChangeSetId;
 
     /** Widened 30->50 in V9 (Phase 7-C2A) - OFFICIAL_PO_INTEGRATION_REQUESTED
      * is 33 characters, past the original 30-char limit. */
@@ -178,5 +203,23 @@ public class AuditEvent {
         this.newValue = newValue;
         this.performedBy = performedBy;
         this.performedAt = performedAt;
+    }
+
+    /** Price Change counterpart to the Order-scoped constructor above - a
+     * static factory rather than a second overload because
+     * {@code (Long priceChangeSetId, ...)} would otherwise be ambiguous with
+     * {@code (Long portalOrderId, ...)} at the same erased signature. */
+    public static AuditEvent forPriceChangeSet(Long priceChangeSetId, String eventType,
+                                                String fieldName, String oldValue, String newValue,
+                                                String performedBy, OffsetDateTime performedAt) {
+        AuditEvent event = new AuditEvent();
+        event.priceChangeSetId = priceChangeSetId;
+        event.eventType = eventType;
+        event.fieldName = fieldName;
+        event.oldValue = oldValue;
+        event.newValue = newValue;
+        event.performedBy = performedBy;
+        event.performedAt = performedAt;
+        return event;
     }
 }

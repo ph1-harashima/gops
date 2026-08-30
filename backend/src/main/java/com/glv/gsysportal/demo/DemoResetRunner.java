@@ -73,7 +73,8 @@ public class DemoResetRunner implements CommandLineRunner {
         log.warn("=== DEMO RESET: about to TRUNCATE Prototype business-data tables "
                 + "(portal_order, portal_order_detail, portal_order_revision, portal_order_revision_detail, "
                 + "supplier_response, supplier_response_detail, order_attention, audit_event, "
-                + "official_po_integration_request, follow_up_case, legacy_po_baseline). "
+                + "official_po_integration_request, follow_up_case, legacy_po_baseline, "
+                + "price_change_set, price_change_set_detail). "
                 + "portal_user is preserved. Target: {} ===",
                 prototypeDataSource.getConnection().getMetaData().getURL());
 
@@ -88,11 +89,17 @@ public class DemoResetRunner implements CommandLineRunner {
         // Postgres TRUNCATE resolves this fine as long as both are listed in
         // the SAME statement, which they are here. legacy_po_baseline (7-C6)
         // FK-references portal_order the same simple way official_po_integration_request
-        // does, so it just joins the same list.
+        // does, so it just joins the same list. price_change_set/
+        // price_change_set_detail (8-B) are a SEPARATE aggregate root with no
+        // FK to portal_order at all, but audit_event.price_change_set_id now
+        // FK-references price_change_set (V16), so price_change_set must be
+        // in this SAME statement as audit_event for the same reason as every
+        // other table here.
         prototypeJdbc.execute(
                 "TRUNCATE TABLE audit_event, order_attention, supplier_response_detail, "
                         + "supplier_response, official_po_integration_request, portal_order_revision_detail, "
-                        + "portal_order_revision, follow_up_case, legacy_po_baseline, portal_order_detail, portal_order RESTART IDENTITY");
+                        + "portal_order_revision, follow_up_case, legacy_po_baseline, portal_order_detail, portal_order, "
+                        + "price_change_set_detail, price_change_set RESTART IDENTITY");
         prototypeJdbc.execute("ALTER SEQUENCE prototype_po_no_seq RESTART WITH 1");
 
         log.warn("=== DEMO RESET: complete. portal_user accounts unchanged. Exiting. ===");

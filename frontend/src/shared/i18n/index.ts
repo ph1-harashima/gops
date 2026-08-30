@@ -13,6 +13,7 @@ import jaDashboard from './locales/ja/dashboard.json'
 import jaSkuDetail from './locales/ja/skuDetail.json'
 import jaSupplierContact from './locales/ja/supplierContact.json'
 import jaMailTemplate from './locales/ja/mailTemplate.json'
+import jaPriceChanges from './locales/ja/priceChanges.json'
 import enCommon from './locales/en/common.json'
 import enStatus from './locales/en/status.json'
 import enHistory from './locales/en/history.json'
@@ -29,6 +30,7 @@ import enSupplierResponse from './locales/en/supplierResponse.json'
 import enCandidates from './locales/en/candidates.json'
 import enPreview from './locales/en/preview.json'
 import enDashboard from './locales/en/dashboard.json'
+import enPriceChanges from './locales/en/priceChanges.json'
 
 // Japanese is the initial display language (Requirements MD 28.1).
 // Display text is never hardcoded into React components - it always comes
@@ -50,6 +52,7 @@ void i18n.use(initReactI18next).init({
       skuDetail: jaSkuDetail,
       supplierContact: jaSupplierContact,
       mailTemplate: jaMailTemplate,
+      priceChanges: jaPriceChanges,
     },
     en: {
       common: enCommon,
@@ -62,6 +65,7 @@ void i18n.use(initReactI18next).init({
       dashboard: enDashboard,
       supplierContact: enSupplierContact,
       mailTemplate: enMailTemplate,
+      priceChanges: enPriceChanges,
     },
   },
   interpolation: {

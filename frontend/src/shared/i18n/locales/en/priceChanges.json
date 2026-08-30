@@ -1,0 +1,82 @@
+{
+  "_comment": "Placeholder-level only, per Technical Design 10章 - not required complete for 9/17.",
+  "listTitle": "Price Changes",
+  "createButton": "New Price Change",
+  "table": {
+    "id": "ID",
+    "status": "Status",
+    "note": "Note",
+    "createdBy": "Created By",
+    "detailCount": "Items",
+    "updatedAt": "Last Updated"
+  },
+  "empty": "No Price Changes yet.",
+  "statusFilter": {
+    "all": "All",
+    "label": "Filter by Status"
+  },
+  "status": {
+    "DRAFT": "Draft",
+    "SUBMITTED": "Submitted",
+    "APPLIED": "Applied",
+    "FAILED": "Failed",
+    "CANCELLED": "Cancelled"
+  },
+  "detailTitle": "Price Change Detail",
+  "editTitle": "Price Change (Draft)",
+  "backToList": "Back to List",
+  "noteLabel": "Note",
+  "noteSave": "Save Note",
+  "productSelection": {
+    "title": "Select Products",
+    "brand": "Brand",
+    "allBrands": "All Brands",
+    "itemGroup": "Item Group",
+    "allItemGroups": "Any",
+    "keyword": "Keyword",
+    "search": "Search",
+    "addButton": "Add",
+    "addGroupButton": "Add Whole Group",
+    "alreadyAdded": "Already Added",
+    "resultCount": "{{count}} item(s)",
+    "searchPrompt": "Enter search conditions."
+  },
+  "lineTable": {
+    "sku": "SKU",
+    "itemName": "Item Name",
+    "brand": "Brand",
+    "itemGroup": "Item Group",
+    "currentPrice": "Current Price",
+    "cost": "Cost",
+    "margin": "Margin",
+    "marginRate": "Margin Rate",
+    "proposedPrice": "Proposed Price",
+    "proposedMargin": "Proposed Margin",
+    "proposedMarginRate": "Proposed Margin Rate",
+    "difference": "Difference",
+    "percentageChange": "% Change",
+    "concurrency": "Legacy Status",
+    "remove": "Remove"
+  },
+  "concurrencyStatus": {
+    "UNCHANGED": "Unchanged",
+    "CHANGED": "Changed in Legacy",
+    "NOT_AVAILABLE": "Not Available in Legacy"
+  },
+  "notAvailable": "—",
+  "save": "Save",
+  "cancel": "Cancel",
+  "editButton": "Edit",
+  "viewButton": "View Detail",
+  "auditTrailTitle": "Change History",
+  "auditTrailEmpty": "No history yet.",
+  "confirmRemoveTitle": "Remove Product",
+  "confirmRemoveMessage": "Remove this product from this Price Change?",
+  "detailsEmpty": "No products added yet.",
+  "detailsCount": "{{count}} product(s)",
+  "saveSuccess": "Saved.",
+  "saveFailed": "Save failed.",
+  "removeSuccess": "Removed.",
+  "addSuccess": "Added.",
+  "notEditableNotice": "This Price Change is not editable because it is not in Draft status."
+}

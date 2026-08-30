@@ -26,6 +26,9 @@ import { OrderHistoryListPage } from '../features/history/OrderHistoryListPage'
 import { OrderHistoryDetailPage } from '../features/history/OrderHistoryDetailPage'
 import { SupplierContactPage } from '../features/admin/SupplierContactPage'
 import { MailTemplatePage } from '../features/admin/MailTemplatePage'
+import { PriceChangeListPage } from '../features/priceChanges/PriceChangeListPage'
+import { PriceChangeEditPage } from '../features/priceChanges/PriceChangeEditPage'
+import { PriceChangeDetailPage } from '../features/priceChanges/PriceChangeDetailPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { useAuth } from '../features/auth/AuthContext'
 import { ROLE_ADMIN } from '../shared/types/auth'
@@ -114,6 +117,20 @@ export function App() {
                   data-testid="nav-history"
                 >
                   {t('navHistory')}
+                </Button>
+                {/* Phase 8-B: Price Change Foundation - independent of the
+                    Ordering nav group above (no Business/Technical
+                    Dependency on Ordering, customer-review-decision-package.md
+                    16.2章), so it gets its own top-level Nav entry rather
+                    than nesting under an Ordering-related menu. */}
+                <Button
+                  size="small"
+                  component={Link}
+                  to="/price-changes"
+                  color={location.pathname.startsWith('/price-changes') ? 'primary' : 'inherit'}
+                  data-testid="nav-price-changes"
+                >
+                  {t('navPriceChanges')}
                 </Button>
                 {/* Phase 7-C3 12章 / Phase 7-E Section 6: ADMIN-only Master
                     management, grouped under one submenu. Backend also
@@ -218,6 +235,9 @@ export function App() {
             <Route path="/orders/:id/supplier-response" element={<SupplierResponsePage />} />
             <Route path="/orders/history" element={<OrderHistoryListPage />} />
             <Route path="/orders/:id" element={<OrderHistoryDetailPage />} />
+            <Route path="/price-changes" element={<PriceChangeListPage />} />
+            <Route path="/price-changes/:id/edit" element={<PriceChangeEditPage />} />
+            <Route path="/price-changes/:id" element={<PriceChangeDetailPage />} />
             {/* Phase 7-C3 12章: Backend enforces ADMIN-only on every
                 underlying API (403 for OPERATOR) regardless of this Route
                 being reachable - no client-side route guard is the sole

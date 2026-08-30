@@ -742,3 +742,53 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 ### 15.7 「件数を減らすこと」自体を目的にしない
 
 上記のとおり、B分類17件をEarnestへ振り分けても、Gulliverへの質問自体は最大72件（C:8＋D:64）残る。これは「件数を無理に減らした」結果ではなく、**「Phase1として調べれば分かることをGulliverに聞かない」**という本Phaseの目的を優先した結果である。件数の多寡よりも、各質問が正しい相手（Ernest / Gulliver Current Operation / Gulliver Future Decision）に向いていることを優先した。
+
+---
+
+## 16. 案件全体のModule/Option構成方針（Phase 8-B追加、共通前提）
+
+**この章は、以降のすべてのPhaseで維持する共通前提である。** 最終提案は「全機能を一括導入する固定Scope」を前提とせず、機能領域（Module/Option）ごとにGulliver社が採否を選択できる提案構造を目指す。最終Scopeは `Customer Requirement × Priority × Dependency × Implementation Cost × Customer Budget` によって決まる想定であり、**現時点で価格・工数を推測せず、正式なPackage構成も独自に決定しない**。目的は、機能境界とDependencyを先に明確にしておくことである。
+
+### 16.1 識別する8項目
+
+各機能領域について、判明している範囲で以下を識別する。未確定のものは空欄または「未確定」とし、推測で埋めない。
+
+1. **機能単位（Module/Option名）**
+2. **必須Core / Optional**（Ordering自体が導入されない限りPortalの意味が無い、等の必須性）
+3. **他機能へのDependency**（この機能が無いと動かない機能があるか）
+4. **単独導入可能性**（他のOptionを採らずにこれ単体で価値が出るか）
+5. **実装難易度**（Phase 7/8時点のReverse Engineering・Target Design結果からの相対評価。工数の絶対値は出さない）
+6. **Legacyへの影響**（Legacy側の既存Batch/Table/画面をどこまで踏襲・依存するか）
+7. **External System依存**（Tempostar/Logizero/EC各モール等）
+8. **Customer Decision依存**（Gulliver社のBusiness Rule決定を待つ必要があるか、`docs/customer-review-question-sheet.md`の該当項目）
+
+### 16.2 現時点で識別済みの機能領域
+
+| # | 機能領域（Module/Option） | Core/Optional | 他機能への主なDependency | 単独導入可能性 | 実装難易度（相対） | Legacy影響 | External System依存 | Customer Decision依存 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | Online Ordering（発注） | **Core**（本案件の起点機能） | — | 可（他Moduleの前提になる） | 実装済み（7-C系） | 高（TR_PO/TR_PO_DTL/TR_ARR等、Delete&Recreate方式） | Logizero（倉庫連携は別途） | `customer-review-question-sheet.md` A/B/D/F/G章 |
+| 2 | Approval（承認Workflow） | Optional | Ordering | 不可（Orderingに従属する機能） | 実装済み（7-C系） | 低（Portal内で完結） | 無 | B章（承認単位・階層等） |
+| 3 | Supplier Communication / Email | Optional（Ordering運用上は実質Core相当） | Ordering | 不可 | 実装済み（7-C系） | 中（SYS_SEND_MAILキュー活用） | 無 | C章 |
+| 4 | EDI（Supplier発注Channel） | Optional | Ordering、Supplier Communication | 不可 | Foundationのみ実装済み（7-H）、実EDI連携は未着手 | 低（現状はChannel記録のみ、実連携は別） | メーカー側EDI System（詳細未確認） | C-10a/C-10b |
+| 5 | Supplier Response / Difference Management | Optional（Ordering運用上は実質Core相当） | Ordering | 不可 | 実装済み（7-C系） | 中 | 無 | D章 |
+| 6 | Fulfillment / Follow-up | Optional | Ordering | 一部可（納品追跡のみなら理論上は独立させ得るが、現設計はOrdering前提） | 実装済み（7-C7A） | 中（TR_ARR等参照） | 無 | E章 |
+| 7 | Price Change（Foundation） | Optional | 無（Ordering非依存で成立） | **可**（Ordering非導入でも単独価値あり） | Foundation実装中（8-B） | 中（MS_ITEM/MS_ITEM_GRP、Excel Import Pipeline） | 無（Tempostar等は対象外） | Theme I（I-1〜I-12） |
+| 8 | Future Price / Scheduled Price | Optional | **Price Change（Technical Dependency: Change Set構造に依存）** | 不可（Price Change無しに成立しない） | 未着手（Customer Review待ち） | 低（Legacyにこの概念自体が無いためPortal内で完結） | 無 | I-2, I-3 |
+| 9 | Margin / Loss Warning | Optional | **Price Change（Technical Dependency: 価格入力画面に付随）** | 不可 | 計算ロジックの土台のみ実装中（8-B）、Warning Action自体は未着手 | 低（`Formula.java`ロジック参照のみ） | 無 | I-4 |
+| 10 | Invoice / Purchase / Sales / Gross Profit | Optional | 無（概念上はOrdering/Price Changeの実績データを使うが、Module境界は独立させ得る） | 可（分析系機能として単独導入も理論上可能） | 未着手（RE未実施、次々Phase） | 未確認（Legacy自体に横断分析画面があるか未調査） | 未調査 | 未整理（次Phaseで洗い出し予定） |
+| 11 | Warehouse / Logistics連携 | Optional | 無 | 可 | 未着手（RE未実施） | 未確認（Logizero連携部分の詳細未調査） | Logizero | 未整理 |
+| 12 | External System Integration（EC各モール・Tempostar等） | Optional | 無（Price Changeと概念的に隣接するが、Portal側は現状未実装） | 可 | 未着手 | 高（Selenium画面操作等、Legacy側の実装が特殊） | Tempostar、Rakuten、Yahoo、Amazon、Qoo10、Ponpare、Wowma | 未整理 |
+
+**Business/Estimate上のDependencyとTechnical Dependencyの区別**（指示による）:
+- 例: 「Future Price / Scheduled Price」は**Technical Dependency**として Price Change の Change Set 構造に依存する（Change Setという入れ物が無ければ予約日時を持たせる先が無い）。一方、Approval・Fulfillment等が Ordering に依存するのは主として**Business/Estimate上のDependency**（Orderingという業務プロセスが無ければ承認や納品追跡という概念自体が発生しない）であり、Technicalには疎結合な実装（別Table・別Service）を既に採っている（7-C系のPortalOrderRevision/AuditEvent等はOrdering専用Tableであり、Approval機能を外してもOrdering自体のCore Tableは壊れない設計）。
+- この区別を今後のDocumentでも維持する。Estimate上「OptionalだからOrderingに依存する」と書かれていても、それが実装上も密結合であるとは限らない。
+
+### 16.3 Software Architecture上の方針（指示による共通原則）
+
+- **見積上のOption分割とSoftware Module分割は1対1で一致させない。** 見積は「Gulliverが選べる機能単位」として整理し、共通基盤（例: PortalUser/Role、AuditEvent、Legacy READ ONLY Adapter、Toast等の共通UI部品）は技術的に妥当な形で共通化する。
+- **見積Option化を理由にした不自然な実装分割はしない。** 例えばPrice ChangeとOrderingが将来同一のAudit Event基盤やLegacy Adapter層を共有すること自体は問題なく、Option分割のためにCode/DB/APIを不必要に分離しない（Phase 8-BのPrice Change ForegroundでもAuditEvent enumやPortalUser参照は既存の仕組みをそのまま再利用する、18章参照）。
+- **一方でCore機能への不要な密結合も避ける。** あるOptional機能（例: EDI、Future Price）を採用しなかった場合に、Core機能（Ordering、Price Change本体）まで動作しなくなるような設計は避ける。Phase 8-BのChange Set構造も、Future Price/Approvalを将来追加しない場合でもDRAFT→SUBMITTED→APPLIED/FAILEDという最小構成だけで単独価値を持つように設計する（`target-price-change-workflow.md` 6章の最小State Skeletonと整合）。
+
+### 16.4 未確定の明示
+
+本章の実装難易度・Dependency評価は、Phase 7/8時点でReverse Engineering/Target Designが完了した機能領域（Ordering、Price Change）についてのみ確度が高い。Invoice/Purchase/Sales/Gross Profit、Warehouse/Logistics、External System Integrationは未調査であり、表内の評価は暫定である。**価格・工数の数値化、正式なPackage名の確定は、本Documentでは一切行わない。**

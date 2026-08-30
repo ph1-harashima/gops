@@ -2,6 +2,7 @@
   "_comment": "Placeholder only, per Technical Design 10章. English resources are not required to be complete for 9/17.",
   "appName": "G-SYS Online Ordering (Prototype)",
   "navHistory": "Orders",
+  "navPriceChanges": "Price Changes",
   "navMasterMaintenance": "Master Maintenance",
   "navAdminSupplierContacts": "Supplier Contacts",
   "navAdminMailTemplates": "Mail Templates"

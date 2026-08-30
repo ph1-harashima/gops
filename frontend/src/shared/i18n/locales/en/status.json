@@ -70,6 +70,11 @@
     "MAIL_PREVIEW_GENERATED": "Mail Preview Shown",
     "SUPPLIER_RESPONSE_AGREED": "Agreed",
     "ORDER_REVISION_CREATED": "Corrected Version Created",
-    "AGREEMENT_REOPENED": "Agreement Reopened"
+    "AGREEMENT_REOPENED": "Agreement Reopened",
+    "PRICE_CHANGE_SET_CREATED": "Price Change Created",
+    "PRICE_CHANGE_DETAIL_ADDED": "Product Added",
+    "PRICE_CHANGE_PROPOSED_PRICE_CHANGED": "Proposed Price Changed",
+    "PRICE_CHANGE_DETAIL_REMOVED": "Product Removed",
+    "PRICE_CHANGE_NOTE_CHANGED": "Note Changed"
   }
 }

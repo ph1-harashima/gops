@@ -1,0 +1,81 @@
+{
+  "listTitle": "価格変更一覧",
+  "createButton": "新規価格変更を作成",
+  "table": {
+    "id": "ID",
+    "status": "状態",
+    "note": "メモ",
+    "createdBy": "作成者",
+    "detailCount": "対象件数",
+    "updatedAt": "最終更新日時"
+  },
+  "empty": "価格変更はまだありません。",
+  "statusFilter": {
+    "all": "すべて",
+    "label": "状態で絞り込み"
+  },
+  "status": {
+    "DRAFT": "下書き",
+    "SUBMITTED": "送信済み",
+    "APPLIED": "反映済み",
+    "FAILED": "失敗",
+    "CANCELLED": "取消"
+  },
+  "detailTitle": "価格変更詳細",
+  "editTitle": "価格変更（下書き）",
+  "backToList": "一覧へ戻る",
+  "noteLabel": "メモ",
+  "noteSave": "メモを保存",
+  "productSelection": {
+    "title": "対象商品の選択",
+    "brand": "ブランド",
+    "allBrands": "すべてのブランド",
+    "itemGroup": "商品グループ",
+    "allItemGroups": "指定なし",
+    "keyword": "キーワード",
+    "search": "検索",
+    "addButton": "追加",
+    "addGroupButton": "グループ全体を追加",
+    "alreadyAdded": "追加済み",
+    "resultCount": "{{count}}件",
+    "searchPrompt": "条件を指定して検索してください。"
+  },
+  "lineTable": {
+    "sku": "SKU",
+    "itemName": "商品名",
+    "brand": "ブランド",
+    "itemGroup": "商品グループ",
+    "currentPrice": "現在価格",
+    "cost": "原価",
+    "margin": "利益",
+    "marginRate": "利益率",
+    "proposedPrice": "新価格",
+    "proposedMargin": "変更後利益",
+    "proposedMarginRate": "変更後利益率",
+    "difference": "差額",
+    "percentageChange": "変更率",
+    "concurrency": "Legacy状態",
+    "remove": "削除"
+  },
+  "concurrencyStatus": {
+    "UNCHANGED": "変更なし",
+    "CHANGED": "Legacy側で変更されています",
+    "NOT_AVAILABLE": "Legacyで確認できません"
+  },
+  "notAvailable": "—",
+  "save": "保存",
+  "cancel": "キャンセル",
+  "editButton": "編集する",
+  "viewButton": "詳細を見る",
+  "auditTrailTitle": "変更履歴",
+  "auditTrailEmpty": "記録はまだありません。",
+  "confirmRemoveTitle": "商品の削除",
+  "confirmRemoveMessage": "この商品をこの価格変更から削除しますか？",
+  "detailsEmpty": "対象商品がまだ追加されていません。",
+  "detailsCount": "{{count}}件の商品",
+  "saveSuccess": "保存しました。",
+  "saveFailed": "保存に失敗しました。",
+  "removeSuccess": "削除しました。",
+  "addSuccess": "追加しました。",
+  "notEditableNotice": "この価格変更は下書き状態ではないため編集できません。"
+}

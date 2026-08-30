@@ -78,6 +78,19 @@ class LegacyReadOnlyIntegrationTest {
         assertAccessDenied(ex);
     }
 
+    /** Phase 8-B: LegacyPriceReadRepository reads ms_item.prc_sell_w_tax/
+     * cost_this_month_avg/item_grp_cd (V16-equivalent Demo schema columns,
+     * backend/demo-data/01-schema.sql) but must never be able to write them -
+     * proves Price Change Foundation's Baseline capture path is exactly as
+     * READ ONLY as every other Legacy Adapter. */
+    @Test
+    void updatePriceColumnsAgainstLegacyDemoInstanceIsRejected() {
+        DataAccessException ex = assertThrows(DataAccessException.class, () ->
+            legacyJdbcTemplate.update("UPDATE ms_item SET prc_sell_w_tax = 999999.00 WHERE item_cd = 'OD-TENT-001'")
+        );
+        assertAccessDenied(ex);
+    }
+
     @Test
     void ddlAgainstLegacyDemoInstanceIsRejected() {
         DataAccessException ex = assertThrows(DataAccessException.class, () ->

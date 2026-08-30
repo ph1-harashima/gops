@@ -219,4 +219,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleInvalidIntegrationIntent(InvalidIntegrationIntentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errorCode", "INVALID_INTEGRATION_INTENT"));
     }
+
+    // --- Phase 8-B: Price Change Foundation ---
+
+    @ExceptionHandler(PriceChangeSetNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handlePriceChangeSetNotFound(PriceChangeSetNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("errorCode", "PRICE_CHANGE_SET_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(PriceChangeSetNotEditableException.class)
+    public ResponseEntity<Map<String, Object>> handlePriceChangeSetNotEditable(PriceChangeSetNotEditableException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "PRICE_CHANGE_SET_NOT_EDITABLE"));
+    }
+
+    @ExceptionHandler(PriceChangeSetDetailNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handlePriceChangeSetDetailNotFound(PriceChangeSetDetailNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("errorCode", "PRICE_CHANGE_SET_DETAIL_NOT_FOUND"));
+    }
+
+    @ExceptionHandler(DuplicateSkuInChangeSetException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateSkuInChangeSet(DuplicateSkuInChangeSetException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "DUPLICATE_SKU_IN_CHANGE_SET"));
+    }
 }

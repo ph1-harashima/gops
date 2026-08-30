@@ -52,7 +52,11 @@ class PrototypeFlywayMigrationTest {
         // person names (User表示 audit) - data-only, no schema change.
         // V15 (Phase 7-H): EDI発注Workflow Foundation -
         // portal_order.communication_channel, EDI_SEND_RECORDED Audit type.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"), versions);
+        // V16 (Phase 8-B): Price Change Foundation - price_change_set(_detail),
+        // audit_event.portal_order_id loosened to nullable +
+        // audit_event.price_change_set_id added (second aggregate root),
+        // PRICE_CHANGE_* Audit types.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"), versions);
     }
 
     @Test
@@ -62,7 +66,8 @@ class PrototypeFlywayMigrationTest {
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name", String.class);
         for (String expected : List.of("portal_order", "portal_order_detail", "audit_event", "portal_user",
                 "supplier_response", "supplier_response_detail", "order_attention",
-                "portal_order_revision", "portal_order_revision_detail", "follow_up_case", "legacy_po_baseline")) {
+                "portal_order_revision", "portal_order_revision_detail", "follow_up_case", "legacy_po_baseline",
+                "price_change_set", "price_change_set_detail")) {
             assertTrue(tables.contains(expected), "Expected table missing: " + expected + ", got: " + tables);
         }
     }
