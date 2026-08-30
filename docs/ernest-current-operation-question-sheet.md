@@ -1,6 +1,6 @@
-# Ernest Current Operation Question Sheet — Phase 7-D2（Phase 7-J／8-A追加あり）
+# Ernest Current Operation Question Sheet — Phase 7-D2（Phase 7-J／8-A／8-C追加あり）
 
-**Status**: Docs Only（Phase 7-D2、Phase 7-JでEDI関連4項目、Phase 8-Aで価格変更関連6項目を追加）。Code変更・DB Migration・Legacy変更は一切なし。
+**Status**: Docs Only（Phase 7-D2、Phase 7-JでEDI関連4項目、Phase 8-Aで価格変更関連6項目、Phase 8-Cで在庫・販売実績データ更新関連5項目を追加）。Code変更・DB Migration・Legacy変更は一切なし。
 
 **宛先**: Ernest（Phase1社内、G-SYS保守担当）
 **目的**: `docs/customer-review-decision-package.md`（Phase 7-D）で「Sourceコードだけでは分からない」と分類した項目のうち、**Gulliver社（顧客）へ聞く前に、Phase1社内・特にG-SYS保守担当のErnestに確認すれば解決できる可能性が高い項目**を切り出したもの。「Sourceから分からない」＝「Gulliver社へ質問する」ではない、という前提で作成している（Phase 7-D2指示）。
@@ -193,14 +193,50 @@ Phase 7-Jの`docs/legacy-price-change-reverse-engineering.md`（Source Reverse E
 
 ---
 
+## G. 在庫・販売実績データ更新関連（5項目、Phase 8-C追加）
+
+Phase 8-Cの`docs/legacy-stock-sales-data-reverse-engineering.md`で確認した、在庫・販売実績データ更新の仕組みのうち、Ernestが確認できる可能性が高い運用実態をここに正式なQuestionとして展開する。9/17デモは発注(Ordering)機能のみが対象であり在庫・販売実績データ更新機能自体は含まれないため、全項目P3（本番設計まででよい）とする。
+
+### Q24. 〔P3〕前月在庫確定フラグ（MON_PRC_STK_UPD）の実際の操作者・頻度
+
+- **What we already know**: `MsMonthEndStockUpdate`は`MS_COMM(CATE_ID_MONTH_PRC, CODE_ID_MON_PRC_STK_UPD).VAL1`が`"UPDATE"`のときのみ`STK_QTY_LAST_MONTH`を確定するが、このフラグを`"UPDATE"`にセットするコードはSource全体に存在しない（RE 4.2章）。同バッチのコメントは「Stock Standard Upload」という別の操作の完了を待つ、と記している。
+- **What we need to confirm**: このフラグを実際に「誰が」「いつ」「どのくらいの頻度で」`"UPDATE"`へ切り替えているか。「Stock Standard Upload」とは具体的にどの操作・画面・Batchを指すか。
+- **Why it matters**: `docs/legacy-stock-sales-data-reverse-engineering.md` 9章（Update Timing/Delay Analysis）で、月替わり後のタイムラグの発生源候補として整理した仕組みの実態確認。
+
+### Q25. 〔P3〕SOLD_QTY対象月の手動オーバーライドの実際の運用
+
+- **What we already know**: `SlTempostarImportBatch`は原則CSV自身のORDR_DATE列から対象月を自動判定するが、`MS_COMM(CATE_ID_MONTH_TEMP, CODE_ID_MONTH)`に手動設定された月がある場合はそちらが優先される（RE 6章）。
+- **What we need to confirm**: このオーバーライド値が実際に使われているか。月替わりのたびに更新される運用か、それとも特殊なケースのみの例外的な設定か。
+- **Why it matters**: オーバーライド値が月替わり後に更新されないまま残っていた場合、SOLD_QTYが古い月のデータのまま留まる可能性があるため。
+
+### Q26. 〔P3〕Tempostar関連Batch群の実際の起動頻度・トリガー方法
+
+- **What we already know**: `SlTempostarImportBatch`／`InvTempostarStkUploadBatch`／`SlTempostarPriceChangeDownloadBatch`等、Tempostar関連Batchのいずれにも`@Scheduled`等の起動設定はSource上存在しない（既存Q13と同種の限界）。
+- **What we need to confirm**: これらのBatchは実際にどのくらいの頻度で（例: 1日1回、数時間おき等）、どういうトリガー（OS Task Scheduler、手動起動等）で動いているか。
+- **Why it matters**: `docs/legacy-stock-sales-data-reverse-engineering.md` 9章の遅延分析、および将来Sales History蓄積（Option B）を検討する際の更新頻度の前提。
+
+### Q27. 〔P3〕Tempostar CSVのFile Transfer方式
+
+- **What we already know**: Import Batchが処理するのはImport Folderへ既に配置されたCSVファイルからであり、Tempostar側からG-SYSのImport Folderまでどう転送されるか（自動FTP、手動ダウンロード＆配置等）はSource上確認できない。
+- **What we need to confirm**: 実際のFile Transfer方式。
+- **Why it matters**: 同上、遅延分析・将来のOption C（Tempostar Dataの並行受信）検討の前提。
+
+### Q28. 〔P3〕「月替わり後のタイムラグ」の具体的な日数・頻度
+
+- **What we already know**: 2026/08/26打ち合わせ議事メモSlide 6には「月替わり後の在庫・販売関連データの反映にタイムラグがある」という定性的な課題提起はあるが、具体的な日数（「約10日」等）はWritten Meeting Sourceのいずれにも記載がない（`docs/legacy-stock-sales-data-reverse-engineering.md` 2章・9章で確認済み）。
+- **What we need to confirm**: 実際の遅延日数・発生頻度・毎月起きているのか特定の月だけなのか。
+- **Why it matters**: 改善Optionの緊急度・Scope（13章）を判断するための最も基本的な事実。
+
+---
+
 ## 優先度別サマリ
 
 | 優先度 | 件数 | 項目 |
 |---|---|---|
 | P1 | 6 | Q1, Q2, Q4, Q7, Q8, Q13 |
 | P2 | 9 | Q3, Q9, Q10, Q11, Q12, Q14, Q15, Q16, Q17 |
-| P3 | 8 | Q5, Q6, Q18, Q19, Q20, Q21, Q22, Q23 |
-| **合計** | **23** | |
+| P3 | 13 | Q5, Q6, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28 |
+| **合計** | **28** | |
 
 ## Theme別サマリ
 
@@ -212,3 +248,4 @@ Phase 7-Jの`docs/legacy-price-change-reverse-engineering.md`（Source Reverse E
 | Infrastructure | 1 | Q13 |
 | EDI発注（Phase 7-J追加） | 4 | Q14-Q17 |
 | 価格変更（Phase 8-A追加） | 6 | Q18-Q23 |
+| 在庫・販売実績データ更新（Phase 8-C追加） | 5 | Q24-Q28 |
