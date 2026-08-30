@@ -237,3 +237,65 @@ INSERT INTO tr_inv_dtl (supplier_cd, inv_no, line_no, item_cd, qty_ordr, qty, qt
 -- PO-OUTDOOR-03/04/06/07 are deliberately left WITHOUT any TR_INV/TR_INV_DTL
 -- row - the "nothing invoiced yet" OPEN test case needs no new fixture at
 -- all (absence of an invoice line is itself the OPEN state).
+
+-- ============================================================================
+-- Phase 8-G: Arrival / Warehouse Stock Visibility Foundation Test Fixtures
+-- (docs/legacy-warehouse-logistics-logizero-reverse-engineering.md, this
+-- Phase's implementation report). Test-only, safe to reset, never Production
+-- data - same convention as the Phase 7-C7A block above.
+-- ============================================================================
+
+-- Additional MS_STK physical-warehouse rows (WH_CD other than '01') so
+-- Warehouse Stock List's WH_CD Filter has more than one code to exercise.
+-- Codes reuse the real Legacy WH_CD values confirmed in Phase 8-F (4/5/7 -
+-- part of the "sellable" whitelist InvLogizeroStkImportBatch sums,
+-- RE Document 8章) - NOT a fabricated numbering scheme. No name is attached
+-- to any of these codes anywhere in this seed data (no MS_COMM 'MS_WH'
+-- category rows are inserted) because Phase 8-F could not confirm a
+-- Source name for any WH_CD beyond '01' (RE Document 8章/17章's explicit
+-- instruction not to invent one) - the Frontend must display the bare code.
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('04','OD-TENT-001',b'0',7,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('05','OD-TENT-001',b'0',1,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('04','OD-CHAIR-001',b'0',12,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('07','HM-MUG-001',b'0',9,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('04','KT-PAN-001',b'0',4,b'0',NOW(),NOW());
+
+-- Brand-diverse Invoice fixtures beyond the existing all-BR_OUTDOOR set
+-- above, so Arrival List's Brand/Supplier Filter has BR_HOME/BR_KITCHEN
+-- rows to find too. Reuses existing PO-HOME-08/PO-KITCHEN-14 (already
+-- seeded above, no invoice yet).
+-- PO-HOME-08 (HM-MUG-001, qty_po=3): invoiced, still in transit - no
+-- Stock-In Report yet (qty_stk_in left NULL, matching real Legacy's own
+-- "not yet set" state - RE Document 6章/schema comment on tr_inv_dtl above).
+INSERT INTO tr_inv (supplier_cd, inv_no, status, tran_type, brand_cd, qty_ttl, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('SUP_GAMMA','INV-HOME-08','TRANSIT','30','BR_HOME',3,6288.00,b'0',NOW(),NOW());
+INSERT INTO tr_inv_dtl (supplier_cd, inv_no, line_no, item_cd, qty_ordr, qty, qty_stk_in, po_no, del_flg, create_datetime, update_datetime) VALUES ('SUP_GAMMA','INV-HOME-08',1,'HM-MUG-001',3,3,NULL,'PO-HOME-08',b'0',NOW(),NOW());
+
+-- PO-KITCHEN-14 (KT-PAN-001, qty_po=3): fully invoiced and fully stocked in.
+INSERT INTO tr_inv (supplier_cd, inv_no, status, tran_type, brand_cd, qty_ttl, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('SUP_GAMMA','INV-KITCHEN-14','STOCK_IN','30','BR_KITCHEN',3,8754.00,b'0',NOW(),NOW());
+INSERT INTO tr_inv_dtl (supplier_cd, inv_no, line_no, item_cd, qty_ordr, qty, qty_stk_in, po_no, del_flg, create_datetime, update_datetime) VALUES ('SUP_GAMMA','INV-KITCHEN-14',1,'KT-PAN-001',3,3,3,'PO-KITCHEN-14',b'0',NOW(),NOW());
+
+-- TR_ARR: one header row per (supplier_cd, po_no, inv_no) above. qty is the
+-- Source's own single header-level quantity (schema comment above) - NOT
+-- recomputed from tr_inv_dtl here, so it can legitimately differ slightly in
+-- shape from the per-SKU sums the Backend derives separately (both are real
+-- Source Facts, simply at different granularity; Phase 8-G forbids comparing
+-- them against each other as if they were required to match, RE 8-G 7章/11章).
+--
+-- PO-OUTDOOR-01 / INV-OUTDOOR-01: fully arrived and stocked in.
+INSERT INTO tr_arr (supplier_cd, po_no, inv_no, brand_cd, bl_no, vessel_no, qty, etd, eta, eta_wh, stk_in_date, wh_rep_status, wh_rep_result, del_flg, create_datetime, update_datetime) VALUES ('SUP_ALPHA','PO-OUTDOOR-01','INV-OUTDOOR-01','BR_OUTDOOR','BL-OUTDOOR-001','PACIFIC STAR',3,'2026-07-10','2026-07-24','2026-07-26','2026-07-27','RECEIVED','MATCHED',b'0',NOW(),NOW());
+-- PO-OUTDOOR-02 / INV-OUTDOOR-02: in transit / partially confirmed (matches
+-- the existing RECEIVING Invoice status fixture above).
+INSERT INTO tr_arr (supplier_cd, po_no, inv_no, brand_cd, bl_no, vessel_no, qty, etd, eta, eta_wh, stk_in_date, wh_rep_status, wh_rep_result, del_flg, create_datetime, update_datetime) VALUES ('SUP_ALPHA','PO-OUTDOOR-02','INV-OUTDOOR-02','BR_OUTDOOR','BL-OUTDOOR-002','PACIFIC STAR',3,'2026-07-11','2026-07-25',NULL,NULL,'IN_PROGRESS',NULL,b'0',NOW(),NOW());
+-- PO-OUTDOOR-05 / INV-OUTDOOR-05: the Credit-netting discrepancy fixture
+-- (existing tr_inv/tr_po Credit pair above) - Arrival header itself carries
+-- no discrepancy information (real TR_ARR has no such field either).
+INSERT INTO tr_arr (supplier_cd, po_no, inv_no, brand_cd, bl_no, vessel_no, qty, etd, eta, eta_wh, stk_in_date, wh_rep_status, wh_rep_result, del_flg, create_datetime, update_datetime) VALUES ('SUP_BETA','PO-OUTDOOR-05','INV-OUTDOOR-05','BR_OUTDOOR','BL-OUTDOOR-005','SOUTHERN CROSS',3,'2026-07-12','2026-07-26','2026-07-28','2026-07-29','RECEIVED','DISCREPANCY_NOTED',b'0',NOW(),NOW());
+-- PO-HOME-08 / INV-HOME-08: still in transit, ETA in the future, no ETA_WH/
+-- Stock-In yet (all such columns left NULL - a real, not-yet-reached state).
+INSERT INTO tr_arr (supplier_cd, po_no, inv_no, brand_cd, bl_no, vessel_no, qty, etd, eta, eta_wh, stk_in_date, wh_rep_status, wh_rep_result, del_flg, create_datetime, update_datetime) VALUES ('SUP_GAMMA','PO-HOME-08','INV-HOME-08','BR_HOME','BL-HOME-008','NORTHERN LIGHT',3,'2026-08-20','2026-09-05',NULL,NULL,NULL,NULL,b'0',NOW(),NOW());
+-- PO-KITCHEN-14 / INV-KITCHEN-14: fully arrived and stocked in.
+INSERT INTO tr_arr (supplier_cd, po_no, inv_no, brand_cd, bl_no, vessel_no, qty, etd, eta, eta_wh, stk_in_date, wh_rep_status, wh_rep_result, del_flg, create_datetime, update_datetime) VALUES ('SUP_GAMMA','PO-KITCHEN-14','INV-KITCHEN-14','BR_KITCHEN','BL-KITCHEN-014','NORTHERN LIGHT',3,'2026-07-15','2026-07-29','2026-07-30','2026-07-31','RECEIVED','MATCHED',b'0',NOW(),NOW());
+-- PO-OUTDOOR-03: an OFFICIAL PO that reached neither Invoice nor Arrival yet
+-- (deliberately no tr_inv/tr_arr row). Order Detail's "入荷情報を見る" link
+-- (Phase 8-G 12章) filters the Arrival List by this PO Number - the List
+-- must show a real, honest empty result for this PO, not a fabricated row.

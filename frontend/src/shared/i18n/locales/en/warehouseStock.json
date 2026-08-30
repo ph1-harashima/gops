@@ -1,0 +1,23 @@
+{
+  "listTitle": "Warehouse Stock",
+  "empty": "No matching Stock data.",
+  "viewAllWarehouses": "View All Warehouses",
+  "filter": {
+    "skuKeyword": "SKU / Item Name",
+    "brandCode": "Brand Code",
+    "warehouseCode": "Warehouse Code",
+    "minQty": "Stock Qty (min)",
+    "maxQty": "Stock Qty (max)"
+  },
+  "table": {
+    "sku": "SKU",
+    "itemName": "Item Name",
+    "brand": "Brand",
+    "warehouseCode": "Warehouse Code",
+    "stockQty": "Stock Qty",
+    "updatedAt": "Legacy Updated At"
+  },
+  "drawer": {
+    "title": "Stock by Warehouse"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "listTitle": "Arrival Check",
+  "detailTitle": "Arrival Detail",
+  "backToList": "Back to List",
+  "empty": "No matching Arrival data.",
+  "quantitySummaryTitle": "Quantity Summary",
+  "quantitySummaryNote": "Ordered/Invoice/Arrival/Stock-In quantities are Source Facts from different Legacy data - no match/mismatch judgment is made here.",
+  "lineTraceabilityTitle": "Per-SKU Breakdown",
+  "lineTraceabilityEmpty": "No per-SKU breakdown data.",
+  "filter": {
+    "supplierCode": "Supplier Code",
+    "brandCode": "Brand Code",
+    "poNumber": "PO Number",
+    "invoiceNumber": "Invoice Number",
+    "skuKeyword": "SKU",
+    "arrivalDateFrom": "Arrival Date (From)",
+    "arrivalDateTo": "Arrival Date (To)"
+  },
+  "table": {
+    "poNumber": "PO Number",
+    "invoiceNumber": "Invoice Number",
+    "supplier": "Supplier",
+    "brand": "Brand",
+    "eta": "ETA",
+    "orderedQty": "Ordered Qty",
+    "invoiceQty": "Invoice Qty",
+    "arrivalQty": "Arrival Qty",
+    "stockInQty": "Stock-In Qty",
+    "warehouseReportStatus": "Warehouse Report Status",
+    "sku": "SKU",
+    "itemName": "Item Name"
+  },
+  "field": {
+    "supplier": "Supplier",
+    "brand": "Brand",
+    "blNumber": "B/L Number",
+    "vesselNumber": "Vessel",
+    "etd": "ETD",
+    "eta": "ETA",
+    "etaWarehouse": "ETA (Warehouse)",
+    "stockInDate": "Stock-In Date",
+    "warehouseReportStatus": "Warehouse Report Status",
+    "warehouseReportResult": "Warehouse Report Result"
+  }
+}

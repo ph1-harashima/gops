@@ -29,6 +29,9 @@ import { MailTemplatePage } from '../features/admin/MailTemplatePage'
 import { PriceChangeListPage } from '../features/priceChanges/PriceChangeListPage'
 import { PriceChangeEditPage } from '../features/priceChanges/PriceChangeEditPage'
 import { PriceChangeDetailPage } from '../features/priceChanges/PriceChangeDetailPage'
+import { ArrivalListPage } from '../features/arrivals/ArrivalListPage'
+import { ArrivalDetailPage } from '../features/arrivals/ArrivalDetailPage'
+import { WarehouseStockListPage } from '../features/warehouseStock/WarehouseStockListPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { useAuth } from '../features/auth/AuthContext'
 import { ROLE_ADMIN } from '../shared/types/auth'
@@ -131,6 +134,29 @@ export function App() {
                   data-testid="nav-price-changes"
                 >
                   {t('navPriceChanges')}
+                </Button>
+                {/* Phase 8-G: Arrival / Warehouse Stock Visibility Foundation
+                    - independent of Ordering (no Business/Technical
+                    Dependency, customer-review-decision-package.md 16.2章
+                    #19), so both get their own top-level Nav entries, same
+                    reasoning as Price Change above. */}
+                <Button
+                  size="small"
+                  component={Link}
+                  to="/arrivals"
+                  color={location.pathname.startsWith('/arrivals') ? 'primary' : 'inherit'}
+                  data-testid="nav-arrivals"
+                >
+                  {t('navArrivals')}
+                </Button>
+                <Button
+                  size="small"
+                  component={Link}
+                  to="/warehouse-stock"
+                  color={location.pathname.startsWith('/warehouse-stock') ? 'primary' : 'inherit'}
+                  data-testid="nav-warehouse-stock"
+                >
+                  {t('navWarehouseStock')}
                 </Button>
                 {/* Phase 7-C3 12章 / Phase 7-E Section 6: ADMIN-only Master
                     management, grouped under one submenu. Backend also
@@ -238,6 +264,9 @@ export function App() {
             <Route path="/price-changes" element={<PriceChangeListPage />} />
             <Route path="/price-changes/:id/edit" element={<PriceChangeEditPage />} />
             <Route path="/price-changes/:id" element={<PriceChangeDetailPage />} />
+            <Route path="/arrivals" element={<ArrivalListPage />} />
+            <Route path="/arrivals/:supplierCode/:poNumber/:invoiceNumber" element={<ArrivalDetailPage />} />
+            <Route path="/warehouse-stock" element={<WarehouseStockListPage />} />
             {/* Phase 7-C3 12章: Backend enforces ADMIN-only on every
                 underlying API (403 for OPERATOR) regardless of this Route
                 being reachable - no client-side route guard is the sole

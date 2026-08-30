@@ -1,0 +1,45 @@
+{
+  "listTitle": "入荷確認",
+  "detailTitle": "入荷詳細",
+  "backToList": "一覧へ戻る",
+  "empty": "該当する入荷データがありません。",
+  "quantitySummaryTitle": "数量サマリ",
+  "quantitySummaryNote": "発注数量・Invoice数量・入荷数量・入庫数量は、それぞれ異なるLegacyデータから取得した事実値です。数値の一致・不一致による判定は行っていません。",
+  "lineTraceabilityTitle": "SKU別内訳",
+  "lineTraceabilityEmpty": "SKU別の内訳データがありません。",
+  "filter": {
+    "supplierCode": "メーカーコード",
+    "brandCode": "ブランドコード",
+    "poNumber": "PO番号",
+    "invoiceNumber": "Invoice番号",
+    "skuKeyword": "SKU",
+    "arrivalDateFrom": "入荷予定日（From）",
+    "arrivalDateTo": "入荷予定日（To）"
+  },
+  "table": {
+    "poNumber": "PO番号",
+    "invoiceNumber": "Invoice番号",
+    "supplier": "メーカー",
+    "brand": "ブランド",
+    "eta": "入荷予定日",
+    "orderedQty": "発注数量",
+    "invoiceQty": "Invoice数量",
+    "arrivalQty": "入荷数量",
+    "stockInQty": "入庫数量",
+    "warehouseReportStatus": "倉庫Report状況",
+    "sku": "SKU",
+    "itemName": "商品名"
+  },
+  "field": {
+    "supplier": "メーカー",
+    "brand": "ブランド",
+    "blNumber": "B/L番号",
+    "vesselNumber": "船名",
+    "etd": "出港予定日 (ETD)",
+    "eta": "入荷予定日 (ETA)",
+    "etaWarehouse": "倉庫着予定日 (ETA倉庫)",
+    "stockInDate": "入庫日",
+    "warehouseReportStatus": "倉庫Report状況",
+    "warehouseReportResult": "倉庫Report結果"
+  }
+}

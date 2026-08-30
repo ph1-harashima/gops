@@ -3,6 +3,8 @@
   "appName": "G-SYS Online Ordering (Prototype)",
   "navHistory": "Orders",
   "navPriceChanges": "Price Changes",
+  "navArrivals": "Arrivals",
+  "navWarehouseStock": "Warehouse Stock",
   "navMasterMaintenance": "Master Maintenance",
   "navAdminSupplierContacts": "Supplier Contacts",
   "navAdminMailTemplates": "Mail Templates"

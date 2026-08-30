@@ -1,6 +1,6 @@
-# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E / 7-J / 8-A / 8-C / 8-D / 8-E / 8-F
+# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E / 7-J / 8-A / 8-C / 8-D / 8-E / 8-F / 8-G
 
-**Status**: Docs Only（Phase 7-D／7-D2／7-E／7-J／8-A／8-C／8-D／8-E／8-F追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。
+**Status**: Docs Only（Phase 7-D／7-D2／7-E／7-J／8-A／8-C／8-D／8-E／8-F追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。**Phase 8-Gのみ例外的にCode変更を伴う**（Arrival/Warehouse Stock Visibility Foundation実装、Legacy Source変更ゼロ・Portal DB Migrationゼロ、詳細は`legacy-warehouse-logistics-logizero-reverse-engineering.md`27章）。本Document自体はDocs Only（16.2章#19の実装状況欄を更新したのみ）。
 
 **目的**: Phase 7-A〜7-C6の各Documentに散在する`CUSTOMER REVIEW`項目をすべて回収し、「何を顧客に確認しないと本番実装できないか」を一本化する（Phase 7-D）。さらにPhase 7-D2で、**「Sourceコードから分からない」＝「Gulliver社へ質問する」ではない**という前提のもと、Phase1社内（特にG-SYS保守担当のErnest）への確認で解決可能な項目を切り分け、最終的にGulliver社へ聞く質問を最小化する。
 
@@ -917,7 +917,7 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 
 ---
 
-## 16. 案件全体のModule/Option構成方針（Phase 8-B追加、Phase 8-Cで#13-15追加、Phase 8-Dで#10更新+#16-18追加、Phase 8-Eで#10更新、Phase 8-Fで#19-21追加、共通前提）
+## 16. 案件全体のModule/Option構成方針（Phase 8-B追加、Phase 8-Cで#13-15追加、Phase 8-Dで#10更新+#16-18追加、Phase 8-Eで#10更新、Phase 8-Fで#19-21追加、Phase 8-Gで#19実装状況更新、共通前提）
 
 **この章は、以降のすべてのPhaseで維持する共通前提である。** 最終提案は「全機能を一括導入する固定Scope」を前提とせず、機能領域（Module/Option）ごとにGulliver社が採否を選択できる提案構造を目指す。最終Scopeは `Customer Requirement × Priority × Dependency × Implementation Cost × Customer Budget` によって決まる想定であり、**現時点で価格・工数を推測せず、正式なPackage構成も独自に決定しない**。目的は、機能境界とDependencyを先に明確にしておくことである。
 
@@ -956,7 +956,7 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 | 16 | Invoice/Purchase/Sales/Gross Profit（Purchase可視化・仕入確認・理論Margin表示） | Optional | 無（Ordering非依存、Price ChangeのMarginCalculatorを再利用可能） | 可（ただし仕入金額集計＝仕入確認機能自体はGate STOP中、下記参照） | **理論Margin表示部分は低。仕入金額集計（仕入確認）部分はPhase 8-EでGate: STOP**（`TR_INV.AMT_TTL`/`TR_INV_DTL.AMT_LINE`がBatch間で非等価な計算式のため、Gross Amount定義がK-6b確定まで実装不可） | 低（READ ONLY） | 無 | K-5a/K-5b/K-6a/K-6b |
 | 17 | Invoice/Purchase/Sales/Gross Profit（PO/Invoice Qty比較） | Optional | 16とは独立に単独導入可（7章のJoinのみで完結） | 可 | 低（READ ONLY、Join自体はSource Confirmed） | 中（比較目的の確定が必要） | 無 | K-1 |
 | 18 | Invoice/Purchase/Sales/Gross Profit（差異管理・Sales Amount蓄積・実績粗利・Dashboard） | Optional | **Sales Amount蓄積へのTechnical Dependency（実績粗利側）**、差異管理Business Rule確定へのBusiness/Estimate Dependency。Stock/Sales Data UpdateのOption B（14番）と同じTempostar CSV拡張ポイントを共有し得る（16.3章参照） | 不可（Sales Amount蓄積の完成、または差異管理Business Rule確定が前提） | 中〜高 | 高（複数の未確定Business Rule次第） | 間接（Tempostar由来） | K-2/K-3/K-4 |
-| 19 | Warehouse/Logistics（Arrival Visibility・Warehouse Stock Visibility・Discrepancy Visibility） | Optional | 無（Ordering非依存で成立、legacy-warehouse-logistics-logizero-reverse-engineering 14章） | 可 | 低（既存Table・既存Query参照のREAD ONLY表示のみ、`TR_ARR`/`MS_STK.STK_QTY`/`StkQtyDiscrepancyCheckerService`） | 間接（LogizeroがG-SYSへ供給するDataのFreshness次第） | Theme L（L-1/L-2/L-3） |
+| 19 | Warehouse/Logistics（Arrival Visibility・Warehouse Stock Visibility・Discrepancy Visibility） | Optional | 無（Ordering非依存で成立、legacy-warehouse-logistics-logizero-reverse-engineering 14章） | 可 | **Arrival Visibility・Warehouse Stock VisibilityはPhase 8-GでFoundation実装済み**（同Document 27章）。Discrepancy Visibilityは未実装のまま | 間接（LogizeroがG-SYSへ供給するDataのFreshness次第） | Theme L（L-1/L-2/L-3） |
 | 20 | Warehouse/Logistics（Logizero/Tempostar連携方式見直し） | Optional | **19（可観測性向上）とは独立、19-1の完成後に着手する方が自然** | 不可（External Specification確認が前提） | 高（Selenium/SFTP/API方式自体の変更） | 中 | 大（Logizero/Tempostar双方のVendor仕様確認が必須） | L-5a/L-5b |
 | 21 | Warehouse/Logistics（G-SYS→倉庫 双方向連携） | Optional | **19・20の完成後を推奨** | 不可 | 高 | 高 | 大 | L-4 |
 

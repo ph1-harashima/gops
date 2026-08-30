@@ -1,0 +1,23 @@
+{
+  "listTitle": "倉庫在庫",
+  "empty": "該当する在庫データがありません。",
+  "viewAllWarehouses": "全倉庫を見る",
+  "filter": {
+    "skuKeyword": "SKU / 商品名",
+    "brandCode": "ブランドコード",
+    "warehouseCode": "倉庫コード",
+    "minQty": "在庫数量（以上）",
+    "maxQty": "在庫数量（以下）"
+  },
+  "table": {
+    "sku": "SKU",
+    "itemName": "商品名",
+    "brand": "ブランド",
+    "warehouseCode": "倉庫コード",
+    "stockQty": "在庫数量",
+    "updatedAt": "Legacy更新日時"
+  },
+  "drawer": {
+    "title": "倉庫別在庫"
+  }
+}

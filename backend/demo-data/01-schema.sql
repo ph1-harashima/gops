@@ -216,3 +216,45 @@ CREATE TABLE tr_inv_dtl (
   update_datetime    DATETIME     NULL,
   PRIMARY KEY (supplier_cd, inv_no, line_no)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Mirrors TR_ARR (subset). PK: (SUPPLIER_CD, PO_NO, INV_NO) - matches the
+-- real Legacy TrArrPK exactly (jp.ne.glv.model.pk.TrArrPK, confirmed via
+-- Source in docs/legacy-warehouse-logistics-logizero-reverse-engineering.md
+-- 7章/13章). Added in Phase 8-G (Arrival / Warehouse Stock Visibility
+-- Foundation) - real Legacy TR_ARR is a much larger Entity (customs/tariff/
+-- demurrage/drayage/remittance columns), reduced here to only the columns
+-- this Phase's Arrival Visibility screen actually displays ("reduce
+-- columns, not business rules" principle, line 19 above).
+--
+-- IMPORTANT (Phase 8-G 11章's most important constraint, preserved
+-- structurally): this table deliberately has NO wh_cd column - the real
+-- Legacy TrArr entity has none either (confirmed Source fact, RE Document
+-- 13章's "Arrival ⇄ Warehouse Stock: 不可能" finding). This is not an
+-- oversight; adding one would make an accidental Arrival<->Warehouse Stock
+-- join possible where none exists in real Legacy. Do not add it.
+--
+-- qty is a single header-level quantity (not per-SKU) - matches real
+-- TR_ARR.QTY exactly (RE Document 7章's traceability table). Per-SKU
+-- Ordered/Invoiced/Stock-In quantities for the Detail screen are derived by
+-- joining tr_po_dtl/tr_inv_dtl instead (ArrivalReadRepository), reusing the
+-- same Original+Credit netting FulfillmentReadRepository already
+-- established for qty_stk_in (Phase 7-C7A).
+CREATE TABLE tr_arr (
+  supplier_cd        VARCHAR(10)   NOT NULL,
+  po_no              VARCHAR(30)   NOT NULL,
+  inv_no             VARCHAR(100)  NOT NULL,
+  brand_cd           VARCHAR(10)   NULL,
+  bl_no              VARCHAR(30)   NULL,
+  vessel_no          VARCHAR(50)   NULL,
+  qty                INT           NULL,
+  etd                DATE          NULL,
+  eta                DATE          NULL,
+  eta_wh             DATE          NULL,
+  stk_in_date        DATE          NULL,
+  wh_rep_status      VARCHAR(100)  NULL,
+  wh_rep_result      VARCHAR(100)  NULL,
+  del_flg            BIT(1)        NULL,
+  create_datetime    DATETIME      NULL,
+  update_datetime    DATETIME      NULL,
+  PRIMARY KEY (supplier_cd, po_no, inv_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

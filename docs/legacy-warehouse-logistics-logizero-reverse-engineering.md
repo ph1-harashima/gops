@@ -1,6 +1,6 @@
-# Legacy Warehouse / Logistics / Logizero Reverse Engineering & Target Analysis（Phase 8-F）
+# Legacy Warehouse / Logistics / Logizero Reverse Engineering & Target Analysis（Phase 8-F、Phase 8-Gで27章追記）
 
-**Status**: Docs / Audit Only。Frontend / Backend / DB Migration / API追加 / Selenium変更 / Logizero接続 / External System接続 / Production接続 / Legacy Source変更は一切行っていない。本Documentは「倉庫・物流（Warehouse/Logistics/Logizero）」を独立した改善Optionとして整理できるかの調査であり、実装ではない（実装は本Phaseでは禁止）。
+**Status**: Phase 8-Fの調査自体はDocs / Audit Onlyのまま変更なし。**Phase 8-Gで、20章のFoundation Classification Aに分類したOption A/B/C（Arrival Visibility・Warehouse Stock Visibility）のみを実際に実装した**（27章）。Option D/E/F（連携方式見直し・G-SYS→倉庫双方向連携）は未実装のまま、External Specification確認・Customer Review待ち。
 
 **目的**: `customer-review-decision-package.md` 16章のModule/Option構成方針を前提に、倉庫・物流・Logizero連携を、Ordering・Price Change・Stock/Sales Data Update・Invoice/Purchase/Sales/Gross Profitと並ぶ独立した改善Optionとして提案できるかを検証する。**必ず実装する前提ではない。**
 
@@ -391,4 +391,42 @@ Ernest（社内技術担当）では確認できない、外部Vendor仕様に�
 | W-12 | Logizero公式API有無 | External Specification | 23章 |
 | W-13 | Tempostar公式API有無 | External Specification | 23章 |
 
-**変更したFrontend/Backend/DB Migration/Legacy Source: 0件。** 本Documentと既存3 QA Documentの更新のみ。
+**Phase 8-F時点で変更したFrontend/Backend/DB Migration/Legacy Source: 0件。** 本Documentと既存3 QA Documentの更新のみ（実装はPhase 8-Gで27章のとおり一部着手）。
+
+---
+
+## 27. Phase 8-G 実装結果: Arrival / Warehouse Stock Visibility Foundation
+
+**Status**: 20章のFoundation Classification Aに分類したOption A（Arrival Visibility）・Option B（Warehouse Stock Visibility）・Option C（Discrepancy Visibilityは今回未実装、22章参照）のうち、**Option A・Bのみを実装した**。完全READ ONLY・Portal DB新規Table無し・新Business Transaction無し（Phase 8-G 13章の制約どおり）。
+
+### 27.1 実装したFoundation
+
+- **入荷確認（Arrival Visibility）**: `/arrivals`（一覧、Backend Pagination/Filter付き）・`/arrivals/:supplierCode/:poNumber/:invoiceNumber`（詳細、PO→Invoice→Stock-InのSKU別内訳）。
+- **倉庫在庫（Warehouse Stock Visibility）**: `/warehouse-stock`（一覧、Backend Pagination/Filter付き）・SKU行からDrawerで全倉庫のQtyを表示（新規Route追加なし、10章の指示どおり）。
+
+### 27.2 Demo Legacy MySQL Schema拡張
+
+Phase 8-Fの調査時点で、`backend/demo-data/01-schema.sql`（Demo Legacy MySQL、`phasep-gulliver`とは別の、Portal側が保持する縮小Schemaミラー）に`tr_arr`Tableが存在しないことが判明した（実Legacyの`TR_ARR`は7章で確認済みだが、Demo Instanceには未反映だった）。本Phaseで`tr_arr`（PK: `supplier_cd`+`po_no`+`inv_no`、real `TrArrPK`と同一）を追加し、既存の`tr_po`/`tr_po_dtl`/`tr_inv`/`tr_inv_dtl`追加と同じ「reduce columns, not business rules」原則で縮小Column構成とした。**`wh_cd`列は意図的に追加していない**（11章の最重要制約を、実Legacy同様Schema構造そのものでも担保するため）。`ms_stk`にも`WH_CD`4/5/7（Phase 8-F確認済みの"sellable" whitelistの一部）のTest Fixtureを追加した。これらは`phasep-gulliver`（実Legacy）ではなく、Portal自身が保持するDemo Fixtureへの変更であり、Legacy Source変更には該当しない。
+
+### 27.3 Backend
+
+- `ArrivalReadRepository`/`WarehouseStockReadRepository`（`repository/legacy/`、READ ONLY、`@Transactional(readOnly = true, transactionManager = "legacyTransactionManager")`）。
+- Stock-In Qtyの算出は、Phase 7-C7Aで確立済みの`FulfillmentReadRepository`のOriginal+Credit Netting機構をArrival Detailで再利用（新規Business Logicを再発明していない）。
+- 初のBackend Pagination実装（`PageResponse<T>`、`page`/`size` Query Param、`size`は100件上限にClamp）。既存画面（Order List/Price Change List等）は今回変更していない。
+- `ArrivalReadRepository`/`WarehouseStockReadRepository`のSQLは相互に`ms_stk`/`tr_arr`を参照しない（11章の制約、`ArrivalWarehouseStockNotJoinedTest`でSQL文字列を直接検証）。
+
+### 27.4 Frontend
+
+- `入荷確認`・`倉庫在庫`をExisting Header Navへ独立Top-level項目として追加（Price Changeと同じ「Ordering非依存」の位置づけ）。
+- Order Detail画面のFulfillment Section（`linkState === 'LINKED'`の場合のみ）に「入荷情報を見る」Buttonを追加し、Arrival ListをPO Numberで絞り込んだ状態へ遷移する（12章の指示どおり、officialPoNoが確実に紐付いている場合のみ）。
+
+### 27.5 Test
+
+- Backend: `ArrivalServiceIntegrationTest`（13件）・`WarehouseStockServiceIntegrationTest`（9件）・`ArrivalWarehouseStockNotJoinedTest`（2件、SQL文字列の非結合検証）・`LegacyReadOnlyIntegrationTest`への`tr_arr`/`ms_stk`書込み拒否Test追加（2件）。既存412件を含め全Test Green。
+- Frontend: `arrival-warehouse-stock-visibility-foundation.spec.ts`（9 E2E Scenario、Navigation・Filter・Detail・Credit Netting表示・Warehouse Drawer・Pagination・Order Detail連携・既存Ordering/Price Change回帰）、既存E2E（Price Change/Navigation/Header UX/Order Detail Hub/Core Demo Scenario、計38件）と合わせて全Green。
+
+### 27.6 未実装のまま残したもの（22章の禁止事項どおり）
+
+Option D（可観測性向上）・Option E（連携方式見直し）・Option F（双方向連携）、ArrivalとWarehouse StockのDiscrepancy判定、Stock Adjustment、Legacy Write、G-SYS→Logizero連携、Selenium/SFTP変更 — いずれも本Phaseでは着手していない。
+
+**変更したFrontend/Backend: Phase 8-G分（27.3〜27.4記載のとおり）。DB Migration（Flyway、Portal Prototype DB）: 0件。Legacy（`phasep-gulliver`）Source変更: 0件。**

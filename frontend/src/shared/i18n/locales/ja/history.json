@@ -162,6 +162,7 @@
     "notLinked": "G-SYS正式PO未連携です。正式PO番号が採番されるまで入荷状況は取得できません。",
     "poNotFound": "設定されている正式PO番号がG-SYS上に見つかりません。",
     "officialPoNoLabel": "正式PO番号",
+    "viewArrivalsButton": "入荷情報を見る",
     "status": {
       "OPEN": "未納",
       "PARTIAL": "一部納品",

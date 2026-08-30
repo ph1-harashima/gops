@@ -718,6 +718,18 @@ export function OrderHistoryDetailPage() {
                     : fulfillment.fulfillmentStatus === 'PARTIAL' ? 'warning' : 'default'}
                   data-testid="fulfillment-status-chip"
                 />
+                {/* Phase 8-G 12章: only rendered when linkState === 'LINKED'
+                    (Portal Order <-> Legacy officialPoNo is confirmed, same
+                    guard Fulfillment itself uses above) - filters the
+                    Arrival List by this PO Number rather than deep-linking a
+                    specific Invoice (one PO may have 0/1/many Arrivals). */}
+                <Button
+                  size="small"
+                  onClick={() => navigate(`/arrivals?poNumber=${encodeURIComponent(fulfillment.officialPoNo ?? '')}`)}
+                  data-testid="fulfillment-view-arrivals-button"
+                >
+                  {t('fulfillment.viewArrivalsButton')}
+                </Button>
               </Stack>
               <TableContainer>
                 <Table size="small">

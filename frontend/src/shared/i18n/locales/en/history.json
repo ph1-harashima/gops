@@ -157,6 +157,7 @@
     "notLinked": "Not yet linked to a G-SYS Official PO. Fulfillment cannot be shown until an Official PO No. is assigned.",
     "poNotFound": "The configured Official PO No. was not found in G-SYS.",
     "officialPoNoLabel": "Official PO No.",
+    "viewArrivalsButton": "View Arrival Info",
     "status": {
       "OPEN": "Open",
       "PARTIAL": "Partial",

@@ -91,6 +91,32 @@ class LegacyReadOnlyIntegrationTest {
         assertAccessDenied(ex);
     }
 
+    /** Phase 8-G: ArrivalReadRepository reads the new tr_arr table (backend/
+     * demo-data/01-schema.sql) but must never be able to write it - proves
+     * the READ ONLY guarantee automatically covers a table added after this
+     * test class already existed (GRANT SELECT ON legacy_demo.* is
+     * database-wide, demo-data/03-readonly-user.sql). */
+    @Test
+    void insertAgainstTrArrIsRejected() {
+        DataAccessException ex = assertThrows(DataAccessException.class, () ->
+            legacyJdbcTemplate.update(
+                "INSERT INTO tr_arr (supplier_cd, po_no, inv_no, qty) VALUES ('SHOULD-FAIL', 'PO-SHOULD-FAIL', 'INV-SHOULD-FAIL', 1)"
+            )
+        );
+        assertAccessDenied(ex);
+    }
+
+    /** Phase 8-G: WarehouseStockReadRepository reads ms_stk.stk_qty but must
+     * never be able to write it - the exact column Warehouse Stock
+     * Visibility displays. */
+    @Test
+    void updateMsStkQuantityAgainstLegacyDemoInstanceIsRejected() {
+        DataAccessException ex = assertThrows(DataAccessException.class, () ->
+            legacyJdbcTemplate.update("UPDATE ms_stk SET stk_qty = 999999 WHERE wh_cd = '04' AND item_cd = 'OD-TENT-001'")
+        );
+        assertAccessDenied(ex);
+    }
+
     @Test
     void ddlAgainstLegacyDemoInstanceIsRejected() {
         DataAccessException ex = assertThrows(DataAccessException.class, () ->

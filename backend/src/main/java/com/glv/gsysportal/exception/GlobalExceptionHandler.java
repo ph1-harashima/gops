@@ -241,4 +241,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleDuplicateSkuInChangeSet(DuplicateSkuInChangeSetException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("errorCode", "DUPLICATE_SKU_IN_CHANGE_SET"));
     }
+
+    // --- Phase 8-G: Arrival / Warehouse Stock Visibility Foundation ---
+
+    @ExceptionHandler(ArrivalNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleArrivalNotFound(ArrivalNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("errorCode", "ARRIVAL_NOT_FOUND"));
+    }
 }

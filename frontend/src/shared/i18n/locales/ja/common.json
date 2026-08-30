@@ -9,6 +9,8 @@
   "navCandidates": "発注候補",
   "navHistory": "発注一覧",
   "navPriceChanges": "価格変更",
+  "navArrivals": "入荷確認",
+  "navWarehouseStock": "倉庫在庫",
   "navMasterMaintenance": "マスタメンテナンス",
   "navAdminSupplierContacts": "メーカー担当者",
   "navAdminMailTemplates": "メールテンプレート",
