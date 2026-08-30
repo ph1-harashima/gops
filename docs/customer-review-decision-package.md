@@ -632,6 +632,7 @@ Theme Hの2項目はいずれも技術的な環境情報であり、**Gulliver�
 
 - **Question**: 「G-SYSサーバー、Import Folderはどこにhostingされているか。Portalからの接続方式は。」　**7-D2分類: B（Ernest Q13）**　**Timing**: C　**Blocker**: LATER
 - **Source**: 指示14章
+- **（Phase 8-K追記）Production Readiness監査での重み付け**: `docs/production-readiness-and-integration-boundary-audit.md` 9章の詳細監査により、本Questionの回答が「Legacy MySQL reachability／Network path／Firewall／VPN／DNS／TLS／Reverse proxy／Production domain」を含むHosting/Network関連9項目すべての起点であることを確認した（現時点でSource確認済みの事実はゼロ、7-A §18-6の「AWS利用の示唆」も未確定のまま）。分類・Timing・Blockerの変更なし、影響範囲の広さのみ再確認。
 
 ### H-2. 既存Import Batchの起動Trigger・実行頻度
 

@@ -1,4 +1,6 @@
-# Requirements Coverage & Remaining Gap Audit（Phase 8-I、Phase 8-J追記）
+# Requirements Coverage & Remaining Gap Audit（Phase 8-I、Phase 8-J追記、Phase 8-K追記）
+
+**Status（Phase 8-K追記）**: Phase 8-Kで`docs/production-readiness-and-integration-boundary-audit.md`を新規作成し、Production Readiness / Integration Boundaryを22章立てで詳細監査した（Ordering Critical Path・Official PO/Email/EDI/User-Role Boundary・Security/Secrets/Hosting/Legacy READ ONLY Production Access/Portal DB/Monitoring/Retry/Error Recovery/Deployment/Backup/Data Volume・Customer/Ernest/External Blocking Matrix・Immediate Implementation候補・Critical Path・Estimate Boundary）。本Phaseも監査のみ、Code変更0件。要点は16章に反映した。
 
 **Status（Phase 8-I時点）**: 監査・整理のみ。Frontend/Backend/DB Migration/API変更は0件。Legacy（`phasep-gulliver`）はREAD/Grepのみで一切変更していない。Test実行なし（実装変更が無いため）。
 
@@ -394,6 +396,18 @@ Phase 8-JはPortal内部の品質・Scalability改善（Pagination／Navigation�
 
 **結論**: Production Readiness Gapの全体像（16章冒頭の表）はPhase 8-J後も不変。Phase 8-JはDemo/Prototype内部の技術的品質を高めたのみで、Production化に向けた新たな前進項目は無い（Legacy Write・SMTP・Secrets・Hosting/Networkはすべて依然未着手）。
 
+### 16.2 Phase 8-K追記（Production Readiness & Integration Boundary詳細監査）
+
+`docs/production-readiness-and-integration-boundary-audit.md`（全22章）で以下を新たに確定した。詳細は同Documentを参照、ここでは要点のみ記す。
+
+- **最大のBlockerはErnest確認**: Official PO Excelの実際の作成者・Import Folder Path・起動Trigger方式・PO番号採番規則がSource上確認不能（既存Q1/Q2/Q4/Q7、P1のまま）。これが解決しない限りOfficial PO Handoffは着手すらできない（Critical Pathの起点）。
+- **`SafetyGuardEnvironmentPostProcessor`はProduction接続を技術的に拒否する設計**であることを再確認。Production化は必ずこのGuardのHost/DB Allowlist拡張という意図的な設計変更を伴う、後戻りできない一線である。
+- **Retry/Idempotency/Health Check/Monitoringの技術的Foundationは現状ゼロ**（`@Scheduled`/`@Retryable`/actuator依存いずれも0件、pom.xml確認済み）。これらはCustomer/Ernest/External回答を要さない「今すぐ着手可能」な候補として特定した（22章のTop 3: ①Health Check+Error Handling、②Technical Idempotency Foundation、③Deployment Runbook整備）。
+- **Hosting/Networkは9項目すべて未確定**（Legacy側もPortal側も、AWS等のVendor/Productは提案段階に過ぎず確定事実ではない）。
+- **Supplier Contact/Mail Template Master・Resolution LogicはProduction相当の完成度**（Phase 7-C3）。残るGapは実SMTP接続そのものとRetry/Failure Handlingのみで、これらはProvider選定を待たずにIdempotency Foundation部分までは実装可能。
+- **EDIはExternal Specが皆無**のため実装候補にしない（Q16回答が唯一の次の一手）。
+- Candidate ListのBackend Pagination見送り（Phase 8-J）は、Production Data Volume観点でも維持が妥当と再確認（Legacy Master品目数に比例、Order Historyのような無制限累積ではないため）。
+
 ---
 
 ## 17. Cross-Cutting Gap
@@ -659,3 +673,5 @@ Phase 8-J §2の指示に基づき、`docs/`配下の全ファイルを実ディ
 **Phase 8-Iの変更**: Frontend/Backend/DB Migration/API/Legacy Source 0件（監査・整理のみ）。
 
 **Phase 8-Jの変更**: Order History List Backend Pagination（`OrderHistoryService`/`OrderHistoryController`/`PortalOrderRepository`）、SKU Detail⇄Arrival Navigation・Warehouse Stock Drawer⇄SKU Detail/Stock-Sales Navigation（Frontend Route/Buttonのみ、新規Backend Endpoint無し）、Theoretical Margin Reference（`SkuDetailService`/`SkuDetailResponse`、既存`MarginCalculator`/`LegacyPriceReadRepository`を再利用）、Dashboard統合（`DashboardService`/`DashboardResponse`、Price Change Draft件数KPI + 3 Navigation Card）。**Portal DB Migrationの新規追加は無し**（24章参照）。**Legacy（`phasep-gulliver`）への変更は0件**（READ ONLY、既存Legacy Adapter Repositoryの再利用のみ）。詳細な変更ファイル一覧はPhase 8-J Completion Reportを参照。
+
+**Phase 8-Kの変更**: Frontend/Backend/DB Migration/API変更0件。`docs/production-readiness-and-integration-boundary-audit.md`を新規作成（22章）。本Document16章へ8-K追記（16.2章）。Legacy変更0件（Read/Grepのみ）。詳細はPhase 8-K Completion Reportを参照。
