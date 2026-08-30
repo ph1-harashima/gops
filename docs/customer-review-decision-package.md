@@ -1,17 +1,18 @@
-# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E / 7-J / 8-A / 8-C / 8-D
+# Customer Review Decision Package — Phase 7-D / 7-D2 / 7-E / 7-J / 8-A / 8-C / 8-D / 8-E / 8-F
 
-**Status**: Docs Only（Phase 7-D／7-D2／7-E／7-J／8-A／8-C／8-D追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。
+**Status**: Docs Only（Phase 7-D／7-D2／7-E／7-J／8-A／8-C／8-D／8-E／8-F追加分とも）。コード変更・DB Migration・Legacy変更は一切行っていない。
 
 **目的**: Phase 7-A〜7-C6の各Documentに散在する`CUSTOMER REVIEW`項目をすべて回収し、「何を顧客に確認しないと本番実装できないか」を一本化する（Phase 7-D）。さらにPhase 7-D2で、**「Sourceコードから分からない」＝「Gulliver社へ質問する」ではない**という前提のもと、Phase1社内（特にG-SYS保守担当のErnest）への確認で解決可能な項目を切り分け、最終的にGulliver社へ聞く質問を最小化する。
 
 **対象読者**: 9/17顧客レビューに向けて準備するTechlead（ChatGPT）・SEPG（Claude Code）・Ernest（Phase1 G-SYS保守担当）・実際に顧客へ質問する担当者。
 
 **関連Document**:
-- `docs/ernest-current-operation-question-sheet.md`（Phase 7-D2新規、Phase 7-JでEDI関連4項目・Phase 8-Aで価格変更関連6項目・Phase 8-Cで在庫販売実績データ更新関連5項目・Phase 8-Dで請求仕入売上粗利関連5項目追加 — Ernestへ確認する33項目）
+- `docs/ernest-current-operation-question-sheet.md`（Phase 7-D2新規、Phase 7-JでEDI関連4項目・Phase 8-Aで価格変更関連6項目・Phase 8-Cで在庫販売実績データ更新関連5項目・Phase 8-Dで請求仕入売上粗利関連5項目・Phase 8-EでGross Amount定義関連1項目・Phase 8-Fで倉庫物流関連5項目追加 — Ernestへ確認する39項目）
 - `docs/customer-review-question-sheet.md`（Gulliver社向け質問票Draft — **Ernest確認前のDraftであり、最終版として確定していない**）
 - `docs/target-price-change-workflow.md`（Phase 8-A新規 — 価格変更Target Design。Theme I（12b章）のCUSTOMER REVIEW項目I-1〜I-12の一次情報）
 - `docs/legacy-stock-sales-data-reverse-engineering.md`（Phase 8-C新規 — 在庫・販売実績データ更新のReverse Engineering & Target Analysis。Theme J（12c章）のCUSTOMER REVIEW項目J-1〜J-6の一次情報）
-- `docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md`（Phase 8-D新規 — 請求・仕入・売上・粗利のReverse Engineering & Target Analysis。Theme K（12d章）のCUSTOMER REVIEW項目K-1〜K-5bの一次情報）
+- `docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md`（Phase 8-D新規、Phase 8-Eで23〜25章追記 — 請求・仕入・売上・粗利のReverse Engineering & Target Analysis、およびGross Amount定義のImplementation Gate Audit。Theme K（12d章）のCUSTOMER REVIEW項目K-1〜K-6bの一次情報）
+- `docs/legacy-warehouse-logistics-logizero-reverse-engineering.md`（Phase 8-F新規 — 倉庫・物流・Logizero連携のReverse Engineering & Target Analysis。Theme L（12e章）のCUSTOMER REVIEW項目L-1〜L-5bの一次情報）
 
 ---
 
@@ -108,6 +109,12 @@ Phase 7-JではLegacy Source調査により、Official PO Excelの生成元がG-
 また、Section 0で確定した「本機能は請求書管理システムではなく、G-SYS側のGross Amountを表示し、様々な形式の請求書と担当者が目視確認する仕組みである」というCustomer Requirementを、16.2章（#10行）へ記録した。
 
 3章のQuick Reference・14章のTraceability・15章の集計は、今回の反映によりK-6a・K-6b（計2項目）が追加され、**102項目→104項目**（B分類20→21、D分類74→75）に更新した。詳細は各章を参照。
+
+## 1i. Phase 8-F: Warehouse / Logistics / Logizero Reverse Engineering & Target Analysis（Theme L追加）
+
+`docs/legacy-warehouse-logistics-logizero-reverse-engineering.md`（Warehouse/Logistics/Logizero Reverse Engineering & Target Analysis）21章のCUSTOMER REVIEW項目を、1d章の運用原則に従い新設**Theme L: Warehouse / Logistics / Logizero**（12e章）として追加した。既存Theme A-Kとの重複は無いことを確認済み（Theme J「在庫・販売実績データ更新」はTempostar発`SOLD_QTY`側のTiming論点であり、Theme L「倉庫・物流」はLogizero発`STK_QTY`側・Arrival側の論点であるため、重複ではなく隣接領域として整理した）。Ernestが確認可能な「現在の事実」成分（Selenium方式/SFTP方式のどちらが本番経路か）はa/b分割し、`docs/ernest-current-operation-question-sheet.md`へQ35-Q39として追加した（うちa成分に対応するのはQ35の1件、Q36-Q39はWarehouse機能の詳細確認事項でありDecision Package上のトピックとしては計上しない — Theme K章のQ30-Q33等と同種の扱い）。
+
+3章のQuick Reference・14章のTraceability・15章の集計は、今回の反映によりL-1・L-2・L-3・L-4・L-5a・L-5b（計6項目）が追加され、**104項目→110項目**（B分類21→22、D分類75→80）に更新した。詳細は各章を参照。
 
 ---
 
@@ -241,6 +248,12 @@ A. PO番号・Official PO　B. Approval / Permission　C. Supplier Communication
 | K-5b | Invoice/Purchase/Sales | 将来、Supplier Invoice Integration方式の正式決定 | C | LATER | **D** |
 | K-6a | Invoice/Purchase/Sales | 現在、`TR_INV.AMT_TTL`/`AMT_LINE`のBatch間不整合・`PrBLInvImportBatch`の適用範囲（Phase 8-E Gate Audit） | C | LATER | **B**（Ernest Q34） |
 | K-6b | Invoice/Purchase/Sales | 将来、「仕入確認」機能で正とすべきGross Amountの正式定義（付帯費用・Tax・Credit Nettingの扱いを含む） | C | LATER | **D** |
+| L-1 | Warehouse/Logistics | Arrival Visibility機能の要否 | C | LATER | **D** |
+| L-2 | Warehouse/Logistics | Warehouse Stock Visibility機能の要否 | C | LATER | **D** |
+| L-3 | Warehouse/Logistics | Stock Discrepancy Visibility機能の要否・運用ルール | C | LATER | **D** |
+| L-4 | Warehouse/Logistics | G-SYS→倉庫 変更情報連携の自動化範囲 | C | LATER | **D** |
+| L-5a | Warehouse/Logistics | 現在、Logizero/Tempostar連携のSelenium/SFTPどちらが本番経路か | C | LATER | **B**（Ernest Q35） |
+| L-5b | Warehouse/Logistics | 将来、連携方式の統一方針 | C | LATER | **D** |
 | AppI-1〜6 | (Appendix I) | Phase 0由来のPrototype UI/計算仕様細部（6項目、13章参照。Requested Deliveryの必須/任意はA-7へ移動済み） | C | LATER | **D**（全項目） |
 
 ---
@@ -771,6 +784,40 @@ Phase 8-Aの`docs/target-price-change-workflow.md`（Target Design）17章のCUS
 
 ---
 
+## 12e. Theme L: Warehouse / Logistics / Logizero（Phase 8-F追加）
+
+`docs/legacy-warehouse-logistics-logizero-reverse-engineering.md`（Warehouse/Logistics/Logizero Reverse Engineering & Target Analysis）21章のCUSTOMER REVIEW項目を整理する。9/17デモは発注(Ordering)機能のみが対象であり倉庫・物流連携は含まれないため、全項目**Timing: C（デモ後・本番設計時でよい）**とする。
+
+**Phase 8-Fで確認した重要な事実**: 2026/08/26打ち合わせSlide 13の要望（G-SYS上の変更情報を倉庫側へ連携したい）は、Legacy Sourceに**既に実装されている**倉庫→G-SYS/Tempostar方向の在庫連携（Selenium/SFTPによるLogizero連携）とは**逆方向**である。既存の連携はSlide 13の要望に対する回答にはならないため、混同しないよう注意する（`legacy-warehouse-logistics-logizero-reverse-engineering.md` 1章・5章）。
+
+### L-1. Arrival Visibility機能の要否
+
+- **Question**: 「`TR_ARR`のETA/ETA_WH/倉庫Report状況等をPortalへREAD ONLY表示する機能が必要か。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
+- **Source**: legacy-warehouse-logistics-logizero-reverse-engineering 17章・18章Option A
+
+### L-2. Warehouse Stock Visibility機能の要否
+
+- **Question**: 「`MS_STK.STK_QTY`のWH_CD別内訳をPortalへREAD ONLY表示する機能が必要か。Phase 8-CのStock/Sales Option Aとの統合要否は。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
+- **Source**: legacy-warehouse-logistics-logizero-reverse-engineering 17章・18章Option B
+
+### L-3. Stock Discrepancy Visibility機能の要否
+
+- **Question**: 「既存の在庫差異検知（`StkQtyDiscrepancyCheckerService`）の結果をPortalへ表示する機能が必要か。差異発生時に誰がどう対応すべきかの運用ルールは。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
+- **Source**: legacy-warehouse-logistics-logizero-reverse-engineering 11章・18章Option C
+
+### L-4. G-SYS→倉庫 変更情報連携の自動化範囲
+
+- **Question**: 「2026/08/26打ち合わせSlide 13の要望どおり、入荷数量・入荷予定日の変更情報を倉庫・物流側へ連携する場合、どこまで自動化すべきか。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
+- **Source**: legacy-warehouse-logistics-logizero-reverse-engineering 2章・18章Option F
+
+### L-5a/L-5b. Logizero/Tempostar連携方式
+
+- **L-5a（現在の事実）**: 「Logizero/Tempostar在庫連携において、Selenium方式（`InvLogizeroStkDownloadBatch`等）とSFTP方式（`MIMOSA_InvLogizeroStkDownloadBatch`等）のどちらが現行の本番運用経路か。」　**7-D2分類: B（Ernest Q35）**　**Timing**: C　**Blocker**: LATER
+- **L-5b（将来の決定）**: 「連携方式（Selenium/SFTP/API）を将来どう整理・統一すべきか。」　**7-D2分類: D**　**Timing**: C　**Blocker**: LATER
+- **Source**: legacy-warehouse-logistics-logizero-reverse-engineering 10章・12章・18章Option E
+
+---
+
 ## 13. Appendix I: Phase 0/0.5由来の未決事項
 
 Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（6項目）。いずれもPrototypeは暫定値で正常に動作しており、9/17デモの成立を妨げない。**全項目 7-D2分類: D（Gulliver Future Decision、LATER）** — Portal UI・計算方針そのものの採否であり、Ernestの技術保守範囲でもGulliverの現行業務運用でもなく、純粋にPortalの仕様として将来決めればよい事項のため。
@@ -811,6 +858,7 @@ Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（6項
 | J-1a〜J-6 | legacy-stock-sales-data-reverse-engineering 16章／ernest-current-operation-question-sheet Q24-Q28（Phase 8-C追加） |
 | K-1〜K-5b | legacy-invoice-purchase-sales-gross-profit-reverse-engineering 18章／ernest-current-operation-question-sheet Q29-Q33（Phase 8-D追加） |
 | K-6a〜K-6b | legacy-invoice-purchase-sales-gross-profit-reverse-engineering 23章（Gate Audit）／ernest-current-operation-question-sheet Q34（Phase 8-E追加） |
+| L-1〜L-5b | legacy-warehouse-logistics-logizero-reverse-engineering 21章／ernest-current-operation-question-sheet Q35（Phase 8-F追加） |
 | Appendix I | requirements27.4 |
 
 ---
@@ -821,21 +869,21 @@ Theme A-Hに自然に収まらない、Prototype UI/計算仕様の細部（6項
 
 - 全47項目（Theme A-H）＋Appendix I 7項目 ＝ 計54項目。Timing=A（9/17前必須）は11項目、Blocker=BLOCKERは9項目。
 
-### 15.2 Phase 7-D2時点＋Phase 7-E/7-H/7-J/8-A/8-C/8-D/8-E追加後（4分類軸、104項目）
+### 15.2 Phase 7-D2時点＋Phase 7-E/7-H/7-J/8-A/8-C/8-D/8-E/8-F追加後（4分類軸、110項目）
 
 | 分類 | 件数 | 質問先 |
 |---|---|---|
 | **A. SOURCE CONFIRMED** | **0** | なし（詳細は15.3参照） |
-| **B. PHASE1 / ERNEST CONFIRM** | **21**（Phase 7-D2時点13 ＋ Phase 7-J追加分C-10aの1 ＋ Phase 8-A追加分I-6a/I-8a/I-11aの3 ＋ Phase 8-C追加分J-1a/J-2の2 ＋ Phase 8-D追加分K-5aの1 ＋ Phase 8-E追加分K-6aの1、Ernest Q14-Q34に対応） | `docs/ernest-current-operation-question-sheet.md` |
+| **B. PHASE1 / ERNEST CONFIRM** | **22**（Phase 7-D2時点13 ＋ Phase 7-J追加分C-10aの1 ＋ Phase 8-A追加分I-6a/I-8a/I-11aの3 ＋ Phase 8-C追加分J-1a/J-2の2 ＋ Phase 8-D追加分K-5aの1 ＋ Phase 8-E追加分K-6aの1 ＋ Phase 8-F追加分L-5aの1、Ernest Q14-Q35に対応） | `docs/ernest-current-operation-question-sheet.md` |
 | **C. GULLIVER CURRENT OPERATION CONFIRM** | **8** | Gulliver（現行業務の事実確認） |
-| **D. GULLIVER FUTURE DECISION** | **75**（Phase 7-D2時点43 ＋ Phase 7-E追加分B-7〜B-14の8 ＋ Phase 7-J追加分C-10bの1 ＋ Phase 8-A追加分I-1,2,3,4,5,6b,7,8b,9,10,11b,12の12 ＋ Phase 8-C追加分J-1b,3,4,5,6の5 ＋ Phase 8-D追加分K-1,2,3,4,5bの5 ＋ Phase 8-E追加分K-6bの1。Phase 7-Hで旧Appendix Iの1項目をA-7として再整理したのはD内での移動のため総数は変わらない） | Gulliver（将来方針の意思決定） |
-| **合計** | **104** | |
+| **D. GULLIVER FUTURE DECISION** | **80**（Phase 7-D2時点43 ＋ Phase 7-E追加分B-7〜B-14の8 ＋ Phase 7-J追加分C-10bの1 ＋ Phase 8-A追加分I-1,2,3,4,5,6b,7,8b,9,10,11b,12の12 ＋ Phase 8-C追加分J-1b,3,4,5,6の5 ＋ Phase 8-D追加分K-1,2,3,4,5bの5 ＋ Phase 8-E追加分K-6bの1 ＋ Phase 8-F追加分L-1,2,3,4,5bの5。Phase 7-Hで旧Appendix Iの1項目をA-7として再整理したのはD内での移動のため総数は変わらない） | Gulliver（将来方針の意思決定） |
+| **合計** | **110** | |
 
 ### 15.3 なぜ「A. SOURCE CONFIRMED」が0件なのか
 
 Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻さない」という原則を適用済みだったため（1章）、この47項目＋Appendix I自体が、そもそもSourceで解決できなかった残りである。したがって7-D2で改めて「Sourceだけで完全に解決する」項目を探しても新たに見つからなかった（0件）。ただし各項目の"Current G-SYS Fact"欄には、Source Confirmedな前提事実（例: A-3の「同一PO No.への再Import機構自体の存在」、B-6の「現行は誰でも訂正可能」、C-1の「SYS_SEND_MAILキューの存在」）が引き続き記載されており、これらは質問化されていない。**「0件」はSource監査の手抜きではなく、Phase 7-Dの設計原則が正しく機能していたことの裏付け**と解釈する。
 
-### 15.4 Ernest確認で解決が期待される21項目（B分類）の内訳
+### 15.4 Ernest確認で解決が期待される22項目（B分類）の内訳
 
 | Theme | 件数 | Ernest Sheet番号 |
 |---|---|---|
@@ -849,8 +897,9 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 | 在庫・販売実績データ更新関連（Phase 8-C追加） | 2 | J-1a（Ernest Sheet Q24/Q25/Q28として3項目を展開）、J-2（Ernest Sheet Q26/Q27として2項目を展開） |
 | 請求・仕入・売上・粗利関連（Phase 8-D追加） | 1 | K-5a（Ernest Q29）。Ernest SheetにはQ30/Q31/Q32/Q33も存在するが、Decision Package上のCUSTOMER REVIEW項目と直接対応しない詳細確認事項のためトピック計上しない |
 | 請求・仕入・売上・粗利関連（Phase 8-E追加、Gate Audit） | 1 | K-6a（Ernest Q34） |
+| 倉庫・物流・Logizero関連（Phase 8-F追加） | 1 | L-5a（Ernest Q35） |
 
-優先度: P1（7-C2B/7-C4のBlocker）6件、P2（9/17前に把握したい）9件（Q3,Q9,Q10,Q11,Q12に加えPhase 7-J追加のQ14-Q17）、P3（本番設計まででよい）19件（Q5,Q6に加えPhase 8-A追加のQ18-Q23、Phase 8-C追加のQ24-Q28、Phase 8-D追加のQ29-Q33、Phase 8-E追加のQ34）。
+優先度: P1（7-C2B/7-C4のBlocker）6件、P2（9/17前に把握したい）9件（Q3,Q9,Q10,Q11,Q12に加えPhase 7-J追加のQ14-Q17）、P3（本番設計まででよい）20件（Q5,Q6に加えPhase 8-A追加のQ18-Q23、Phase 8-C追加のQ24-Q28、Phase 8-D追加のQ29-Q33、Phase 8-E追加のQ34、Phase 8-F追加のQ35）。
 
 ### 15.5 Ernest回答で「消える」可能性があるGulliver質問
 
@@ -859,16 +908,16 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 ### 15.6 Ernest確認後も確実にGulliver判断が必要な項目
 
 - **C. GULLIVER CURRENT OPERATION CONFIRM（8件）**: Ernestが技術保守担当として確定できない、Gulliver社の業務運用・組織構造に関する事実（例: メーカー担当者のBrand別割当、複数宛先送信の実際の運用、欠品/廃番の業務定義）。Ernestに聞いても解決しない可能性が高いため、最初からGulliver向けとして扱う。
-- **D. GULLIVER FUTURE DECISION（75件、うちAppendix I 6件＋Theme A側のA-7として再整理された1件、Phase 7-E追加分B-7〜B-14の8件、Phase 7-J追加分C-10bの1件、Phase 8-A追加分I-1〜I-12（b分含む）の12件、Phase 8-C追加分J-1b/J-3/J-4/J-5/J-6の5件、Phase 8-D追加分K-1/K-2/K-3/K-4/K-5bの5件、Phase 8-E追加分K-6bの1件を含む）**: Portal導入後の新しい業務ルール・権限・運用方針そのものであり、これは「事実確認」ではなく「意思決定」であるため、Ernestが何を答えても消えない。Gulliverの最終承認が必須。
-- **合計 83件が、Ernest確認後も確実にGulliverへの確認が必要な項目数。**
+- **D. GULLIVER FUTURE DECISION（80件、うちAppendix I 6件＋Theme A側のA-7として再整理された1件、Phase 7-E追加分B-7〜B-14の8件、Phase 7-J追加分C-10bの1件、Phase 8-A追加分I-1〜I-12（b分含む）の12件、Phase 8-C追加分J-1b/J-3/J-4/J-5/J-6の5件、Phase 8-D追加分K-1/K-2/K-3/K-4/K-5bの5件、Phase 8-E追加分K-6bの1件、Phase 8-F追加分L-1/L-2/L-3/L-4/L-5bの5件を含む）**: Portal導入後の新しい業務ルール・権限・運用方針そのものであり、これは「事実確認」ではなく「意思決定」であるため、Ernestが何を答えても消えない。Gulliverの最終承認が必須。
+- **合計 88件が、Ernest確認後も確実にGulliverへの確認が必要な項目数。**
 
 ### 15.7 「件数を減らすこと」自体を目的にしない
 
-上記のとおり、B分類21件をEarnestへ振り分けても、Gulliverへの質問自体は最大83件（C:8＋D:75）残る。これは「件数を無理に減らした」結果ではなく、**「Phase1として調べれば分かることをGulliverに聞かない」**という本Phaseの目的を優先した結果である。件数の多寡よりも、各質問が正しい相手（Ernest / Gulliver Current Operation / Gulliver Future Decision）に向いていることを優先した。
+上記のとおり、B分類22件をEarnestへ振り分けても、Gulliverへの質問自体は最大88件（C:8＋D:80）残る。これは「件数を無理に減らした」結果ではなく、**「Phase1として調べれば分かることをGulliverに聞かない」**という本Phaseの目的を優先した結果である。件数の多寡よりも、各質問が正しい相手（Ernest / Gulliver Current Operation / Gulliver Future Decision）に向いていることを優先した。
 
 ---
 
-## 16. 案件全体のModule/Option構成方針（Phase 8-B追加、Phase 8-Cで#13-15追加、Phase 8-Dで#10更新+#16-18追加、共通前提）
+## 16. 案件全体のModule/Option構成方針（Phase 8-B追加、Phase 8-Cで#13-15追加、Phase 8-Dで#10更新+#16-18追加、Phase 8-Eで#10更新、Phase 8-Fで#19-21追加、共通前提）
 
 **この章は、以降のすべてのPhaseで維持する共通前提である。** 最終提案は「全機能を一括導入する固定Scope」を前提とせず、機能領域（Module/Option）ごとにGulliver社が採否を選択できる提案構造を目指す。最終Scopeは `Customer Requirement × Priority × Dependency × Implementation Cost × Customer Budget` によって決まる想定であり、**現時点で価格・工数を推測せず、正式なPackage構成も独自に決定しない**。目的は、機能境界とDependencyを先に明確にしておくことである。
 
@@ -907,6 +956,9 @@ Phase 7-Dの時点で「Sourceで既に確定していることは質問に戻�
 | 16 | Invoice/Purchase/Sales/Gross Profit（Purchase可視化・仕入確認・理論Margin表示） | Optional | 無（Ordering非依存、Price ChangeのMarginCalculatorを再利用可能） | 可（ただし仕入金額集計＝仕入確認機能自体はGate STOP中、下記参照） | **理論Margin表示部分は低。仕入金額集計（仕入確認）部分はPhase 8-EでGate: STOP**（`TR_INV.AMT_TTL`/`TR_INV_DTL.AMT_LINE`がBatch間で非等価な計算式のため、Gross Amount定義がK-6b確定まで実装不可） | 低（READ ONLY） | 無 | K-5a/K-5b/K-6a/K-6b |
 | 17 | Invoice/Purchase/Sales/Gross Profit（PO/Invoice Qty比較） | Optional | 16とは独立に単独導入可（7章のJoinのみで完結） | 可 | 低（READ ONLY、Join自体はSource Confirmed） | 中（比較目的の確定が必要） | 無 | K-1 |
 | 18 | Invoice/Purchase/Sales/Gross Profit（差異管理・Sales Amount蓄積・実績粗利・Dashboard） | Optional | **Sales Amount蓄積へのTechnical Dependency（実績粗利側）**、差異管理Business Rule確定へのBusiness/Estimate Dependency。Stock/Sales Data UpdateのOption B（14番）と同じTempostar CSV拡張ポイントを共有し得る（16.3章参照） | 不可（Sales Amount蓄積の完成、または差異管理Business Rule確定が前提） | 中〜高 | 高（複数の未確定Business Rule次第） | 間接（Tempostar由来） | K-2/K-3/K-4 |
+| 19 | Warehouse/Logistics（Arrival Visibility・Warehouse Stock Visibility・Discrepancy Visibility） | Optional | 無（Ordering非依存で成立、legacy-warehouse-logistics-logizero-reverse-engineering 14章） | 可 | 低（既存Table・既存Query参照のREAD ONLY表示のみ、`TR_ARR`/`MS_STK.STK_QTY`/`StkQtyDiscrepancyCheckerService`） | 間接（LogizeroがG-SYSへ供給するDataのFreshness次第） | Theme L（L-1/L-2/L-3） |
+| 20 | Warehouse/Logistics（Logizero/Tempostar連携方式見直し） | Optional | **19（可観測性向上）とは独立、19-1の完成後に着手する方が自然** | 不可（External Specification確認が前提） | 高（Selenium/SFTP/API方式自体の変更） | 中 | 大（Logizero/Tempostar双方のVendor仕様確認が必須） | L-5a/L-5b |
+| 21 | Warehouse/Logistics（G-SYS→倉庫 双方向連携） | Optional | **19・20の完成後を推奨** | 不可 | 高 | 高 | 大 | L-4 |
 
 **Business/Estimate上のDependencyとTechnical Dependencyの区別**（指示による）:
 - 例: 「Future Price / Scheduled Price」は**Technical Dependency**として Price Change の Change Set 構造に依存する（Change Setという入れ物が無ければ予約日時を持たせる先が無い）。一方、Approval・Fulfillment等が Ordering に依存するのは主として**Business/Estimate上のDependency**（Orderingという業務プロセスが無ければ承認や納品追跡という概念自体が発生しない）であり、Technicalには疎結合な実装（別Table・別Service）を既に採っている（7-C系のPortalOrderRevision/AuditEvent等はOrdering専用Tableであり、Approval機能を外してもOrdering自体のCore Tableは壊れない設計）。

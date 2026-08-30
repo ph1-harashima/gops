@@ -223,4 +223,20 @@
 
 ---
 
-以上です。🟣マークの項目はPhase1社内（Ernest）で確認中のため、確定次第この質問票を更新します。ご不明点があれば、`docs/customer-review-decision-package.md`（社内向け詳細版）・`docs/target-price-change-workflow.md`（価格変更の詳細設計）・`docs/legacy-stock-sales-data-reverse-engineering.md`（在庫・販売実績データの詳細調査）・`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md`（請求・仕入・売上・粗利の詳細調査）もあわせてご確認ください。
+## L. 倉庫・物流について（Phase 8-F追加・次期開発領域の参考、9/17説明には必須ではありません）
+
+> 打ち合わせ（8/26）で、入荷数量や入荷予定日が変更になった際に倉庫側の情報を修正する手間があり、G-SYS上で変更した情報を倉庫・物流側へ効率的に連携できないか、というお話がありました。以下はいずれも9/17の発注機能デモには含まれず、今後の設計に向けた参考確認です。
+>
+> **なお、社内システムを詳しく調査した結果、現在G-SYSには倉庫システムから在庫数量を受け取る仕組みは既にありますが、逆方向（G-SYS側の変更を倉庫へ伝える仕組み）は無いことが分かりました。8/26のご要望は後者にあたるため、今後の検討テーマとして整理いたします。**
+
+**L-1. ⚪ 入荷予定（ETA）や倉庫の入荷状況をPortal上で確認できる機能は必要でしょうか？**
+
+**L-2. ⚪ 倉庫の在庫数量（現在は倉庫システムから自動的に取り込んでいます）をPortal上で確認できる機能は必要でしょうか？**
+
+**L-3. ⚪ G-SYSの在庫数量と倉庫システムの在庫数量に差異が発生した場合の検知の仕組みは既にありますが、Portal上で確認できるようにする必要はあるでしょうか。また差異が発生した際、どなたがどう対応すべきでしょうか？**
+
+**L-4. ⚪ 入荷数量・入荷予定日の変更を倉庫・物流側へ連携する仕組みについて、どこまでの自動化をご希望でしょうか（一部手作業を残す想定か、完全自動化をご希望か等）？**
+
+---
+
+以上です。🟣マークの項目はPhase1社内（Ernest）で確認中のため、確定次第この質問票を更新します。ご不明点があれば、`docs/customer-review-decision-package.md`（社内向け詳細版）・`docs/target-price-change-workflow.md`（価格変更の詳細設計）・`docs/legacy-stock-sales-data-reverse-engineering.md`（在庫・販売実績データの詳細調査）・`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md`（請求・仕入・売上・粗利の詳細調査）・`docs/legacy-warehouse-logistics-logizero-reverse-engineering.md`（倉庫・物流・Logizero連携の詳細調査）もあわせてご確認ください。

@@ -275,14 +275,48 @@ Phase 8-Cの`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering
 
 ---
 
+## J. 倉庫・物流・Logizero関連（5項目、Phase 8-F追加）
+
+### Q35. 〔P3〕Logizero/Tempostar在庫連携の本番運用経路（Selenium方式 vs SFTP方式）
+
+- **What we already know**: Legacy Sourceには、Logizero在庫連携についてSelenium方式（`InvLogizeroStkDownloadBatch`/`InvLogizeroTempostarStkUploadBatch`）とSFTP方式（`MIMOSA_InvLogizeroStkDownloadBatch`/`MIMOSA_InvLogizeroTempostarStkUploadBatch`）の2系統が実装済みで併存していることを確認した（`legacy-warehouse-logistics-logizero-reverse-engineering.md` 3章・10章・12章）。
+- **What we need to confirm**: 現在どちらが本番運用経路か。両方稼働しているとすれば使い分けの意図・移行状況は。
+- **Why it matters**: 将来の連携方式見直し（Option E）の前提情報。本番経路が不明なまま設計すると誤った前提で改善提案をしてしまうリスクがある。
+
+### Q36. 〔P3〕MS_STK.WH_CD（倉庫コード4〜15）それぞれの実際の意味
+
+- **What we already know**: `InvLogizeroStkImportBatch`の「出荷可能在庫」閾値計算は`WH_CD`∈{4,5,6,7,11,13}のみを対象とし、`StkQtyDiscrepancyCheckerService`の差異検知は`WH_CD`4〜15（12コード）を対象としている。両者の対象範囲の差の意味はSourceのコメント・命名からは判別できない（同Document 8章）。
+- **What we need to confirm**: `WH_CD`4〜15それぞれが実際にどの倉庫・保管区分（良品／検品中／不良品／倉庫間移動中等）を表すか。
+- **Why it matters**: Warehouse Stock Visibility機能（Option B）の表示単位・ラベル付けの前提情報。
+
+### Q37. 〔P3〕在庫差異Email（StkQtyDiscrepancyCheckerService）受信後の実際の対応実態
+
+- **What we already know**: `MS_STK.STK_QTY`とLogizero取込Snapshotの差異を検知しEmail通知する仕組みは既に実装されているが、検知後のResolution Workflowは見つからなかった（同Document 9章・11章）。
+- **What we need to confirm**: 実際にEmailを受信した担当者がどう対応しているか（現地確認・再取込・手動修正等）。
+- **Why it matters**: Stock Discrepancy Visibility機能（Option C）の運用ルール設計の前提情報。
+
+### Q38. 〔P3〕ETA_WH通知Email受信後の倉庫側での実際の反映方法
+
+- **What we already know**: `PrEtaWhMailBatch`が入荷予定日（ETA_WH）確定時に「WH DECISION - ETA WH UPDATE」Emailを送信する仕組みが既に存在する（同Document 7章・14章）。2026/08/26打ち合わせSlide 13では「倉庫側の情報を手作業で修正するケースがある」との課題が語られている。
+- **What we need to confirm**: このEmailを倉庫側の誰が受信し、その後どのように倉庫システム側（Logizero等）へ情報を反映しているか。
+- **Why it matters**: Slide 13の要望（G-SYS→倉庫連携）を検討する際の、現状の手作業実態の具体化。
+
+### Q39. 〔P3〕Stock In Report Fileの発行元
+
+- **What we already know**: `TR_INV_DTL.QTY_STK_IN`を更新する`PrStkInReportImportBatch`（Phase 8-D確認済み）が読み込むFileの発行元は、Batch名・列定義からは特定できなかった（同Document 6章・7章）。
+- **What we need to confirm**: このFileはLogizero発行のFileか、それとも別の手段（手入力・別システム）で作成されるFileか。
+- **Why it matters**: 7章で確認した「Stock In経路とWarehouse Stock経路の不整合（相互に突合できない）」の根本原因を理解するための前提情報。
+
+---
+
 ## 優先度別サマリ
 
 | 優先度 | 件数 | 項目 |
 |---|---|---|
 | P1 | 6 | Q1, Q2, Q4, Q7, Q8, Q13 |
 | P2 | 9 | Q3, Q9, Q10, Q11, Q12, Q14, Q15, Q16, Q17 |
-| P3 | 19 | Q5, Q6, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34 |
-| **合計** | **34** | |
+| P3 | 24 | Q5, Q6, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34, Q35, Q36, Q37, Q38, Q39 |
+| **合計** | **39** | |
 
 ## Theme別サマリ
 
@@ -297,3 +331,4 @@ Phase 8-Cの`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering
 | 在庫・販売実績データ更新（Phase 8-C追加） | 5 | Q24-Q28 |
 | 請求・仕入・売上・粗利（Phase 8-D追加） | 5 | Q29-Q33 |
 | 仕入確認 Gross Amount定義（Phase 8-E追加） | 1 | Q34 |
+| 倉庫・物流・Logizero（Phase 8-F追加） | 5 | Q35-Q39 |
