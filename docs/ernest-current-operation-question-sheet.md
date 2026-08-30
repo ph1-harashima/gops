@@ -1,6 +1,6 @@
-# Ernest Current Operation Question Sheet — Phase 7-D2（Phase 7-J追加あり）
+# Ernest Current Operation Question Sheet — Phase 7-D2（Phase 7-J／8-A追加あり）
 
-**Status**: Docs Only（Phase 7-D2、Phase 7-JでEDI関連4項目を追加）。Code変更・DB Migration・Legacy変更は一切なし。
+**Status**: Docs Only（Phase 7-D2、Phase 7-JでEDI関連4項目、Phase 8-Aで価格変更関連6項目を追加）。Code変更・DB Migration・Legacy変更は一切なし。
 
 **宛先**: Ernest（Phase1社内、G-SYS保守担当）
 **目的**: `docs/customer-review-decision-package.md`（Phase 7-D）で「Sourceコードだけでは分からない」と分類した項目のうち、**Gulliver社（顧客）へ聞く前に、Phase1社内・特にG-SYS保守担当のErnestに確認すれば解決できる可能性が高い項目**を切り出したもの。「Sourceから分からない」＝「Gulliver社へ質問する」ではない、という前提で作成している（Phase 7-D2指示）。
@@ -151,14 +151,56 @@ Phase 7-Jの手動確認で、メーカーとの発注方法が約90%Email・約
 
 ---
 
+## F. 価格変更関連（6項目、Phase 8-A追加）
+
+Phase 7-Jの`docs/legacy-price-change-reverse-engineering.md`（Source Reverse Engineering）11章で「Source調査で確認できなかった事項」として挙げたQ-P1〜Q-P6のうち、Ernestが技術保守担当として確認できる可能性が高いものをここに正式なQuestionとして展開する（Q-P7〔Tempostar連携詳細〕は価格変更Target Design自体には直結しないため、次々Phase以降に送る）。9/17デモは発注(Ordering)機能のみが対象であり価格変更は含まれないため、全項目P3（本番設計まででよい）とする。
+
+### Q18. 〔P3〕Price List Import Folderの配置・トリガー方法
+
+- **What we already know**: Import Pipeline自体の構造（Upload/Work/Backupフォルダ構成、`AbstImportBatch`基盤）はOfficial PO Importと共通であることをSourceで確認済み（`docs/legacy-price-change-reverse-engineering.md` 2章）。起動方式（cron/手動/外部Watcher等）を示すコードはSource上に見つかっていない。
+- **What we need to confirm**: Price List Import（`PRC_LIST`コード）用のImport Folderへ、実際に「誰が」「どのタイミングで」Excelを配置しているか。Official PO Importと同じ運用か、別のフローか。
+- **Why it matters**: 将来Portalが価格変更用Artifactを生成する場合の投入Timing設計の前提（`docs/target-price-change-workflow.md` 12章）。
+
+### Q19. 〔P3〕Price List Export/Import列フォーマットの一致
+
+- **What we already know**: Export（`PriceList.java`）とImport（`MsPriceListImportBatch`）は別クラスであり、Sourceのみからは列フォーマットの完全一致は確認できていない（RE 11章Q-P2）。
+- **What we need to confirm**: 実際の運用で「Export結果のExcelをそのまま編集してImportに使っている」のか、それとも別フォーマットとして扱われているのか。
+- **Why it matters**: 将来Portalが生成するImport用Artifactの列フォーマットを設計する際、Export側の列と合わせるべきか独自に定義してよいかの判断材料（`docs/target-price-change-workflow.md` 12章・17章PC-15）。
+
+### Q20. 〔P3〕Item Group価格変更の配下SKUへの連動有無
+
+- **What we already know**: `MS_ITEM_GRP`（Item Group）単位の価格一括設定はSourceで確認済みだが、Import Batch自体には配下`MS_ITEM`へ自動反映するロジックは見つかっていない（RE 4章・7章・11章Q-P3）。
+- **What we need to confirm**: 実運用上、Item Group価格を変更した際に配下SKUの価格も実際に連動して変わっているか。連動しているなら別の仕組み（別Batch・手動運用等）があるはずで、その実態を確認したい。
+- **Why it matters**: `docs/target-price-change-workflow.md` 9章（Bulk Price Change設計）・17章PC-10で、Item Group単位一括変更を新Portalでどう扱うべきかの前提。
+
+### Q21. 〔P3〕Item GroupとBrandの対応関係・Master構造
+
+- **What we already know**: `MsItemGrp`は`itemGrpCd`単位で価格を保持するが、Item GroupとBrandの対応関係はSourceからは特定できていない（RE 8章・11章Q-P4）。
+- **What we need to confirm**: Item GroupとBrandは1対1か、1つのBrandに複数のItem Groupが対応するのか、そもそも別概念か。
+- **Why it matters**: `docs/target-price-change-workflow.md` 9章・17章PC-13で、「Brand単位の一括価格変更」が技術的に成立するかどうかの前提。
+
+### Q22. 〔P3〕価格変更の実施頻度・実施者・承認者（現状）
+
+- **What we already know**: 変更幅超過時、Excel内`APPROVAL`列に`ACCEPT`と手入力しないとImportがエラーになる仕組みはSourceで確認済み（RE 4章）。ただし、この`ACCEPT`を実際に「誰が」「どういう基準で」入力しているかはSourceからは分からない。
+- **What we need to confirm**: 価格変更は現在どのくらいの頻度で行われているか。実施者・（変更幅超過時の）承認者は誰か。
+- **Why it matters**: `docs/target-price-change-workflow.md` 11章（Approval設計）・17章PC-6で、Approval Workflowの要否を検討する際の現状把握として必須。
+
+### Q23. 〔P3〕Price関連Export/Import Endpoint・Batch起動のRole/Permission制限
+
+- **What we already know**: `MsPriceListImportBatch`自体にRole/Permissionチェックのコードは無い（Batchである以上、誰でもImport Folderへ配置できればDBが更新される構造、RE 10章）。Export側（`/api/export/{type}`）のRole制限有無はSpring Security設定側の調査が必要でRE時点では未確認（RE 11章Q-P6）。
+- **What we need to confirm**: 現在、価格変更のExport/Import操作を実行できる担当者はどう制限されているか（システム的な制限か、運用上の取り決めのみか）。
+- **Why it matters**: `docs/target-price-change-workflow.md` 11章で、既存OPERATOR/ADMIN Roleで価格変更のAccess Controlを表現できるかの判断材料。
+
+---
+
 ## 優先度別サマリ
 
 | 優先度 | 件数 | 項目 |
 |---|---|---|
 | P1 | 6 | Q1, Q2, Q4, Q7, Q8, Q13 |
 | P2 | 9 | Q3, Q9, Q10, Q11, Q12, Q14, Q15, Q16, Q17 |
-| P3 | 2 | Q5, Q6 |
-| **合計** | **17** | |
+| P3 | 8 | Q5, Q6, Q18, Q19, Q20, Q21, Q22, Q23 |
+| **合計** | **23** | |
 
 ## Theme別サマリ
 
@@ -169,3 +211,4 @@ Phase 7-Jの手動確認で、メーカーとの発注方法が約90%Email・約
 | Cancellation | 1 | Q12 |
 | Infrastructure | 1 | Q13 |
 | EDI発注（Phase 7-J追加） | 4 | Q14-Q17 |
+| 価格変更（Phase 8-A追加） | 6 | Q18-Q23 |
