@@ -7,7 +7,7 @@
   "prototypePoNo": "PO No.",
   "orderDate": "発注日",
   "requestedDelivery": "希望納期",
-  "requestedDeliveryOptionalHint": "任意項目です。未入力でも承認・送信まで進められます。",
+  "requestedDeliveryOptionalHint": "ドラフト作成時は任意です。正式発注時の入力要否は確認中です。",
   "remark": "備考",
   "saveDraft": "ドラフトを保存",
   "preview": "PO プレビュー",

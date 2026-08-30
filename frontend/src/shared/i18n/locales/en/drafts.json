@@ -1,5 +1,6 @@
 {
   "backToCandidates": "Back to Order Candidates",
+  "requestedDeliveryOptionalHint": "Optional while creating the Draft. Whether it becomes required for the official order is still under review.",
   "submitForApproval": "Submit for Approval",
   "submitDialogTitle": "Submit for approval?",
   "submitDialogBody": "Submit this Draft for approval?\nOnce submitted, quantities and other fields cannot be edited until an Administrator reviews it.",
