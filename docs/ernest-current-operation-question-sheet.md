@@ -265,14 +265,24 @@ Phase 8-Cの`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering
 
 ---
 
+## I. 仕入確認 Gross Amount定義関連（1項目、Phase 8-E追加）
+
+### Q34. 〔P3〕`TR_INV`/`TR_INV_DTL`のAmount系Field不整合・`PrBLInvImportBatch`の実際の適用範囲
+
+- **What we already know**: Legacy Source調査（`legacy-invoice-purchase-sales-gross-profit-reverse-engineering.md` 23章）により、Invoice作成の主経路`PrOfficialPoImportBatch`では`TR_INV.AMT_TTL`がPO発注数量ベースの値（Invoice自身の明細から計算されるべき値ではない）で書き込まれ、`TR_INV_DTL.AMT_LINE`は新規明細行で恒常的にNULLのまま残ることを確認した。別Batch`PrBLInvImportBatch`（Bill of Lading経由）が実行されると、これらは`SUB_TTL_AMT`+`FREIGHT`ベースの正しい値に上書きされる。
+- **What we need to confirm**: (1) `PrBLInvImportBatch`は実際に全Invoiceに対して実行されるのか、それとも海上輸送等一部の取引形態に限られるのか。(2) 上記の不整合について、現場の請求書確認業務で実際に気づかれたこと・困ったことがあるか。(3) `TR_INV_ADD_COST`（付帯費用）は実際のSupplier請求書のGross Amountに含まれているか。
+- **Why it matters**: 「仕入確認」Foundation機能で表示すべき「G-SYS上の仕入金額合計」の正しい算出方法を確定するための前提情報。本論点が未確認のため、Phase 8-Eでは同機能の実装をGate: STOPと判定した（K-6a/K-6b、23.5章）。
+
+---
+
 ## 優先度別サマリ
 
 | 優先度 | 件数 | 項目 |
 |---|---|---|
 | P1 | 6 | Q1, Q2, Q4, Q7, Q8, Q13 |
 | P2 | 9 | Q3, Q9, Q10, Q11, Q12, Q14, Q15, Q16, Q17 |
-| P3 | 18 | Q5, Q6, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33 |
-| **合計** | **33** | |
+| P3 | 19 | Q5, Q6, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q32, Q33, Q34 |
+| **合計** | **34** | |
 
 ## Theme別サマリ
 
@@ -286,3 +296,4 @@ Phase 8-Cの`docs/legacy-invoice-purchase-sales-gross-profit-reverse-engineering
 | 価格変更（Phase 8-A追加） | 6 | Q18-Q23 |
 | 在庫・販売実績データ更新（Phase 8-C追加） | 5 | Q24-Q28 |
 | 請求・仕入・売上・粗利（Phase 8-D追加） | 5 | Q29-Q33 |
+| 仕入確認 Gross Amount定義（Phase 8-E追加） | 1 | Q34 |

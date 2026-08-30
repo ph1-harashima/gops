@@ -1,6 +1,8 @@
-# Legacy Invoice / Purchase / Sales / Gross Profit Reverse Engineering & Target Analysis（Phase 8-D）
+# Legacy Invoice / Purchase / Sales / Gross Profit Reverse Engineering & Target Analysis（Phase 8-D、Phase 8-Eで23〜25章追記）
 
 **Status**: Docs / Audit Only。Frontend / Backend / DB Migration / API追加 / Legacy Source変更は一切行っていない。本Documentは「請求・仕入・売上・粗利」を独立した改善Optionとして整理できるかの調査であり、実装ではない（実装は本Phaseでは禁止）。
+
+**Phase 8-E追記**: 「仕入集計・請求書目視確認支援 Foundation」の実装前提監査を実施した結果、**Gate: STOP**（23章）。Gross Amount定義がLegacy Sourceから一意に確定できないため、Foundation実装は行っていない（Docs Onlyで停止）。詳細は23〜25章。
 
 **目的**: `customer-review-decision-package.md` 16章のModule/Option構成方針を前提に、請求・仕入・売上・粗利（Invoice/Purchase/Sales/Gross Profit）を、Ordering・Price Change・Stock/Sales Data Updateと並ぶ独立した改善Optionとして提案できるかを検証する。**必ず実装する前提ではない。**
 
@@ -325,4 +327,85 @@ Legacy Sourceで「Gross Profit」「Profit」「Margin」「Profit Rate」に�
 | P-9 | 実績粗利可視化の要否 | D | 18章 |
 | P-10 | Supplier Invoice Integration方式 | D（一部Ernest確認候補） | 18章・12章 |
 
-**変更したFrontend/Backend/DB Migration/Legacy Source: 0件。** 本Documentと既存3 QA Documentの更新のみ。
+---
+
+## 23. Phase 8-E: Gross Amount定義の一意性監査（Implementation Gate Audit）
+
+**目的**: 「仕入集計・請求書目視確認支援」Foundation（仕入確認画面）の実装前に、「G-SYS上の仕入金額合計（Gross Amount）」としてLegacy Sourceのどの値・計算式を正とすべきかが、Sourceから安全かつ一意に確定できるかを監査する。**推測で計算式を決めない**という指示に基づき、Legacy Batch実装を直接調査した。
+
+### 23.0 Phase 8-Eで確定した前提（Business Requirement）
+
+- 本機能は「請求書管理システム」ではない。SupplierのInvoiceをPortalへ取り込む・保存する・OCRする・Portal上のInvoice Dataとして自動突合する、といった機能は一切作らない。
+- 本機能の役割は、**手元の請求書（形式は不定：SKU明細型／PO単位Summary型／Supplier×期間Gross Only型／紙／PDF／データ／別システム）に記載されたGross Amountが妥当かを、G-SYS上の仕入Dataを任意条件で集計して担当者が目視確認できるようにする**ことに限定される（Portal自身がAmountの正誤を判定しない）。
+- この前提は4章のPurchase Data・11章のSystem of Recordとも整合するが、23.1以降で確認するとおり、**「G-SYS上の仕入金額合計」という一見単純な値自体が、Sourceの実装上は複数の非等価な計算式で書き込まれている**ため、Gross Amountの定義確定が本機能実装のBlockerになる。
+
+### 23.1 Source Confirmed：`TR_INV.AMT_TTL`／`TR_INV_DTL.AMT_LINE`を書き込むBatchと計算式
+
+`grep -rn "setAmtTtl" src/main/java/jp/ne/glv/batch/*.java src/main/java/jp/ne/glv/services/*.java`により、`TR_INV.AMT_TTL`（またはPO側`TR_PO.AMT_TTL`）へ書き込みを行うBatchが**最低5つ**存在することを確認した。うち代表的な3つを実装レベルで詳細確認した。
+
+| Batch | 書き込み箇所 | 計算式 | 特記事項 |
+|---|---|---|---|
+| **`PrOfficialPoImportBatch`**（3章、Invoice/POの主たる新規生成経路） | `trInv.setAmtTtl(amtTtl)`（1180行） | 変数`amtTtl`は953行で宣言、1050行で`amtTtl.add(prcUnit × qtyPo)`により**PO発注数量（QTY_PO）ベース**で累計される、PO自身の`trPo.setAmtTtl(amtTtl)`（1054行）と**同一の外側scope変数** | 🔴 **Invoice明細ごとに正しく積算される`trInvAmtTtl`（1176行、`amtLine`の累計）は変数として存在するにもかかわらず、ヘッダへは書き込まれず破棄される**。かつ主経路（既存Delete行の複写でない新規行、1168行`else`節）では`trInvDtl.setAmtLine(...)`が一切呼ばれず、**`TR_INV_DTL.AMT_LINE`はNULLのまま**（`setPrcUnit`のみ実行） |
+| **`PrBLInvImportBatch`**（Bill of Lading／通関実務に紐づく、3章では未言及の別Batch） | `trInv.setSubTtlAmt(subSmtTtl)`／`setFreight(freight)`／`setAmtTtl(subSmtTtl.add(freight))`（1663-1665行） | `subSmtTtl`は1619行で明細ループごとに`prcUnit × qty`を正しく積算。**新規明細行には`trInvDtl.setAmtLine(prcUnit × qty)`（1610行）も実行される** | 🟢 この経路のみ、Header（`SUB_TTL_AMT`+`FREIGHT`=`AMT_TTL`）とDetail（`AMT_LINE`）が内部整合的に計算・永続化される。ただし同一PK（`SUPPLIER_CD`+`INV_NO`）に対する**後発の上書き**として動作するため、このBatchが実行されて初めて`PrOfficialPoImportBatch`の値が補正される構造 |
+| **`PrCreditPoImportBatch`**（Credit PO/Invoice、差額調整） | `trInv.setAmtTtl(trInv.getSubTtlAmt().add(trInv.getFreight()))`（701行）／`trInv.setAmtTtl(trInv.getSubTtlAmt())`（703行、条件分岐で別式） | Credit調整固有のロジック、`SUB_TTL_AMT`+`FREIGHT`の場合と`SUB_TTL_AMT`のみの場合の**2通りの式が条件分岐で使い分けられる**（分岐条件は本Phaseでは未特定） | 🔴 Credit行がどの条件でどちらの式を通るかは未確認。通常Invoiceとの合算方法（符号・Netting）も未確認 |
+| `PrStkInReportImportBatch`（4章で既述、Stock-In Report Import） | `crdTrInvDtl.setAmtLine(...)`（834行）等 | Credit行（`crdTrInvDtl`）生成時のみ実行 | 🔴 **通常（非Credit）の既存`TrInvDtl`行に対しては`AMT_LINE`／`PRC_UNIT`を一切更新しない**ことを確認済み（`setAmtLine\|setPrcUnit`の全6件がCredit行生成分岐内）。つまりこのBatch（在庫受入の実運用上最も高頻度に走るBatchの一つ、Phase 7-C7A）は、`PrOfficialPoImportBatch`が残したNULL/誤ったAMT_LINEを補正する経路には**ならない** |
+| `PrBLInvImportBatch`「DUMMY TRANSACTIONS」区画 | `trPo.setAmtTtl(entity.getRmtAmt())`（1691行） | **送金金額（RMT_AMT）起点**の第3・第4の計算パターン | 🔴 未完了・非最終Transaction向けの仮Record生成と見られるが、本Phaseでは用途・発生条件を確定できていない |
+
+### 23.2 確定できないこと（Operational Unknown）
+
+- **`TR_INV.STATUS`（TRANSIT／RECEIVING／STOCK_IN）が、どのBatch由来の値が権威（authoritative）かを判別する信頼できるSignalになるか**は未確認。本Phaseの時間内では検証しきれず、次の調査ステップとして残した。
+- **`PrBLInvImportBatch`が全Invoiceに対して実行されるのか、一部（海上輸送／輸入貨物等、実際にBLが発行される取引）に限られるのか**はSourceから確定できない。もしBL取引のみに限られる場合、それ以外のInvoiceは`PrOfficialPoImportBatch`由来の誤った/NULLのAMT_TTL/AMT_LINEのまま残り続ける可能性がある。
+- **`PrCreditPoImportBatch`の701行/703行の条件分岐がどのような業務条件で使い分けられるか**、および通常Invoiceとの合算（Netting）方法。
+- **`TR_INV_ADD_COST`（Invoice付帯費用、3章既述）がいずれかのAMT_TTL/SUB_TTL_AMTに含まれているか、別立てで加算すべきか**：本Phaseで`TR_INV_ADD_COST`への参照箇所を再検索した範囲では、23.1の主要3 Batchの`AMT_TTL`/`SUB_TTL_AMT`計算式のいずれにも`TrInvAddCost`由来の値を加算する処理は確認できなかった（＝付帯費用は現状どのHeader Totalにも反映されていない可能性がある）。ただし全参照箇所を網羅的に確認しきれておらず、Operational Unknownとして扱う。
+- **Tax（消費税・関税等）に相当するField／計算ロジック**: `TR_INV`/`TR_INV_DTL`/`TR_INV_ADD_COST`のいずれにも`TAX`様のField名は確認できなかった（`Freight`はあるが`Tax`相当は無し）。Taxが別のTable/仕組みで管理されているか、単に対象外（輸入取引でSupplier Invoice自体に税が乗らない）なのかは未確認。
+- **Cancelled/Invalid Dataの除外方法**: `TR_INV`/`TR_PO`に論理削除・無効化Flagが存在するかどうかは、本Phaseの調査範囲では確認していない（既存Reverse Engineeringでも未言及）。
+
+### 23.3 Gross Amount候補（いずれも欠陥あり、一意に決定不能）
+
+| 候補 | 内容 | 欠陥・懸念 |
+|---|---|---|
+| 候補1: `TR_INV.AMT_TTL`（Header） | Invoiceヘッダの`AMT_TTL`をそのまま合計 | 🔴 23.1のとおり、`PrOfficialPoImportBatch`由来の値は**PO発注数量ベースの誤った値**であり、`PrBLInvImportBatch`が後から実行されて初めて正しい値に上書きされる。どちらの状態のInvoiceが混在しているか、集計時点では判別できない |
+| 候補2: `SUM(TR_INV_DTL.AMT_LINE)`（Detail集計） | Invoice明細のAMT_LINEを合計 | 🔴 `PrOfficialPoImportBatch`の主経路ではAMT_LINEが**NULL**のまま残るため、Batch実行順序次第で欠損値を含んだ集計になる（NULLをどう扱うか自体もBusiness Rule未確定） |
+| 候補3: `TR_INV.SUB_TTL_AMT + FREIGHT` | `PrBLInvImportBatch`/`PrCreditPoImportBatch`が実際に使う内部整合的な式 | 🔴 `PrOfficialPoImportBatch`由来の未上書きInvoiceには`SUB_TTL_AMT`/`FREIGHT`自体が設定されていない可能性が高く（23.1のBatch別experiment未実施）、全件に適用できるか不明。加えて`TR_INV_ADD_COST`が含まれるか不明（23.2） |
+| 候補4: 候補1〜3 + `SUM(TR_INV_ADD_COST.AMT)` | 付帯費用を明示的に加算する案 | 🔴 23.2のとおり、付帯費用を加算すべきという業務的な根拠（顧客からの請求書にAdditional Costがどう反映されているか）自体が未確認 |
+
+**結論**: 4候補いずれも、少なくとも1つの重大な未確定要素（Batch実行順序依存／NULL欠損／付帯費用の要否／適用範囲）を抱えており、**Legacy Sourceの調査のみでは一意に決定できない**。
+
+### 23.4 Gate判定：**STOP**
+
+**判定根拠**（指示21章の基準に基づく）:
+
+1. `TR_INV.AMT_TTL`は、Invoice作成の主経路（`PrOfficialPoImportBatch`）において、Invoice自身の明細から計算されるべき値ではなく、**PO発注側の変数を誤って参照する実装上の不具合とみられる状態**で書き込まれている（23.1）。
+2. `TR_INV_DTL.AMT_LINE`は、同じ主経路の新規明細行に対して**恒常的にNULL**として残る（23.1）。
+3. 上記を補正しうる`PrBLInvImportBatch`が、**全InvoiceかBLを伴う一部Invoiceのみかが確定できない**（23.2）。
+4. 結果として、任意時点で任意のInvoiceを集計対象にした場合、その値が「補正済み・正しい値」なのか「未補正・誤った値／NULL」なのかを、Portal側のQueryだけでは判別できない。
+5. 加えてTax・付帯費用（`TR_INV_ADD_COST`）・Credit Netting・Cancelled Data除外の扱いも未確定（23.2）。
+
+以上より、「請求書確認に使うGross Amountとして、どのLegacy金額を正とするか」を**推測で決めることはできない**と判断し、本Phaseでは**仕入確認Foundationの実装を行わない（Docs Onlyで停止）**。
+
+### 23.5 Customer/Ernest確認事項（新規、既存Theme A-Kとの重複なし）
+
+| 論点 | 分類 | 想定回答者 |
+|---|---|---|
+| `PrOfficialPoImportBatch`由来のAMT_TTL/AMT_LINEの不整合（PO発注数量ベースの値がInvoice金額として書き込まれる、明細AMT_LINEがNULLのまま残る）について、**実際の請求書確認業務で気づかれたことがあるか／どう対処しているか** | B（Ernest、23.1） | Ernest |
+| `PrBLInvImportBatch`（Bill of Lading経由のInvoice補正）が実際にどのSupplier・取引形態（海上輸送／その他）で実行されるか、全Invoiceが最終的にこの経路を通るか | B（Ernest、23.2） | Ernest |
+| `TR_INV_ADD_COST`（付帯費用）が、Supplierからの実際の請求書Gross Amountに含まれているか、別立て費用として扱われているか | D（Gulliver Future Decision） | Gulliver |
+| Tax（消費税・関税等）がSupplier Invoiceに乗るか、乗る場合Legacyのどこかに記録されているか | B/D混在 | Ernest→Gulliver |
+| 上記の不確実性を踏まえたうえで、「仕入確認」機能におけるGross Amountの正式な定義（暫定値であることを明示したうえでの表示可否を含む） | D（Gulliver Future Decision） | Gulliver |
+
+---
+
+## 24. Phase 8-E Implementation Gate 結果サマリ
+
+| 項目 | 結果 |
+|---|---|
+| Gate判定 | **STOP**（23.4） |
+| 理由 | Gross Amount計算式がBatch実行順序・Invoice種別によって非等価であり、Legacy Sourceのみからは一意に確定できないため |
+| 実装した機能 | なし（Docs Onlyで停止、指示21章の指示どおり） |
+| 次のAction | 23.5のCustomer/Ernest確認事項の回答を待つ。回答が得られ、Gross Amount定義が一意に確定できた場合にのみ、次Phaseで「仕入確認」Foundation実装を再検討する |
+
+---
+
+## 25. 変更ファイル
+
+**変更したFrontend/Backend/DB Migration/Legacy Source: 0件。** 本Document（23〜25章追記）と既存3 QA Documentの更新のみ。
