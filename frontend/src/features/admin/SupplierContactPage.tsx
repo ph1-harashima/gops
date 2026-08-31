@@ -113,7 +113,7 @@ export function SupplierContactPage() {
 
       {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
       {data && data.length > 0 && (
-        <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 0 }} data-testid="supplier-contact-table-container">
+        <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="supplier-contact-table-container">
           <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
             <TableHead>
               <TableRow>

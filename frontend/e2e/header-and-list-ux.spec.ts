@@ -155,6 +155,56 @@ test.describe('Phase 7-F: Sticky Table Header', () => {
     expect(bg).not.toBe('rgba(0, 0, 0, 0)')
     expect(bg).not.toBe('transparent')
   })
+
+  // Found via customer feedback: on a short-viewport monitor (a TV
+  // projection was the reported case), Candidate List / Order List rows
+  // stopped appearing entirely. Root cause: TableContainer's
+  // `flex: 1, minHeight: 0` let the scrolling Table area shrink toward 0px
+  // whenever the fixed Header/Banner/Title/Filter chrome above it already
+  // consumed most of a short viewport - a `minHeight: 0` genuinely means
+  // "may shrink all the way to nothing". Fix: a `minHeight: 220` floor
+  // (enough for the sticky header row + a few data rows) on every List
+  // screen sharing this pattern, so the Table area never collapses below a
+  // usable size - if the viewport is shorter than the total content needs,
+  // the OUTER page scrolls (App.tsx's own overflow:auto region) instead of
+  // the Table area being squeezed to invisible.
+  test('J: Candidate List keeps header + rows usable on a short (TV-projection-scale) viewport', async ({ page }) => {
+    await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
+    await page.setViewportSize({ width: 1280, height: 500 })
+
+    await page.goto('/candidates')
+    const candidateContainer = page.getByTestId('candidate-list-table-container')
+    await expect(candidateContainer).toBeVisible()
+    const candidateBox = await candidateContainer.boundingBox()
+    expect(candidateBox).toBeTruthy()
+    // Must retain at least enough height for the sticky header row plus a
+    // couple of data rows - not squeezed toward 0.
+    expect(candidateBox!.height).toBeGreaterThanOrEqual(150)
+    // The header row itself and at least the first data row must both be
+    // simultaneously reachable within this bounded region (not just
+    // theoretically present in the DOM).
+    await expect(page.locator('.MuiTableCell-stickyHeader').first()).toBeInViewport()
+    await expect(page.locator('table tbody tr').first()).toBeInViewport()
+  })
+
+  test('K: Order List keeps its Table area usable on a short (TV-projection-scale) viewport', async ({ page }) => {
+    await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
+    await page.setViewportSize({ width: 1280, height: 500 })
+
+    // Order History List renders an "empty" Alert instead of the Table when
+    // there are no Orders yet (fresh Demo Reset) - wait for whichever of the
+    // two actually resolves rather than racing the initial fetch.
+    await page.goto('/orders/history')
+    const historyContainer = page.getByTestId('order-history-table-container')
+    const emptyAlert = page.getByText('該当する発注が見つかりませんでした。')
+    await expect(historyContainer.or(emptyAlert)).toBeVisible()
+    test.skip(await emptyAlert.isVisible(), 'No Orders in the current Demo Data (Table area not rendered)')
+
+    const historyBox = await historyContainer.boundingBox()
+    expect(historyBox).toBeTruthy()
+    expect(historyBox!.height).toBeGreaterThanOrEqual(150)
+    await expect(page.locator('.MuiTableCell-stickyHeader').first()).toBeInViewport()
+  })
 })
 
 // Mail Template's active-uniqueness constraint is on

@@ -280,7 +280,7 @@ export function OrderHistoryListPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {t('resultCount', { count: data.totalElements })}
           </Typography>
-          <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 0 }} data-testid="order-history-table-container">
+          <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="order-history-table-container">
             <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
               <TableHead>
                 <TableRow>

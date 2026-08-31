@@ -369,7 +369,7 @@ export function CandidateListPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {t('candidates:resultCount', { count: visibleData.length })}
           </Typography>
-          <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 0 }} data-testid="candidate-list-table-container">
+          <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="candidate-list-table-container">
             {/* Phase 7-F Header/List UX Audit: MUI's default stickyHeader
                 background was found transparent in this theme via live
                 reproduction (underlying row text visibly showed through the
