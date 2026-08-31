@@ -5,7 +5,7 @@
 **宛先**: Ernest（Phase1社内、G-SYS保守担当）
 **目的**: `docs/customer-review-decision-package.md`（Phase 7-D）で「Sourceコードだけでは分からない」と分類した項目のうち、**Gulliver社（顧客）へ聞く前に、Phase1社内・特にG-SYS保守担当のErnestに確認すれば解決できる可能性が高い項目**を切り出したもの。「Sourceから分からない」＝「Gulliver社へ質問する」ではない、という前提で作成している（Phase 7-D2指示）。
 
-**背景**: Ernestは日常的にG-SYSの保守・運用に携わっており、Source Codeには現れない実運用（誰が何をどう操作しているか、環境構成、Batch起動方法等）を把握している可能性が高い。ここに挙げた13項目は、Sourceの調査だけでは確定できなかったが、**Gulliver社の業務判断そのものではなく、現在のG-SYSの技術的な実態・運用手順に関する事実確認**であるため、まずErnestへの確認を優先する。
+**背景**: Ernestは日常的にG-SYSの保守・運用に携わっており、Source Codeには現れない実運用（誰が何をどう操作しているか、環境構成、Batch起動方法等）を把握している可能性が高い。ここに挙げた39項目は、Sourceの調査だけでは確定できなかったが、**Gulliver社の業務判断そのものではなく、現在のG-SYSの技術的な実態・運用手順に関する事実確認**であるため、まずErnestへの確認を優先する。
 
 **用語について**: Ernestは技術者であるため、以下のような用語はそのまま使用している: `TR_PO`, `Official PO Import`, `Upload/Work/Backup`（Importフォルダ構造）, `SYS_SEND_MAIL`, `Batch`, `Import Folder`。
 
