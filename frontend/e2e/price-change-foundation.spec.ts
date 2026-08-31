@@ -35,7 +35,7 @@ test.describe('Phase 8-B: Price Change Foundation', () => {
     await page.getByTestId('nav-price-changes').click()
 
     await page.getByTestId('create-price-change-button').click()
-    await expect(page).toHaveURL(/\/price-changes\/\d+\/edit$/)
+    await expect(page).toHaveURL(/\/price-changes\/\d+\/edit(\?.*)?$/)
     await expect(page.getByText(/価格変更（下書き）/)).toBeVisible()
 
     await page.getByTestId('candidate-keyword-input').locator('input').fill('HM-MUG-001')
@@ -142,11 +142,11 @@ test.describe('Phase 8-B: Price Change Foundation', () => {
     expect(id).toBeTruthy()
 
     // Reopen from the List (Save/reopen - Section 16).
-    await page.getByTestId('back-to-price-change-list').click()
+    await page.getByTestId('back-to-price-change-origin').click()
     await expect(page).toHaveURL(/\/price-changes$/)
     await expect(page.getByTestId(`price-change-row-${id}`)).toContainText('Q4 kitchen adjustment')
     await page.getByTestId(`price-change-row-${id}`).click()
-    await expect(page).toHaveURL(new RegExp(`/price-changes/${id}/edit$`))
+    await expect(page).toHaveURL(new RegExp(`/price-changes/${id}/edit(\\?.*)?$`))
     await expect(page.getByTestId('price-change-note-input').locator('input')).toHaveValue('Q4 kitchen adjustment')
     await expect(page.getByTestId('price-change-line-KT-KNIFE-001')).toBeVisible()
 

@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -13,6 +13,7 @@ import Divider from '@mui/material/Divider'
 import { usePriceChangeDetail } from './api'
 import { PriceChangeLineTable } from './PriceChangeLineTable'
 import { PRICE_CHANGE_STATUS_DRAFT } from '../../shared/types/priceChange'
+import { resolveReturnTo, withBackTo, withReturnTo } from '../../shared/navigation/returnTo'
 
 /**
  * Price Change Detail (target-price-change-workflow.md 15章) - read-only
@@ -25,6 +26,15 @@ export function PriceChangeDetailPage() {
   const navigate = useNavigate()
   const params = useParams<{ id: string }>()
   const id = Number(params.id)
+  const [searchParams] = useSearchParams()
+  // Phase 8-M (Global Navigation Audit): reuses the existing returnTo/backTo
+  // chain (Phase 6-A/7-H) - carries the List's Status Filter back through,
+  // same convention as Order Detail/PO Preview.
+  const returnTo = searchParams.get('returnTo')
+  const backTarget = resolveReturnTo(returnTo, '/price-changes')
+  // Detail's own path (with its returnTo preserved) is what Edit's "戻る"
+  // should return to when reached from here rather than from the List.
+  const detailPath = withReturnTo(`/price-changes/${id}`, returnTo)
 
   const { data, isLoading, isError, refetch } = usePriceChangeDetail(id)
 
@@ -55,11 +65,16 @@ export function PriceChangeDetailPage() {
         <Chip size="small" label={t(`priceChanges:status.${data.status}`)} />
         <Box sx={{ flexGrow: 1 }} />
         {data.status === PRICE_CHANGE_STATUS_DRAFT && (
-          <Button variant="contained" size="small" onClick={() => navigate(`/price-changes/${id}/edit`)} data-testid="edit-price-change-button">
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => navigate(withBackTo(withReturnTo(`/price-changes/${id}/edit`, returnTo), detailPath))}
+            data-testid="edit-price-change-button"
+          >
             {t('priceChanges:editButton')}
           </Button>
         )}
-        <Button size="small" onClick={() => navigate('/price-changes')} data-testid="back-to-price-change-list">
+        <Button size="small" onClick={() => navigate(backTarget)} data-testid="back-to-price-change-list">
           {t('priceChanges:backToList')}
         </Button>
       </Stack>

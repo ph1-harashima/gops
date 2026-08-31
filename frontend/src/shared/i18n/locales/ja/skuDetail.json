@@ -1,5 +1,7 @@
 {
   "back": "発注候補一覧へ戻る",
+  "backToWarehouseStock": "倉庫在庫へ戻る",
+  "backToStockSales": "在庫・販売確認へ戻る",
   "notFound": "指定されたSKUが見つかりませんでした。",
   "viewArrivals": "入荷確認を見る",
   "notAvailable": "—",

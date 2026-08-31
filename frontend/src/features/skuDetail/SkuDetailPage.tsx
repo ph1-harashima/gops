@@ -19,7 +19,7 @@ import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
 import { StockJudgementChip } from '../../shared/components/StockJudgementChip'
 import { computeStockJudgement } from '../../shared/domain/stockJudgement'
-import { resolveReturnTo } from '../../shared/navigation/returnTo'
+import { resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 
 /** Phase 8-J 9章/10章: rate is a plain fraction (e.g. 0.3521) as returned by
  * MarginCalculator.profitRateSell - displayed as a percentage here, no
@@ -44,7 +44,23 @@ export function SkuDetailPage() {
   // included) as ?returnTo=... when linking here - restore that exact List
   // state on "戻る" instead of always landing on the unfiltered list
   // (docs/production-ux-workflow-redesign.md 6.3章).
-  const backTarget = resolveReturnTo(searchParams.get('returnTo'), '/candidates')
+  const returnTo = searchParams.get('returnTo')
+  const backTarget = resolveReturnTo(returnTo, '/candidates')
+  // Phase 8-M (Global Navigation Audit, Principle D): SKU Detail has 3
+  // possible entry points (Candidate List / Warehouse Stock Drawer /
+  // Stock-Sales Drawer) - the Label must reflect the actual origin instead
+  // of always assuming Candidate List (the same "戻る hardcoded a stale
+  // caller" pitfall Phase 7-H fixed for PoPreviewPage).
+  const backLabel = backTarget.startsWith('/warehouse-stock')
+    ? t('backToWarehouseStock')
+    : backTarget.startsWith('/stock-sales')
+      ? t('backToStockSales')
+      : t('back')
+  // Phase 8-M (Global Navigation Audit, Principle D): this screen's own
+  // current path (with its own returnTo preserved) becomes the returnTo
+  // Arrival List carries, so Arrival List's conditional Back button returns
+  // here specifically rather than dropping the user at the plain List.
+  const ownPath = withReturnTo(`/items/${encodeURIComponent(sku ?? '')}`, returnTo)
   const { data, isLoading, isError } = useSkuDetail(sku ?? '')
 
   if (isLoading) {
@@ -67,7 +83,6 @@ export function SkuDetailPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
-        <Button onClick={() => navigate(backTarget)}>{t('back')}</Button>
         <Typography variant="h5" component="h1">{data.sku} - {data.itemName}</Typography>
         <ItemStatusChip status={data.itemStatus} />
         <DataSourceBadge dataSource={data.dataSource} />
@@ -76,17 +91,25 @@ export function SkuDetailPage() {
             Arrival List (same officialPoNo-as-search-condition pattern
             Order Detail's Fulfillment section already uses to reach
             /arrivals?poNumber=...) - never a "this Warehouse Stock/Arrival
-            came from this SKU" Transaction Trace. No return-nav threading
-            back into Arrival List either, matching that same existing
-            precedent (Arrival List is always a fresh landing, not a
-            returnTo target). */}
+            came from this SKU" Transaction Trace.
+            Phase 8-M (Global Navigation Audit, Principle D): DOES thread
+            returnTo=ownPath now, so Arrival List's conditional Back button
+            can return to this SKU Detail screen specifically. */}
         <Button
           size="small"
           variant="outlined"
-          onClick={() => navigate(`/arrivals?skuKeyword=${encodeURIComponent(data.sku)}`)}
+          onClick={() => navigate(withReturnTo(`/arrivals?skuKeyword=${encodeURIComponent(data.sku)}`, ownPath))}
           data-testid="sku-detail-view-arrivals-button"
         >
           {t('viewArrivals')}
+        </Button>
+        {/* Phase 8-M (Global Navigation Audit, Principle E/§5): Back button
+            moved to the rightmost position (same convention as every other
+            Detail screen fixed this Phase - Arrival/PriceChange/Order
+            Detail) instead of its previous leftmost placement, and Label is
+            now Context-aware rather than always assuming Candidate List. */}
+        <Button size="small" onClick={() => navigate(backTarget)} data-testid="back-to-sku-detail-origin">
+          {backLabel}
         </Button>
       </Stack>
 

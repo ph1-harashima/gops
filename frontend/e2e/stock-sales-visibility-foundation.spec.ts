@@ -106,7 +106,7 @@ test.describe('Phase 8-H: Stock / Sales Visibility Foundation', () => {
     await page.getByTestId('stock-sales-detail-button-OD-BAG-002').click()
     await page.getByTestId('stock-sales-drawer-sku-detail-link').click()
 
-    await expect(page).toHaveURL(/\/items\/OD-BAG-002$/)
+    await expect(page).toHaveURL(/\/items\/OD-BAG-002(\?.*)?$/)
   })
 
   test('H: Pagination controls are present and Backend-driven', async ({ page }) => {

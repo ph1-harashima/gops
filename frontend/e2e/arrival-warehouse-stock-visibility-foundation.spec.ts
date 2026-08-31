@@ -111,7 +111,7 @@ test.describe('Phase 8-G: Arrival / Warehouse Stock Visibility Foundation', () =
     await page.getByTestId('nav-arrivals').click()
     await page.getByTestId('arrival-row-PO-OUTDOOR-01').click()
 
-    await expect(page).toHaveURL(/\/arrivals\/SUP_ALPHA\/PO-OUTDOOR-01\/INV-OUTDOOR-01$/)
+    await expect(page).toHaveURL(/\/arrivals\/SUP_ALPHA\/PO-OUTDOOR-01\/INV-OUTDOOR-01(\?.*)?$/)
     await expect(page.getByRole('heading', { name: /入荷詳細/ })).toBeVisible()
     await expect(page.getByText('BL-OUTDOOR-001')).toBeVisible()
     await expect(page.getByText('PACIFIC STAR')).toBeVisible()

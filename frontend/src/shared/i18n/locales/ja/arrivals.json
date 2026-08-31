@@ -2,6 +2,7 @@
   "listTitle": "入荷確認",
   "detailTitle": "入荷詳細",
   "backToList": "一覧へ戻る",
+  "back": "戻る",
   "empty": "該当する入荷データがありません。",
   "quantitySummaryTitle": "数量サマリ",
   "quantitySummaryNote": "発注数量・Invoice数量・入荷数量・入庫数量は、それぞれ異なるLegacyデータから取得した事実値です。数値の一致・不一致による判定は行っていません。",

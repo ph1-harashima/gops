@@ -2,6 +2,7 @@
   "listTitle": "Arrival Check",
   "detailTitle": "Arrival Detail",
   "backToList": "Back to List",
+  "back": "Back",
   "empty": "No matching Arrival data.",
   "quantitySummaryTitle": "Quantity Summary",
   "quantitySummaryNote": "Ordered/Invoice/Arrival/Stock-In quantities are Source Facts from different Legacy data - no match/mismatch judgment is made here.",

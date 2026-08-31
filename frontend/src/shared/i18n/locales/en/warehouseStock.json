@@ -2,6 +2,7 @@
   "listTitle": "Warehouse Stock",
   "empty": "No matching Stock data.",
   "viewAllWarehouses": "View All Warehouses",
+  "back": "Back",
   "filter": {
     "skuKeyword": "SKU / Item Name",
     "brandCode": "Brand Code",

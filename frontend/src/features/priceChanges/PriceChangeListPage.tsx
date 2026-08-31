@@ -19,6 +19,7 @@ import Chip from '@mui/material/Chip'
 
 import { usePriceChangeList, useCreatePriceChangeSet } from './api'
 import { Toast } from '../../shared/components/Toast'
+import { listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 import {
   PRICE_CHANGE_STATUS_APPLIED,
   PRICE_CHANGE_STATUS_CANCELLED,
@@ -79,9 +80,15 @@ export function PriceChangeListPage() {
     )
   }
 
+  // Phase 8-M (Global Navigation Audit): this List's own current URL (Status
+  // Filter included) becomes the returnTo every Detail/Edit screen below
+  // carries forward - same convention as CandidateListPage/OrderHistoryListPage
+  // (Phase 6-A), reused as-is rather than inventing a separate mechanism.
+  const listPath = listReturnTo('/price-changes', searchParams)
+
   function handleCreate() {
     createMutation.mutate(null, {
-      onSuccess: (set) => navigate(`/price-changes/${set.id}/edit`),
+      onSuccess: (set) => navigate(withReturnTo(`/price-changes/${set.id}/edit`, listPath)),
     })
   }
 
@@ -174,7 +181,7 @@ export function PriceChangeListPage() {
                   <TableRow
                     key={row.id}
                     hover
-                    onClick={() => navigate(row.status === PRICE_CHANGE_STATUS_DRAFT ? `/price-changes/${row.id}/edit` : `/price-changes/${row.id}`)}
+                    onClick={() => navigate(withReturnTo(row.status === PRICE_CHANGE_STATUS_DRAFT ? `/price-changes/${row.id}/edit` : `/price-changes/${row.id}`, listPath))}
                     sx={{ cursor: 'pointer' }}
                     data-testid={`price-change-row-${row.id}`}
                   >

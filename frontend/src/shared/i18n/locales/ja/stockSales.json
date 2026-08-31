@@ -5,6 +5,7 @@
   "viewWarehouseStock": "倉庫在庫を見る",
   "viewSkuDetail": "商品詳細（発注履歴等）を見る",
   "referenceValue": "参考値",
+  "back": "戻る",
   "filter": {
     "skuKeyword": "SKU / 商品名",
     "brandCode": "ブランドコード",

@@ -5,6 +5,7 @@
   "viewWarehouseStock": "View Warehouse Stock",
   "viewSkuDetail": "View Item Detail (Order History, etc.)",
   "referenceValue": "reference",
+  "back": "Back",
   "filter": {
     "skuKeyword": "SKU / Item Name",
     "brandCode": "Brand Code",

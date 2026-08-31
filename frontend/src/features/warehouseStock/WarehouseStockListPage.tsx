@@ -23,6 +23,7 @@ import CloseIcon from '@mui/icons-material/Close'
 
 import { useWarehouseStockDetail, useWarehouseStockList } from './api'
 import type { WarehouseStockListFilter } from './api'
+import { isSafeInternalPath, listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 
 const FILTER_PARAMS = ['skuKeyword', 'brandCode', 'warehouseCode', 'minQty', 'maxQty'] as const
 const DEFAULT_PAGE_SIZE = 20
@@ -36,7 +37,7 @@ function qty(value: number | null): string {
  * one SKU, rendered as a Drawer rather than a new top-level Route/Screen
  * (10章's explicit "画面を不必要に増やさない" instruction).
  */
-function WarehouseStockDrawer({ sku, onClose }: { sku: string | null; onClose: () => void }) {
+function WarehouseStockDrawer({ sku, onClose, listPath }: { sku: string | null; onClose: () => void; listPath: string }) {
   const { t } = useTranslation(['warehouseStock', 'common'])
   const navigate = useNavigate()
   const { data, isLoading, isError } = useWarehouseStockDetail(sku)
@@ -64,14 +65,14 @@ function WarehouseStockDrawer({ sku, onClose }: { sku: string | null; onClose: (
             <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
               <Button
                 size="small"
-                onClick={() => navigate(`/items/${encodeURIComponent(data.sku)}`)}
+                onClick={() => navigate(withReturnTo(`/items/${encodeURIComponent(data.sku)}`, listPath))}
                 data-testid="warehouse-stock-drawer-sku-detail-link"
               >
                 {t('drawer.viewSkuDetail')}
               </Button>
               <Button
                 size="small"
-                onClick={() => navigate(`/stock-sales?skuKeyword=${encodeURIComponent(data.sku)}`)}
+                onClick={() => navigate(withReturnTo(`/stock-sales?skuKeyword=${encodeURIComponent(data.sku)}`, listPath))}
                 data-testid="warehouse-stock-drawer-stock-sales-link"
               >
                 {t('drawer.viewStockSales')}
@@ -112,8 +113,17 @@ function WarehouseStockDrawer({ sku, onClose }: { sku: string | null; onClose: (
  */
 export function WarehouseStockListPage() {
   const { t } = useTranslation(['warehouseStock', 'common'])
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [drawerSku, setDrawerSku] = useState<string | null>(null)
+
+  // Phase 8-M (Global Navigation Audit): same conditional-Back-button
+  // convention as ArrivalListPage - shown only when reached via an incoming
+  // returnTo (e.g. from Stock/Sales' Drawer); otherwise this stays a plain
+  // top-level Nav destination with no Back button (Principle E).
+  const incomingReturnTo = searchParams.get('returnTo')
+  const ownBackTarget = incomingReturnTo && isSafeInternalPath(incomingReturnTo) ? incomingReturnTo : null
+  const listPath = listReturnTo('/warehouse-stock', searchParams)
 
   const filter: WarehouseStockListFilter = {
     skuKeyword: searchParams.get('skuKeyword') ?? undefined,
@@ -163,9 +173,17 @@ export function WarehouseStockListPage() {
 
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h5" component="h1" gutterBottom>
-        {t('listTitle')}
-      </Typography>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 1 }}>
+        <Typography variant="h5" component="h1" gutterBottom sx={{ mb: 0 }}>
+          {t('listTitle')}
+        </Typography>
+        <Box sx={{ flexGrow: 1 }} />
+        {ownBackTarget && (
+          <Button size="small" onClick={() => navigate(ownBackTarget)} data-testid="back-to-warehouse-stock-origin">
+            {t('back')}
+          </Button>
+        )}
+      </Stack>
 
       <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', gap: 2 }}>
         <TextField
@@ -276,7 +294,7 @@ export function WarehouseStockListPage() {
         </Box>
       )}
 
-      <WarehouseStockDrawer sku={drawerSku} onClose={() => setDrawerSku(null)} />
+      <WarehouseStockDrawer sku={drawerSku} onClose={() => setDrawerSku(null)} listPath={listPath} />
     </Box>
   )
 }

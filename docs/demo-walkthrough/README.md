@@ -253,4 +253,6 @@ ADMIN限定の画面群。既存G-SYSにはメーカー担当者・メールア�
 
 ### 次に何をするか
 
-いずれもREAD ONLYの参照画面であり、ここから発注等の操作は発生しない。Order Candidate ListまたはSKU Detail画面へ戻る場合はNav Barを使う。
+いずれもREAD ONLYの参照画面であり、ここから発注等の操作は発生しない。
+
+**Navigation Context（Phase 8-M追記）**: SKU Detail・Order Detailから「入荷確認を見る」等で入荷確認・倉庫在庫・在庫・販売確認へ遷移した場合、遷移先の一覧画面には遷移元へ戻るための「戻る」ボタンが表示される（元の画面のFilter/Page状態も維持される）。Nav Barから直接この画面群を開いた場合（Direct Access）は「戻る」ボタンは表示されない（その画面自体がトップレベルのNavigation先であるため）。この判定はURLの`returnTo`パラメータの有無のみで行われ、Browser Historyには依存しない。

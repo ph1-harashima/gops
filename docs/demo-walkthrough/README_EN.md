@@ -253,4 +253,6 @@ Read-only reference screens against Legacy G-SYS data, independent of the Order 
 
 ### What happens next
 
-All 4 are read-only reference screens - no ordering action originates here. Use the Nav Bar to return to the Order Candidate List or SKU Detail.
+All 4 are read-only reference screens - no ordering action originates here.
+
+**Navigation Context (Phase 8-M addition)**: when reached via a link from SKU Detail / Order Detail (e.g. "View Arrivals"), the destination List screen now shows its own "Back" button that returns to that originating screen (with its Filter/Page state preserved). Opened directly from the Nav Bar (Direct Access), no Back button is shown - that screen is itself a top-level Nav destination. This is driven entirely by a `returnTo` URL parameter, never by Browser History.

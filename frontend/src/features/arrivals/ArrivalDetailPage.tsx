@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -16,6 +16,7 @@ import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 
 import { useArrivalDetail } from './api'
+import { resolveReturnTo } from '../../shared/navigation/returnTo'
 
 function qty(value: number | null): string {
   return value == null ? '—' : String(value)
@@ -31,9 +32,14 @@ export function ArrivalDetailPage() {
   const { t } = useTranslation(['arrivals', 'common'])
   const navigate = useNavigate()
   const params = useParams<{ supplierCode: string; poNumber: string; invoiceNumber: string }>()
+  const [searchParams] = useSearchParams()
   const supplierCode = params.supplierCode ?? ''
   const poNumber = params.poNumber ?? ''
   const invoiceNumber = params.invoiceNumber ?? ''
+  // Phase 8-M (Global Navigation Audit): returns to whichever Arrival List
+  // (with its Filter/Page state) actually launched this Detail; falls back
+  // to the plain List route for Direct URL Access (Principle E).
+  const backTarget = resolveReturnTo(searchParams.get('returnTo'), '/arrivals')
 
   const { data, isLoading, isError, refetch } = useArrivalDetail(supplierCode, poNumber, invoiceNumber)
 
@@ -64,7 +70,7 @@ export function ArrivalDetailPage() {
           {t('detailTitle')} - {header.poNumber} / {header.invoiceNumber}
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
-        <Button size="small" onClick={() => navigate('/arrivals')} data-testid="back-to-arrival-list">
+        <Button size="small" onClick={() => navigate(backTarget)} data-testid="back-to-arrival-list">
           {t('backToList')}
         </Button>
       </Stack>

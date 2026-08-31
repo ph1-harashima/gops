@@ -420,6 +420,15 @@ Phase 8-Kで特定した「Customer/Ernest/External回答不要で今すぐ実�
 
 **この実装により、17章「Error Handling/Retry」Gapの一部（Legacy/Portal DB障害が構造化されたErrorへ変換されず生の500になっていた点）が解消された。** 実送信（Email/EDI/Official PO Handoff）が未実装である事実、Hosting/Secret/SafetyGuard拡張が未着手である事実には変更がない。
 
+### 16.4 Phase 8-M追記（Global Navigation / Back Operation Audit & Implementation）
+
+価格変更・入荷確認・倉庫在庫・在庫販売確認の追加によりPortal全体の画面遷移が複雑化していたため、既存Ordering機能で確立済みの`returnTo`/`backTo`Navigation Context機構（`frontend/src/shared/navigation/returnTo.ts`、Phase 6-A/7-H）を全画面へ横展開する形でBack操作を監査・実装した。**新規Navigation機構は導入せず、既存機構の再利用のみ**（§7準拠）。
+
+- **修正対象**: 価格変更一覧/詳細/編集、入荷確認一覧/詳細、倉庫在庫一覧Drawer、在庫・販売確認一覧Drawer、SKU Detail、Order Detail（Fulfillment区画）— いずれもFrontend Routing/ボタンの遷移先URLのみの変更。
+- **設計**: List→Detail遷移は各List画面が自身の現在URL（Filter/Page含む）を`returnTo`として付与し、Detail側の「戻る」はその`returnTo`（無ければ画面固有のFallback）へ遷移。Arrival List/倉庫在庫一覧/在庫・販売確認一覧は、SKU Detail・Order Detail等から`returnTo`付きで遷移された場合のみ条件付きで自身の「戻る」ボタンを表示し、Nav Bar等からのDirect Access時は表示しない（トップレベルNavigation先としての性質を維持）。
+- **Backend/API/DB変更**: 0件。Legacy（`phasep-gulliver`）への変更も0件（READ ONLY）。
+- 詳細な変更ファイル一覧・全Scenario実測結果はPhase 8-M Completion Reportを参照。
+
 ---
 
 ## 17. Cross-Cutting Gap
@@ -689,3 +698,5 @@ Phase 8-J §2の指示に基づき、`docs/`配下の全ファイルを実ディ
 **Phase 8-Kの変更**: Frontend/Backend/DB Migration/API変更0件。`docs/production-readiness-and-integration-boundary-audit.md`を新規作成（22章）。本Document16章へ8-K追記（16.2章）。Legacy変更0件（Read/Grepのみ）。詳細はPhase 8-K Completion Reportを参照。
 
 **Phase 8-Lの変更**: Health Check Foundation（`PortalDatabaseHealthIndicator`/`LegacyHealthCheckService`/`HealthController`、`spring-boot-starter-actuator`追加）、Structured Error Handling + Correlation ID（`GlobalExceptionHandler`全面改修・`LegacyFailureTranslatingJdbcTemplate`・`CorrelationIdFilter`新設）、Technical Idempotency Foundation（`IdempotentOperation`/`IdempotencyService`、Migration V17）。Portal DB Migration 1件追加（V17）。**Legacy（`phasep-gulliver`）への変更は0件**。SafetyGuard変更0件。Production Secret追加0件。詳細な変更ファイル一覧はPhase 8-L Completion Reportを参照。
+
+**Phase 8-Mの変更**: Global Navigation / Back操作監査・実装（Frontendのみ）。価格変更一覧/詳細/編集、入荷確認一覧/詳細、倉庫在庫一覧Drawer、在庫・販売確認一覧Drawer、SKU Detail、Order Detail（Fulfillment区画）の遷移先URLに既存`returnTo`/`backTo`機構（Phase 6-A/7-H）を適用。新規Navigation機構の追加は無し。**Backend/API/DB Migration変更は0件。Legacy（`phasep-gulliver`）への変更も0件**。詳細な変更ファイル一覧・全Scenario実測結果はPhase 8-M Completion Reportを参照。

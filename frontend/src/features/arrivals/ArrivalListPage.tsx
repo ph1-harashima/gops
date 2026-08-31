@@ -18,6 +18,7 @@ import Button from '@mui/material/Button'
 
 import { useArrivalList } from './api'
 import type { ArrivalListFilter } from './api'
+import { isSafeInternalPath, listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 
 const FILTER_PARAMS = ['supplierCode', 'brandCode', 'poNumber', 'invoiceNumber', 'skuKeyword', 'arrivalDateFrom', 'arrivalDateTo'] as const
 const DEFAULT_PAGE_SIZE = 20
@@ -48,6 +49,16 @@ export function ArrivalListPage() {
   }
   const page = Number(searchParams.get('page') ?? '0')
   const size = Number(searchParams.get('size') ?? String(DEFAULT_PAGE_SIZE))
+
+  // Phase 8-M (Global Navigation Audit): Arrival List can be reached both as
+  // a top-level Nav destination (no incoming returnTo - Direct Access/Nav
+  // fallback per Principle E) and from SKU Detail / Order Detail's
+  // Fulfillment section (with an incoming returnTo). Its own current URL
+  // (Filters+Page included) becomes the returnTo carried into Arrival Detail,
+  // same convention as the other List screens (reused as-is).
+  const incomingReturnTo = searchParams.get('returnTo')
+  const ownBackTarget = incomingReturnTo && isSafeInternalPath(incomingReturnTo) ? incomingReturnTo : null
+  const listPath = listReturnTo('/arrivals', searchParams)
 
   function updateFilter(patch: Partial<ArrivalListFilter>) {
     setSearchParams(
@@ -93,9 +104,17 @@ export function ArrivalListPage() {
 
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h5" component="h1" gutterBottom>
-        {t('listTitle')}
-      </Typography>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 1 }}>
+        <Typography variant="h5" component="h1" gutterBottom sx={{ mb: 0 }}>
+          {t('listTitle')}
+        </Typography>
+        <Box sx={{ flexGrow: 1 }} />
+        {ownBackTarget && (
+          <Button size="small" onClick={() => navigate(ownBackTarget)} data-testid="back-to-arrival-origin">
+            {t('back')}
+          </Button>
+        )}
+      </Stack>
 
       <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', gap: 2 }}>
         <TextField
@@ -202,7 +221,10 @@ export function ArrivalListPage() {
                     data-testid={`arrival-row-${row.poNumber}`}
                     onClick={() =>
                       navigate(
-                        `/arrivals/${encodeURIComponent(row.supplierCode ?? '')}/${encodeURIComponent(row.poNumber)}/${encodeURIComponent(row.invoiceNumber)}`,
+                        withReturnTo(
+                          `/arrivals/${encodeURIComponent(row.supplierCode ?? '')}/${encodeURIComponent(row.poNumber)}/${encodeURIComponent(row.invoiceNumber)}`,
+                          listPath,
+                        ),
                       )
                     }
                   >

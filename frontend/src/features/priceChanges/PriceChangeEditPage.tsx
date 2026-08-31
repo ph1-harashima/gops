@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -35,6 +35,7 @@ import {
 import { PriceChangeLineTable } from './PriceChangeLineTable'
 import { Toast } from '../../shared/components/Toast'
 import { PRICE_CHANGE_STATUS_DRAFT } from '../../shared/types/priceChange'
+import { resolveBackTo, resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 
 /**
  * Price Change Create/Edit (target-price-change-workflow.md 15章) - folds
@@ -48,6 +49,18 @@ export function PriceChangeEditPage() {
   const navigate = useNavigate()
   const params = useParams<{ id: string }>()
   const id = Number(params.id)
+  // Named navSearchParams (not searchParams) - this screen already uses
+  // `searchParams` below as the Product Search filter object passed to
+  // usePriceChangeCandidates; reusing the name would shadow/collide with it.
+  const [navSearchParams] = useSearchParams()
+  // Phase 8-M (Global Navigation Audit): same two-tier returnTo/backTo chain
+  // PoPreviewPage already established (Phase 6-A/7-H) - backTo (immediate
+  // parent, set only when reached from Detail's "編集" button) takes
+  // priority over the deeper returnTo (the original List) so "戻る" returns
+  // to wherever this screen was actually opened from, never a fixed target.
+  const returnTo = navSearchParams.get('returnTo')
+  const backTarget = resolveBackTo(navSearchParams.get('backTo'), resolveReturnTo(returnTo, '/price-changes'))
+  const backLabel = backTarget.startsWith('/price-changes/') ? t('priceChanges:backToDetail') : t('priceChanges:backToList')
 
   const { data, isLoading, isError, refetch } = usePriceChangeDetail(id)
   const { data: itemGroups } = usePriceChangeItemGroups()
@@ -138,7 +151,7 @@ export function PriceChangeEditPage() {
   }
 
   if (data.status !== PRICE_CHANGE_STATUS_DRAFT) {
-    navigate(`/price-changes/${id}`, { replace: true })
+    navigate(withReturnTo(`/price-changes/${id}`, returnTo), { replace: true })
     return null
   }
 
@@ -149,8 +162,8 @@ export function PriceChangeEditPage() {
           {t('priceChanges:editTitle')} #{data.id}
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
-        <Button size="small" onClick={() => navigate('/price-changes')} data-testid="back-to-price-change-list">
-          {t('priceChanges:backToList')}
+        <Button size="small" onClick={() => navigate(backTarget)} data-testid="back-to-price-change-origin">
+          {backLabel}
         </Button>
       </Stack>
 

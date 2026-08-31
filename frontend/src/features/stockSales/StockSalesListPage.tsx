@@ -24,6 +24,7 @@ import CloseIcon from '@mui/icons-material/Close'
 
 import { useStockSalesDetail, useStockSalesList } from './api'
 import type { StockSalesListFilter } from './api'
+import { isSafeInternalPath, listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 
 const FILTER_PARAMS = ['skuKeyword', 'brandCode', 'supplierCode', 'minStock', 'maxStock', 'minSales', 'maxSales'] as const
 const DEFAULT_PAGE_SIZE = 20
@@ -40,7 +41,7 @@ function qty(value: number | null): string {
  * (13章: "Business Joinはしない", "可能ならWarehouse Stock画面への
  * Navigationを優先").
  */
-function StockSalesDrawer({ sku, onClose }: { sku: string | null; onClose: () => void }) {
+function StockSalesDrawer({ sku, onClose, listPath }: { sku: string | null; onClose: () => void; listPath: string }) {
   const { t } = useTranslation(['stockSales', 'common'])
   const navigate = useNavigate()
   const { data, isLoading, isError } = useStockSalesDetail(sku)
@@ -82,7 +83,7 @@ function StockSalesDrawer({ sku, onClose }: { sku: string | null; onClose: () =>
               <Button
                 size="small"
                 variant="outlined"
-                onClick={() => navigate(`/warehouse-stock?skuKeyword=${encodeURIComponent(data.sku)}`)}
+                onClick={() => navigate(withReturnTo(`/warehouse-stock?skuKeyword=${encodeURIComponent(data.sku)}`, listPath))}
                 data-testid="stock-sales-drawer-warehouse-stock-link"
               >
                 {t('viewWarehouseStock')}
@@ -90,7 +91,7 @@ function StockSalesDrawer({ sku, onClose }: { sku: string | null; onClose: () =>
               <Button
                 size="small"
                 variant="outlined"
-                onClick={() => navigate(`/items/${encodeURIComponent(data.sku)}`)}
+                onClick={() => navigate(withReturnTo(`/items/${encodeURIComponent(data.sku)}`, listPath))}
                 data-testid="stock-sales-drawer-sku-detail-link"
               >
                 {t('viewSkuDetail')}
@@ -111,8 +112,15 @@ function StockSalesDrawer({ sku, onClose }: { sku: string | null; onClose: () =>
  */
 export function StockSalesListPage() {
   const { t } = useTranslation(['stockSales', 'common'])
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [drawerSku, setDrawerSku] = useState<string | null>(null)
+
+  // Phase 8-M (Global Navigation Audit): same conditional-Back-button
+  // convention as ArrivalListPage/WarehouseStockListPage.
+  const incomingReturnTo = searchParams.get('returnTo')
+  const ownBackTarget = incomingReturnTo && isSafeInternalPath(incomingReturnTo) ? incomingReturnTo : null
+  const listPath = listReturnTo('/stock-sales', searchParams)
 
   const filter: StockSalesListFilter = {
     skuKeyword: searchParams.get('skuKeyword') ?? undefined,
@@ -164,9 +172,17 @@ export function StockSalesListPage() {
 
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h5" component="h1" gutterBottom>
-        {t('listTitle')}
-      </Typography>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 1 }}>
+        <Typography variant="h5" component="h1" gutterBottom sx={{ mb: 0 }}>
+          {t('listTitle')}
+        </Typography>
+        <Box sx={{ flexGrow: 1 }} />
+        {ownBackTarget && (
+          <Button size="small" onClick={() => navigate(ownBackTarget)} data-testid="back-to-stock-sales-origin">
+            {t('back')}
+          </Button>
+        )}
+      </Stack>
 
       <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', gap: 2 }}>
         <TextField
@@ -306,7 +322,7 @@ export function StockSalesListPage() {
         </Box>
       )}
 
-      <StockSalesDrawer sku={drawerSku} onClose={() => setDrawerSku(null)} />
+      <StockSalesDrawer sku={drawerSku} onClose={() => setDrawerSku(null)} listPath={listPath} />
     </Box>
   )
 }

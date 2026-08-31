@@ -112,6 +112,11 @@ export function OrderHistoryDetailPage() {
   // Supplier Response so the chain survives further hops too.
   const returnTo = searchParams.get('returnTo')
   const backTarget = resolveReturnTo(returnTo, '/orders/history')
+  // Phase 8-M (Global Navigation Audit, Principle D): this screen's own
+  // path (with its own returnTo preserved) becomes the returnTo the
+  // Fulfillment section's Arrival List link carries, so Arrival List's
+  // conditional Back button can return to this Order Detail specifically.
+  const ownPath = withReturnTo(`/orders/${orderId}`, returnTo)
 
   const { data: detail, isLoading, isError } = useOrderHistoryDetail(orderId)
   const { data: events, isLoading: eventsLoading } = useOrderEvents(orderId)
@@ -725,7 +730,7 @@ export function OrderHistoryDetailPage() {
                     specific Invoice (one PO may have 0/1/many Arrivals). */}
                 <Button
                   size="small"
-                  onClick={() => navigate(`/arrivals?poNumber=${encodeURIComponent(fulfillment.officialPoNo ?? '')}`)}
+                  onClick={() => navigate(withReturnTo(`/arrivals?poNumber=${encodeURIComponent(fulfillment.officialPoNo ?? '')}`, ownPath))}
                   data-testid="fulfillment-view-arrivals-button"
                 >
                   {t('fulfillment.viewArrivalsButton')}
