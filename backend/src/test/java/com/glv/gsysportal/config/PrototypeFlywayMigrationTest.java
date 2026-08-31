@@ -56,7 +56,10 @@ class PrototypeFlywayMigrationTest {
         // audit_event.portal_order_id loosened to nullable +
         // audit_event.price_change_set_id added (second aggregate root),
         // PRICE_CHANGE_* Audit types.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"), versions);
+        // V17 (Phase 8-L): Technical Idempotency Foundation - idempotent_operation
+        // (operation_type/idempotency_key UNIQUE, no FK to anything - a
+        // deliberately standalone Technical table, not a Business aggregate).
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"), versions);
     }
 
     @Test
@@ -67,7 +70,7 @@ class PrototypeFlywayMigrationTest {
         for (String expected : List.of("portal_order", "portal_order_detail", "audit_event", "portal_user",
                 "supplier_response", "supplier_response_detail", "order_attention",
                 "portal_order_revision", "portal_order_revision_detail", "follow_up_case", "legacy_po_baseline",
-                "price_change_set", "price_change_set_detail")) {
+                "price_change_set", "price_change_set_detail", "idempotent_operation")) {
             assertTrue(tables.contains(expected), "Expected table missing: " + expected + ", got: " + tables);
         }
     }

@@ -52,6 +52,35 @@ app:
 server:
   port: 8080
 
+# Phase 8-L (Production Reliability Foundation, Production Readiness Audit
+# §2-4): only /actuator/health is exposed - no /actuator/env, /actuator/beans,
+# /actuator/metrics etc. show-details=never means the body is always the bare
+# {"status":"UP"|"DOWN"} aggregate, for anyone, authenticated or not - no DB
+# component breakdown, no exception detail, ever (§4's explicit "no Secret/
+# JDBC URL/stack trace" requirement; a Role-gated detailed view would require
+# a Production Authentication Rule this Phase does not decide, §4). Legacy DB
+# is deliberately excluded from this aggregate (see health/PortalDatabaseHealthIndicator's
+# Javadoc) - management.health.db.enabled=false turns off Spring Boot's own
+# automatic multi-DataSource indicator (which would otherwise ambiguously
+# register both DataSources) so PortalDatabaseHealthIndicator is the only
+# DB contributor here.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+  health:
+    db:
+      enabled: false
+
 logging:
   level:
     com.glv.gsysportal: INFO
+  # Phase 8-L: correlationId is populated into MDC per-request by
+  # CorrelationIdFilter - reusing Spring Boot's existing default Logback
+  # setup via this supported property, not a new logging product.
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [correlationId=%X{correlationId:-}] %logger{36} - %msg%n"

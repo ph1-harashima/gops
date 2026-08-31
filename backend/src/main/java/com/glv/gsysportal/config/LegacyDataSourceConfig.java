@@ -74,8 +74,14 @@ public class LegacyDataSourceConfig {
         return new JdbcTemplate(legacyDataSource);
     }
 
+    // Phase 8-L (Production Reliability Foundation): returns a
+    // LegacyFailureTranslatingJdbcTemplate (a NamedParameterJdbcTemplate
+    // subclass) instead of a plain one, so every repository.legacy class
+    // that injects NamedParameterJdbcTemplate transparently gets Legacy
+    // failure -> LegacyUnavailableException translation with zero changes
+    // to those ~15 classes (Production Readiness Audit §10).
     @Bean
     public NamedParameterJdbcTemplate legacyNamedParameterJdbcTemplate(@Qualifier("legacyDataSource") DataSource legacyDataSource) {
-        return new NamedParameterJdbcTemplate(legacyDataSource);
+        return new LegacyFailureTranslatingJdbcTemplate(legacyDataSource);
     }
 }

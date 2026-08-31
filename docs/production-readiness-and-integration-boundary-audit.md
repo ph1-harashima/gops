@@ -1,6 +1,8 @@
-# Production Readiness & Integration Boundary Audit（Phase 8-K）
+# Production Readiness & Integration Boundary Audit（Phase 8-K、Phase 8-L追記）
 
-**Status**: 監査・設計整理のみ。Frontend/Backend/DB Migration/API変更は0件。Legacy（`phasep-gulliver`）はREAD/Grepのみで一切変更していない。新Business Ruleの決定は行っていない。
+**Status（Phase 8-K時点）**: 監査・設計整理のみ。Frontend/Backend/DB Migration/API変更は0件。Legacy（`phasep-gulliver`）はREAD/Grepのみで一切変更していない。新Business Ruleの決定は行っていない。
+
+**Status（Phase 8-L追記）**: 19章のImmediate Implementation Top 3のうち①Health Check + Structured Error Handling、②Technical Idempotency Foundationを実装した（③Deployment Runbook整備は`docs/production-deployment-and-recovery-runbook.md`として実施）。詳細は末尾の「25. Phase 8-L実装結果」を参照。Production接続の有効化・SafetyGuard変更・Real Email/EDI/Official PO Handoffはいずれも実施していない（引き続き未着手）。
 
 **目的**: Phase 8-JまでにPortalが到達した機能範囲（Ordering/Approval/Manufacturer Communication/Supplier Response/Fulfillment/Follow-up/Price Change Foundation/Stock・Sales・Arrival・Warehouse Stock Visibility/Dashboard/Audit/Role Foundation/Scalability・Navigation・Documentation Consolidation）を前提に、Prototype/Demo FoundationとProduction Readyの間に残るGapを体系的に洗い出し、①今すぐ準備可能なもの、②Customer Review待ち、③Ernest確認待ち、④External Spec待ちを分離し、⑤Ordering系Production化のCritical Pathを明確化し、⑥Estimateへ反映可能なScope構造を整理し、⑦次に実装すべきProduction Foundationを決めるための一次資料とする。
 
@@ -482,4 +484,44 @@ Customer/Ernest/External回答を待たずに今すぐ着手できる候補をTo
 
 ---
 
+## 25. Phase 8-L実装結果
+
+22章 Immediate Implementation Top 3のうち①②を実装、③はDocumentとして実施した。**Production接続の有効化・SafetyGuard変更・Real Email/EDI/Official PO Handoffはいずれも実施していない**（Phase 8-Lの明示的な禁止事項）。
+
+### 25.1 Health Check Foundation（実装完了）
+
+- `GET /actuator/health`（Application + Portal DB、`PortalDatabaseHealthIndicator`が`@Primary`の`prototypeDataSource`のみを対象に手書き実装。Spring Bootの自動DataSource Health Indicatorは`management.health.db.enabled=false`で無効化し、Legacy DataSourceが誤って同じ集約に混入する曖昧さを排除）。
+- `GET /api/health/legacy`（Legacy G-SYS Adapterの疎通のみ、Actuatorの集約とは完全に別のCustom Endpoint - **Legacy不可用がApplication全体のDOWNに波及しない構造を、設定ではなく構造そのもので保証**）。
+- `management.endpoint.health.show-details=never`により、いずれのEndpointもDB URL/Username/Password/Host情報/SQL/Stack Traceを一切返さない（`{"status":"UP"|"DOWN"}`のみ）。
+- 両Endpointとも`SecurityConfig`でpermitAll（未認証到達可能、Load Balancer/Orchestrator向け）。Role-gated詳細ViewはProduction Authentication Rule決定待ちのため実装していない（4章の既存指摘どおり）。
+
+### 25.2 Structured Error Handling + Correlation ID（実装完了）
+
+- 既存`GlobalExceptionHandler`（約40個のBusiness例外Handler）を共通`error()`Factory経由に統一し、`timestamp`/`status`/`errorCode`/`path`/`correlationId`を全Responseへ追加（既存`errorCode`フィールド・HTTP Status・追加フィールドは一切変更なし、Breaking Changeゼロを全Backend Test・E2E Testで確認）。
+- 新規Handler3種を追加: `MethodArgumentNotValidException`→`VALIDATION_ERROR`（Phase 7-C3から存在した未Handle Gapを解消）、`LegacyUnavailableException`→`LEGACY_UNAVAILABLE`（503）、`org.springframework.dao.DataAccessException`→`PORTAL_DB_ERROR`（503）、`Exception`→`INTERNAL_ERROR`（500、Client側にStack Trace/例外メッセージを一切含めない）。
+- **実装中に発見・修正した回帰**: 新設した`Exception`Catch-allが、Spring Security `@PreAuthorize`由来の`AccessDeniedException`まで捕捉してしまい、既存の14件の403 Authorization Testが500に変化する回帰を全Backend Test実行で検出。`AccessDeniedException`専用Handlerを追加し、既存の`SecurityConfig`の`accessDeniedHandler`と同じ`FORBIDDEN`を返すよう修正、全Test復旧を確認。
+- `LegacyFailureTranslatingJdbcTemplate`（`NamedParameterJdbcTemplate`のSubclass）を`LegacyDataSourceConfig`が返すことで、`repository.legacy`配下の既存15クラス全てに変更ゼロでLegacy障害の構造化Error化を適用。空件数（`EmptyResultDataAccessException`）は明示的に非変換のまま維持（Failure≠Empty Result）。
+- `CorrelationIdFilter`（`Ordered.HIGHEST_PRECEDENCE`）: 受信`X-Correlation-Id`Headerの安全性検証（形式チェック、不正値は再生成）、MDC経由の全Log行への伝播、Response Header echo、Request終了時の1行Summary Log（`operation`/`result`/`errorCode`/`durationMs`）。
+
+### 25.3 Technical Idempotency Foundation（実装完了、Foundationのみ）
+
+- `idempotent_operation`Table新設（V17 Migration）。既存`official_po_integration_request`（Official PO専用Column構成）では汎用化できないことを事前確認した上での新設（13章の指示どおり）。
+- `IdempotencyService.claim()`: `(operationType, idempotencyKey)`のDB UNIQUE制約による本物の同時実行競合防止（単純なSELECT→INSERTではない）。FAILED状態からのReclaim（Attempt増分、Optimistic Lock=`@Version`で保護）はTechnical Mechanismとして実装、自動Retry Policy（回数・間隔）は実装していない（16章のとおりProduction Operation Decisionとして残置）。
+- 8スレッド同時Claim競合のBackend Testで実証済み（1件のみ成功、Duplicate行ゼロを確認）。
+- **実際のExternal Side Effect（Official PO Handoff/Email/EDI）には未接続** - 将来Phaseがこの`IdempotencyService`を呼び出す前提のFoundationのみ。
+
+### 25.4 Deployment / Recovery Runbook（Document作成完了）
+
+`docs/production-deployment-and-recovery-runbook.md`を新規作成（20章のとおり、Hosting Vendorは選定せず、未確定部分はTBD明記）。
+
+### 25.5 未実施・引き続きのGap
+
+- Hosting/Network（9章）、Secret管理基盤（8章）、Production Profile/SafetyGuard拡張（10章/19章）、実SMTP/EDI/Official PO Handoff（4-6章）はいずれも未着手のまま。
+- Monitoring/Metrics/Alert基盤の製品選定は未実施（12章、Phase 8-LはHealth Endpoint自体の実装のみ）。
+- Retry Policy（自動再試行回数・間隔）はProduction Operation Decisionとして依然未確定（16章）。
+
+---
+
 **変更したFrontend/Backend/DB Migration/API/Legacy Source: 0件。** 本Documentの新規作成と、`requirements-coverage-and-remaining-gap-audit.md`等既存Documentへの反映のみ（詳細は完了報告参照）。
+
+**Phase 8-Lの変更**: Backend実装あり（Health Check Foundation・Structured Error Handling・Correlation ID・Technical Idempotency Foundation、詳細は25章）。Portal DB Migration 1件追加（V17、`idempotent_operation`）。Legacy変更0件。詳細はPhase 8-L Completion Report参照。

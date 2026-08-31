@@ -1,6 +1,8 @@
-# Requirements Coverage & Remaining Gap Audit（Phase 8-I、Phase 8-J追記、Phase 8-K追記）
+# Requirements Coverage & Remaining Gap Audit（Phase 8-I、Phase 8-J追記、Phase 8-K追記、Phase 8-L追記）
 
 **Status（Phase 8-K追記）**: Phase 8-Kで`docs/production-readiness-and-integration-boundary-audit.md`を新規作成し、Production Readiness / Integration Boundaryを22章立てで詳細監査した（Ordering Critical Path・Official PO/Email/EDI/User-Role Boundary・Security/Secrets/Hosting/Legacy READ ONLY Production Access/Portal DB/Monitoring/Retry/Error Recovery/Deployment/Backup/Data Volume・Customer/Ernest/External Blocking Matrix・Immediate Implementation候補・Critical Path・Estimate Boundary）。本Phaseも監査のみ、Code変更0件。要点は16章に反映した。
+
+**Status（Phase 8-L追記）**: Phase 8-KのImmediate Implementation Top 3のうち2件を実装（Health Check Foundation、Structured Error Handling + Correlation ID、Technical Idempotency Foundation）、1件をDocument化（`docs/production-deployment-and-recovery-runbook.md`新規作成）。Portal DB Migration 1件追加（V17、`idempotent_operation`）。Production接続の有効化・SafetyGuard変更は行っていない。Code変更あり（初のPhase 8-K系譜での実装Phase）。要点は16章に反映した。
 
 **Status（Phase 8-I時点）**: 監査・整理のみ。Frontend/Backend/DB Migration/API変更は0件。Legacy（`phasep-gulliver`）はREAD/Grepのみで一切変更していない。Test実行なし（実装変更が無いため）。
 
@@ -408,6 +410,16 @@ Phase 8-JはPortal内部の品質・Scalability改善（Pagination／Navigation�
 - **EDIはExternal Specが皆無**のため実装候補にしない（Q16回答が唯一の次の一手）。
 - Candidate ListのBackend Pagination見送り（Phase 8-J）は、Production Data Volume観点でも維持が妥当と再確認（Legacy Master品目数に比例、Order Historyのような無制限累積ではないため）。
 
+### 16.3 Phase 8-L追記（Production Reliability Foundation実装結果）
+
+Phase 8-Kで特定した「Customer/Ernest/External回答不要で今すぐ実装可能」な候補のうち以下を実装した（詳細は`docs/production-readiness-and-integration-boundary-audit.md` 25章）:
+
+- **Health Check Foundation**: `/actuator/health`（Application+Portal DB）・`/api/health/legacy`（Legacy依存、Application全体のDOWN判定から構造的に分離）。Secret/DB接続情報の非公開を確認済み。
+- **Structured Error Handling + Correlation ID**: 既存~40個のBusiness Error Handlerを壊さずに`timestamp`/`status`/`path`/`correlationId`を追加、新規`VALIDATION_ERROR`/`LEGACY_UNAVAILABLE`/`PORTAL_DB_ERROR`/`INTERNAL_ERROR`を追加。実装過程で`AccessDeniedException`の403判定が回帰する不具合を全Test実行で検出・修正済み（教訓: 汎用Exception Catch-allを追加する際はSpring Security例外を明示的に除外する必要がある）。
+- **Technical Idempotency Foundation**: `idempotent_operation`Table新設（V17）。実External Side Effectには未接続（Foundationのみ）。
+
+**この実装により、17章「Error Handling/Retry」Gapの一部（Legacy/Portal DB障害が構造化されたErrorへ変換されず生の500になっていた点）が解消された。** 実送信（Email/EDI/Official PO Handoff）が未実装である事実、Hosting/Secret/SafetyGuard拡張が未着手である事実には変更がない。
+
 ---
 
 ## 17. Cross-Cutting Gap
@@ -423,7 +435,7 @@ Phase 8-JはPortal内部の品質・Scalability改善（Pagination／Navigation�
 | Dashboard未統合（Phase 8-J追記: 解消） | Theme R | Phase 8-F/G/Hで追加した3画面（入荷確認・倉庫在庫・在庫販売確認）は、**Phase 8-Jで**Dashboardに素のNavigation Card（件数なし）として追加した。加えてPrice Change Draft件数KPIも新規追加（Dashboardの情報設計がPhase 8-B/8-D以前で止まっていたGapを解消）。§12禁止事項（欠品/長期欠品/Arrival Delay/Stock Discrepancy/Gross Amount差異/実績粗利/Forecast/自動発注）は新規KPIとして一切追加していない。 |
 | SKU Detail⇄Arrival Navigation不在（Phase 8-J追記: 解消） | Theme A/L/M | SKU DetailからArrival List（SKUを検索条件として使用、既存のOrder Detail→Arrival Listと同じPattern）への遷移を追加。Warehouse Stock DrawerからもSKU Detail/在庫・販売確認への遷移を追加。いずれもSKUを検索条件として使うのみで、新規Business Traceabilityは作成していない（Warehouse Stock→Arrivalの直接連携は引き続き作成禁止）。 |
 | 実送信/実Handoff機構の不在 | Theme A/C | 7-C2B/7-C4がいずれも未着手のため、「実際に外部へ影響を与える」操作が一切存在しない（Prototype全体の性質として意図的だが、Production化の最大のGap）。 |
-| Error Handling/Retry | 全Backend Adapter | Legacy READ ONLY Adapterに明示的なRetry機構は無い（DB接続断時は例外がそのままHTTPエラーへ伝播）。Demo規模では問題化していないが、Production化時は要検討。 |
+| Error Handling/Retry（Phase 8-L追記: 一部解消） | 全Backend Adapter | **Phase 8-Lで解消**: Legacy DB接続断時は`LegacyUnavailableException`→構造化`LEGACY_UNAVAILABLE`（503）Responseへ変換されるようになった（生の500ではない）。Portal DB障害も同様に`PORTAL_DB_ERROR`へ変換。**ただし自動Retry機構は依然として無い**（意図的 - READ QueryのRetry安全性はSourceごとの評価が必要という判断、Phase 8-L §10/§16）。Production化時、自動Retry Policy自体はProduction Operation Decisionとして残る。 |
 
 **意図的に含めなかった項目**: Monitoring/Backup/Deployment/Observability/一般的なSecurity Hardeningは、現Prototype Scope外の一般論であり、具体的なSource/Portal Gapとして特定できていないため本章には含めない（Production Readiness Gap、16章で個別に言及した範囲に留める）。
 
@@ -675,3 +687,5 @@ Phase 8-J §2の指示に基づき、`docs/`配下の全ファイルを実ディ
 **Phase 8-Jの変更**: Order History List Backend Pagination（`OrderHistoryService`/`OrderHistoryController`/`PortalOrderRepository`）、SKU Detail⇄Arrival Navigation・Warehouse Stock Drawer⇄SKU Detail/Stock-Sales Navigation（Frontend Route/Buttonのみ、新規Backend Endpoint無し）、Theoretical Margin Reference（`SkuDetailService`/`SkuDetailResponse`、既存`MarginCalculator`/`LegacyPriceReadRepository`を再利用）、Dashboard統合（`DashboardService`/`DashboardResponse`、Price Change Draft件数KPI + 3 Navigation Card）。**Portal DB Migrationの新規追加は無し**（24章参照）。**Legacy（`phasep-gulliver`）への変更は0件**（READ ONLY、既存Legacy Adapter Repositoryの再利用のみ）。詳細な変更ファイル一覧はPhase 8-J Completion Reportを参照。
 
 **Phase 8-Kの変更**: Frontend/Backend/DB Migration/API変更0件。`docs/production-readiness-and-integration-boundary-audit.md`を新規作成（22章）。本Document16章へ8-K追記（16.2章）。Legacy変更0件（Read/Grepのみ）。詳細はPhase 8-K Completion Reportを参照。
+
+**Phase 8-Lの変更**: Health Check Foundation（`PortalDatabaseHealthIndicator`/`LegacyHealthCheckService`/`HealthController`、`spring-boot-starter-actuator`追加）、Structured Error Handling + Correlation ID（`GlobalExceptionHandler`全面改修・`LegacyFailureTranslatingJdbcTemplate`・`CorrelationIdFilter`新設）、Technical Idempotency Foundation（`IdempotentOperation`/`IdempotencyService`、Migration V17）。Portal DB Migration 1件追加（V17）。**Legacy（`phasep-gulliver`）への変更は0件**。SafetyGuard変更0件。Production Secret追加0件。詳細な変更ファイル一覧はPhase 8-L Completion Reportを参照。

@@ -59,6 +59,14 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/order-candidates").permitAll()
                 .requestMatchers("/api/order-candidates/**").permitAll()
+                // Phase 8-L (Production Reliability Foundation): Health
+                // endpoints must be reachable before/without a session (a
+                // load balancer or orchestrator cannot log in) - both are
+                // deliberately minimal, no Secret/DB detail (see
+                // health/HealthController and application.yml's
+                // management.endpoint.health.show-details=never).
+                .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/api/health/**").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
