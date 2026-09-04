@@ -73,7 +73,7 @@ public class DemoResetRunner implements CommandLineRunner {
         log.warn("=== DEMO RESET: about to TRUNCATE Prototype business-data tables "
                 + "(portal_order, portal_order_detail, portal_order_revision, portal_order_revision_detail, "
                 + "supplier_response, supplier_response_detail, order_attention, audit_event, "
-                + "official_po_integration_request, follow_up_case, legacy_po_baseline, "
+                + "official_po_integration_request, order_email, follow_up_case, legacy_po_baseline, "
                 + "price_change_set, price_change_set_detail, idempotent_operation). "
                 + "portal_user is preserved. Target: {} ===",
                 prototypeDataSource.getConnection().getMetaData().getURL());
@@ -103,7 +103,7 @@ public class DemoResetRunner implements CommandLineRunner {
         // prior Demo session never block a fresh one.
         prototypeJdbc.execute(
                 "TRUNCATE TABLE audit_event, order_attention, supplier_response_detail, "
-                        + "supplier_response, official_po_integration_request, portal_order_revision_detail, "
+                        + "supplier_response, official_po_integration_request, order_email, portal_order_revision_detail, "
                         + "portal_order_revision, follow_up_case, legacy_po_baseline, portal_order_detail, portal_order, "
                         + "price_change_set_detail, price_change_set, idempotent_operation RESTART IDENTITY");
         prototypeJdbc.execute("ALTER SEQUENCE prototype_po_no_seq RESTART WITH 1");

@@ -57,6 +57,18 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
+    <!-- Phase 9-E: Real Email Send. JavaMailSender is used ONLY by
+         SmtpEmailSenderAdapter (@Profile("production") - unreachable here,
+         SafetyGuardEnvironmentPostProcessor refuses to start under that
+         profile). MailSenderAutoConfiguration is explicitly excluded in
+         application.yml so no JavaMailSender bean is ever auto-created in
+         local/demo/test - the only Adapter active there is
+         LoggingEmailSenderAdapter, which never opens a socket. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
+
     <!-- Phase 8-L (Production Reliability Foundation): /actuator/health only
          (Application liveness + Portal DB, via a hand-written HealthIndicator -
          see health/PortalDatabaseHealthIndicator.java). No other actuator

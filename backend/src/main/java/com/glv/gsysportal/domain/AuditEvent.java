@@ -183,6 +183,16 @@ public class AuditEvent {
      * the Supplier's own EDI system now has this Order's input). */
     public static final String EDI_INPUT_COMPLETED = "EDI_INPUT_COMPLETED";
 
+    // --- Phase 9-E: Real Email Send (Production PO Workflow) ---
+    /** Email successfully delivered (via whichever EmailSenderPort Adapter
+     * is active) - written on every successful Send, including a successful
+     * retry after a prior FAILED attempt. */
+    public static final String EMAIL_SENT = "EMAIL_SENT";
+    /** Send failed (Adapter threw) - {@link #note} holds the error detail.
+     * Retry (re-calling the same Business Action) is always possible
+     * afterward. */
+    public static final String EMAIL_SEND_FAILED = "EMAIL_SEND_FAILED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

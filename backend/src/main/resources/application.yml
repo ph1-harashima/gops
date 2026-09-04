@@ -20,6 +20,11 @@ spring:
       # com.glv.gsysportal.config.PrototypeFlywayConfig - autoconfiguration is
       # excluded so there is no implicit dual-DataSource ambiguity (Step 2 2章).
       - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+      # Phase 9-E: no JavaMailSender bean is ever auto-created - the only
+      # place one is ever constructed is SmtpEmailSenderAdapter itself
+      # (@Profile("production"), unreachable here). Local/demo/test use
+      # LoggingEmailSenderAdapter, which never touches spring.mail.* at all.
+      - org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration
   jpa:
     open-in-view: false
     hibernate:

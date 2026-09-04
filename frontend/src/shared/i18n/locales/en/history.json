@@ -167,7 +167,7 @@
   },
   "mailPreview": {
     "title": "Mail Preview",
-    "subtitle": "No real mail is ever sent (there is no Send API). Independent of Demo Send.",
+    "subtitle": "Independent of Demo Send. Real sending happens via \"Send to Manufacturer\" below (only when the manufacturer's channel is Email).",
     "previewButton": "Show Mail Preview",
     "from": "From",
     "to": "To",
@@ -185,7 +185,16 @@
       "MAIL_TEMPLATE_AMBIGUOUS": "Multiple active Templates matched at the same priority - cannot pick one automatically."
     },
     "errorForbidden": "You do not have permission to perform this action.",
-    "errorGeneric": "The operation failed."
+    "errorGeneric": "The operation failed.",
+    "sendSectionTitle": "Send to Manufacturer",
+    "sendButton": "Send",
+    "retrySendButton": "Resend",
+    "sendSuccess": "Email sent.",
+    "sentNote": "Already sent",
+    "sendFailedNote": "Send failed. You can resend",
+    "errorPreviewBlocked": "Mail Preview has unresolved items - check the Preview above.",
+    "errorAttachmentNotReady": "Generate the Official PO Excel first.",
+    "errorChannelNotApplicable": "This manufacturer's channel is not Email."
   },
   "revisionHistory": {
     "title": "Order Revision History",

@@ -424,4 +424,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleEdiCompletionNotApplicable(EdiCompletionNotApplicableException ex, HttpServletRequest request) {
         return error(request, HttpStatus.CONFLICT, "EDI_COMPLETION_NOT_APPLICABLE");
     }
+
+    // --- Phase 9-E: Real Email Send (Production PO Workflow) ---
+
+    @ExceptionHandler(EmailChannelNotApplicableException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailChannelNotApplicable(EmailChannelNotApplicableException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "EMAIL_CHANNEL_NOT_APPLICABLE");
+    }
+
+    @ExceptionHandler(EmailPreviewBlockedException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailPreviewBlocked(EmailPreviewBlockedException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "EMAIL_PREVIEW_BLOCKED");
+    }
+
+    @ExceptionHandler(EmailAttachmentNotReadyException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailAttachmentNotReady(EmailAttachmentNotReadyException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "EMAIL_ATTACHMENT_NOT_READY");
+    }
 }

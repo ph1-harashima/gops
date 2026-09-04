@@ -38,6 +38,7 @@ import {
 } from './officialPoIntegrationApi'
 import { useLegacyPoConcurrency, useCaptureLegacyPoBaseline } from './legacyPoConcurrencyApi'
 import { useMailPreview } from './mailPreviewApi'
+import { useEmailStatus, useSendEmail } from './emailSendApi'
 import { useFulfillment } from './fulfillmentApi'
 import {
   useFollowUpCases, useCreateFollowUpCase, useUpdateFollowUpCaseNote,
@@ -143,6 +144,8 @@ export function OrderHistoryDetailPage() {
   const completeEdiInputMutation = useCompleteEdiInput(orderId)
   const captureBaselineMutation = useCaptureLegacyPoBaseline(orderId)
   const mailPreviewMutation = useMailPreview(orderId)
+  const { data: emailStatus } = useEmailStatus(orderId)
+  const sendEmailMutation = useSendEmail(orderId)
   const createFollowUpCaseMutation = useCreateFollowUpCase(orderId)
   const updateFollowUpNoteMutation = useUpdateFollowUpCaseNote(orderId)
   const closeFollowUpCaseMutation = useCloseFollowUpCase(orderId)
@@ -1015,6 +1018,56 @@ export function OrderHistoryDetailPage() {
                 {' '}{t('mailPreview.attachmentNotGenerated')}
               </Typography>
             </Stack>
+          )}
+
+          {/* Phase 9-E: real Email Send - only ever shown for a resolved
+              EMAIL Channel (§6's explicit "同じSend Emailボタンを出さない
+              こと" - an EDI-channel Order never sees this, only its own EDI
+              status tracker Section above). Sends exactly what Preview
+              resolved - no separate compose UI. */}
+          {isAdmin && detail.resolvedManufacturerChannel === 'EMAIL' && (
+            <Box sx={{ mt: 2 }} data-testid="email-send-section">
+              <Divider sx={{ mb: 2 }} />
+              <Typography variant="subtitle2" gutterBottom>{t('mailPreview.sendSectionTitle')}</Typography>
+
+              <Toast open={sendEmailMutation.isSuccess} severity="success" message={t('mailPreview.sendSuccess')} onClose={() => sendEmailMutation.reset()} />
+              <Toast
+                open={sendEmailMutation.isError}
+                severity="error"
+                testId="email-send-error"
+                message={
+                  errorCodeOf(sendEmailMutation.error) === 'EMAIL_PREVIEW_BLOCKED' ? t('mailPreview.errorPreviewBlocked') :
+                  errorCodeOf(sendEmailMutation.error) === 'EMAIL_ATTACHMENT_NOT_READY' ? t('mailPreview.errorAttachmentNotReady') :
+                  errorCodeOf(sendEmailMutation.error) === 'EMAIL_CHANNEL_NOT_APPLICABLE' ? t('mailPreview.errorChannelNotApplicable') :
+                  errorCodeOf(sendEmailMutation.error) === 'FORBIDDEN' ? t('mailPreview.errorForbidden') :
+                  t('mailPreview.errorGeneric')
+                }
+                onClose={() => sendEmailMutation.reset()}
+              />
+
+              {emailStatus?.status === 'SENT' && (
+                <Alert severity="success" sx={{ mb: 2 }} data-testid="email-sent-note">
+                  {t('mailPreview.sentNote')} ({emailStatus.sentBy} - {emailStatus.sentAt ? new Date(emailStatus.sentAt).toLocaleString('ja-JP') : ''})
+                </Alert>
+              )}
+              {emailStatus?.status === 'FAILED' && (
+                <Alert severity="error" sx={{ mb: 2 }} data-testid="email-failed-note">
+                  {t('mailPreview.sendFailedNote')}{emailStatus.errorMessage ? `: ${emailStatus.errorMessage}` : ''}
+                </Alert>
+              )}
+
+              {emailStatus?.status !== 'SENT' && (
+                <Button
+                  variant="contained"
+                  onClick={() => sendEmailMutation.mutate()}
+                  disabled={sendEmailMutation.isPending}
+                  data-testid="email-send-button"
+                >
+                  {sendEmailMutation.isPending ? <CircularProgress size={20} /> :
+                    emailStatus?.status === 'FAILED' ? t('mailPreview.retrySendButton') : t('mailPreview.sendButton')}
+                </Button>
+              )}
+            </Box>
           )}
         </Paper>
       )}

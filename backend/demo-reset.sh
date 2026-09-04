@@ -5,12 +5,13 @@
 # DemoResetRunner.java for the authoritative, always-current list - kept
 # here as a mirror, not duplicated logic): audit_event, order_attention,
 # supplier_response_detail, supplier_response, official_po_integration_request,
-# portal_order_revision_detail, portal_order_revision, follow_up_case,
+# order_email, portal_order_revision_detail, portal_order_revision, follow_up_case,
 # legacy_po_baseline, portal_order_detail, portal_order, price_change_set_detail,
 # price_change_set. portal_user,
-# supplier_contact, and mail_template (Portal-owned Master data) are all
-# preserved. The Legacy Demo MySQL Seed Schema is never touched by this
-# script - it only ever connects to the Prototype DataSource.
+# supplier_contact, mail_template, and manufacturer_channel (Portal-owned
+# Master data) are all preserved. The Legacy Demo MySQL Seed Schema is
+# never touched by this script - it only ever connects to the Prototype
+# DataSource.
 #
 # NEVER exposed as a Backend API - CLI/script only, per implementation
 # instructions Step 5 5章. Run this before each demo rehearsal.

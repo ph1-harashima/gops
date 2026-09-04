@@ -69,7 +69,9 @@ class PrototypeFlywayMigrationTest {
         // V21 (Phase 9-D): Email / EDI branching - manufacturer_channel Master,
         // portal_order.edi_status/edi_completed_by/edi_completed_at,
         // EDI_INPUT_COMPLETED Audit type.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"), versions);
+        // V22 (Phase 9-E): Real Email Send - order_email table,
+        // EMAIL_SENT/EMAIL_SEND_FAILED Audit types.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22"), versions);
     }
 
     @Test
@@ -80,7 +82,8 @@ class PrototypeFlywayMigrationTest {
         for (String expected : List.of("portal_order", "portal_order_detail", "audit_event", "portal_user",
                 "supplier_response", "supplier_response_detail", "order_attention",
                 "portal_order_revision", "portal_order_revision_detail", "follow_up_case", "legacy_po_baseline",
-                "price_change_set", "price_change_set_detail", "idempotent_operation")) {
+                "price_change_set", "price_change_set_detail", "idempotent_operation",
+                "manufacturer_channel", "order_email")) {
             assertTrue(tables.contains(expected), "Expected table missing: " + expected + ", got: " + tables);
         }
     }

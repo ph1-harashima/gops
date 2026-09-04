@@ -34,7 +34,8 @@ test.describe('Phase 9-D: Manufacturer Channel Master', () => {
     await page.getByTestId(`candidate-checkbox-${SKU}`).locator('input').check()
     await page.getByTestId('create-draft-button').click()
     await expect(page).toHaveURL(/\/orders\/drafts\/(\d+)/)
-    const draftId = page.url().match(/\/orders\/drafts\/(\d+)/)?.[1]!
+    const draftId = page.url().match(/\/orders\/drafts\/(\d+)/)?.[1]
+    expect(draftId).toBeTruthy()
     await page.getByTestId(`order-qty-input-${SKU}`).locator('input').fill('6')
     await page.getByTestId('save-draft-button').click()
     await expect(page.getByText('保存しました。')).toBeVisible()

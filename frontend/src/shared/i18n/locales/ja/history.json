@@ -172,7 +172,7 @@
   },
   "mailPreview": {
     "title": "メールプレビュー",
-    "subtitle": "実送信は行いません（Send APIは未実装です）。デモ送信とは別機能です。",
+    "subtitle": "デモ送信とは別機能です。実送信はこのSection下部の「メーカーへ送信」から行います（メーカーの通信方法がEmailの場合のみ）。",
     "previewButton": "メールプレビューを表示",
     "from": "From",
     "to": "To",
@@ -190,7 +190,16 @@
       "MAIL_TEMPLATE_AMBIGUOUS": "同一優先順位で複数の有効なテンプレートが該当し、自動選択できません。"
     },
     "errorForbidden": "この操作を行う権限がありません。",
-    "errorGeneric": "処理に失敗しました。"
+    "errorGeneric": "処理に失敗しました。",
+    "sendSectionTitle": "メーカーへ送信",
+    "sendButton": "送信",
+    "retrySendButton": "再送信",
+    "sendSuccess": "メールを送信しました。",
+    "sentNote": "送信済みです",
+    "sendFailedNote": "送信に失敗しました。再送信できます",
+    "errorPreviewBlocked": "メールプレビューに未確定の項目があります。上のプレビューで内容を確認してください。",
+    "errorAttachmentNotReady": "先に正式PO Excelを生成してください。",
+    "errorChannelNotApplicable": "このメーカーの通信方法はEmailではありません。"
   },
   "revisionHistory": {
     "title": "発注内容の履歴（Revision）",
