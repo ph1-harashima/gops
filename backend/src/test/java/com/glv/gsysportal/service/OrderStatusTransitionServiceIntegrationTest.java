@@ -487,4 +487,69 @@ class OrderStatusTransitionServiceIntegrationTest {
     void recordEdiSendOnUnknownOrderThrowsNotFound() {
         assertThrows(DraftNotFoundException.class, () -> statusTransitionService.recordEdiSend(-1L, ADMIN));
     }
+
+    // --- Phase 9-D: Email / EDI branching - completeEdiInput ---
+
+    @Test
+    void recordEdiSendSetsWaitingInputEdiStatus() {
+        PortalOrder approved = createApprovedOrder(SKU_TENT_1);
+
+        PortalOrder sent = statusTransitionService.recordEdiSend(approved.getId(), ADMIN);
+
+        assertEquals(PortalOrder.EDI_STATUS_WAITING_INPUT, sent.getEdiStatus());
+    }
+
+    @Test
+    void demoSendNeverSetsEdiStatus() {
+        PortalOrder approved = createApprovedOrder(SKU_TENT_1);
+
+        PortalOrder sent = statusTransitionService.demoSend(approved.getId(), OPERATOR);
+
+        assertNull(sent.getEdiStatus());
+    }
+
+    @Test
+    void completeEdiInputTransitionsWaitingToCompleted() {
+        PortalOrder approved = createApprovedOrder(SKU_TENT_1);
+        statusTransitionService.recordEdiSend(approved.getId(), ADMIN);
+
+        PortalOrder completed = statusTransitionService.completeEdiInput(approved.getId(), OPERATOR);
+
+        assertEquals(PortalOrder.EDI_STATUS_COMPLETED, completed.getEdiStatus());
+        assertEquals(OPERATOR, completed.getEdiCompletedBy());
+        assertNotNull(completed.getEdiCompletedAt());
+
+        List<AuditEvent> events = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(approved.getId());
+        assertTrue(events.stream().anyMatch(e -> AuditEvent.EDI_INPUT_COMPLETED.equals(e.getEventType())));
+    }
+
+    @Test
+    void completeEdiInputOnEmailChannelOrderIsRejected() {
+        PortalOrder approved = createApprovedOrder(SKU_TENT_1);
+        statusTransitionService.demoSend(approved.getId(), OPERATOR);
+
+        assertThrows(com.glv.gsysportal.exception.EdiCompletionNotApplicableException.class,
+                () -> statusTransitionService.completeEdiInput(approved.getId(), ADMIN));
+    }
+
+    @Test
+    void completeEdiInputBeforeAnySendIsRejected() {
+        PortalOrder approved = createApprovedOrder(SKU_TENT_1);
+
+        assertThrows(com.glv.gsysportal.exception.EdiCompletionNotApplicableException.class,
+                () -> statusTransitionService.completeEdiInput(approved.getId(), ADMIN));
+    }
+
+    @Test
+    void completeEdiInputTwiceIsIdempotent_noDoubleAudit() {
+        PortalOrder approved = createApprovedOrder(SKU_TENT_1);
+        statusTransitionService.recordEdiSend(approved.getId(), ADMIN);
+
+        statusTransitionService.completeEdiInput(approved.getId(), OPERATOR);
+        statusTransitionService.completeEdiInput(approved.getId(), OPERATOR);
+
+        long completedCount = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(approved.getId()).stream()
+                .filter(e -> AuditEvent.EDI_INPUT_COMPLETED.equals(e.getEventType())).count();
+        assertEquals(1, completedCount, "re-completing an already-COMPLETED Order must not re-Audit");
+    }
 }

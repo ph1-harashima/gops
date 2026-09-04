@@ -132,4 +132,27 @@ test.describe('Phase 7-H: EDI発注Workflow Foundation', () => {
     // supplier-response-confirm-dialog-stability.spec.ts).
     await expect(page.getByText('メーカー確定済み', { exact: true }).first()).toBeVisible()
   })
+
+  test('J (Phase 9-D): EDI status tracker starts WAITING_INPUT after edi-send and can be marked COMPLETED', async ({ page }) => {
+    const draftId = await createApprovedOrderAndOpenPreview(page)
+
+    await page.getByTestId('edi-send-button').click()
+    await page.getByTestId('edi-send-dialog-confirm').click()
+    await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))
+
+    await expect(page.getByTestId('edi-status-section')).toBeVisible()
+    await expect(page.getByTestId('edi-status-chip')).toHaveText('EDI入力待ち')
+    await expect(page.getByTestId('edi-complete-button')).toBeVisible()
+
+    await page.getByTestId('edi-complete-button').click()
+    await expect(page.getByText('EDI入力完了として記録しました。')).toBeVisible()
+    await expect(page.getByTestId('edi-status-chip')).toHaveText('EDI入力完了')
+    await expect(page.getByTestId('edi-complete-button')).toHaveCount(0)
+
+    // No "Send Email" Button ever appears for an EDI-channel Order - the
+    // real Email Send Action (Phase 9-E) does not exist yet, but the
+    // Mail Preview Section's own send-gating already only shows for a
+    // resolved EMAIL Channel (verified again once Phase 9-E lands).
+    await expect(page.getByTestId('edi-status-section')).not.toContainText('メールを送信');
+  })
 })

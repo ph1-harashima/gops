@@ -1,0 +1,38 @@
+{
+  "title": "Manufacturer Channel Management",
+  "subtitle": "Manufacturer Channel Master (Portal-only - Legacy has no Master for how a manufacturer places orders). Set Email/EDI per manufacturer.",
+  "createButton": "Create New",
+  "editButton": "Edit",
+  "table": {
+    "supplierCode": "Supplier Code",
+    "brandCode": "Brand Code",
+    "channel": "Channel",
+    "active": "Status"
+  },
+  "statusActive": "Active",
+  "statusInactive": "Inactive",
+  "dialogTitleCreate": "Create Manufacturer Channel",
+  "dialogTitleEdit": "Edit Manufacturer Channel",
+  "field": {
+    "supplierCode": "Supplier Code",
+    "brandCode": "Brand Code",
+    "brandCodeHelp": "Leave blank to apply to every Brand under this Supplier.",
+    "channel": "Channel",
+    "active": "Active"
+  },
+  "channel": {
+    "EMAIL": "Email",
+    "EDI": "EDI"
+  },
+  "save": "Save",
+  "cancel": "Cancel",
+  "empty": "No entries registered.",
+  "error": {
+    "INVALID_MANUFACTURER_CHANNEL": "Channel must be EMAIL or EDI.",
+    "SUPPLIER_CODE_NOT_FOUND": "Supplier code was not found in G-SYS.",
+    "BRAND_CODE_NOT_FOUND": "Brand code was not found in G-SYS.",
+    "DUPLICATE_MANUFACTURER_CHANNEL": "An active entry for this Supplier/Brand already exists.",
+    "FORBIDDEN": "You do not have permission to perform this action.",
+    "GENERIC": "The operation failed."
+  }
+}

@@ -402,4 +402,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleOfficialPoNotSubmitted(OfficialPoNotSubmittedException ex, HttpServletRequest request) {
         return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_NOT_SUBMITTED");
     }
+
+    // --- Phase 9-D: Email / EDI branching (Production PO Workflow) ---
+
+    @ExceptionHandler(InvalidManufacturerChannelException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidManufacturerChannel(InvalidManufacturerChannelException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.BAD_REQUEST, "INVALID_MANUFACTURER_CHANNEL");
+    }
+
+    @ExceptionHandler(DuplicateManufacturerChannelException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateManufacturerChannel(DuplicateManufacturerChannelException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "DUPLICATE_MANUFACTURER_CHANNEL");
+    }
+
+    @ExceptionHandler(ManufacturerChannelNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleManufacturerChannelNotFound(ManufacturerChannelNotFoundException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.NOT_FOUND, "MANUFACTURER_CHANNEL_NOT_FOUND");
+    }
+
+    @ExceptionHandler(EdiCompletionNotApplicableException.class)
+    public ResponseEntity<Map<String, Object>> handleEdiCompletionNotApplicable(EdiCompletionNotApplicableException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "EDI_COMPLETION_NOT_APPLICABLE");
+    }
 }

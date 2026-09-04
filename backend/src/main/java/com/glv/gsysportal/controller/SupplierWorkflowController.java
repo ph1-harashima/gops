@@ -67,6 +67,15 @@ public class SupplierWorkflowController {
         return toStatusChangeResponse(order);
     }
 
+    /** "EDI入力完了" (Phase 9-D). Same Permission as edi-send (no
+     * {@code @PreAuthorize} - any authenticated user); requires
+     * communicationChannel == EDI. */
+    @PostMapping("/api/orders/{id}/edi/complete")
+    public OrderStatusChangeResponse completeEdiInput(@PathVariable Long id) {
+        PortalOrder order = statusTransitionService.completeEdiInput(id, currentUserProvider.currentUsername());
+        return toStatusChangeResponse(order);
+    }
+
     @GetMapping("/api/orders/{id}/supplier-response")
     public SupplierResponseView getSupplierResponse(@PathVariable Long id) {
         return supplierResponseService.getSupplierResponse(id);

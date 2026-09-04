@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../../shared/api/client'
 import type { AuditEventItem, OrderHistoryDetail, OrderHistorySummary } from '../../shared/types/orderHistory'
+import type { OrderStatusChange } from '../../shared/types/poPreview'
 import type { PageResponse } from '../../shared/types/pagination'
 
 export interface OrderHistoryFilter {
@@ -74,5 +75,23 @@ export function useOrderEvents(id: number) {
     queryKey: ['order-events', id],
     queryFn: () => fetchOrderEvents(id),
     enabled: Number.isFinite(id),
+  })
+}
+
+/** "EDI入力完了" (Phase 9-D). Same Permission as edi-send (no ADMIN gate on
+ * the Backend) - requires communicationChannel == EDI. */
+async function completeEdiInput(id: number): Promise<OrderStatusChange> {
+  const { data } = await apiClient.post<OrderStatusChange>(`/orders/${id}/edi/complete`)
+  return data
+}
+
+export function useCompleteEdiInput(id: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => completeEdiInput(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['order-history-detail', id] })
+      void queryClient.invalidateQueries({ queryKey: ['order-events', id] })
+    },
   })
 }

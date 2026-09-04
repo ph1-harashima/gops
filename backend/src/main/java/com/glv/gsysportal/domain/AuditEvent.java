@@ -178,6 +178,11 @@ public class AuditEvent {
      * eventually matches). */
     public static final String OFFICIAL_PO_IMPORT_CONFIRMED = "OFFICIAL_PO_IMPORT_CONFIRMED";
 
+    // --- Phase 9-D: Email / EDI branching (Production PO Workflow) ---
+    /** "EDI入力完了" - written once per completion (ADMIN/OPERATOR marks that
+     * the Supplier's own EDI system now has this Order's input). */
+    public static final String EDI_INPUT_COMPLETED = "EDI_INPUT_COMPLETED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

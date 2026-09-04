@@ -13,6 +13,7 @@ import jaDashboard from './locales/ja/dashboard.json'
 import jaSkuDetail from './locales/ja/skuDetail.json'
 import jaSupplierContact from './locales/ja/supplierContact.json'
 import jaMailTemplate from './locales/ja/mailTemplate.json'
+import jaManufacturerChannel from './locales/ja/manufacturerChannel.json'
 import jaPriceChanges from './locales/ja/priceChanges.json'
 import jaArrivals from './locales/ja/arrivals.json'
 import jaWarehouseStock from './locales/ja/warehouseStock.json'
@@ -22,6 +23,7 @@ import enStatus from './locales/en/status.json'
 import enHistory from './locales/en/history.json'
 import enSupplierContact from './locales/en/supplierContact.json'
 import enMailTemplate from './locales/en/mailTemplate.json'
+import enManufacturerChannel from './locales/en/manufacturerChannel.json'
 // Phase 6-A: minimal partial resources - just the new Label keys introduced
 // this Phase (docs/production-ux-workflow-redesign.md 6章/13章). No
 // Language Selector is implemented yet (lng is fixed to 'ja' below), and
@@ -58,6 +60,7 @@ void i18n.use(initReactI18next).init({
       skuDetail: jaSkuDetail,
       supplierContact: jaSupplierContact,
       mailTemplate: jaMailTemplate,
+      manufacturerChannel: jaManufacturerChannel,
       priceChanges: jaPriceChanges,
       arrivals: jaArrivals,
       warehouseStock: jaWarehouseStock,
@@ -74,6 +77,7 @@ void i18n.use(initReactI18next).init({
       dashboard: enDashboard,
       supplierContact: enSupplierContact,
       mailTemplate: enMailTemplate,
+      manufacturerChannel: enManufacturerChannel,
       priceChanges: enPriceChanges,
       arrivals: enArrivals,
       warehouseStock: enWarehouseStock,

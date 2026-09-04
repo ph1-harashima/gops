@@ -57,6 +57,17 @@
     "EMAIL": "発注方法: Email",
     "EDI": "発注方法: EDI"
   },
+  "ediStatus": {
+    "title": "EDI入力状況",
+    "status": {
+      "WAITING_INPUT": "EDI入力待ち",
+      "COMPLETED": "EDI入力完了"
+    },
+    "completedByLabel": "完了者",
+    "completedAtLabel": "完了日時",
+    "completeButton": "EDI入力完了にする",
+    "completeSuccess": "EDI入力完了として記録しました。"
+  },
   "supplierResponseConfirmSuccessMessage": "メーカー回答を確定しました。",
   "goToDraftEdit": "ドラフトを編集",
   "goToPreview": "PO Previewを見る",
@@ -144,6 +155,10 @@
     "placedNote": "既にImport Folderへ配置済みです。G-SYS側の取込を待っています。",
     "placeFailedNote": "配置に失敗しました。再試行できます",
     "errorNotGenerated": "先にExcelを生成してください。",
+    "resolvedChannelChip": {
+      "EMAIL": "登録済み通信方法: Email",
+      "EDI": "登録済み通信方法: EDI"
+    },
     "confirmImportSectionTitle": "G-SYS取込確認",
     "confirmImportButton": "G-SYS取込状況を確認",
     "importConfirmReason": {

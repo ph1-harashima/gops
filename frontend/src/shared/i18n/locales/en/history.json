@@ -139,6 +139,10 @@
     "placedNote": "Already placed into the Import Folder - waiting for G-SYS to pick it up.",
     "placeFailedNote": "Placement failed. You can retry",
     "errorNotGenerated": "Generate the Excel first.",
+    "resolvedChannelChip": {
+      "EMAIL": "Registered channel: Email",
+      "EDI": "Registered channel: EDI"
+    },
     "confirmImportSectionTitle": "G-SYS Import Confirmation",
     "confirmImportButton": "Check G-SYS Import Status",
     "importConfirmReason": {
@@ -149,6 +153,17 @@
     "actualQtyLabel": "In G-SYS",
     "importConfirmedNote": "Confirmed: G-SYS's registered content matches this Order.",
     "errorNotSubmitted": "This Order has not been placed into the Import Folder yet."
+  },
+  "ediStatus": {
+    "title": "EDI Input Status",
+    "status": {
+      "WAITING_INPUT": "Waiting for EDI Input",
+      "COMPLETED": "EDI Input Complete"
+    },
+    "completedByLabel": "Completed By",
+    "completedAtLabel": "Completed At",
+    "completeButton": "Mark EDI Input Complete",
+    "completeSuccess": "Recorded EDI input as complete."
   },
   "mailPreview": {
     "title": "Mail Preview",

@@ -59,17 +59,20 @@ public class OrderHistoryService {
     private final OrderAttentionRepository orderAttentionRepository;
     private final AuditEventRepository auditEventRepository;
     private final PortalUserRepository portalUserRepository;
+    private final ManufacturerChannelResolutionService channelResolutionService;
 
     public OrderHistoryService(PortalOrderRepository portalOrderRepository,
                                 SupplierResponseRepository supplierResponseRepository,
                                 OrderAttentionRepository orderAttentionRepository,
                                 AuditEventRepository auditEventRepository,
-                                PortalUserRepository portalUserRepository) {
+                                PortalUserRepository portalUserRepository,
+                                ManufacturerChannelResolutionService channelResolutionService) {
         this.portalOrderRepository = portalOrderRepository;
         this.supplierResponseRepository = supplierResponseRepository;
         this.orderAttentionRepository = orderAttentionRepository;
         this.auditEventRepository = auditEventRepository;
         this.portalUserRepository = portalUserRepository;
+        this.channelResolutionService = channelResolutionService;
     }
 
     /**
@@ -229,13 +232,16 @@ public class OrderHistoryService {
                 .map(a -> new AttentionSummary(a.getId(), a.getAttentionType()))
                 .toList();
 
+        String resolvedChannel = channelResolutionService.resolve(order.getSupplierCode(), order.getBrandCode());
+
         return new OrderHistoryDetailResponse(
                 order.getId(), order.getDraftNo(), order.getPrototypePoNo(),
                 order.getSupplierCode(), order.getSupplierNameSnapshot(),
                 order.getBrandCode(), order.getBrandNameSnapshot(),
                 order.getOrderDate(), order.getRequestedDelivery(), order.getCurrency(), order.getRemark(),
                 order.getStatus(), order.getTotalQty(), order.getTotalAmount(),
-                lines, orderAttentions, order.getCommunicationChannel()
+                lines, orderAttentions, order.getCommunicationChannel(),
+                resolvedChannel, order.getEdiStatus(), order.getEdiCompletedBy(), order.getEdiCompletedAt()
         );
     }
 

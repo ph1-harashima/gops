@@ -66,7 +66,10 @@ class PrototypeFlywayMigrationTest {
         // OFFICIAL_PO_FILE_PLACEMENT_FAILED Audit types (no schema change).
         // V20 (Phase 9-C): G-SYS Import Confirmation - OFFICIAL_PO_IMPORT_CONFIRMED
         // Audit type (no schema change).
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"), versions);
+        // V21 (Phase 9-D): Email / EDI branching - manufacturer_channel Master,
+        // portal_order.edi_status/edi_completed_by/edi_completed_at,
+        // EDI_INPUT_COMPLETED Audit type.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"), versions);
     }
 
     @Test

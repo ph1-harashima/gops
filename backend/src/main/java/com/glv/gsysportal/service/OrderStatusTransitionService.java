@@ -7,6 +7,7 @@ import com.glv.gsysportal.domain.PortalOrderRevision;
 import com.glv.gsysportal.domain.SupplierResponse;
 import com.glv.gsysportal.domain.SupplierResponseDetail;
 import com.glv.gsysportal.exception.DraftNotFoundException;
+import com.glv.gsysportal.exception.EdiCompletionNotApplicableException;
 import com.glv.gsysportal.exception.InvalidStatusTransitionException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
@@ -287,6 +288,37 @@ public class OrderStatusTransitionService {
         return send(id, PortalOrder.CHANNEL_EDI, AuditEvent.EDI_SEND_RECORDED, performedBy);
     }
 
+    /**
+     * "EDI入力完了" (Phase 9-D, Production PO Workflow §4/§6): ADMIN/OPERATOR
+     * (same Permission as recordEdiSend - no {@code @PreAuthorize}) marks
+     * that the Supplier's own EDI system now has this Order's input.
+     * Requires {@code communicationChannel == EDI} (completion has no
+     * meaning otherwise) - idempotent-ish in spirit but not literally
+     * re-callable once COMPLETED, since re-completing an already-complete
+     * fact provides no value and would silently overwrite who/when.
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public PortalOrder completeEdiInput(Long id, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
+        if (!PortalOrder.CHANNEL_EDI.equals(order.getCommunicationChannel())) {
+            throw new EdiCompletionNotApplicableException(id, order.getCommunicationChannel());
+        }
+        if (PortalOrder.EDI_STATUS_COMPLETED.equals(order.getEdiStatus())) {
+            return order; // already completed - idempotent no-op, no re-Audit
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        order.setEdiStatus(PortalOrder.EDI_STATUS_COMPLETED);
+        order.setEdiCompletedBy(performedBy);
+        order.setEdiCompletedAt(now);
+        order.setUpdatedBy(performedBy);
+        order.setUpdatedAt(now);
+
+        PortalOrder saved = portalOrderRepository.save(order);
+        auditEventRepository.save(new AuditEvent(id, null, AuditEvent.EDI_INPUT_COMPLETED, null, null, null, performedBy, now));
+        return saved;
+    }
+
     private PortalOrder send(Long id, String channel, String sendEventType, String performedBy) {
         PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
 
@@ -305,6 +337,12 @@ public class OrderStatusTransitionService {
 
         order.setStatus(PortalOrder.STATUS_AWAITING_SUPPLIER);
         order.setCommunicationChannel(channel);
+        if (PortalOrder.CHANNEL_EDI.equals(channel)) {
+            // Phase 9-D: "EDI入力待ち" starts the moment the Order is recorded
+            // as sent over EDI - completion is a separate, later, explicit
+            // Business Action (completeEdiInput).
+            order.setEdiStatus(PortalOrder.EDI_STATUS_WAITING_INPUT);
+        }
         order.setUpdatedBy(performedBy);
         order.setUpdatedAt(now);
 

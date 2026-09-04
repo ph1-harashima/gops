@@ -128,6 +128,25 @@ public class PortalOrder {
     public static final String CHANNEL_EMAIL = "EMAIL";
     public static final String CHANNEL_EDI = "EDI";
 
+    /** Phase 9-D: EDI-path business-state tracking ("EDI入力待ち"/"EDI入力完了",
+     * Production PO Workflow §4/§6) - deliberately NOT a {@code status}
+     * value, same "separate axis" principle as {@link #communicationChannel}
+     * itself. NULL unless {@code communicationChannel == CHANNEL_EDI}; set
+     * to {@link #EDI_STATUS_WAITING_INPUT} by {@code recordEdiSend} and
+     * advanced to {@link #EDI_STATUS_COMPLETED} only by the explicit
+     * "EDI入力完了" Business Action ({@code OrderStatusTransitionService.completeEdiInput}). */
+    @Column(name = "edi_status", length = 20)
+    private String ediStatus;
+
+    public static final String EDI_STATUS_WAITING_INPUT = "WAITING_INPUT";
+    public static final String EDI_STATUS_COMPLETED = "COMPLETED";
+
+    @Column(name = "edi_completed_by", length = 50)
+    private String ediCompletedBy;
+
+    @Column(name = "edi_completed_at")
+    private OffsetDateTime ediCompletedAt;
+
     /** Phase 7-C5 3章: the Revision most recently sent to the Supplier - the
      * SAME concept as {@link OfficialPoIntegrationRequest#getRevisionNo()},
      * not a separate numbering scheme. NULL until the first Demo Send

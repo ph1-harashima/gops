@@ -2,6 +2,7 @@ package com.glv.gsysportal.dto.response;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /** GET /api/orders/{id} (implementation instructions 25章). READ ONLY - no
@@ -30,6 +31,16 @@ public record OrderHistoryDetailResponse(
         // has moved past APPROVED - PoPreviewService's own existing Status
         // Gate) since Order Detail is the one screen reachable for every
         // Status, Send included.
-        String communicationChannel
+        String communicationChannel,
+        // Phase 9-D: the Manufacturer Channel Master's resolved value for
+        // this Order's supplier+brand - EMAIL/EDI/null (unresolved, no
+        // Master row yet). Independent of communicationChannel above (which
+        // records what actually happened on a past Send); this is "what
+        // SHOULD happen" per the Master, used by the Frontend to decide
+        // which of Email Send / EDI status tracker to show.
+        String resolvedManufacturerChannel,
+        String ediStatus,
+        String ediCompletedBy,
+        OffsetDateTime ediCompletedAt
 ) {
 }

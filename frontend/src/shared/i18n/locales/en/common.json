@@ -8,5 +8,6 @@
   "navStockSales": "Stock / Sales",
   "navMasterMaintenance": "Master Maintenance",
   "navAdminSupplierContacts": "Supplier Contacts",
-  "navAdminMailTemplates": "Mail Templates"
+  "navAdminMailTemplates": "Mail Templates",
+  "navAdminManufacturerChannels": "Manufacturer Channels"
 }

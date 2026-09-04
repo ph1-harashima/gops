@@ -50,6 +50,13 @@ export interface OrderHistoryDetail {
   orderAttentions: AttentionSummary[]
   // Phase 7-H (EDI発注Workflow Foundation): null until the first Send.
   communicationChannel: 'EMAIL' | 'EDI' | null
+  // Phase 9-D: Manufacturer Channel Master's resolved value - EMAIL/EDI/null
+  // (unresolved, no Master row yet). "What SHOULD happen", independent of
+  // communicationChannel above ("what actually happened" on a past Send).
+  resolvedManufacturerChannel: 'EMAIL' | 'EDI' | null
+  ediStatus: 'WAITING_INPUT' | 'COMPLETED' | null
+  ediCompletedBy: string | null
+  ediCompletedAt: string | null
 }
 
 export interface AuditEventItem {

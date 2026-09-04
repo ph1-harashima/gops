@@ -30,7 +30,7 @@ import IconButton from '@mui/material/IconButton'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 
-import { useOrderHistoryDetail, useOrderEvents } from './api'
+import { useOrderHistoryDetail, useOrderEvents, useCompleteEdiInput } from './api'
 import {
   useOfficialPoIntegration, useRequestOfficialPoIntegration,
   useConfirmOfficialPoNumber, useGenerateOfficialPoExcel, downloadOfficialPoExcel,
@@ -140,6 +140,7 @@ export function OrderHistoryDetailPage() {
   const generateExcelMutation = useGenerateOfficialPoExcel(orderId)
   const placeMutation = usePlaceOfficialPoToImportFolder(orderId)
   const confirmImportMutation = useConfirmOfficialPoImport(orderId)
+  const completeEdiInputMutation = useCompleteEdiInput(orderId)
   const captureBaselineMutation = useCaptureLegacyPoBaseline(orderId)
   const mailPreviewMutation = useMailPreview(orderId)
   const createFollowUpCaseMutation = useCreateFollowUpCase(orderId)
@@ -336,6 +337,20 @@ export function OrderHistoryDetailPage() {
         {detail.communicationChannel && (
           <Chip size="small" variant="outlined" label={t(`communicationChannel.${detail.communicationChannel}`)} data-testid="communication-channel-chip" />
         )}
+        {/* Phase 9-D: "what SHOULD happen" per the Manufacturer Channel
+            Master, shown only before any Send has recorded "what actually
+            happened" (communicationChannel above) - avoids showing two
+            possibly-conflicting Channel Chips side by side once a real Send
+            has already occurred. */}
+        {!detail.communicationChannel && detail.resolvedManufacturerChannel && (
+          <Chip
+            size="small"
+            variant="outlined"
+            color="info"
+            label={t(`officialPoIntegration.resolvedChannelChip.${detail.resolvedManufacturerChannel}`)}
+            data-testid="resolved-manufacturer-channel-chip"
+          />
+        )}
         <AttentionChips attentions={detail.orderAttentions} acknowledgeable />
       </Stack>
 
@@ -381,6 +396,53 @@ export function OrderHistoryDetailPage() {
         </Stack>
         {detail.remark && <Typography variant="body2" sx={{ mt: 1 }}>{t('detail.remark')}: {detail.remark}</Typography>}
       </Paper>
+
+      {/* Phase 9-D: EDI status tracker - only meaningful once this Order was
+          actually sent over EDI (communicationChannel === 'EDI'); "入力待ち"
+          starts automatically at that Send, "入力完了" is this Section's own
+          explicit Action. Never shows a "Send Email" Button for an
+          EDI-channel Order (§6's requirement) - that Button lives only in
+          the Mail Preview Section below, and only when the resolved Channel
+          is EMAIL. */}
+      {detail.communicationChannel === 'EDI' && (
+        <Paper variant="outlined" sx={{ p: 2, mb: 2 }} data-testid="edi-status-section">
+          <Typography variant="subtitle1" gutterBottom>{t('ediStatus.title')}</Typography>
+          <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
+            <Chip
+              size="small"
+              color={detail.ediStatus === 'COMPLETED' ? 'success' : 'warning'}
+              label={t(`ediStatus.status.${detail.ediStatus ?? 'WAITING_INPUT'}`)}
+              data-testid="edi-status-chip"
+            />
+            {detail.ediStatus === 'COMPLETED' && detail.ediCompletedAt && (
+              <Typography variant="caption" color="text.secondary">
+                {t('ediStatus.completedByLabel')}: {detail.ediCompletedBy} - {t('ediStatus.completedAtLabel')}: {new Date(detail.ediCompletedAt).toLocaleString('ja-JP')}
+              </Typography>
+            )}
+          </Stack>
+
+          <Toast open={completeEdiInputMutation.isSuccess} severity="success" message={t('ediStatus.completeSuccess')} onClose={() => completeEdiInputMutation.reset()} />
+          <Toast
+            open={completeEdiInputMutation.isError}
+            severity="error"
+            testId="edi-complete-error"
+            message={t('errorGeneric')}
+            onClose={() => completeEdiInputMutation.reset()}
+          />
+
+          {detail.ediStatus !== 'COMPLETED' && (
+            <Button
+              variant="outlined"
+              sx={{ mt: 2 }}
+              onClick={() => completeEdiInputMutation.mutate()}
+              disabled={completeEdiInputMutation.isPending}
+              data-testid="edi-complete-button"
+            >
+              {completeEdiInputMutation.isPending ? <CircularProgress size={20} /> : t('ediStatus.completeButton')}
+            </Button>
+          )}
+        </Paper>
+      )}
 
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
