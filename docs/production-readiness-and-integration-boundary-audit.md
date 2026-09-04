@@ -104,6 +104,17 @@ Ernest確認（誰が/どこで/PO番号規則/Import Folder Path/起動頻度�
 
 **現時点でBlockingしているのはErnest確認の1点のみ**であり、それ以降のTechnical Implementationは既にFoundation（Phase 7-C2A/7-C6）が実装済みで、設計（`official-po-integration-detailed-design.md`）も完成している。
 
+### 4.4 更新（2026-09-04、Phase 9-A〜9-C — Production PO Workflow Working Assumption実装）
+
+Ernest確認を待たず、ユーザー提示のWorking Assumption（`docs/production-po-workflow-implementation.md` 1章）を前提として、上記Critical Pathの大半を実装した:
+
+- Excel Generator本実装（実データからの生成） — 完了。
+- Integration Worker相当（Import Folder投入） — 完了（16章推奨のB案ではなく、Portal自身のService層で実装。専用Workerプロセスへの分離は行っていない — CUSTOMER CONFIRMATION REQUIRED次第で将来分離可能な構造ではある）。
+- Success Detection（TR_PO/TR_PO_DTL照合） — 完了。ただしPolling方式ではなく手動・都度実行方式。
+- PO番号採番規則 — **確定していない**。Working Assumption「30文字以内のみ」を前提に、構造検証を一切行わない実装とした（4.2表の「PO Numberの実運用生成元」は依然としてErnest確認待ちのまま）。
+
+依然としてBlockingしているのは同じ1点（実際のPO番号命名規則・Import Folder実Path）。詳細は`docs/production-po-workflow-implementation.md`参照。
+
 ---
 
 ## 5. Real Email Production Boundary
@@ -129,6 +140,16 @@ Ernest確認（誰が/どこで/PO番号規則/Import Folder Path/起動頻度�
 
 **結論**: Supplier Contact/Mail Template Masterおよび Resolution Logic（誰に・どのTemplateを・誰をCCに）は**既にProduction相当の完成度でFoundation実装済み**である。残るGapは「実際にSMTPで送る」という最後の1ステップと、それに付随するRetry/Failure Handling/Secret管理であり、これらは**SMTP Provider選定（Customer/Infra決定）を待たずにIdempotency Foundation・Audit拡張・Failure Handling UIまでは実装可能**（19章）。
 
+### 5.1 更新（2026-09-04、Phase 9-E — Real Email Send実装）
+
+「最後の1ステップ」（実際にSMTPで送る）を含め、上表のC分類（既存機構で実装可能）は全て完了した:
+
+- Retry / Duplicate Send Prevention / Audit — 完了（既存`IdempotencyService`をOfficial PO Import Folder投入と同じ形で再利用）。
+- Attachment — 正式PO Excelの実添付が完了（Import Folder投入とは独立に、Excel生成済みであれば送信可能）。
+- Failure Handling — 完了（送信失敗はOrder Detail上にError表示+再送信ボタン、既存Attention機構への統合はしていない）。
+
+H分類（SMTP Provider選定・Secret管理・Bounce検知）とD分類（Reply-To方式・Template正式内容・保持期間）は**依然として未確定・未実装**。`SmtpEmailSenderAdapter`は標準の`spring.mail.*`設定を読む実装として用意したが、実際のSMTP接続情報・認証・送信ドメインの妥当性検証は一切行っていない（本環境からは`@Profile("production")`のためSafety Gateにより到達不可能）。詳細は`docs/production-email-edi-workflow.md` 2章参照。
+
 ---
 
 ## 6. EDI Production Boundary
@@ -149,6 +170,15 @@ Ernest確認（誰が/どこで/PO番号規則/Import Folder Path/起動頻度�
 | Supplier response flow | Source上に存在しない（Supplier ResponseはPortal内Business Actionとして別途実装済みだが、EDI経由での自動取込は無関係） | F |
 
 **結論**: EDIはExternal Specが皆無のため、指示どおり**実装候補にしない**。Ernest Q16（現状把握）の回答が唯一の次の一手であり、それすらVendor仕様確認へ発展する可能性が高い。Production Critical Pathからは実質的に切り離して扱う（21章のEstimate Boundaryでも別枠とする）。
+
+### 6.1 更新（2026-09-04、Phase 9-D — Email/EDI分岐実装）
+
+上記結論（実EDI連携は実装候補にしない）は変わらない。今回追加したのは、Legacyへの実連携とは無関係な、**Portal内部の業務状態管理のみ**:
+
+- 新規Master `manufacturer_channel`（どのSupplierがEmail/EDIか、Portal内でADMINが手動管理） — Working Assumption §2の「メーカーごとにCommunication Channelを持つ」に対応。
+- `portal_order.edi_status`（WAITING_INPUT/COMPLETED） — Working Assumption §6の「入力待ち/入力完了の業務状態管理」に対応。
+
+File format/API/SFTP/Authentication/Acknowledgement/Error handling/Retry/Idempotencyの表内容（Source上に存在しない）は一切変わらず、今回もこれらを実装していない。詳細は`docs/production-email-edi-workflow.md` 1章参照。
 
 ---
 

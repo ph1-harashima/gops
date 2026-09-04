@@ -123,6 +123,20 @@ Phase 8-Iは監査Phaseであり、新規CUSTOMER REVIEW項目の追加・新規
 
 ---
 
+## 1k. 2026-09-04: Production PO Workflow Working Assumption適用（項目のStatus変更なし、実装状況の追記のみ）
+
+ユーザーから、以下の項目について**最終確定ではないWorking Assumption**が提示され、これを前提としてProduction指向の発注Workflow実装（Phase 9-A〜9-G、`docs/production-po-workflow-implementation.md`・`docs/production-email-edi-workflow.md`）を進めた。**重要: これらの項目はいずれも本Decision Package上では引き続きOPEN（B/D分類のまま）であり、Working Assumptionの採用によって「解決済み」に変更してはいない** — Gulliver/Ernestからの正式回答が得られ次第、実装は変更され得る。
+
+| 項目 | 本Decision Packageでの現在の分類（変更なし） | 今回のWorking Assumption | 実装への反映 |
+|---|---|---|---|
+| A-1a/A-1b（PO番号採番規則・採番主体） | B（Ernest Q1）/ D | 「G-SYS側に11桁目以降の明確なRuleはなく、30文字以内であること以外に制約はない」を前提に、PO番号はStaffが入力（将来自動採番へ変更可能な構造） | PO番号Validationは長さチェックのみ、ID Code/区切り文字の構造検証は追加していない（`production-po-workflow-implementation.md` 2.1章） |
+| A-2（正式PO番号の決定者・Excel作成/配置の実運用フロー） | B（Ernest Q2） | Official POは購買担当Staffが作成し、G-OPS→Excel生成→Import Folder配置→既存Batch取込、という流れ | Import Folder Pathは設定値としてHardcodeせず、Local/Demo/Test/Productionを分離（`production-po-workflow-implementation.md` 3章） |
+| C-10a/C-10b（Supplier発注Channel、EDI） | B（Ernest Q14-Q17）/ D | 約90% Email・約10% EDI、メーカーごとにCommunication Channelを持つ | 新規Portal専用Master `manufacturer_channel`を実装（初期データは空、実データはCUSTOMER CONFIRMATION REQUIRED）。実EDI連携（File/API等）は引き続き未実装（`production-email-edi-workflow.md` 1章） |
+
+Quick Reference（3章）・各Theme章（5章以降）の記載・分類・項目数は本追記により変更しない。実装状況の詳細は上記2つの新規ドキュメントを参照。
+
+---
+
 ## 2. 分類基準（Phase 7-D、Timing/Blocker/Theme）
 
 ### 2.1 Timing（3分類）

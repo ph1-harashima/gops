@@ -240,20 +240,21 @@ test.describe('Phase 7-C3: Supplier Contact / Mail Template Foundation', () => {
     await expect(page.getByText('正式PO番号が未設定です。')).toBeVisible()
   })
 
-  test('Scenario F: after all of the above, no real mail was ever sent', async ({ page }) => {
-    // Same Browser-observable-proxy approach as official-po-integration.spec.ts's
-    // Scenario E: no Send API exists this Phase at all (7-C3 9章/19章), so
-    // there is no endpoint capable of dispatching mail to begin with. This
-    // Scenario confirms the Preview screen never claims otherwise - its own
-    // subtitle explicitly states no real mail is sent.
+  test('Scenario F: with no Manufacturer Channel configured, no Send button is offered', async ({ page }) => {
+    // Phase 9-E added a real Send Action, but only ever for a resolved
+    // EMAIL Channel (§6). This Order's Supplier/Brand (SUP_ALPHA/BR_OUTDOOR)
+    // has no Manufacturer Channel Master row configured at this point in a
+    // full-suite run (email-send.spec.ts/manufacturer-channel.spec.ts each
+    // deactivate what they created as their own last test) - unresolved, so
+    // the real Send Section must not render at all.
     const draftId = await createApprovedOrder(page)
 
     await page.goto(`/orders/${draftId}`)
-    await expect(page.getByText('実送信は行いません（Send APIは未実装です）。デモ送信とは別機能です。')).toBeVisible()
+    await expect(page.getByText('デモ送信とは別機能です。実送信はこのSection下部の「メーカーへ送信」から行います')).toBeVisible()
     await page.getByTestId('mail-preview-button').click()
     await expect(page.getByTestId('mail-preview-result')).toBeVisible()
 
-    // No Send/送信 button exists anywhere on this Section.
-    await expect(page.getByTestId('mail-preview-section').getByRole('button', { name: /送信/ })).toHaveCount(0)
+    // No Email Send Section/Button - Channel is unresolved.
+    await expect(page.getByTestId('email-send-section')).toHaveCount(0)
   })
 })

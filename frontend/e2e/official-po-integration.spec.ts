@@ -179,7 +179,10 @@ test.describe('Phase 7-C2A: Official PO Integration Foundation', () => {
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
 
     await page.reload()
-    await expect(page.getByText('準備中')).toBeVisible() // statusLabel.PENDING
+    // Phase 9-G's "at a glance" panel also renders this same statusLabel
+    // text - scope to the original Integration Section, same disambiguation
+    // idiom as Scenario A's own "PASS" collision above.
+    await expect(page.getByTestId('official-po-integration-section').getByText('準備中')).toBeVisible() // statusLabel.PENDING
     await expect(page.getByTestId('official-po-no')).toHaveText('正式PO番号未設定')
     await expect(page.getByText('G-SYSへ投入済み')).toHaveCount(0) // statusLabel.SUBMITTED
     await expect(page.getByText('G-SYS登録確認済み')).toHaveCount(0) // statusLabel.CONFIRMED
@@ -207,7 +210,8 @@ test.describe('Phase 9-A: Official PO Number / Excel Generation', () => {
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
     await expect(page.getByTestId('official-po-download-button')).toBeVisible()
-    await expect(page.getByText('Excel生成済み')).toBeVisible() // statusLabel.GENERATED
+    // Phase 9-G's "at a glance" panel also renders this same statusLabel text.
+    await expect(page.getByTestId('official-po-integration-section').getByText('Excel生成済み')).toBeVisible() // statusLabel.GENERATED
   })
 
   test('Scenario G: Excel generation is blocked until a PO No. is confirmed', async ({ page }) => {
@@ -248,8 +252,10 @@ test.describe('Phase 9-B: Import Folder Integration', () => {
     await expect(page.getByTestId('official-po-placed-note')).toBeVisible()
     // exact:true - "PO番号確定済みの注記" text also contains this substring
     // ("既にG-SYSへ投入済みのため...") once locked, same collision pattern as
-    // Scenario A's own PASS/PASS note above.
-    await expect(page.getByText('G-SYSへ投入済み', { exact: true })).toBeVisible() // statusLabel.SUBMITTED
+    // Scenario A's own PASS/PASS note above. Also scoped to the original
+    // Integration Section - Phase 9-G's "at a glance" panel renders the
+    // same statusLabel text too.
+    await expect(page.getByTestId('official-po-integration-section').getByText('G-SYSへ投入済み', { exact: true })).toBeVisible() // statusLabel.SUBMITTED
 
     // Double-click (idempotent) - button is now disabled while SUBMITTED,
     // so this proves the Frontend Gate itself, not just the Backend.
@@ -283,7 +289,9 @@ test.describe('Phase 9-C: G-SYS Import Confirmation', () => {
     await page.getByTestId('official-po-confirm-import-button').click()
     await expect(page.getByTestId('official-po-import-not-matched')).toBeVisible()
     await expect(page.getByTestId('official-po-import-not-matched')).toContainText('エラーではありません')
-    // Status stays SUBMITTED - no state change on NOT_YET_IMPORTED.
-    await expect(page.getByText('G-SYSへ投入済み', { exact: true })).toBeVisible()
+    // Status stays SUBMITTED - no state change on NOT_YET_IMPORTED. Scoped
+    // to the original Integration Section - Phase 9-G's "at a glance"
+    // panel renders the same statusLabel text too.
+    await expect(page.getByTestId('official-po-integration-section').getByText('G-SYSへ投入済み', { exact: true })).toBeVisible()
   })
 })

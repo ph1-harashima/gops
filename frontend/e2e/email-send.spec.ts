@@ -151,7 +151,14 @@ test.describe('Phase 9-E: Real Email Send', () => {
     await page.getByTestId('nav-master-maintenance').click()
     await page.getByTestId('nav-admin-manufacturer-channels').click()
     await page.getByTestId('manufacturer-channel-table-container').getByText('SUP_ALPHA').first().waitFor()
-    const row = page.locator('[data-testid^="manufacturer-channel-row-"]').filter({ hasText: 'SUP_ALPHA' }).first()
+    // The table lists every row regardless of Status (Active/Inactive) -
+    // a deactivated leftover from an earlier full-suite run can share this
+    // same Supplier/Brand text, so the filter must also require "有効"
+    // (Active) to unambiguously target the one row this file's own
+    // previous test just created (a plain hasText:'SUP_ALPHA' match alone
+    // previously grabbed a stale Inactive row instead - real bug this
+    // comment documents, not just defensive-programming for its own sake).
+    const row = page.locator('[data-testid^="manufacturer-channel-row-"]').filter({ hasText: 'SUP_ALPHA' }).filter({ hasText: '有効' }).first()
     await row.getByRole('button', { name: '編集' }).click()
     await page.getByTestId('manufacturer-channel-channel').click()
     await page.getByRole('option', { name: 'EDI' }).click()
@@ -161,5 +168,48 @@ test.describe('Phase 9-E: Real Email Send', () => {
     await page.goto(`/orders/${draftId}`)
     await expect(page.getByTestId('resolved-manufacturer-channel-chip')).toHaveText('登録済み通信方法: EDI')
     await expect(page.getByTestId('email-send-section')).toHaveCount(0)
+  })
+
+  // Runs last within this file (Playwright executes tests within one
+  // describe block in declaration order by default, single worker in this
+  // project's playwright.config.ts). Deactivates the SUP_ALPHA/BR_OUTDOOR
+  // Supplier Contact / Mail Template / Manufacturer Channel rows the two
+  // tests above created for real (E2E hits the actual running server, not
+  // a rolled-back transaction) - other specs in a full-suite run
+  // (supplier-contact-mail-template.spec.ts's own Scenario C/D, in
+  // particular) assume SUP_ALPHA/BR_OUTDOOR starts with no active Contact/
+  // Template configured yet, the same assumption this file's own tests
+  // relied on when THEY ran. Deactivating (not deleting) matches every
+  // Master's own Uniqueness policy (re-adding after deactivation is
+  // explicitly allowed).
+  test('cleanup: deactivate the Master data rows the tests above created', async ({ page }) => {
+    await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
+
+    const channels = await (await page.request.get('/api/admin/manufacturer-channels')).json()
+    for (const c of channels) {
+      if (c.supplierCode === 'SUP_ALPHA' && c.brandCode === 'BR_OUTDOOR' && c.active) {
+        await page.request.put(`/api/admin/manufacturer-channels/${c.id}`, {
+          data: { supplierCode: c.supplierCode, brandCode: c.brandCode, channel: c.channel, active: false },
+        })
+      }
+    }
+
+    const contacts = await (await page.request.get('/api/admin/supplier-contacts')).json()
+    for (const c of contacts) {
+      if (c.supplierCode === 'SUP_ALPHA' && c.brandCode === 'BR_OUTDOOR' && c.active) {
+        await page.request.put(`/api/admin/supplier-contacts/${c.id}`, {
+          data: { ...c, active: false },
+        })
+      }
+    }
+
+    const templates = await (await page.request.get('/api/admin/mail-templates')).json()
+    for (const t of templates) {
+      if (t.supplierCode === 'SUP_ALPHA' && t.brandCode === 'BR_OUTDOOR' && t.active) {
+        await page.request.put(`/api/admin/mail-templates/${t.id}`, {
+          data: { ...t, active: false },
+        })
+      }
+    }
   })
 })

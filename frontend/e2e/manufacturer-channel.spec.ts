@@ -82,4 +82,22 @@ test.describe('Phase 9-D: Manufacturer Channel Master', () => {
     // The Frontend Nav never even offers the Master Maintenance menu.
     await expect(page.getByTestId('nav-master-maintenance')).toHaveCount(0)
   })
+
+  // Runs last in this file - deactivates the SUP_ALPHA/BR_OUTDOOR row the
+  // first test above created for real (E2E hits the actual running server),
+  // so later specs in a full-suite run that assume an unresolved Channel
+  // for SUP_ALPHA/BR_OUTDOOR are not affected by this file having run
+  // earlier. Same cleanup idiom as email-send.spec.ts's own last test.
+  test('cleanup: deactivate the Manufacturer Channel row created above', async ({ page }) => {
+    await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
+
+    const channels = await (await page.request.get('/api/admin/manufacturer-channels')).json()
+    for (const c of channels) {
+      if (c.supplierCode === 'SUP_ALPHA' && c.brandCode === 'BR_OUTDOOR' && c.active) {
+        await page.request.put(`/api/admin/manufacturer-channels/${c.id}`, {
+          data: { supplierCode: c.supplierCode, brandCode: c.brandCode, channel: c.channel, active: false },
+        })
+      }
+    }
+  })
 })

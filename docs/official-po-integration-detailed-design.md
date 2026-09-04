@@ -620,4 +620,15 @@ Phase 7-C6（Excel / Legacy Concurrency Control Foundation）を実装・全回�
 - 17章が明記していた「根本的な制約」（G-SYSのImport Batchは投入元を区別できない）は本Phaseでも変わらず - Concurrency Detectionは検出のみで、どちらを正とするかのConflict Resolutionは実装していない（20章の禁止事項どおり）。
 - Backend Full Test 337/337、Frontend Build/Lint/E2E（58 tests, 2回連続安定）、Legacy変更ゼロを確認済み。
 
+## 25. Phase 9-A〜9-C実装結果まとめ（Production-Oriented PO Workflow）
+
+2026-09-04、ユーザーから提示されたWorking Assumptionに基づき、7-C2B以降スコープとされていたLegacyへの実投入（SUBMITTED以降）を含む、Official PO Integrationの残り全State（PENDING→GENERATED→SUBMITTED→CONFIRMED）を実装した。詳細（Working Assumption対応表、Excel生成の実データ配線、Import Folder Adapter設計、G-SYS Import Confirmation設計、CUSTOMER REVIEW再整理、テスト結果）は別ファイル **[docs/production-po-workflow-implementation.md](./production-po-workflow-implementation.md)** に記録。
+
+要点のみ:
+- PO番号Validationは「30文字以内」の長さチェックのみ（ID Code・区切り文字構造は一切検証しない — Working Assumptionの明示的指示）。
+- Excel Generator（7-C2A実装済み）を初めて実データ（承認済みOrder + 確定PO番号）から呼び出した。Legacy Source（`PrOfficialPoImportBatch.java`）のROW_IDX_/COL_IDX_定数を再確認し、既存実装との一致を再確認（変更なし）。
+- Import Folder投入は既存の`IdempotencyService`（8-L Foundation）を再利用したPort+Adapter方式。Production Adapterは実装したが接続先未確定のため未実装スタブ、かつ`SafetyGuardEnvironmentPostProcessor`により本環境では物理的に到達不可能。
+- G-SYS Import Confirmationは、9章が構想した「Polling Worker」ではなく、手動・都度実行のREAD ONLY確認として実装（Production DBへ定期的にアクセスする仕組み自体を増やさない判断）。既存`LegacyPoConcurrencyReadRepository`（7-C6実装済み）を再利用、新規Legacy Repositoryは追加していない。
+- Backend Full Test 499/499、Frontend Build/Lint/E2E全PASS、Legacy変更ゼロを確認済み。
+
 ---
