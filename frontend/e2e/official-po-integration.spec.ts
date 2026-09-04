@@ -224,3 +224,35 @@ test.describe('Phase 9-A: Official PO Number / Excel Generation', () => {
     await expect(page.getByTestId('official-po-generate-button')).toBeDisabled()
   })
 })
+
+test.describe('Phase 9-B: Import Folder Integration', () => {
+  test('Scenario H: ADMIN places the generated Excel into the Import Folder', async ({ page }) => {
+    const draftId = await createOrderableDraft(page)
+    await submitAndApprove(page, draftId)
+
+    await page.getByTestId('official-po-request-button').click()
+    await page.getByTestId('official-po-request-dialog-confirm').click()
+    await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
+
+    await page.getByTestId('official-po-number-input').locator('input').fill(`E2E-PLACE-${draftId}`)
+    await page.getByTestId('official-po-delivery-week-input').locator('input').fill('WK40')
+    await page.getByTestId('official-po-delivery-date-input').locator('input').fill('2026-10-01')
+    await page.getByTestId('official-po-number-confirm-button').click()
+    await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
+
+    await page.getByTestId('official-po-generate-button').click()
+    await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+
+    await page.getByTestId('official-po-place-button').click()
+    await expect(page.getByText('Import Folderへ配置しました。')).toBeVisible()
+    await expect(page.getByTestId('official-po-placed-note')).toBeVisible()
+    // exact:true - "PO番号確定済みの注記" text also contains this substring
+    // ("既にG-SYSへ投入済みのため...") once locked, same collision pattern as
+    // Scenario A's own PASS/PASS note above.
+    await expect(page.getByText('G-SYSへ投入済み', { exact: true })).toBeVisible() // statusLabel.SUBMITTED
+
+    // Double-click (idempotent) - button is now disabled while SUBMITTED,
+    // so this proves the Frontend Gate itself, not just the Backend.
+    await expect(page.getByTestId('official-po-place-button')).toBeDisabled()
+  })
+})

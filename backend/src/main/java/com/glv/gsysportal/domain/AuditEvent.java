@@ -159,6 +159,16 @@ public class AuditEvent {
      * generate call, mirroring PRECHECK_COMPLETED's own precedent. */
     public static final String OFFICIAL_PO_EXCEL_GENERATED = "OFFICIAL_PO_EXCEL_GENERATED";
 
+    // --- Phase 9-B: Import Folder Integration (Production PO Workflow) ---
+    /** Excel successfully placed into the (local-only, this environment)
+     * Import Folder - written on every successful placement, including a
+     * successful retry after a prior FAILED attempt. */
+    public static final String OFFICIAL_PO_FILE_PLACED = "OFFICIAL_PO_FILE_PLACED";
+    /** Placement failed (Adapter threw) - {@link #note} holds the error
+     * detail. Retry (re-calling the same Business Action) is always
+     * possible afterward. */
+    public static final String OFFICIAL_PO_FILE_PLACEMENT_FAILED = "OFFICIAL_PO_FILE_PLACEMENT_FAILED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

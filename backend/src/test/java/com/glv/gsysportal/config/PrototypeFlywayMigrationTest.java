@@ -62,7 +62,9 @@ class PrototypeFlywayMigrationTest {
         // V18 (Phase 9-A): Official PO Number / Excel Generation -
         // official_po_integration_request delivery/ship/payment fields,
         // OFFICIAL_PO_NUMBER_CONFIRMED/OFFICIAL_PO_EXCEL_GENERATED Audit types.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18"), versions);
+        // V19 (Phase 9-B): Import Folder Integration - OFFICIAL_PO_FILE_PLACED/
+        // OFFICIAL_PO_FILE_PLACEMENT_FAILED Audit types (no schema change).
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"), versions);
     }
 
     @Test

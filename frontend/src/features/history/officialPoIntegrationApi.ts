@@ -83,6 +83,25 @@ export function useGenerateOfficialPoExcel(orderId: number) {
   })
 }
 
+/** "Import Folderへ配置" (Phase 9-B). ADMIN only. Idempotent/Retry-safe -
+ * a repeat call while already SUBMITTED/CONFIRMED is a no-op; a call while
+ * FAILED retries the same stored Excel (never regenerates it). */
+async function placeOfficialPoToImportFolder(orderId: number): Promise<OfficialPoIntegration> {
+  const { data } = await apiClient.post<OfficialPoIntegration>(`/orders/${orderId}/official-po/place`)
+  return data
+}
+
+export function usePlaceOfficialPoToImportFolder(orderId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => placeOfficialPoToImportFolder(orderId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+      void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+    },
+  })
+}
+
 /** Downloads the generated Official PO Excel (Phase 9-A). ADMIN only.
  * Triggers a browser file-save rather than returning JSON, so this is a
  * plain function (not a React Query hook) called directly from a click

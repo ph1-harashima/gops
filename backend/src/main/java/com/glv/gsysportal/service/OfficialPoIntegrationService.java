@@ -16,17 +16,21 @@ import com.glv.gsysportal.exception.InvalidIntegrationIntentException;
 import com.glv.gsysportal.exception.InvalidOfficialPoNumberException;
 import com.glv.gsysportal.exception.OfficialPoAlreadySubmittedException;
 import com.glv.gsysportal.exception.OfficialPoExcelNotGeneratedException;
+import com.glv.gsysportal.exception.OfficialPoNotGeneratedException;
 import com.glv.gsysportal.exception.OfficialPoNumberRequiredException;
 import com.glv.gsysportal.exception.OfficialPoPreflightBlockedException;
 import com.glv.gsysportal.exception.OrderNotApprovedException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import com.glv.gsysportal.service.integration.OfficialPoImportFolderAdapter;
+import com.glv.gsysportal.service.integration.OfficialPoImportFolderWriteException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -45,11 +49,20 @@ public class OfficialPoIntegrationService {
      * stricter is enforced here. */
     static final int MAX_OFFICIAL_PO_NO_LENGTH = 30;
 
+    /** Phase 9-B: {@link IdempotencyService} operation type for Import
+     * Folder placement - Idempotency key is {@code orderId + "-" + officialPoNo
+     * + "-" + revisionNo} (unique per actual hand-off attempt target). */
+    static final String OPERATION_TYPE_FILE_PLACEMENT = "OFFICIAL_PO_FILE_PLACEMENT";
+
+    private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
     private final PortalOrderRepository portalOrderRepository;
     private final OfficialPoIntegrationRequestRepository integrationRequestRepository;
     private final AuditEventRepository auditEventRepository;
     private final OfficialPoPreflightService preflightService;
     private final OfficialPoExcelGenerationService excelGenerationService;
+    private final OfficialPoImportFolderAdapter importFolderAdapter;
+    private final IdempotencyService idempotencyService;
     private final ObjectMapper objectMapper;
 
     public OfficialPoIntegrationService(PortalOrderRepository portalOrderRepository,
@@ -57,12 +70,16 @@ public class OfficialPoIntegrationService {
                                          AuditEventRepository auditEventRepository,
                                          OfficialPoPreflightService preflightService,
                                          OfficialPoExcelGenerationService excelGenerationService,
+                                         OfficialPoImportFolderAdapter importFolderAdapter,
+                                         IdempotencyService idempotencyService,
                                          ObjectMapper objectMapper) {
         this.portalOrderRepository = portalOrderRepository;
         this.integrationRequestRepository = integrationRequestRepository;
         this.auditEventRepository = auditEventRepository;
         this.preflightService = preflightService;
         this.excelGenerationService = excelGenerationService;
+        this.importFolderAdapter = importFolderAdapter;
+        this.idempotencyService = idempotencyService;
         this.objectMapper = objectMapper;
     }
 
@@ -261,6 +278,61 @@ public class OfficialPoIntegrationService {
 
         auditEventRepository.save(new AuditEvent(orderId, null,
                 AuditEvent.OFFICIAL_PO_EXCEL_GENERATED, null, null, fileKey, performedBy, now));
+        return toResponse(saved);
+    }
+
+    /**
+     * "Import Folderへ配置" (Production PO Workflow §C/Phase 9-B). Requires
+     * the Excel to already be GENERATED (a retry from FAILED is allowed -
+     * the same stored bytes are re-placed, never regenerated). Idempotent
+     * via {@link IdempotencyService}: a concurrent or repeat call for the
+     * same (orderId, officialPoNo, revisionNo) never places the File twice
+     * (§7 "Import Folder二重配置防止").
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public OfficialPoIntegrationResponse placeToImportFolder(Long orderId, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        int targetRevisionNo = targetRevisionNo(order);
+        OfficialPoIntegrationRequest request = integrationRequestRepository
+                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
+                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+
+        if (OfficialPoIntegrationRequest.STATUS_SUBMITTED.equals(request.getStatus())
+                || OfficialPoIntegrationRequest.STATUS_CONFIRMED.equals(request.getStatus())) {
+            return toResponse(request); // already placed - idempotent no-op
+        }
+        if (!OfficialPoIntegrationRequest.STATUS_GENERATED.equals(request.getStatus())
+                && !OfficialPoIntegrationRequest.STATUS_FAILED.equals(request.getStatus())) {
+            throw new OfficialPoNotGeneratedException(orderId);
+        }
+
+        String idempotencyKey = orderId + "-" + request.getOfficialPoNo() + "-" + targetRevisionNo;
+        IdempotencyService.IdempotencyClaim claim = idempotencyService.claim(
+                OPERATION_TYPE_FILE_PLACEMENT, orderId.toString(), idempotencyKey);
+        if (!claim.claimed()) {
+            return toResponse(request); // another attempt already in flight/succeeded
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        byte[] excelBytes = excelGenerationService.load(request.getGeneratedFileKey());
+        String fileName = "order-" + orderId + "-rev" + targetRevisionNo + "-" + now.format(FILE_TS) + ".xlsx";
+
+        try {
+            importFolderAdapter.place(excelBytes, fileName);
+        } catch (OfficialPoImportFolderWriteException e) {
+            request.markFailed("IMPORT_FOLDER_WRITE_FAILED", e.getMessage(), now);
+            OfficialPoIntegrationRequest failed = integrationRequestRepository.save(request);
+            idempotencyService.markFailed(claim.operation().getId(), "IMPORT_FOLDER_WRITE_FAILED");
+            auditEventRepository.save(new AuditEvent(orderId, null,
+                    AuditEvent.OFFICIAL_PO_FILE_PLACEMENT_FAILED, null, null, e.getMessage(), performedBy, now));
+            return toResponse(failed);
+        }
+
+        request.markSubmitted(now);
+        OfficialPoIntegrationRequest saved = integrationRequestRepository.save(request);
+        idempotencyService.markSucceeded(claim.operation().getId());
+        auditEventRepository.save(new AuditEvent(orderId, null,
+                AuditEvent.OFFICIAL_PO_FILE_PLACED, null, null, fileName, performedBy, now));
         return toResponse(saved);
     }
 

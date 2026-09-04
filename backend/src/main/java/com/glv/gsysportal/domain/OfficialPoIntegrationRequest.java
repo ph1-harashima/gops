@@ -27,12 +27,13 @@ import java.time.OffsetDateTime;
  * 18章 / 7-C2A 2章. "NOT_REQUESTED" is never stored: it is the absence of a
  * row for that (orderId, revisionNo), not a persisted value.
  *
- * <p>This Phase (7-C2A) only ever writes {@link #STATUS_PENDING}. The other
- * values ({@link #STATUS_GENERATED}, {@link #STATUS_SUBMITTED},
- * {@link #STATUS_CONFIRMED}, {@link #STATUS_FAILED}) exist in the State
- * Model for 7-C2B+ and are exercised only by State Transition unit tests in
- * this Phase - no Controller/Service path in this Phase can produce them
- * (7-C2A 16章/17章: "UI/通常APIから偽のCONFIRMEDを作れないこと").
+ * <p>7-C2A only ever wrote {@link #STATUS_PENDING} (16章/17章: "UI/通常APIから
+ * 偽のCONFIRMEDを作れないこと"). Phase 9-A (Production PO Workflow) added the
+ * first real caller of {@link #STATUS_GENERATED} (Excel generation), Phase
+ * 9-B added {@link #STATUS_SUBMITTED}/{@link #STATUS_FAILED} (Import Folder
+ * hand-off). {@link #STATUS_CONFIRMED} still has no real caller (Phase
+ * 9-C's G-SYS Import Confirmation) - only State Transition unit tests
+ * exercise it directly.
  */
 @Entity
 @Table(name = "official_po_integration_request")
@@ -163,8 +164,11 @@ public class OfficialPoIntegrationRequest {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
-    /** Test-only helper exercising the GENERATED transition (7-C2A 16章: no
-     * Controller/Service path in this Phase calls this). */
+    /** GENERATED transition. Called for real by
+     * {@code OfficialPoIntegrationService#generateExcel} since Phase 9-A -
+     * only ever from PENDING (a re-generate on an already-GENERATED+
+     * Request is handled as an idempotent no-op one layer up, in the
+     * Service, never by relaxing this guard). */
     public void markGenerated(String fileKey, OffsetDateTime now) {
         if (!STATUS_PENDING.equals(status)) {
             throw new IllegalStateException("Cannot mark GENERATED from status " + status);
@@ -175,9 +179,14 @@ public class OfficialPoIntegrationRequest {
         this.updatedAt = now;
     }
 
-    /** Test-only helper exercising the SUBMITTED transition (7-C2B territory). */
+    /** SUBMITTED transition. Called for real by
+     * {@code OfficialPoIntegrationService#placeToImportFolder} since Phase
+     * 9-B - reachable from GENERATED (first placement attempt) OR FAILED
+     * (retrying a placement that previously failed; the Excel itself is not
+     * regenerated, so this Request never needs to revisit GENERATED just to
+     * retry - Production PO Workflow §7's "Retry時の重複処理防止"). */
     public void markSubmitted(OffsetDateTime now) {
-        if (!STATUS_GENERATED.equals(status)) {
+        if (!STATUS_GENERATED.equals(status) && !STATUS_FAILED.equals(status)) {
             throw new IllegalStateException("Cannot mark SUBMITTED from status " + status);
         }
         this.status = STATUS_SUBMITTED;

@@ -136,7 +136,14 @@
     "generateSuccess": "正式PO Excelを生成しました。",
     "downloadButton": "Excelダウンロード",
     "errorNumberRequired": "先に正式PO番号を確定してください。",
-    "errorPreflightBlocked": "最終Preflight結果がBLOCKEDです。問題を解消してから再度G-SYS連携準備を行ってください。"
+    "errorPreflightBlocked": "最終Preflight結果がBLOCKEDです。問題を解消してから再度G-SYS連携準備を行ってください。",
+    "placeSectionTitle": "Import Folderへの配置",
+    "placeButton": "Import Folderへ配置",
+    "retryPlaceButton": "再試行",
+    "placeSuccess": "Import Folderへ配置しました。",
+    "placedNote": "既にImport Folderへ配置済みです。G-SYS側の取込を待っています。",
+    "placeFailedNote": "配置に失敗しました。再試行できます",
+    "errorNotGenerated": "先にExcelを生成してください。"
   },
   "mailPreview": {
     "title": "メールプレビュー",

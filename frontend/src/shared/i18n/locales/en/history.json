@@ -131,7 +131,14 @@
     "generateSuccess": "Official PO Excel generated.",
     "downloadButton": "Download Excel",
     "errorNumberRequired": "Confirm the Official PO No. first.",
-    "errorPreflightBlocked": "The latest Preflight result is BLOCKED - resolve the issues and re-request first."
+    "errorPreflightBlocked": "The latest Preflight result is BLOCKED - resolve the issues and re-request first.",
+    "placeSectionTitle": "Import Folder Hand-off",
+    "placeButton": "Place into Import Folder",
+    "retryPlaceButton": "Retry",
+    "placeSuccess": "Placed into the Import Folder.",
+    "placedNote": "Already placed into the Import Folder - waiting for G-SYS to pick it up.",
+    "placeFailedNote": "Placement failed. You can retry",
+    "errorNotGenerated": "Generate the Excel first."
   },
   "mailPreview": {
     "title": "Mail Preview",

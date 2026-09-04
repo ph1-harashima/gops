@@ -34,6 +34,7 @@ import { useOrderHistoryDetail, useOrderEvents } from './api'
 import {
   useOfficialPoIntegration, useRequestOfficialPoIntegration,
   useConfirmOfficialPoNumber, useGenerateOfficialPoExcel, downloadOfficialPoExcel,
+  usePlaceOfficialPoToImportFolder,
 } from './officialPoIntegrationApi'
 import { useLegacyPoConcurrency, useCaptureLegacyPoBaseline } from './legacyPoConcurrencyApi'
 import { useMailPreview } from './mailPreviewApi'
@@ -137,6 +138,7 @@ export function OrderHistoryDetailPage() {
   const requestIntegrationMutation = useRequestOfficialPoIntegration(orderId)
   const confirmPoNumberMutation = useConfirmOfficialPoNumber(orderId)
   const generateExcelMutation = useGenerateOfficialPoExcel(orderId)
+  const placeMutation = usePlaceOfficialPoToImportFolder(orderId)
   const captureBaselineMutation = useCaptureLegacyPoBaseline(orderId)
   const mailPreviewMutation = useMailPreview(orderId)
   const createFollowUpCaseMutation = useCreateFollowUpCase(orderId)
@@ -206,6 +208,10 @@ export function OrderHistoryDetailPage() {
 
   function handleGenerateExcel() {
     generateExcelMutation.mutate()
+  }
+
+  function handlePlaceToImportFolder() {
+    placeMutation.mutate()
   }
 
   function handleDownloadExcel() {
@@ -686,6 +692,56 @@ export function OrderHistoryDetailPage() {
                   </Button>
                 )}
               </Stack>
+
+              {/* Phase 9-B: Import Folder Integration - extends this same
+                  Excel Section (design doc §7's "Fileを置くだけ"). */}
+              {integration.excelGenerated && (
+                <Box sx={{ mt: 2 }}>
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography variant="subtitle2" gutterBottom>{t('officialPoIntegration.placeSectionTitle')}</Typography>
+
+                  <Toast
+                    open={placeMutation.isSuccess}
+                    severity="success"
+                    message={t('officialPoIntegration.placeSuccess')}
+                    onClose={() => placeMutation.reset()}
+                  />
+                  <Toast
+                    open={placeMutation.isError}
+                    severity="error"
+                    testId="official-po-place-error"
+                    message={
+                      errorCodeOf(placeMutation.error) === 'OFFICIAL_PO_NOT_GENERATED' ? t('officialPoIntegration.errorNotGenerated') :
+                      errorCodeOf(placeMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+                      t('errorGeneric')
+                    }
+                    onClose={() => placeMutation.reset()}
+                  />
+
+                  {integration.status === 'FAILED' && (
+                    <Alert severity="error" sx={{ mb: 2 }} data-testid="official-po-place-failed-note">
+                      {t('officialPoIntegration.placeFailedNote')}
+                      {integration.errorMessage ? `: ${integration.errorMessage}` : ''}
+                    </Alert>
+                  )}
+                  {(integration.status === 'SUBMITTED' || integration.status === 'CONFIRMED') && (
+                    <Alert severity="success" sx={{ mb: 2 }} data-testid="official-po-placed-note">
+                      {t('officialPoIntegration.placedNote')}
+                    </Alert>
+                  )}
+
+                  <Button
+                    variant="outlined"
+                    onClick={handlePlaceToImportFolder}
+                    disabled={placeMutation.isPending || integration.status === 'SUBMITTED' || integration.status === 'CONFIRMED'}
+                    data-testid="official-po-place-button"
+                  >
+                    {placeMutation.isPending ? <CircularProgress size={20} /> :
+                      integration.status === 'FAILED' ? t('officialPoIntegration.retryPlaceButton') :
+                      t('officialPoIntegration.placeButton')}
+                  </Button>
+                </Box>
+              )}
             </Box>
           )}
 

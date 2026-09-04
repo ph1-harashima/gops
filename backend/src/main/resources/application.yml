@@ -62,6 +62,16 @@ app:
   official-po:
     storage:
       base-dir: ./data/official-po
+    # Phase 9-B: Import Folder hand-off root (design doc §7's Upload Folder
+    # analog). Same "root config-driven, profile appended in Java" pattern
+    # as storage.base-dir above. In this environment this is ALWAYS a plain
+    # local directory - never the real Legacy Import Folder (§10's absolute
+    # prohibition on connecting to it). A real Production deploy would
+    # override this property entirely (and use ProductionImportFolderAdapter,
+    # itself unreachable here) rather than ever pointing local/demo/test at
+    # a real path.
+    import-folder:
+      base-dir: ./data/official-po-import
 
 server:
   port: 8080

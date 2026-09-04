@@ -83,6 +83,14 @@ public class OfficialPoIntegrationController {
         return integrationService.generateExcel(id, currentUserProvider.currentUsername());
     }
 
+    /** "Import Folderへ配置" (Phase 9-B). ADMIN only. Idempotent/Retry-safe -
+     * see {@code OfficialPoIntegrationService#placeToImportFolder}'s Javadoc. */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/orders/{id}/official-po/place")
+    public OfficialPoIntegrationResponse place(@PathVariable Long id) {
+        return integrationService.placeToImportFolder(id, currentUserProvider.currentUsername());
+    }
+
     /** Downloads the generated Official PO Excel for staff review (Phase
      * 9-A). ADMIN only, matching the other write-adjacent actions on this
      * Controller (the GET above stays open to all authenticated users - this

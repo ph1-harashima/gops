@@ -388,4 +388,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleOfficialPoExcelNotGenerated(OfficialPoExcelNotGeneratedException ex, HttpServletRequest request) {
         return error(request, HttpStatus.NOT_FOUND, "OFFICIAL_PO_EXCEL_NOT_GENERATED");
     }
+
+    // --- Phase 9-B: Import Folder Integration (Production PO Workflow) ---
+
+    @ExceptionHandler(OfficialPoNotGeneratedException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoNotGenerated(OfficialPoNotGeneratedException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_NOT_GENERATED");
+    }
 }
