@@ -59,7 +59,10 @@ class PrototypeFlywayMigrationTest {
         // V17 (Phase 8-L): Technical Idempotency Foundation - idempotent_operation
         // (operation_type/idempotency_key UNIQUE, no FK to anything - a
         // deliberately standalone Technical table, not a Business aggregate).
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"), versions);
+        // V18 (Phase 9-A): Official PO Number / Excel Generation -
+        // official_po_integration_request delivery/ship/payment fields,
+        // OFFICIAL_PO_NUMBER_CONFIRMED/OFFICIAL_PO_EXCEL_GENERATED Audit types.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18"), versions);
     }
 
     @Test

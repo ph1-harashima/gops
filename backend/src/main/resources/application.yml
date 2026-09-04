@@ -48,6 +48,20 @@ app:
       password: gsys_portal_demo_pw
       driver-class-name: org.postgresql.Driver
       maximum-pool-size: 5
+  # Phase 9-A: Official PO Excel artifact store (Portal's own audit/history
+  # copy - design doc §15). This root is entirely config-driven, no path
+  # ever hardcoded in Java - OfficialPoExcelStorageService appends the
+  # active Spring profile itself (read from Environment, not a YAML
+  # placeholder - @ActiveProfiles-driven tests don't populate a resolvable
+  # "spring.profiles.active" property) so local/demo/test never share a
+  # directory; SafetyGuardEnvironmentPostProcessor separately guarantees
+  # only one of those three profiles is ever active. A future Production
+  # deploy would override this property (env var APP_OFFICIAL-PO_STORAGE_BASE-DIR
+  # or equivalent) rather than the Safety Gate ever permitting a
+  # "production" profile to start here.
+  official-po:
+    storage:
+      base-dir: ./data/official-po
 
 server:
   port: 8080

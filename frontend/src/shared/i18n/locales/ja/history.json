@@ -117,7 +117,26 @@
       "BRAND_NOT_FOUND": "ブランドコードがG-SYS上で見つかりません。",
       "ITEM_NOT_FOUND": "商品コードがG-SYS上で見つからないか、廃止されています。",
       "OFFICIAL_PO_NO_NOT_ASSIGNED": "正式PO番号が未設定のため、既存PO/Invoice/入荷実績との整合確認は次のPhase以降で行われます。"
-    }
+    },
+    "numberFormTitle": "正式PO番号 / Excel項目",
+    "officialPoNoHelperText": "30文字以内。構造は強制されません（採番規則はCUSTOMER REVIEW未確定）。",
+    "deliveryWeekLabel": "Delivery Week",
+    "deliveryDateLabel": "Delivery Date",
+    "shipViaLabel": "Ship Via",
+    "shipTermLabel": "Ship Term",
+    "paymentTermLabel": "Payment Term",
+    "confirmButton": "確定",
+    "confirmSuccess": "正式PO番号を確定しました。",
+    "numberLockedNote": "既にG-SYSへ投入済みのため、PO番号・Excel項目は変更できません。",
+    "errorInvalidNumber": "正式PO番号は1〜30文字で入力してください。",
+    "errorDuplicateNumber": "この正式PO番号は既に別の発注で使用されています。",
+    "errorAlreadySubmitted": "既にG-SYSへ投入済みのため、この操作は行えません。",
+    "excelSectionTitle": "正式PO Excel",
+    "generateButton": "Excel生成",
+    "generateSuccess": "正式PO Excelを生成しました。",
+    "downloadButton": "Excelダウンロード",
+    "errorNumberRequired": "先に正式PO番号を確定してください。",
+    "errorPreflightBlocked": "最終Preflight結果がBLOCKEDです。問題を解消してから再度G-SYS連携準備を行ってください。"
   },
   "mailPreview": {
     "title": "メールプレビュー",

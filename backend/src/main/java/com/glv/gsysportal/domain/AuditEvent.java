@@ -149,6 +149,16 @@ public class AuditEvent {
     public static final String PRICE_CHANGE_DETAIL_REMOVED = "PRICE_CHANGE_DETAIL_REMOVED";
     public static final String PRICE_CHANGE_NOTE_CHANGED = "PRICE_CHANGE_NOTE_CHANGED";
 
+    // --- Phase 9-A: Official PO Number / Excel Generation (Production PO Workflow) ---
+    /** ADMIN confirmed/changed the G-SYS Official PO No. for the current
+     * Integration Request - written only when the number itself actually
+     * changes (old/new value), not on every idempotent re-confirm with the
+     * same value. */
+    public static final String OFFICIAL_PO_NUMBER_CONFIRMED = "OFFICIAL_PO_NUMBER_CONFIRMED";
+    /** Official PO Excel generated from Portal Order data - written every
+     * generate call, mirroring PRECHECK_COMPLETED's own precedent. */
+    public static final String OFFICIAL_PO_EXCEL_GENERATED = "OFFICIAL_PO_EXCEL_GENERATED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

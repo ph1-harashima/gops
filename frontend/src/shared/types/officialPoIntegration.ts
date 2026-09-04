@@ -32,4 +32,14 @@ export interface OfficialPoIntegration {
   errorMessage: string | null
   /** Phase 7-C6 12章/13章: "NEW" | "UPDATE" | null. */
   integrationIntent: string | null
+  /** Phase 9-A: Excel-contract fields with no other home in the domain. */
+  deliveryWeek: string | null
+  deliveryDate: string | null
+  shipVia: string | null
+  shipTerm: string | null
+  paymentTerm: string | null
+  /** Phase 9-A: whether a generated Excel is currently available to download
+   * (derived from generatedFileKey != null - the key itself is never sent
+   * to the Frontend). */
+  excelGenerated: boolean
 }

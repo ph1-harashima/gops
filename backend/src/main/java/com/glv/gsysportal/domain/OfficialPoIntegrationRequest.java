@@ -136,6 +136,27 @@ public class OfficialPoIntegrationRequest {
     @Column(name = "integration_intent", length = 10)
     private String integrationIntent;
 
+    // --- Phase 9-A: Excel-contract fields with no other home in the domain
+    // (docs/official-po-integration-detailed-design.md §3.2) - staff-entered
+    // alongside the PO No. confirm, integration-specific rather than
+    // Draft/Order-editing concepts. All nullable; Legacy's own Required/
+    // Optional split (Delivery Week/Date required, Ship Via/Term/Payment Term
+    // optional) is enforced only at Excel-generate time, not at column level. ---
+    @Column(name = "delivery_week", length = 5)
+    private String deliveryWeek;
+
+    @Column(name = "delivery_date", length = 50)
+    private String deliveryDate;
+
+    @Column(name = "ship_via", length = 100)
+    private String shipVia;
+
+    @Column(name = "ship_term", length = 100)
+    private String shipTerm;
+
+    @Column(name = "payment_term", length = 100)
+    private String paymentTerm;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

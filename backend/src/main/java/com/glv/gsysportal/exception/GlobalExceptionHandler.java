@@ -356,4 +356,36 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleArrivalNotFound(ArrivalNotFoundException ex, HttpServletRequest request) {
         return error(request, HttpStatus.NOT_FOUND, "ARRIVAL_NOT_FOUND");
     }
+
+    // --- Phase 9-A: Official PO Number / Excel Generation (Production PO Workflow) ---
+
+    @ExceptionHandler(InvalidOfficialPoNumberException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidOfficialPoNumber(InvalidOfficialPoNumberException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.BAD_REQUEST, "INVALID_OFFICIAL_PO_NUMBER");
+    }
+
+    @ExceptionHandler(DuplicateOfficialPoNumberException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateOfficialPoNumber(DuplicateOfficialPoNumberException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "DUPLICATE_OFFICIAL_PO_NUMBER");
+    }
+
+    @ExceptionHandler(OfficialPoAlreadySubmittedException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoAlreadySubmitted(OfficialPoAlreadySubmittedException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_ALREADY_SUBMITTED");
+    }
+
+    @ExceptionHandler(OfficialPoNumberRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoNumberRequired(OfficialPoNumberRequiredException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_NUMBER_REQUIRED");
+    }
+
+    @ExceptionHandler(OfficialPoPreflightBlockedException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoPreflightBlocked(OfficialPoPreflightBlockedException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_PREFLIGHT_BLOCKED");
+    }
+
+    @ExceptionHandler(OfficialPoExcelNotGeneratedException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoExcelNotGenerated(OfficialPoExcelNotGeneratedException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.NOT_FOUND, "OFFICIAL_PO_EXCEL_NOT_GENERATED");
+    }
 }

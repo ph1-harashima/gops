@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
@@ -31,7 +31,10 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 
 import { useOrderHistoryDetail, useOrderEvents } from './api'
-import { useOfficialPoIntegration, useRequestOfficialPoIntegration } from './officialPoIntegrationApi'
+import {
+  useOfficialPoIntegration, useRequestOfficialPoIntegration,
+  useConfirmOfficialPoNumber, useGenerateOfficialPoExcel, downloadOfficialPoExcel,
+} from './officialPoIntegrationApi'
 import { useLegacyPoConcurrency, useCaptureLegacyPoBaseline } from './legacyPoConcurrencyApi'
 import { useMailPreview } from './mailPreviewApi'
 import { useFulfillment } from './fulfillmentApi'
@@ -132,6 +135,8 @@ export function OrderHistoryDetailPage() {
   const approveMutation = useApprove(orderId)
   const returnMutation = useReturnForCorrection(orderId)
   const requestIntegrationMutation = useRequestOfficialPoIntegration(orderId)
+  const confirmPoNumberMutation = useConfirmOfficialPoNumber(orderId)
+  const generateExcelMutation = useGenerateOfficialPoExcel(orderId)
   const captureBaselineMutation = useCaptureLegacyPoBaseline(orderId)
   const mailPreviewMutation = useMailPreview(orderId)
   const createFollowUpCaseMutation = useCreateFollowUpCase(orderId)
@@ -143,6 +148,17 @@ export function OrderHistoryDetailPage() {
   const [returnDialogOpen, setReturnDialogOpen] = useState(false)
   const [returnReason, setReturnReason] = useState('')
   const [requestDialogOpen, setRequestDialogOpen] = useState(false)
+  // Phase 9-A: PO Number confirm form - seeded once from the Integration
+  // Request the first time it loads (a staff-entered form, not a live
+  // server-value display like the rest of this READ ONLY page).
+  const [poNoInput, setPoNoInput] = useState('')
+  const [deliveryWeekInput, setDeliveryWeekInput] = useState('')
+  const [deliveryDateInput, setDeliveryDateInput] = useState('')
+  const [shipViaInput, setShipViaInput] = useState('')
+  const [shipTermInput, setShipTermInput] = useState('')
+  const [paymentTermInput, setPaymentTermInput] = useState('')
+  const [poNoFormSeeded, setPoNoFormSeeded] = useState(false)
+  const [downloadError, setDownloadError] = useState(false)
   const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false)
   const [followUpSku, setFollowUpSku] = useState('')
   const [followUpReason, setFollowUpReason] = useState('OTHER')
@@ -159,6 +175,42 @@ export function OrderHistoryDetailPage() {
 
   function handleCaptureBaseline() {
     captureBaselineMutation.mutate()
+  }
+
+  // Phase 9-A: seed the PO Number form once from whatever the Integration
+  // Request already carries (a correction re-confirm, or a page reload
+  // while still PENDING/GENERATED) - never overwrites what staff is mid-way
+  // through typing.
+  useEffect(() => {
+    if (integration && !poNoFormSeeded && integration.status !== 'NOT_REQUESTED') {
+      setPoNoInput(integration.officialPoNo ?? '')
+      setDeliveryWeekInput(integration.deliveryWeek ?? '')
+      setDeliveryDateInput(integration.deliveryDate ?? '')
+      setShipViaInput(integration.shipVia ?? '')
+      setShipTermInput(integration.shipTerm ?? '')
+      setPaymentTermInput(integration.paymentTerm ?? '')
+      setPoNoFormSeeded(true)
+    }
+  }, [integration, poNoFormSeeded])
+
+  function handleConfirmPoNumber() {
+    confirmPoNumberMutation.mutate({
+      officialPoNo: poNoInput.trim(),
+      deliveryWeek: deliveryWeekInput.trim() || null,
+      deliveryDate: deliveryDateInput.trim() || null,
+      shipVia: shipViaInput.trim() || null,
+      shipTerm: shipTermInput.trim() || null,
+      paymentTerm: paymentTermInput.trim() || null,
+    })
+  }
+
+  function handleGenerateExcel() {
+    generateExcelMutation.mutate()
+  }
+
+  function handleDownloadExcel() {
+    setDownloadError(false)
+    void downloadOfficialPoExcel(orderId).catch(() => setDownloadError(true))
   }
 
   function openFollowUpDialog(sku?: string) {
@@ -487,6 +539,154 @@ export function OrderHistoryDetailPage() {
             >
               {requestIntegrationMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.requestButton')}
             </Button>
+          )}
+
+          {/* Phase 9-A: PO Number confirm + Excel generation - extends this
+              same Section (7-C6's own precedent) rather than adding a new
+              one. Editable while PENDING/GENERATED; locked (read-only
+              display) once SUBMITTED/CONFIRMED/FAILED. */}
+          {integration && integration.status !== 'NOT_REQUESTED' && isAdmin && (
+            <Box sx={{ mt: 2 }} data-testid="official-po-number-form">
+              <Divider sx={{ mb: 2 }} />
+              <Typography variant="subtitle2" gutterBottom>{t('officialPoIntegration.numberFormTitle')}</Typography>
+
+              <Toast
+                open={confirmPoNumberMutation.isSuccess}
+                severity="success"
+                message={t('officialPoIntegration.confirmSuccess')}
+                onClose={() => confirmPoNumberMutation.reset()}
+              />
+              <Toast
+                open={confirmPoNumberMutation.isError}
+                severity="error"
+                testId="official-po-number-confirm-error"
+                message={
+                  errorCodeOf(confirmPoNumberMutation.error) === 'INVALID_OFFICIAL_PO_NUMBER' ? t('officialPoIntegration.errorInvalidNumber') :
+                  errorCodeOf(confirmPoNumberMutation.error) === 'DUPLICATE_OFFICIAL_PO_NUMBER' ? t('officialPoIntegration.errorDuplicateNumber') :
+                  errorCodeOf(confirmPoNumberMutation.error) === 'OFFICIAL_PO_ALREADY_SUBMITTED' ? t('officialPoIntegration.errorAlreadySubmitted') :
+                  errorCodeOf(confirmPoNumberMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+                  t('errorGeneric')
+                }
+                onClose={() => confirmPoNumberMutation.reset()}
+              />
+
+              {(() => {
+                const locked = !['PENDING', 'GENERATED'].includes(integration.status)
+                return (
+                  <Stack spacing={2}>
+                    {locked && (
+                      <Alert severity="info" data-testid="official-po-number-locked-note">
+                        {t('officialPoIntegration.numberLockedNote')}
+                      </Alert>
+                    )}
+                    <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', rowGap: 2 }}>
+                      <TextField
+                        label={t('officialPoIntegration.officialPoNoLabel')}
+                        value={poNoInput}
+                        onChange={(e) => setPoNoInput(e.target.value)}
+                        disabled={locked}
+                        slotProps={{ htmlInput: { maxLength: 30 } }}
+                        helperText={t('officialPoIntegration.officialPoNoHelperText')}
+                        data-testid="official-po-number-input"
+                        size="small"
+                      />
+                      <TextField
+                        label={t('officialPoIntegration.deliveryWeekLabel')}
+                        value={deliveryWeekInput}
+                        onChange={(e) => setDeliveryWeekInput(e.target.value)}
+                        disabled={locked}
+                        slotProps={{ htmlInput: { maxLength: 5 } }}
+                        data-testid="official-po-delivery-week-input"
+                        size="small"
+                      />
+                      <TextField
+                        label={t('officialPoIntegration.deliveryDateLabel')}
+                        value={deliveryDateInput}
+                        onChange={(e) => setDeliveryDateInput(e.target.value)}
+                        disabled={locked}
+                        data-testid="official-po-delivery-date-input"
+                        size="small"
+                      />
+                      <TextField
+                        label={t('officialPoIntegration.shipViaLabel')}
+                        value={shipViaInput}
+                        onChange={(e) => setShipViaInput(e.target.value)}
+                        disabled={locked}
+                        data-testid="official-po-ship-via-input"
+                        size="small"
+                      />
+                      <TextField
+                        label={t('officialPoIntegration.shipTermLabel')}
+                        value={shipTermInput}
+                        onChange={(e) => setShipTermInput(e.target.value)}
+                        disabled={locked}
+                        data-testid="official-po-ship-term-input"
+                        size="small"
+                      />
+                      <TextField
+                        label={t('officialPoIntegration.paymentTermLabel')}
+                        value={paymentTermInput}
+                        onChange={(e) => setPaymentTermInput(e.target.value)}
+                        disabled={locked}
+                        data-testid="official-po-payment-term-input"
+                        size="small"
+                      />
+                    </Stack>
+                    {!locked && (
+                      <Box>
+                        <Button
+                          variant="outlined"
+                          onClick={handleConfirmPoNumber}
+                          disabled={confirmPoNumberMutation.isPending || poNoInput.trim().length === 0}
+                          data-testid="official-po-number-confirm-button"
+                        >
+                          {confirmPoNumberMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.confirmButton')}
+                        </Button>
+                      </Box>
+                    )}
+                  </Stack>
+                )
+              })()}
+
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle2" gutterBottom>{t('officialPoIntegration.excelSectionTitle')}</Typography>
+
+              <Toast
+                open={generateExcelMutation.isSuccess}
+                severity="success"
+                message={t('officialPoIntegration.generateSuccess')}
+                onClose={() => generateExcelMutation.reset()}
+              />
+              <Toast
+                open={generateExcelMutation.isError}
+                severity="error"
+                testId="official-po-generate-error"
+                message={
+                  errorCodeOf(generateExcelMutation.error) === 'OFFICIAL_PO_NUMBER_REQUIRED' ? t('officialPoIntegration.errorNumberRequired') :
+                  errorCodeOf(generateExcelMutation.error) === 'OFFICIAL_PO_PREFLIGHT_BLOCKED' ? t('officialPoIntegration.errorPreflightBlocked') :
+                  errorCodeOf(generateExcelMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+                  t('errorGeneric')
+                }
+                onClose={() => generateExcelMutation.reset()}
+              />
+              <Toast open={downloadError} severity="error" message={t('errorGeneric')} onClose={() => setDownloadError(false)} />
+
+              <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
+                <Button
+                  variant="outlined"
+                  onClick={handleGenerateExcel}
+                  disabled={generateExcelMutation.isPending || !integration.officialPoNo}
+                  data-testid="official-po-generate-button"
+                >
+                  {generateExcelMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.generateButton')}
+                </Button>
+                {integration.excelGenerated && (
+                  <Button variant="text" onClick={handleDownloadExcel} data-testid="official-po-download-button">
+                    {t('officialPoIntegration.downloadButton')}
+                  </Button>
+                )}
+              </Stack>
+            </Box>
           )}
 
           {/* Phase 7-C6 9章/10章/19章: Excel / Legacy Concurrency Control

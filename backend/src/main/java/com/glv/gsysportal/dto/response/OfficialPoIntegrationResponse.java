@@ -10,6 +10,11 @@ import java.util.List;
  * row exists yet (never a persisted value - see
  * {@code OfficialPoIntegrationRequest}'s Javadoc) - every other field is null
  * in that case.
+ *
+ * <p>Phase 9-A adds the Excel-contract fields (Delivery Week/Date, Ship Via/
+ * Term, Payment Term) and {@code excelGenerated} (whether a download is currently
+ * available - derived from {@code generatedFileKey != null}, not exposing
+ * the storage key itself to the Frontend).
  */
 public record OfficialPoIntegrationResponse(
         Long orderId,
@@ -26,12 +31,19 @@ public record OfficialPoIntegrationResponse(
         String errorCode,
         String errorMessage,
         /** Phase 7-C6 12章/13章: NEW/UPDATE, or null until an ADMIN explicitly sets it. */
-        String integrationIntent
+        String integrationIntent,
+        String deliveryWeek,
+        String deliveryDate,
+        String shipVia,
+        String shipTerm,
+        String paymentTerm,
+        boolean excelGenerated
 ) {
     public static final String STATUS_NOT_REQUESTED = "NOT_REQUESTED";
 
     public static OfficialPoIntegrationResponse notRequested(Long orderId) {
         return new OfficialPoIntegrationResponse(orderId, 0, STATUS_NOT_REQUESTED,
-                null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, false);
     }
 }

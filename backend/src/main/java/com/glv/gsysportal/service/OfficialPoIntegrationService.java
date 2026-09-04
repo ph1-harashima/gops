@@ -5,16 +5,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.OfficialPoIntegrationRequest;
 import com.glv.gsysportal.domain.PortalOrder;
+import com.glv.gsysportal.dto.request.ConfirmOfficialPoNumberRequest;
 import com.glv.gsysportal.dto.response.OfficialPoIntegrationResponse;
 import com.glv.gsysportal.dto.response.OfficialPoPreflightIssue;
 import com.glv.gsysportal.dto.response.OfficialPoPreflightResult;
 import com.glv.gsysportal.exception.DraftNotFoundException;
+import com.glv.gsysportal.exception.DuplicateOfficialPoNumberException;
 import com.glv.gsysportal.exception.IntegrationRequestRequiredException;
 import com.glv.gsysportal.exception.InvalidIntegrationIntentException;
+import com.glv.gsysportal.exception.InvalidOfficialPoNumberException;
+import com.glv.gsysportal.exception.OfficialPoAlreadySubmittedException;
+import com.glv.gsysportal.exception.OfficialPoExcelNotGeneratedException;
+import com.glv.gsysportal.exception.OfficialPoNumberRequiredException;
+import com.glv.gsysportal.exception.OfficialPoPreflightBlockedException;
 import com.glv.gsysportal.exception.OrderNotApprovedException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,21 +39,30 @@ import java.util.List;
 @Service
 public class OfficialPoIntegrationService {
 
+    /** Excel-contract "no more than 30 characters" is the ONLY confirmed
+     * length rule (Legacy Const.LEN_TR_PO_PO_NO) - see
+     * {@code InvalidOfficialPoNumberException}'s Javadoc for why nothing
+     * stricter is enforced here. */
+    static final int MAX_OFFICIAL_PO_NO_LENGTH = 30;
+
     private final PortalOrderRepository portalOrderRepository;
     private final OfficialPoIntegrationRequestRepository integrationRequestRepository;
     private final AuditEventRepository auditEventRepository;
     private final OfficialPoPreflightService preflightService;
+    private final OfficialPoExcelGenerationService excelGenerationService;
     private final ObjectMapper objectMapper;
 
     public OfficialPoIntegrationService(PortalOrderRepository portalOrderRepository,
                                          OfficialPoIntegrationRequestRepository integrationRequestRepository,
                                          AuditEventRepository auditEventRepository,
                                          OfficialPoPreflightService preflightService,
+                                         OfficialPoExcelGenerationService excelGenerationService,
                                          ObjectMapper objectMapper) {
         this.portalOrderRepository = portalOrderRepository;
         this.integrationRequestRepository = integrationRequestRepository;
         this.auditEventRepository = auditEventRepository;
         this.preflightService = preflightService;
+        this.excelGenerationService = excelGenerationService;
         this.objectMapper = objectMapper;
     }
 
@@ -158,6 +175,119 @@ public class OfficialPoIntegrationService {
         return toResponse(integrationRequestRepository.save(request));
     }
 
+    /**
+     * "PO番号入力/確定UI" (Production PO Workflow §A/Phase 9-A). Requires an
+     * existing Integration Request (PO No. belongs to a specific revision's
+     * hand-off attempt, same precondition as {@link #setIntegrationIntent}),
+     * and that it has not yet been SUBMITTED to the Legacy Import Folder
+     * (locked thereafter). Only length is validated - no ID Code/separator
+     * structure (Working Assumption: G-SYS has no confirmed Business Rule
+     * beyond the 30-character maximum, so Portal must not invent one).
+     * {@link AuditEvent#OFFICIAL_PO_NUMBER_CONFIRMED} is written only when
+     * the number itself actually changes.
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public OfficialPoIntegrationResponse confirmOfficialPoNumber(Long orderId, ConfirmOfficialPoNumberRequest body, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        int targetRevisionNo = targetRevisionNo(order);
+        OfficialPoIntegrationRequest request = integrationRequestRepository
+                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
+                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+        requireEditable(request, orderId);
+
+        String officialPoNo = body.officialPoNo() == null ? null : body.officialPoNo().trim();
+        if (officialPoNo == null || officialPoNo.isEmpty() || officialPoNo.length() > MAX_OFFICIAL_PO_NO_LENGTH) {
+            throw new InvalidOfficialPoNumberException(officialPoNo);
+        }
+
+        String previousPoNo = request.getOfficialPoNo();
+        OffsetDateTime now = OffsetDateTime.now();
+
+        request.setOfficialPoNo(officialPoNo);
+        request.setDeliveryWeek(body.deliveryWeek());
+        request.setDeliveryDate(body.deliveryDate());
+        request.setShipVia(body.shipVia());
+        request.setShipTerm(body.shipTerm());
+        request.setPaymentTerm(body.paymentTerm());
+        request.setUpdatedAt(now);
+        order.setOfficialPoNo(officialPoNo);
+
+        OfficialPoIntegrationRequest saved;
+        try {
+            saved = integrationRequestRepository.saveAndFlush(request);
+        } catch (DataIntegrityViolationException e) {
+            throw new DuplicateOfficialPoNumberException(officialPoNo);
+        }
+
+        if (!officialPoNo.equals(previousPoNo)) {
+            auditEventRepository.save(new AuditEvent(orderId, null,
+                    AuditEvent.OFFICIAL_PO_NUMBER_CONFIRMED, "officialPoNo", previousPoNo, officialPoNo, performedBy, now));
+        }
+        return toResponse(saved);
+    }
+
+    /**
+     * Official PO Excel generation (Production PO Workflow §B/Phase 9-A):
+     * the first real caller of {@link OfficialPoExcelGenerator} - every
+     * prior Phase only exercised it from a Contract Test. Idempotent:
+     * calling again once already GENERATED (or later) returns the current
+     * state unchanged rather than throwing - a smooth double-click UX, the
+     * entity's own state-machine guard still protects any other ordering
+     * mistake. Gate: requires a confirmed Official PO No. and a Preflight
+     * result that is not BLOCKED.
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public OfficialPoIntegrationResponse generateExcel(Long orderId, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        int targetRevisionNo = targetRevisionNo(order);
+        OfficialPoIntegrationRequest request = integrationRequestRepository
+                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
+                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+
+        if (!OfficialPoIntegrationRequest.STATUS_PENDING.equals(request.getStatus())) {
+            return toResponse(request);
+        }
+        if (request.getOfficialPoNo() == null) {
+            throw new OfficialPoNumberRequiredException(orderId);
+        }
+        if (OfficialPoPreflightResult.RESULT_BLOCKED.equals(request.getPreflightResult())) {
+            throw new OfficialPoPreflightBlockedException(orderId);
+        }
+
+        String fileKey = excelGenerationService.generateAndStore(order, request);
+        OffsetDateTime now = OffsetDateTime.now();
+        request.markGenerated(fileKey, now);
+        OfficialPoIntegrationRequest saved = integrationRequestRepository.save(request);
+
+        auditEventRepository.save(new AuditEvent(orderId, null,
+                AuditEvent.OFFICIAL_PO_EXCEL_GENERATED, null, null, fileKey, performedBy, now));
+        return toResponse(saved);
+    }
+
+    /** Streams the stored Excel bytes for staff review (design doc §14's
+     * "生成結果" - never exposes the storage key itself to the caller). */
+    @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
+    public byte[] downloadExcel(Long orderId) {
+        OfficialPoIntegrationRequest request = integrationRequestRepository
+                .findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
+                .orElseThrow(() -> new OfficialPoExcelNotGeneratedException(orderId));
+        if (request.getGeneratedFileKey() == null) {
+            throw new OfficialPoExcelNotGeneratedException(orderId);
+        }
+        return excelGenerationService.load(request.getGeneratedFileKey());
+    }
+
+    /** PENDING/GENERATED are still editable; SUBMITTED/CONFIRMED/FAILED are
+     * locked (FAILED means a Legacy hand-off attempt was already made for
+     * whatever was submitted - correcting the number now would desync the
+     * Retry from what staff believe they're retrying). */
+    private static void requireEditable(OfficialPoIntegrationRequest request, Long orderId) {
+        if (!OfficialPoIntegrationRequest.STATUS_PENDING.equals(request.getStatus())
+                && !OfficialPoIntegrationRequest.STATUS_GENERATED.equals(request.getStatus())) {
+            throw new OfficialPoAlreadySubmittedException(orderId, request.getStatus());
+        }
+    }
+
     private OfficialPoIntegrationResponse toResponse(OfficialPoIntegrationRequest r) {
         OfficialPoPreflightResult preflight = r.getPreflightResult() == null ? null
                 : new OfficialPoPreflightResult(r.getPreflightResult(), readIssuesJson(r.getPreflightIssuesJson()));
@@ -165,7 +295,9 @@ public class OfficialPoIntegrationService {
                 r.getPortalOrderId(), r.getRevisionNo(), r.getStatus(), r.getOfficialPoNo(),
                 r.getRequestedBy(), r.getRequestedAt(), preflight,
                 r.getGeneratedAt(), r.getSubmittedAt(), r.getConfirmedAt(), r.getFailedAt(),
-                r.getErrorCode(), r.getErrorMessage(), r.getIntegrationIntent()
+                r.getErrorCode(), r.getErrorMessage(), r.getIntegrationIntent(),
+                r.getDeliveryWeek(), r.getDeliveryDate(), r.getShipVia(), r.getShipTerm(), r.getPaymentTerm(),
+                r.getGeneratedFileKey() != null
         );
     }
 

@@ -185,3 +185,42 @@ test.describe('Phase 7-C2A: Official PO Integration Foundation', () => {
     await expect(page.getByText('G-SYS登録確認済み')).toHaveCount(0) // statusLabel.CONFIRMED
   })
 })
+
+test.describe('Phase 9-A: Official PO Number / Excel Generation', () => {
+  test('Scenario F: ADMIN confirms the Official PO No. and generates the Excel', async ({ page }) => {
+    const draftId = await createOrderableDraft(page)
+    await submitAndApprove(page, draftId)
+
+    await page.getByTestId('official-po-request-button').click()
+    await page.getByTestId('official-po-request-dialog-confirm').click()
+    await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
+
+    await expect(page.getByTestId('official-po-number-form')).toBeVisible()
+    const poNo = `E2E-TEST-${draftId}`
+    await page.getByTestId('official-po-number-input').locator('input').fill(poNo)
+    await page.getByTestId('official-po-delivery-week-input').locator('input').fill('WK40')
+    await page.getByTestId('official-po-delivery-date-input').locator('input').fill('2026-10-01')
+    await page.getByTestId('official-po-number-confirm-button').click()
+    await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
+    await expect(page.getByTestId('official-po-no')).toHaveText(poNo)
+
+    await page.getByTestId('official-po-generate-button').click()
+    await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+    await expect(page.getByTestId('official-po-download-button')).toBeVisible()
+    await expect(page.getByText('Excel生成済み')).toBeVisible() // statusLabel.GENERATED
+  })
+
+  test('Scenario G: Excel generation is blocked until a PO No. is confirmed', async ({ page }) => {
+    const draftId = await createOrderableDraft(page)
+    await submitAndApprove(page, draftId)
+
+    await page.getByTestId('official-po-request-button').click()
+    await page.getByTestId('official-po-request-dialog-confirm').click()
+    await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
+
+    // No PO No. confirmed yet - the Generate button stays disabled (the
+    // over-length rejection path itself is covered at the Backend,
+    // OfficialPoNumberAndExcelGenerationIntegrationTest).
+    await expect(page.getByTestId('official-po-generate-button')).toBeDisabled()
+  })
+})

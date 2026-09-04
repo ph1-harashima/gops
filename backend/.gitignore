@@ -3,3 +3,8 @@ target/
 .idea/
 *.iml
 .vscode/
+
+# Phase 9-A: locally-generated Official PO Excel / Import Folder artifacts
+# (app.official-po.* base-dir defaults, application.yml) - never committed,
+# never a real Production path.
+/data/
