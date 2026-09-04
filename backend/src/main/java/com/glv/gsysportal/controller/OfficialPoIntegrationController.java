@@ -2,6 +2,7 @@ package com.glv.gsysportal.controller;
 
 import com.glv.gsysportal.dto.request.ConfirmOfficialPoNumberRequest;
 import com.glv.gsysportal.dto.request.SetIntegrationIntentRequest;
+import com.glv.gsysportal.dto.response.OfficialPoImportConfirmationResponse;
 import com.glv.gsysportal.dto.response.OfficialPoIntegrationResponse;
 import com.glv.gsysportal.security.CurrentUserProvider;
 import com.glv.gsysportal.service.OfficialPoIntegrationService;
@@ -89,6 +90,14 @@ public class OfficialPoIntegrationController {
     @PostMapping("/api/orders/{id}/official-po/place")
     public OfficialPoIntegrationResponse place(@PathVariable Long id) {
         return integrationService.placeToImportFolder(id, currentUserProvider.currentUsername());
+    }
+
+    /** "G-SYS取込確認" (Phase 9-C). ADMIN only. Strictly READ ONLY on Legacy -
+     * see {@code OfficialPoIntegrationService#confirmImport}'s Javadoc. */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/orders/{id}/official-po/confirm-import")
+    public OfficialPoImportConfirmationResponse confirmImport(@PathVariable Long id) {
+        return integrationService.confirmImport(id, currentUserProvider.currentUsername());
     }
 
     /** Downloads the generated Official PO Excel for staff review (Phase

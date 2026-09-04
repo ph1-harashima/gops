@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../../shared/api/client'
-import type { OfficialPoIntegration } from '../../shared/types/officialPoIntegration'
+import type { OfficialPoIntegration, OfficialPoImportConfirmationResult } from '../../shared/types/officialPoIntegration'
 
 /** Phase 7-C2A 13章: Order Detail's "G-SYS正式PO連携" Section. Any
  * authenticated user may view it. */
@@ -95,6 +95,25 @@ export function usePlaceOfficialPoToImportFolder(orderId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => placeOfficialPoToImportFolder(orderId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+      void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+    },
+  })
+}
+
+/** "G-SYS取込確認" (Phase 9-C). ADMIN only. Strictly READ ONLY on Legacy -
+ * never itself writes to G-SYS; only Portal's own Integration Status may
+ * advance to CONFIRMED as a result. */
+async function confirmOfficialPoImport(orderId: number): Promise<OfficialPoImportConfirmationResult> {
+  const { data } = await apiClient.post<OfficialPoImportConfirmationResult>(`/orders/${orderId}/official-po/confirm-import`)
+  return data
+}
+
+export function useConfirmOfficialPoImport(orderId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => confirmOfficialPoImport(orderId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })

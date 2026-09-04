@@ -43,3 +43,17 @@ export interface OfficialPoIntegration {
    * to the Frontend). */
   excelGenerated: boolean
 }
+
+/** Mirrors backend OfficialPoImportConfirmationResponse (Phase 9-C). */
+export interface OfficialPoImportConfirmationDiff {
+  skuCode: string
+  expectedQty: number | null
+  actualQty: number | null
+}
+
+export interface OfficialPoImportConfirmationResult {
+  matched: boolean
+  reason: string | null
+  details: OfficialPoImportConfirmationDiff[]
+  integration: OfficialPoIntegration
+}

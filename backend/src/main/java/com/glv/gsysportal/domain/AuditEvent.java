@@ -169,6 +169,15 @@ public class AuditEvent {
      * possible afterward. */
     public static final String OFFICIAL_PO_FILE_PLACEMENT_FAILED = "OFFICIAL_PO_FILE_PLACEMENT_FAILED";
 
+    // --- Phase 9-C: G-SYS Import Confirmation (Production PO Workflow) ---
+    /** TR_PO/TR_PO_DTL confirmed (via Legacy READ ONLY) to match Portal's
+     * current Order lines - written only on the call that actually
+     * transitions the Integration Request to CONFIRMED, never on a
+     * NOT_YET_IMPORTED/MISMATCH check (those produce no state change and no
+     * Audit row - re-checking is expected to happen repeatedly before it
+     * eventually matches). */
+    public static final String OFFICIAL_PO_IMPORT_CONFIRMED = "OFFICIAL_PO_IMPORT_CONFIRMED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

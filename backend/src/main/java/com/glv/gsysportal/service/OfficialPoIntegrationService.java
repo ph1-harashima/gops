@@ -5,7 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.OfficialPoIntegrationRequest;
 import com.glv.gsysportal.domain.PortalOrder;
+import com.glv.gsysportal.domain.PortalOrderDetail;
 import com.glv.gsysportal.dto.request.ConfirmOfficialPoNumberRequest;
+import com.glv.gsysportal.dto.response.OfficialPoImportConfirmationDiff;
+import com.glv.gsysportal.dto.response.OfficialPoImportConfirmationResponse;
 import com.glv.gsysportal.dto.response.OfficialPoIntegrationResponse;
 import com.glv.gsysportal.dto.response.OfficialPoPreflightIssue;
 import com.glv.gsysportal.dto.response.OfficialPoPreflightResult;
@@ -17,9 +20,13 @@ import com.glv.gsysportal.exception.InvalidOfficialPoNumberException;
 import com.glv.gsysportal.exception.OfficialPoAlreadySubmittedException;
 import com.glv.gsysportal.exception.OfficialPoExcelNotGeneratedException;
 import com.glv.gsysportal.exception.OfficialPoNotGeneratedException;
+import com.glv.gsysportal.exception.OfficialPoNotSubmittedException;
 import com.glv.gsysportal.exception.OfficialPoNumberRequiredException;
 import com.glv.gsysportal.exception.OfficialPoPreflightBlockedException;
 import com.glv.gsysportal.exception.OrderNotApprovedException;
+import com.glv.gsysportal.repository.legacy.LegacyPoConcurrencyReadRepository;
+import com.glv.gsysportal.repository.legacy.row.LegacyPoConcurrencyHeaderRow;
+import com.glv.gsysportal.repository.legacy.row.LegacyPoConcurrencyLineRow;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
@@ -31,7 +38,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Phase 7-C2A: Official PO Integration Request Business Action
@@ -63,6 +74,7 @@ public class OfficialPoIntegrationService {
     private final OfficialPoExcelGenerationService excelGenerationService;
     private final OfficialPoImportFolderAdapter importFolderAdapter;
     private final IdempotencyService idempotencyService;
+    private final LegacyPoConcurrencyReadRepository legacyReadRepository;
     private final ObjectMapper objectMapper;
 
     public OfficialPoIntegrationService(PortalOrderRepository portalOrderRepository,
@@ -72,6 +84,7 @@ public class OfficialPoIntegrationService {
                                          OfficialPoExcelGenerationService excelGenerationService,
                                          OfficialPoImportFolderAdapter importFolderAdapter,
                                          IdempotencyService idempotencyService,
+                                         LegacyPoConcurrencyReadRepository legacyReadRepository,
                                          ObjectMapper objectMapper) {
         this.portalOrderRepository = portalOrderRepository;
         this.integrationRequestRepository = integrationRequestRepository;
@@ -80,6 +93,7 @@ public class OfficialPoIntegrationService {
         this.excelGenerationService = excelGenerationService;
         this.importFolderAdapter = importFolderAdapter;
         this.idempotencyService = idempotencyService;
+        this.legacyReadRepository = legacyReadRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -334,6 +348,77 @@ public class OfficialPoIntegrationService {
         auditEventRepository.save(new AuditEvent(orderId, null,
                 AuditEvent.OFFICIAL_PO_FILE_PLACED, null, null, fileName, performedBy, now));
         return toResponse(saved);
+    }
+
+    /**
+     * "G-SYS取込確認" (Production PO Workflow §E/Phase 9-C): a manual,
+     * on-demand Legacy READ ONLY check (design doc §9's Success Detection -
+     * a background poller is deliberately NOT built this Phase, §10's
+     * "Production環境には接続しない" applies equally to not reaching for
+     * network resources on a schedule in this environment). Requires status
+     * SUBMITTED (or later - CONFIRMED just re-confirms, a harmless no-op
+     * re-check). Never writes to Legacy in any way.
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public OfficialPoImportConfirmationResponse confirmImport(Long orderId, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        int targetRevisionNo = targetRevisionNo(order);
+        OfficialPoIntegrationRequest request = integrationRequestRepository
+                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
+                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+
+        if (OfficialPoIntegrationRequest.STATUS_CONFIRMED.equals(request.getStatus())) {
+            return new OfficialPoImportConfirmationResponse(true, null, List.of(), toResponse(request));
+        }
+        if (!OfficialPoIntegrationRequest.STATUS_SUBMITTED.equals(request.getStatus())) {
+            throw new OfficialPoNotSubmittedException(orderId);
+        }
+
+        Optional<LegacyPoConcurrencyHeaderRow> header = legacyReadRepository.findPoHeader(request.getOfficialPoNo());
+        if (header.isEmpty() || !"OFFICIAL".equals(header.get().status())) {
+            return new OfficialPoImportConfirmationResponse(false,
+                    OfficialPoImportConfirmationResponse.REASON_NOT_YET_IMPORTED, List.of(), toResponse(request));
+        }
+
+        Map<String, Integer> expected = new LinkedHashMap<>();
+        for (PortalOrderDetail detail : order.getDetails()) {
+            if (!detail.isRemoved()) {
+                expected.merge(detail.getSku(), detail.getOrderQty(), Integer::sum);
+            }
+        }
+        Map<String, Integer> actual = new LinkedHashMap<>();
+        for (LegacyPoConcurrencyLineRow line : legacyReadRepository.findPoLines(request.getOfficialPoNo())) {
+            actual.merge(line.skuCode(), line.orderedQty(), Integer::sum);
+        }
+
+        List<OfficialPoImportConfirmationDiff> diffs = diffLines(expected, actual);
+        if (!diffs.isEmpty()) {
+            return new OfficialPoImportConfirmationResponse(false,
+                    OfficialPoImportConfirmationResponse.REASON_MISMATCH, diffs, toResponse(request));
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        request.markConfirmed(now);
+        OfficialPoIntegrationRequest saved = integrationRequestRepository.save(request);
+        auditEventRepository.save(new AuditEvent(orderId, null,
+                AuditEvent.OFFICIAL_PO_IMPORT_CONFIRMED, null, null, request.getOfficialPoNo(), performedBy, now));
+        return new OfficialPoImportConfirmationResponse(true, null, List.of(), toResponse(saved));
+    }
+
+    private static List<OfficialPoImportConfirmationDiff> diffLines(Map<String, Integer> expected, Map<String, Integer> actual) {
+        List<OfficialPoImportConfirmationDiff> diffs = new ArrayList<>();
+        for (Map.Entry<String, Integer> e : expected.entrySet()) {
+            Integer actualQty = actual.get(e.getKey());
+            if (!e.getValue().equals(actualQty)) {
+                diffs.add(new OfficialPoImportConfirmationDiff(e.getKey(), e.getValue(), actualQty));
+            }
+        }
+        for (Map.Entry<String, Integer> e : actual.entrySet()) {
+            if (!expected.containsKey(e.getKey())) {
+                diffs.add(new OfficialPoImportConfirmationDiff(e.getKey(), null, e.getValue()));
+            }
+        }
+        return diffs;
     }
 
     /** Streams the stored Excel bytes for staff review (design doc §14's

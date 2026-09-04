@@ -34,7 +34,7 @@ import { useOrderHistoryDetail, useOrderEvents } from './api'
 import {
   useOfficialPoIntegration, useRequestOfficialPoIntegration,
   useConfirmOfficialPoNumber, useGenerateOfficialPoExcel, downloadOfficialPoExcel,
-  usePlaceOfficialPoToImportFolder,
+  usePlaceOfficialPoToImportFolder, useConfirmOfficialPoImport,
 } from './officialPoIntegrationApi'
 import { useLegacyPoConcurrency, useCaptureLegacyPoBaseline } from './legacyPoConcurrencyApi'
 import { useMailPreview } from './mailPreviewApi'
@@ -139,6 +139,7 @@ export function OrderHistoryDetailPage() {
   const confirmPoNumberMutation = useConfirmOfficialPoNumber(orderId)
   const generateExcelMutation = useGenerateOfficialPoExcel(orderId)
   const placeMutation = usePlaceOfficialPoToImportFolder(orderId)
+  const confirmImportMutation = useConfirmOfficialPoImport(orderId)
   const captureBaselineMutation = useCaptureLegacyPoBaseline(orderId)
   const mailPreviewMutation = useMailPreview(orderId)
   const createFollowUpCaseMutation = useCreateFollowUpCase(orderId)
@@ -212,6 +213,10 @@ export function OrderHistoryDetailPage() {
 
   function handlePlaceToImportFolder() {
     placeMutation.mutate()
+  }
+
+  function handleConfirmImport() {
+    confirmImportMutation.mutate()
   }
 
   function handleDownloadExcel() {
@@ -740,6 +745,69 @@ export function OrderHistoryDetailPage() {
                       integration.status === 'FAILED' ? t('officialPoIntegration.retryPlaceButton') :
                       t('officialPoIntegration.placeButton')}
                   </Button>
+
+                  {/* Phase 9-C: G-SYS Import Confirmation - manual, on-demand
+                      Legacy READ ONLY check (design doc §9's Success
+                      Detection, no background poller). */}
+                  {(integration.status === 'SUBMITTED' || integration.status === 'CONFIRMED') && (
+                    <Box sx={{ mt: 2 }}>
+                      <Divider sx={{ mb: 2 }} />
+                      <Typography variant="subtitle2" gutterBottom>{t('officialPoIntegration.confirmImportSectionTitle')}</Typography>
+
+                      {confirmImportMutation.data && !confirmImportMutation.data.matched && (
+                        <Alert
+                          severity={confirmImportMutation.data.reason === 'MISMATCH' ? 'warning' : 'info'}
+                          sx={{ mb: 2 }}
+                          data-testid="official-po-import-not-matched"
+                        >
+                          {t(`officialPoIntegration.importConfirmReason.${confirmImportMutation.data.reason}`)}
+                          {confirmImportMutation.data.details.length > 0 && (
+                            <Box component="ul" sx={{ mt: 1, mb: 0 }}>
+                              {confirmImportMutation.data.details.map((d, i) => (
+                                <li key={i}>
+                                  {d.skuCode}: {t('officialPoIntegration.expectedQtyLabel')} {d.expectedQty ?? '-'} /{' '}
+                                  {t('officialPoIntegration.actualQtyLabel')} {d.actualQty ?? '-'}
+                                </li>
+                              ))}
+                            </Box>
+                          )}
+                        </Alert>
+                      )}
+                      {confirmImportMutation.data?.matched && (
+                        <Alert severity="success" sx={{ mb: 2 }} data-testid="official-po-import-confirmed-note">
+                          {t('officialPoIntegration.importConfirmedNote')}
+                        </Alert>
+                      )}
+                      {integration.status === 'CONFIRMED' && !confirmImportMutation.data && (
+                        <Alert severity="success" sx={{ mb: 2 }} data-testid="official-po-import-confirmed-note">
+                          {t('officialPoIntegration.importConfirmedNote')}
+                        </Alert>
+                      )}
+
+                      <Toast
+                        open={confirmImportMutation.isError}
+                        severity="error"
+                        testId="official-po-confirm-import-error"
+                        message={
+                          errorCodeOf(confirmImportMutation.error) === 'OFFICIAL_PO_NOT_SUBMITTED' ? t('officialPoIntegration.errorNotSubmitted') :
+                          errorCodeOf(confirmImportMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+                          t('errorGeneric')
+                        }
+                        onClose={() => confirmImportMutation.reset()}
+                      />
+
+                      {integration.status === 'SUBMITTED' && (
+                        <Button
+                          variant="outlined"
+                          onClick={handleConfirmImport}
+                          disabled={confirmImportMutation.isPending}
+                          data-testid="official-po-confirm-import-button"
+                        >
+                          {confirmImportMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.confirmImportButton')}
+                        </Button>
+                      )}
+                    </Box>
+                  )}
                 </Box>
               )}
             </Box>

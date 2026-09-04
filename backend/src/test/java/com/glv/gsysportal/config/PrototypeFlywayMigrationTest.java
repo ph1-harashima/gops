@@ -64,7 +64,9 @@ class PrototypeFlywayMigrationTest {
         // OFFICIAL_PO_NUMBER_CONFIRMED/OFFICIAL_PO_EXCEL_GENERATED Audit types.
         // V19 (Phase 9-B): Import Folder Integration - OFFICIAL_PO_FILE_PLACED/
         // OFFICIAL_PO_FILE_PLACEMENT_FAILED Audit types (no schema change).
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"), versions);
+        // V20 (Phase 9-C): G-SYS Import Confirmation - OFFICIAL_PO_IMPORT_CONFIRMED
+        // Audit type (no schema change).
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"), versions);
     }
 
     @Test

@@ -143,7 +143,17 @@
     "placeSuccess": "Import Folderへ配置しました。",
     "placedNote": "既にImport Folderへ配置済みです。G-SYS側の取込を待っています。",
     "placeFailedNote": "配置に失敗しました。再試行できます",
-    "errorNotGenerated": "先にExcelを生成してください。"
+    "errorNotGenerated": "先にExcelを生成してください。",
+    "confirmImportSectionTitle": "G-SYS取込確認",
+    "confirmImportButton": "G-SYS取込状況を確認",
+    "importConfirmReason": {
+      "NOT_YET_IMPORTED": "G-SYSにこの正式PO番号はまだ登録されていません。エラーではありません（Batchがまだ実行されていない可能性があります）。しばらくしてから再度確認してください。",
+      "MISMATCH": "G-SYSにこの正式PO番号は登録されていますが、明細内容が現在の発注内容と一致しません。"
+    },
+    "expectedQtyLabel": "Portal側数量",
+    "actualQtyLabel": "G-SYS側数量",
+    "importConfirmedNote": "確認済み: G-SYS登録内容がこの発注内容と一致しています。",
+    "errorNotSubmitted": "この発注はまだImport Folderへ配置されていません。"
   },
   "mailPreview": {
     "title": "メールプレビュー",

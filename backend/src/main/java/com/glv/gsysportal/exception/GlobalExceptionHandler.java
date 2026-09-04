@@ -395,4 +395,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleOfficialPoNotGenerated(OfficialPoNotGeneratedException ex, HttpServletRequest request) {
         return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_NOT_GENERATED");
     }
+
+    // --- Phase 9-C: G-SYS Import Confirmation (Production PO Workflow) ---
+
+    @ExceptionHandler(OfficialPoNotSubmittedException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoNotSubmitted(OfficialPoNotSubmittedException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_NOT_SUBMITTED");
+    }
 }

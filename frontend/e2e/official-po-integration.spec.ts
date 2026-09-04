@@ -256,3 +256,34 @@ test.describe('Phase 9-B: Import Folder Integration', () => {
     await expect(page.getByTestId('official-po-place-button')).toBeDisabled()
   })
 })
+
+test.describe('Phase 9-C: G-SYS Import Confirmation', () => {
+  test('Scenario I: checking import status before G-SYS has registered the PO shows NOT_YET_IMPORTED, not an error', async ({ page }) => {
+    const draftId = await createOrderableDraft(page)
+    await submitAndApprove(page, draftId)
+
+    await page.getByTestId('official-po-request-button').click()
+    await page.getByTestId('official-po-request-dialog-confirm').click()
+    await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
+
+    // A PO No. that provably does not (and never will) exist in the Legacy
+    // Demo MySQL Fixture set - no real Import Batch runs in this
+    // environment, so SUBMITTED never naturally becomes CONFIRMED here
+    // regardless of the value used; this just makes the intent explicit.
+    await page.getByTestId('official-po-number-input').locator('input').fill(`E2E-CONFIRM-${draftId}`)
+    await page.getByTestId('official-po-number-confirm-button').click()
+    await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
+
+    await page.getByTestId('official-po-generate-button').click()
+    await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+
+    await page.getByTestId('official-po-place-button').click()
+    await expect(page.getByText('Import Folderへ配置しました。')).toBeVisible()
+
+    await page.getByTestId('official-po-confirm-import-button').click()
+    await expect(page.getByTestId('official-po-import-not-matched')).toBeVisible()
+    await expect(page.getByTestId('official-po-import-not-matched')).toContainText('エラーではありません')
+    // Status stays SUBMITTED - no state change on NOT_YET_IMPORTED.
+    await expect(page.getByText('G-SYSへ投入済み', { exact: true })).toBeVisible()
+  })
+})

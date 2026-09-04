@@ -138,7 +138,17 @@
     "placeSuccess": "Placed into the Import Folder.",
     "placedNote": "Already placed into the Import Folder - waiting for G-SYS to pick it up.",
     "placeFailedNote": "Placement failed. You can retry",
-    "errorNotGenerated": "Generate the Excel first."
+    "errorNotGenerated": "Generate the Excel first.",
+    "confirmImportSectionTitle": "G-SYS Import Confirmation",
+    "confirmImportButton": "Check G-SYS Import Status",
+    "importConfirmReason": {
+      "NOT_YET_IMPORTED": "G-SYS has not registered this Official PO yet. This is not an error - the Batch may simply not have run yet. You can check again later.",
+      "MISMATCH": "G-SYS has registered this Official PO No., but its line items don't match the current Order."
+    },
+    "expectedQtyLabel": "Expected",
+    "actualQtyLabel": "In G-SYS",
+    "importConfirmedNote": "Confirmed: G-SYS's registered content matches this Order.",
+    "errorNotSubmitted": "This Order has not been placed into the Import Folder yet."
   },
   "mailPreview": {
     "title": "Mail Preview",
