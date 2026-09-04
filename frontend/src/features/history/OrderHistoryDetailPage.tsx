@@ -53,6 +53,9 @@ import { resolveReturnTo, withBackTo, withReturnTo } from '../../shared/navigati
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_ADMIN } from '../../shared/types/auth'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
+import type { OrderHistoryDetail } from '../../shared/types/orderHistory'
+import type { OfficialPoIntegration } from '../../shared/types/officialPoIntegration'
+import type { OrderEmail } from '../../shared/types/orderEmail'
 import type { TFunction } from 'i18next'
 
 const FOLLOW_UP_REASONS = ['DELIVERY_OVERDUE', 'PARTIAL_DELIVERY', 'NO_ARRIVAL', 'QUANTITY_DIFFERENCE', 'OTHER']
@@ -85,6 +88,51 @@ function errorCodeOf(error: unknown): string | null {
     return error.response?.data?.errorCode ?? null
   }
   return null
+}
+
+/** Phase 9-G: "次にすべきこと" - a pure function of already-fetched state
+ * (never its own fetch/source of truth). Returns an i18n key under
+ * `history:atAGlance.hint.*`, or null when there is nothing actionable
+ * right now (either the Order hasn't reached APPROVED yet, or every step
+ * this hint tracks is already done). */
+function computeNextActionHintKey(
+  detail: OrderHistoryDetail,
+  integration: OfficialPoIntegration | undefined,
+  emailStatus: OrderEmail | undefined,
+): string | null {
+  if (detail.status !== 'APPROVED') {
+    return null
+  }
+  if (!integration || integration.status === 'NOT_REQUESTED') {
+    return 'requestIntegration'
+  }
+  if (integration.status === 'FAILED') {
+    return 'retryPlacement'
+  }
+  if (integration.status === 'PENDING') {
+    return integration.officialPoNo ? 'generateExcel' : 'confirmPoNumber'
+  }
+
+  // From GENERATED onward the Excel exists, so Email Send becomes
+  // independently actionable regardless of the G-SYS Import Folder
+  // pipeline's own further progress (Send only ever requires the Excel,
+  // never a completed Handoff - EmailSendService's own Gate) - prioritized
+  // ahead of the Import Folder step below since notifying the manufacturer
+  // is typically the more time-sensitive of the two.
+  if (detail.resolvedManufacturerChannel === 'EMAIL' && emailStatus?.status !== 'SENT') {
+    return 'sendEmail'
+  }
+  if (detail.resolvedManufacturerChannel === 'EDI' && detail.communicationChannel === 'EDI' && detail.ediStatus !== 'COMPLETED') {
+    return 'completeEdiInput'
+  }
+
+  if (integration.status === 'GENERATED') {
+    return 'placeToImportFolder'
+  }
+  if (integration.status === 'SUBMITTED') {
+    return 'confirmImport'
+  }
+  return null // CONFIRMED, and Email/EDI (if applicable) already done too.
 }
 
 /** READ ONLY (Requirements MD 31.2) - no Save/Edit control anywhere on this
@@ -325,6 +373,15 @@ export function OrderHistoryDetailPage() {
     }
   })()
 
+  // Phase 9-G (UI整理 - Production PO Workflow §8): a single computed "次に
+  // すべきこと" hint, derived from the same state combination the individual
+  // Sections below already display piecemeal - never a new source of truth,
+  // purely a read of detail/integration/emailStatus already fetched above.
+  // ADMIN-scoped (every step it names is an ADMIN-only Action) - OPERATOR
+  // sees no hint here (the Sections themselves already explain why a
+  // Button is missing/disabled for them).
+  const nextActionHintKey = isAdmin ? computeNextActionHintKey(detail, integration, emailStatus) : null
+
   return (
     <Box sx={{ p: 3 }}>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
@@ -356,6 +413,45 @@ export function OrderHistoryDetailPage() {
         )}
         <AttentionChips attentions={detail.orderAttentions} acknowledgeable />
       </Stack>
+
+      {/* Phase 9-G: "at a glance" strip - composes state the Sections below
+          already carry (never a second source of truth), so ADMIN can see
+          the whole G-SYS/Email/EDI picture without scrolling through every
+          Section. Only shown once there is something to summarize
+          (APPROVED or later). */}
+      {(detail.status === 'APPROVED' || (integration && integration.status !== 'NOT_REQUESTED')) && (
+        <Paper variant="outlined" sx={{ p: 2, mb: 2 }} data-testid="at-a-glance-panel">
+          <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap', rowGap: 1, alignItems: 'center' }}>
+            <Typography variant="body2">
+              {t('atAGlance.officialPoNoLabel')}: <strong data-testid="at-a-glance-official-po-no">{integration?.officialPoNo ?? t('atAGlance.unset')}</strong>
+            </Typography>
+            <Typography variant="body2">
+              {t('atAGlance.integrationStatusLabel')}: <strong>{t(`officialPoIntegration.statusLabel.${integration?.status ?? 'NOT_REQUESTED'}`)}</strong>
+            </Typography>
+            <Typography variant="body2">
+              {t('atAGlance.excelLabel')}: <strong>{integration?.excelGenerated ? t('atAGlance.done') : t('atAGlance.notYet')}</strong>
+            </Typography>
+            <Typography variant="body2">
+              {t('atAGlance.channelLabel')}: <strong>{detail.resolvedManufacturerChannel ? t(`communicationChannel.${detail.resolvedManufacturerChannel}`) : t('atAGlance.unresolved')}</strong>
+            </Typography>
+            {detail.resolvedManufacturerChannel === 'EMAIL' && (
+              <Typography variant="body2">
+                {t('atAGlance.emailLabel')}: <strong>{emailStatus?.status === 'SENT' ? t('atAGlance.done') : emailStatus?.status === 'FAILED' ? t('atAGlance.failed') : t('atAGlance.notYet')}</strong>
+              </Typography>
+            )}
+            {detail.resolvedManufacturerChannel === 'EDI' && detail.communicationChannel === 'EDI' && (
+              <Typography variant="body2">
+                {t('atAGlance.ediLabel')}: <strong>{t(`ediStatus.status.${detail.ediStatus ?? 'WAITING_INPUT'}`)}</strong>
+              </Typography>
+            )}
+          </Stack>
+          {nextActionHintKey && (
+            <Alert severity="info" sx={{ mt: 1.5 }} data-testid="next-action-hint">
+              {t(`atAGlance.hint.${nextActionHintKey}`)}
+            </Alert>
+          )}
+        </Paper>
+      )}
 
       {/* Phase 7-I (Layout Shift audit): every one of these is a one-shot
           event Message (a just-completed navigation handoff, or a mutation

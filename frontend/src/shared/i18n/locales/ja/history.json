@@ -93,6 +93,29 @@
   "errorReturnReasonRequired": "差し戻し理由を入力してください。",
   "errorForbidden": "この操作を行う権限がありません。",
   "errorGeneric": "処理に失敗しました。",
+  "atAGlance": {
+    "officialPoNoLabel": "正式PO番号",
+    "integrationStatusLabel": "G-SYS連携状態",
+    "excelLabel": "Excel生成",
+    "channelLabel": "通信方法",
+    "emailLabel": "メール送信",
+    "ediLabel": "EDI入力",
+    "unset": "未設定",
+    "unresolved": "未設定",
+    "done": "完了",
+    "notYet": "未完了",
+    "failed": "失敗",
+    "hint": {
+      "requestIntegration": "次にすべきこと: 「G-SYS連携準備」を行ってください。",
+      "confirmPoNumber": "次にすべきこと: 正式PO番号を確定してください。",
+      "generateExcel": "次にすべきこと: 正式PO Excelを生成してください。",
+      "placeToImportFolder": "次にすべきこと: Import Folderへ配置してください。",
+      "retryPlacement": "次にすべきこと: Import Folderへの配置に失敗しました。再試行してください。",
+      "confirmImport": "次にすべきこと: G-SYS取込状況を確認してください。",
+      "sendEmail": "次にすべきこと: メーカーへメールを送信してください。",
+      "completeEdiInput": "次にすべきこと: EDI入力が完了したら「EDI入力完了にする」を押してください。"
+    }
+  },
   "officialPoIntegration": {
     "title": "G-SYS正式PO連携",
     "subtitle": "デモ送信とは独立した、将来の正式G-SYS連携のための機能です（Phase 7-C2A基盤）。",

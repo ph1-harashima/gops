@@ -82,16 +82,24 @@ test.describe('Phase 9-E: Real Email Send', () => {
 
     // --- G-SYS連携準備 -> PO番号確定 -> Excel生成 ---
     await page.goto(`/orders/${draftId}`)
+    // Phase 9-G: the "at a glance" panel's hint tracks each step in turn.
+    await expect(page.getByTestId('next-action-hint')).toContainText('G-SYS連携準備')
     await page.getByTestId('official-po-request-button').click()
     await page.getByTestId('official-po-request-dialog-confirm').click()
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
+    await expect(page.getByTestId('next-action-hint')).toContainText('正式PO番号を確定')
 
     await page.getByTestId('official-po-number-input').locator('input').fill(`E2E-EMAIL-${draftId}`)
     await page.getByTestId('official-po-number-confirm-button').click()
     await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
+    await expect(page.getByTestId('at-a-glance-official-po-no')).toHaveText(`E2E-EMAIL-${draftId}`)
+    await expect(page.getByTestId('next-action-hint')).toContainText('Excelを生成')
 
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+    // Email Send only ever requires the Excel (never a completed Import
+    // Folder Handoff) and is prioritized ahead of that step in the hint.
+    await expect(page.getByTestId('next-action-hint')).toContainText('メーカーへメールを送信')
 
     // --- 送信 ---
     await expect(page.getByTestId('resolved-manufacturer-channel-chip')).toHaveText('登録済み通信方法: Email')
@@ -105,8 +113,12 @@ test.describe('Phase 9-E: Real Email Send', () => {
 
     // Idempotent - the Button disappears once SENT (no re-send affordance
     // needed for a successful Send; a genuinely new Send only happens on a
-    // future Revision).
+    // future Revision). The hint now honestly reflects that G-SYS Import
+    // Folder placement itself was never done in this flow (Email Send
+    // never required it) - not a bug, Email and the G-SYS Handoff are
+    // independent tracks.
     await expect(page.getByTestId('email-send-button')).toHaveCount(0)
+    await expect(page.getByTestId('next-action-hint')).toContainText('Import Folder')
   })
 
   test('EDI-channel manufacturer never shows the Email Send section', async ({ page }) => {

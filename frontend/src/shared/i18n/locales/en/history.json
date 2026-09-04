@@ -77,6 +77,29 @@
   "errorReturnReasonRequired": "Please enter a return reason.",
   "errorForbidden": "You do not have permission to perform this action.",
   "errorGeneric": "The operation failed.",
+  "atAGlance": {
+    "officialPoNoLabel": "Official PO No.",
+    "integrationStatusLabel": "G-SYS Integration",
+    "excelLabel": "Excel Generation",
+    "channelLabel": "Channel",
+    "emailLabel": "Email Send",
+    "ediLabel": "EDI Input",
+    "unset": "Not set",
+    "unresolved": "Not set",
+    "done": "Done",
+    "notYet": "Not yet",
+    "failed": "Failed",
+    "hint": {
+      "requestIntegration": "Next step: prepare G-SYS Integration.",
+      "confirmPoNumber": "Next step: confirm the Official PO No.",
+      "generateExcel": "Next step: generate the Official PO Excel.",
+      "placeToImportFolder": "Next step: place the Excel into the Import Folder.",
+      "retryPlacement": "Next step: placement into the Import Folder failed - retry.",
+      "confirmImport": "Next step: check the G-SYS import status.",
+      "sendEmail": "Next step: send the Email to the manufacturer.",
+      "completeEdiInput": "Next step: once EDI input is complete, mark it complete."
+    }
+  },
   "officialPoIntegration": {
     "title": "G-SYS Official PO Integration",
     "subtitle": "Independent of Demo Send - foundation for future real G-SYS Integration (Phase 7-C2A).",
