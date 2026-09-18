@@ -188,8 +188,15 @@ test.describe('Phase 7-C7A: Fulfillment / Follow-up Foundation', () => {
     const previewResult = page.getByTestId(/^follow-up-mail-preview-result-/).first()
     await expect(previewResult).toContainText('PO TSUP-TBR-E2E-FOLLOWUP-01 について')
     await expect(previewResult).toContainText('納品確認のお願い')
-    // 実送信なし: no Send control of any kind exists anywhere on this screen.
-    await expect(page.getByRole('button', { name: /送信/ })).toHaveCount(0)
+    // 実送信なし: no Send control exists within the Follow-up Section itself.
+    // Scoped to follow-up-section (not the whole page) since Phase 9-E's real
+    // Email Send Action legitimately added its own "メーカーへ送信" button to
+    // this SAME Order Detail page's separate Mail Preview Section - this
+    // Scenario's actual claim (Follow-up has no Send capability of its own)
+    // is unaffected by that unrelated Section's Button also matching /送信/
+    // (same disambiguation idiom official-po-integration.spec.ts's Scenario A
+    // already established for its own Status label collision, Phase 9-H).
+    await expect(page.getByTestId('follow-up-section').getByRole('button', { name: /送信/ })).toHaveCount(0)
 
     // Cleanup: deactivate the Master rows this test created - a stray ACTIVE
     // Supplier Contact for SUP_ALPHA/BR_OUTDOOR would otherwise make

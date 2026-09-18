@@ -176,11 +176,23 @@ INSERT INTO tr_po_dtl (po_no, line_no, item_cd, qty_po, prc_unit, amt_line, del_
 -- in this codebase relying on that item's known price (this broke
 -- PoPreviewServiceIntegrationTest for real during this Phase's
 -- implementation before being caught and fixed this way).
-INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-001','BR_OUTDOOR','Concurrency Control Test Item 1','30','NEW',b'0',b'1',b'0',NOW(),NOW());
-INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-002','BR_OUTDOOR','Concurrency Control Test Item 2','30','NEW',b'0',b'1',b'0',NOW(),NOW());
-INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-003','BR_OUTDOOR','Concurrency Control Test Item 3','30','NEW',b'0',b'1',b'0',NOW(),NOW());
-INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-004','BR_OUTDOOR','Concurrency Control Test Item 4','30','NEW',b'0',b'1',b'0',NOW(),NOW());
-INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-005','BR_OUTDOOR','Concurrency Control Test Item 5','30','NEW',b'0',b'1',b'0',NOW(),NOW());
+--
+-- del_flg=1 (Gulliver UI audit fix): these are E2E/backend-integration-test
+-- fixtures only (LegacyPoConcurrencyServiceIntegrationTest,
+-- OfficialPoImportConfirmationIntegrationTest, legacy-po-concurrency-control.
+-- spec.ts) - they read tr_po/tr_po_dtl directly by po_no, never through this
+-- ms_item row or RecommendedQtyReadQuery.sql's own "del_flg IS NULL OR
+-- del_flg = 0" exclusion (already the query's existing, unaltered Legacy
+-- exclusion rule - no new Business Logic condition was added). Setting
+-- del_flg here is the same "soft-deleted from Legacy's perspective" flag
+-- every other excluded Item already uses, so these 5 rows no longer surface
+-- in 発注候補一覧/Demo, while every fixture the tests above depend on
+-- (tr_po/tr_po_dtl PO-CONC-01/02/03) is untouched.
+INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-001','BR_OUTDOOR','Concurrency Control Test Item 1','30','NEW',b'0',b'1',b'1',NOW(),NOW());
+INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-002','BR_OUTDOOR','Concurrency Control Test Item 2','30','NEW',b'0',b'1',b'1',NOW(),NOW());
+INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-003','BR_OUTDOOR','Concurrency Control Test Item 3','30','NEW',b'0',b'1',b'1',NOW(),NOW());
+INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-004','BR_OUTDOOR','Concurrency Control Test Item 4','30','NEW',b'0',b'1',b'1',NOW(),NOW());
+INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, del_flg, create_datetime, update_datetime) VALUES ('CC-ITEM-005','BR_OUTDOOR','Concurrency Control Test Item 5','30','NEW',b'0',b'1',b'1',NOW(),NOW());
 
 INSERT INTO tr_po (po_no, status, supplier_cd, brand_cd, ccy, ordr_date, deliv_week, deliv_date, amt_ttl, del_flg, create_datetime, update_datetime) VALUES ('PO-CONC-01','OFFICIAL','SUP_ALPHA','BR_OUTDOOR','JPY','2026-08-01','35','2026-08-24',6000.00,b'0',NOW(),NOW());
 INSERT INTO tr_po_dtl (po_no, line_no, item_cd, qty_po, prc_unit, amt_line, del_flg, create_datetime, update_datetime) VALUES ('PO-CONC-01',1,'CC-ITEM-001',5,1000.00000,5000.00000,b'0',NOW(),NOW());

@@ -121,6 +121,20 @@ export function useConfirmOfficialPoImport(orderId: number) {
   })
 }
 
+/** Gap Analysis B-3 (docs/gulliver-20260917-phase1-gap-analysis.md 7章):
+ * extracts the file name the Backend actually computed
+ * (OfficialPoFileNaming - Supplier/Brand/Date/PO No./Revision) from
+ * Content-Disposition, rather than trusting the browser to apply it - a
+ * Blob download's `<a download>` attribute always wins over the
+ * Content-Disposition header once the bytes have already been fetched as a
+ * Blob, so this must be read explicitly or the old hardcoded name would
+ * silently keep appearing regardless of what the Backend sends. */
+function fileNameFromContentDisposition(contentDisposition: string | undefined, fallback: string): string {
+  if (!contentDisposition) return fallback
+  const match = /filename="?([^";]+)"?/.exec(contentDisposition)
+  return match ? decodeURIComponent(match[1]) : fallback
+}
+
 /** Downloads the generated Official PO Excel (Phase 9-A). ADMIN only.
  * Triggers a browser file-save rather than returning JSON, so this is a
  * plain function (not a React Query hook) called directly from a click
@@ -130,7 +144,7 @@ export async function downloadOfficialPoExcel(orderId: number): Promise<void> {
   const url = window.URL.createObjectURL(response.data)
   const link = document.createElement('a')
   link.href = url
-  link.download = `official-po-${orderId}.xlsx`
+  link.download = fileNameFromContentDisposition(response.headers['content-disposition'], `official-po-${orderId}.xlsx`)
   document.body.appendChild(link)
   link.click()
   link.remove()

@@ -54,25 +54,34 @@ public class LegacyStockReadRepository {
      * sends only SKU identifiers, and the Backend re-fetches the current
      * Legacy candidate context for exactly those SKUs here, rather than
      * trusting any Recommended Qty/Stock/Sales/Price value the Frontend may
-     * have sent. Reuses {@link #findOrderCandidates} (no filter) and filters
-     * in Java rather than adding a second, slightly-different SQL surface -
-     * acceptable for this Demo Instance's small row count (Technical Design 17章).
+     * have sent. Filters in Java rather than adding a second, slightly-
+     * different SQL surface - acceptable for this Demo Instance's small row
+     * count (Technical Design 17章). includeDeleted=true (Gulliver UI audit
+     * fix): a Draft may already reference a since-soft-deleted Item (or is
+     * being re-validated by exact code, not browsed) - resolving it here is
+     * a different operation from {@link #findOrderCandidates}'s own "what's
+     * currently orderable" browse list, which stays exclusion-filtered.
      */
     @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
     public List<LegacyStockRow> findBySkus(java.util.Collection<String> skus) {
         java.util.Set<String> requested = new java.util.HashSet<>(skus);
-        return findOrderCandidates(null, null, null).stream()
+        return queryCandidates(null, null, null, true).stream()
                 .filter(row -> requested.contains(row.itemCd()))
                 .toList();
     }
 
     @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
     public List<LegacyStockRow> findOrderCandidates(String brandCode, String supplierCode, String keyword) {
+        return queryCandidates(brandCode, supplierCode, keyword, false);
+    }
+
+    private List<LegacyStockRow> queryCandidates(String brandCode, String supplierCode, String keyword, boolean includeDeleted) {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("brandCode", brandCode)
                 .addValue("supplierCode", supplierCode)
                 .addValue("keyword", keyword)
-                .addValue("keywordLike", keyword == null ? null : "%" + keyword + "%");
+                .addValue("keywordLike", keyword == null ? null : "%" + keyword + "%")
+                .addValue("includeDeleted", includeDeleted);
 
         return legacyJdbc.query(sql, params, (rs, rowNum) -> new LegacyStockRow(
                 rs.getString("item_cd"),
@@ -151,7 +160,12 @@ public class LegacyStockReadRepository {
                 .addValue("minStock", f.minStock())
                 .addValue("maxStock", f.maxStock())
                 .addValue("minSales", f.minSales())
-                .addValue("maxSales", f.maxSales());
+                .addValue("maxSales", f.maxSales())
+                // Stock/Sales List is a browse view (same "what's currently
+                // orderable" semantics as findOrderCandidates), so it stays
+                // exclusion-filtered too - see RecommendedQtyReadQuery.sql's
+                // own comment for the includeDeleted=true case (findBySkus only).
+                .addValue("includeDeleted", false);
     }
 
     /** Phase 8-H 6章's minimum candidate Filter list. {@code skuKeyword}

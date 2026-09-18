@@ -29,6 +29,13 @@ export interface OrderHistoryDetailLine {
   requestedDelivery: string | null
   confirmedDelivery: string | null
   attentions: AttentionSummary[]
+  // Gap Analysis B-1 (docs/gulliver-20260917-phase1-gap-analysis.md 5章):
+  // live Legacy READ ONLY values, null when the SKU can no longer be
+  // resolved in Legacy - never a display default of 0.
+  currentStock: number | null
+  monthlySales: number | null
+  leadTime: string | null
+  openArrival: number | null
 }
 
 export interface OrderHistoryDetail {
@@ -56,6 +63,9 @@ export interface OrderHistoryDetail {
   resolvedManufacturerChannel: 'EMAIL' | 'EDI' | null
   ediStatus: 'WAITING_INPUT' | 'COMPLETED' | null
   ediCompletedBy: string | null
+  /** i18n localization audit: prefer this for display, fall back to
+   * ediCompletedBy when null (matches AuditEventView.performedByDisplayName). */
+  ediCompletedByDisplayName: string | null
   ediCompletedAt: string | null
 }
 

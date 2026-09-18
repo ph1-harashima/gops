@@ -231,7 +231,7 @@ export function StockSalesListPage() {
           size="small"
           type="number"
           label={t('filter.minSales')}
-          sx={{ minWidth: 120 }}
+          sx={{ minWidth: 260 }}
           defaultValue={filter.minSales ?? ''}
           onBlur={(e) => updateFilter({ minSales: e.target.value ? Number(e.target.value) : undefined })}
           data-testid="stock-sales-filter-min-sales"
@@ -240,7 +240,7 @@ export function StockSalesListPage() {
           size="small"
           type="number"
           label={t('filter.maxSales')}
-          sx={{ minWidth: 120 }}
+          sx={{ minWidth: 260 }}
           defaultValue={filter.maxSales ?? ''}
           onBlur={(e) => updateFilter({ maxSales: e.target.value ? Number(e.target.value) : undefined })}
           data-testid="stock-sales-filter-max-sales"

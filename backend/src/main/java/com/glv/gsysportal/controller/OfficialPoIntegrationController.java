@@ -107,11 +107,16 @@ public class OfficialPoIntegrationController {
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/api/orders/{id}/official-po/excel")
     public ResponseEntity<byte[]> downloadExcel(@PathVariable Long id) {
-        byte[] bytes = integrationService.downloadExcel(id);
+        // Gap Analysis B-3 (docs/gulliver-20260917-phase1-gap-analysis.md
+        // 7章): human-identifiable name (Supplier/Brand/Date/PO No./Revision),
+        // computed once in the Service and shared with the Import Folder
+        // placement's own file name - no longer this Controller's own ad hoc
+        // "official-po-{id}.xlsx".
+        var download = integrationService.downloadExcel(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment().filename("official-po-" + id + ".xlsx").build().toString())
-                .body(bytes);
+                        ContentDisposition.attachment().filename(download.fileName()).build().toString())
+                .body(download.bytes());
     }
 }

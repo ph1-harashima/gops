@@ -42,6 +42,8 @@ class OrderHistoryServiceIntegrationTest {
     private SupplierResponseService supplierResponseService;
     @Autowired
     private OrderHistoryService orderHistoryService;
+    @Autowired
+    private com.glv.gsysportal.repository.prototype.PortalOrderRepository portalOrderRepository;
 
     /** Phase 8-J 3章/4章: list() is now DB-paginated (PageResponse), so these
      * tests read {@code .content()} and pass a generously large size (200)
@@ -177,6 +179,74 @@ class OrderHistoryServiceIntegrationTest {
     @Test
     void detailOnUnknownOrderThrowsNotFound() {
         assertThrows(DraftNotFoundException.class, () -> orderHistoryService.detail(-1L));
+    }
+
+    /** Gap Analysis B-1 (docs/gulliver-20260917-phase1-gap-analysis.md 5章):
+     * Order Detail is a shared Component across every Status (Phase 9-G
+     * integration) - a Field addition here must not silently disappear once
+     * an Order moves past DRAFT/APPROVED. Checks the same Order across
+     * DRAFT -> APPROVED -> AWAITING_SUPPLIER (post-Send) -> SUPPLIER_CONFIRMED,
+     * asserting the new live Legacy fields stay populated throughout (never
+     * silently dropped by a later Status branch), while the pre-existing
+     * Recommended/Ordered/Confirmed 3-stage fields (already covered above)
+     * are left untouched. */
+    @Test
+    void detailIncludesLiveStockSalesLeadTimeArrivalAcrossOrderStatuses() {
+        OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+
+        var draftLine = orderHistoryService.detail(draft.id()).details().get(0);
+        assertEquals(SKU_TENT_1, draftLine.sku());
+        assertTrue(draftLine.currentStock() != null, "currentStock must be populated at DRAFT");
+        assertTrue(draftLine.monthlySales() != null, "monthlySales must be populated at DRAFT");
+        assertTrue(draftLine.leadTime() != null, "leadTime must be populated at DRAFT");
+
+        PortalOrder ready = approveViaWorkflow(draft.id());
+        var approvedLine = orderHistoryService.detail(ready.getId()).details().get(0);
+        assertTrue(approvedLine.currentStock() != null, "currentStock must be populated at APPROVED");
+        assertTrue(approvedLine.monthlySales() != null, "monthlySales must be populated at APPROVED");
+        assertTrue(approvedLine.leadTime() != null, "leadTime must be populated at APPROVED");
+
+        PortalOrder sent = statusTransitionService.demoSend(ready.getId(), "tester01");
+        var sentLine = orderHistoryService.detail(sent.getId()).details().get(0);
+        assertTrue(sentLine.currentStock() != null, "currentStock must be populated at AWAITING_SUPPLIER");
+        assertTrue(sentLine.monthlySales() != null, "monthlySales must be populated at AWAITING_SUPPLIER");
+        assertTrue(sentLine.leadTime() != null, "leadTime must be populated at AWAITING_SUPPLIER");
+
+        Long detailId = supplierResponseService.getSupplierResponse(sent.getId()).details().get(0).detailId();
+        supplierResponseService.saveSupplierResponse(sent.getId(),
+                new SaveSupplierResponseRequest(null, null, List.of(new SaveSupplierResponseRequest.LineUpdate(detailId, 3, null, null, null))),
+                "tester01");
+        var confirmedLine = orderHistoryService.detail(sent.getId()).details().get(0);
+        assertTrue(confirmedLine.currentStock() != null, "currentStock must be populated at SUPPLIER_CONFIRMED");
+        assertTrue(confirmedLine.monthlySales() != null, "monthlySales must be populated at SUPPLIER_CONFIRMED");
+        assertTrue(confirmedLine.leadTime() != null, "leadTime must be populated at SUPPLIER_CONFIRMED");
+        // openArrival is legitimately allowed to be null in demo data (no
+        // Open Arrival seeded for every SKU) - only asserted non-throwing/
+        // present-as-a-field here, not non-null.
+    }
+
+    /** A SKU that no longer resolves in Legacy must leave the new fields
+     * null - never defaulted to 0 (Gap Analysis B-1's explicit "never a
+     * display default" requirement, matching this DTO's existing
+     * confirmedQty null/0 discipline). */
+    @Test
+    void detailLeavesLiveFieldsNullForUnresolvableSku() {
+        OrderDraftResponse draft = orderDraftService.createDraft(
+                new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+        // Simulate a since-removed Legacy Item by pointing the persisted line
+        // at a SKU no Legacy row can ever match - READ ONLY on Legacy, this
+        // only touches the Portal-owned portal_order_detail row.
+        PortalOrder order = portalOrderRepository.findById(draft.id()).orElseThrow();
+        order.getDetails().get(0).setSku("NO-SUCH-SKU-XYZ");
+        portalOrderRepository.saveAndFlush(order);
+
+        OrderHistoryDetailResponse detail = orderHistoryService.detail(draft.id());
+
+        var line = detail.details().get(0);
+        assertEquals(null, line.currentStock());
+        assertEquals(null, line.monthlySales());
+        assertEquals(null, line.leadTime());
+        assertEquals(null, line.openArrival());
     }
 
     @Test

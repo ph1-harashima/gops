@@ -248,7 +248,7 @@ test.describe('Phase 9-B: Import Folder Integration', () => {
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
 
     await page.getByTestId('official-po-place-button').click()
-    await expect(page.getByText('Import Folderへ配置しました。')).toBeVisible()
+    await expect(page.getByText('G-SYS連携用ファイルを配置しました。')).toBeVisible()
     await expect(page.getByTestId('official-po-placed-note')).toBeVisible()
     // exact:true - "PO番号確定済みの注記" text also contains this substring
     // ("既にG-SYSへ投入済みのため...") once locked, same collision pattern as
@@ -284,7 +284,7 @@ test.describe('Phase 9-C: G-SYS Import Confirmation', () => {
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
 
     await page.getByTestId('official-po-place-button').click()
-    await expect(page.getByText('Import Folderへ配置しました。')).toBeVisible()
+    await expect(page.getByText('G-SYS連携用ファイルを配置しました。')).toBeVisible()
 
     await page.getByTestId('official-po-confirm-import-button').click()
     await expect(page.getByTestId('official-po-import-not-matched')).toBeVisible()

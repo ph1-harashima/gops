@@ -20,16 +20,12 @@ import jaWarehouseStock from './locales/ja/warehouseStock.json'
 import jaStockSales from './locales/ja/stockSales.json'
 import enCommon from './locales/en/common.json'
 import enStatus from './locales/en/status.json'
+import enAuth from './locales/en/auth.json'
 import enHistory from './locales/en/history.json'
+import enSkuDetail from './locales/en/skuDetail.json'
 import enSupplierContact from './locales/en/supplierContact.json'
 import enMailTemplate from './locales/en/mailTemplate.json'
 import enManufacturerChannel from './locales/en/manufacturerChannel.json'
-// Phase 6-A: minimal partial resources - just the new Label keys introduced
-// this Phase (docs/production-ux-workflow-redesign.md 6章/13章). No
-// Language Selector is implemented yet (lng is fixed to 'ja' below), and
-// fallbackLng: 'ja' fills in every other key in these namespaces, so a
-// partial file here does not regress anything - it only prepares the two
-// new keys for whenever `en` becomes reachable.
 import enDrafts from './locales/en/drafts.json'
 import enSupplierResponse from './locales/en/supplierResponse.json'
 import enCandidates from './locales/en/candidates.json'
@@ -40,11 +36,36 @@ import enArrivals from './locales/en/arrivals.json'
 import enWarehouseStock from './locales/en/warehouseStock.json'
 import enStockSales from './locales/en/stockSales.json'
 
-// Japanese is the initial display language (Requirements MD 28.1).
-// Display text is never hardcoded into React components - it always comes
-// from these resource files (Requirements MD 26章 principle 21).
+// G-OPS i18n完成 #3: Language Switcher実装に伴い、UI言語の永続化キー。
+// Mail Template側の`language`フィールド(DB値、メーカー/Supplierごとの
+// メール送信言語設定)とは完全に別物 - このキーはブラウザのUI表示言語のみを
+// 保持し、Backend/DBの言語設定には一切関与しない(§7の分離要件)。
+export const LANGUAGE_STORAGE_KEY = 'gsys-ui-language'
+export const SUPPORTED_LANGUAGES = ['ja', 'en'] as const
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]
+
+function readStoredLanguage(): SupportedLanguage {
+  try {
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY)
+    if (stored != null && (SUPPORTED_LANGUAGES as readonly string[]).includes(stored)) {
+      return stored as SupportedLanguage
+    }
+  } catch {
+    // localStorage unavailable (e.g. private browsing) - fall through to default.
+  }
+  return 'ja'
+}
+
+// Japanese is the Default display language (要件§2), but the actual initial
+// `lng` now resolves from localStorage (readStoredLanguage()) so a Language
+// Switcher choice survives page reload (§3). fallbackLng stays 'ja' as a
+// safety net for any future namespace/key that is momentarily incomplete in
+// one language - never a substitute for translating a key (both languages
+// are now fully populated, see 完了報告 §4). Display text is never
+// hardcoded into React components - it always comes from these resource
+// files (Requirements MD 26章 principle 21).
 void i18n.use(initReactI18next).init({
-  lng: 'ja',
+  lng: readStoredLanguage(),
   fallbackLng: 'ja',
   resources: {
     ja: {
@@ -69,7 +90,9 @@ void i18n.use(initReactI18next).init({
     en: {
       common: enCommon,
       status: enStatus,
+      auth: enAuth,
       history: enHistory,
+      skuDetail: enSkuDetail,
       drafts: enDrafts,
       supplierResponse: enSupplierResponse,
       candidates: enCandidates,
@@ -87,6 +110,38 @@ void i18n.use(initReactI18next).init({
   interpolation: {
     escapeValue: false,
   },
+})
+
+// Keep localStorage in sync whenever the language actually changes (covers
+// both the Language Switcher's own i18n.changeLanguage() call and any other
+// caller), so a reload always restores the last-chosen UI language (§3).
+i18n.on('languageChanged', (lng) => {
+  try {
+    if ((SUPPORTED_LANGUAGES as readonly string[]).includes(lng)) {
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, lng)
+    }
+  } catch {
+    // localStorage unavailable - the in-memory language still applies for this session.
+  }
+})
+
+// Keep <html lang> in sync with the active UI language - correct HTML
+// semantics/screen-reader pronunciation, independent of the Mail Template
+// language (§7's separation is unaffected: this only touches the document
+// element, never anything sent to the Backend). index.html ships a static
+// lang="ja" default; this corrects it once i18n resolves the stored/actual
+// language, and again on every subsequent switch.
+try {
+  document.documentElement.lang = i18n.resolvedLanguage ?? i18n.language
+} catch {
+  // document unavailable (e.g. non-DOM test environment) - safe to skip.
+}
+i18n.on('languageChanged', (lng) => {
+  try {
+    document.documentElement.lang = lng
+  } catch {
+    // document unavailable - safe to skip.
+  }
 })
 
 export default i18n

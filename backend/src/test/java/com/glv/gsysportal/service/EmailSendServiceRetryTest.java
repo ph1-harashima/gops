@@ -10,6 +10,7 @@ import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.OrderEmailRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import com.glv.gsysportal.repository.prototype.PortalUserRepository;
 import com.glv.gsysportal.service.integration.EmailEnvelope;
 import com.glv.gsysportal.service.integration.EmailSendException;
 import com.glv.gsysportal.service.integration.EmailSenderPort;
@@ -75,6 +76,7 @@ class EmailSendServiceRetryTest {
         OfficialPoExcelGenerationService excelGenerationService = mock(OfficialPoExcelGenerationService.class);
         EmailSenderPort emailSenderPort = mock(EmailSenderPort.class);
         IdempotencyService idempotencyService = mock(IdempotencyService.class);
+        PortalUserRepository portalUserRepository = mock(PortalUserRepository.class);
 
         PortalOrder order = order();
         when(portalOrderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
@@ -97,7 +99,7 @@ class EmailSendServiceRetryTest {
 
         EmailSendService service = new EmailSendService(portalOrderRepository, orderEmailRepository,
                 integrationRequestRepository, auditEventRepository, channelResolutionService, mailPreviewService,
-                excelGenerationService, emailSenderPort, idempotencyService);
+                excelGenerationService, emailSenderPort, idempotencyService, portalUserRepository);
 
         OrderEmailResponse response = service.send(ORDER_ID, ADMIN);
 

@@ -638,28 +638,49 @@ Step B: 取得したSnapshotを引数に、Prototype側の書込みトランザ�
 
 `[PROTOTYPE DECISION]` **react-i18next**を採用する。
 
+**G-OPS i18n完成フェーズ（本節、以下「本フェーズ」）時点の実装済み構成**（当初の9/17時点計画からの更新 — 当時はjaのみ完成必須・enはTODOプレースホルダーだったが、本フェーズでja/en両方を完全実装した）:
+
 ```
 frontend/src/shared/i18n/
-├── index.ts                # i18next初期化（デフォルト言語=ja）
+├── index.ts                       # i18next初期化。対応言語一覧・永続化ロジックも集約
 └── locales/
-    ├── ja/
-    │   ├── common.json
-    │   ├── dashboard.json
-    │   ├── candidates.json
-    │   ├── draft.json
-    │   ├── poPreview.json
-    │   ├── supplierResponse.json
-    │   ├── history.json
-    │   ├── status.json         # 要件MD 28.3のMapping
-    │   ├── attention.json      # 要件MD 28.5のMapping
-    │   └── validation.json
-    └── en/
-        └── common.json         # 9/17時点はTODOプレースホルダーのみ
+    ├── ja/                        # 18 namespace、全キー完備（デフォルト言語）
+    │   ├── common.json, dashboard.json, candidates.json, drafts.json,
+    │   │   preview.json, supplierResponse.json, history.json, status.json,
+    │   │   auth.json, skuDetail.json, supplierContact.json, mailTemplate.json,
+    │   │   manufacturerChannel.json, priceChanges.json, arrivals.json,
+    │   │   warehouseStock.json, stockSales.json
+    └── en/                        # 同じ18 namespace、jaと1対1のキー完全一致
+        └── (同上ファイル構成)
 ```
 
-- Backend APIは内部Code（英語）のみ返却し、日本語表示文言は一切返さない（要件MD 30.12で確定済み）。
-- Status/Attentionの表示変換は`status.json`/`attention.json`に要件MD 28.3〜28.5の対応表をそのまま格納する。
-- 9/17時点ではjaリソースのみ完成させればよい（要件MD 28.2）。enディレクトリの存在自体が「将来拡張を阻害しない」ことの担保になる。
+## 10.1 対応言語 / デフォルト言語
+
+- 対応言語: **ja（日本語）/ en（English）** の2言語。`SUPPORTED_LANGUAGES`（`index.ts`）で定義。将来言語を追加する場合はこの配列に言語コードを足し、対応する`locales/<lang>/`一式を用意するだけでよい構造（Provider側の変更は不要）。
+- デフォルト言語: **ja**。`i18n.init({ fallbackLng: 'ja', ... })` — 万一あるKeyが一時的に片言語で欠落していても、表示自体が壊れないためのSafety Netであり、翻訳未実施の代替ではない（Resource Parityは`i18nResources.test.ts`でCIレベルに保証、13章参照）。
+
+## 10.2 Language Switcher / 永続化
+
+- Global Headerの右上に`LanguageSwitcher`（`shared/components/LanguageSwitcher.tsx`）を配置。「日本語 / English」という各言語の自ネイティブ表記で選択肢を表示する（あえてt()を通さない唯一の箇所 — 現在読めない言語のUIから次の言語を選ぶため、翻訳した表記では選べなくなる）。
+- 選択言語は`localStorage`（キー: `gsys-ui-language`、`LANGUAGE_STORAGE_KEY`としてexport）に保存し、次回訪問時に`i18n.init({ lng: readStoredLanguage(), ... })`で復元する。ページ再読み込み・別タブでも選択が引き継がれる。
+- `document.documentElement.lang`もUI言語の切替に追随して更新する（`index.ts`の`languageChanged`リスナー）。HTML的な正しさ・スクリーンリーダーの発音のみに影響し、Backend送信内容には一切関与しない。
+
+## 10.3 UI言語 と Mail Template言語の分離（重要）
+
+- **UI表示言語**（本節のLanguage Switcher）と**メール本文の言語**（`mail_template.language`、メーカー/Supplier Contactごとに管理者が設定するDBフィールド）は完全に独立した別概念であり、混同してはならない。
+- UI言語を英語に切り替えても、日本語設定のメーカー向けメール本文が英語になることはない — Mail Previewの画面文言（ラベル・ボタン等）は`t()`でUI言語に追随するが、件名・本文そのものは常にMail Template自身の`language`設定から解決される（`MailPreviewService`側、Backend）。
+- 実装上もこの分離は構造的に保証されている: `i18n.language`/`i18n.resolvedLanguage`を参照しているのはFrontend中`LanguageSwitcher.tsx`のみであり、どのAPI呼び出しにもUI言語は一切乗らない（Backendは常にMail Templateの`language`列だけを見る）。
+
+## 10.4 Status/Enum・Audit Eventの表示変換
+
+- `DRAFT`/`PENDING_APPROVAL`/`APPROVED`/`SENT`/`AWAITING_RESPONSE`/`AGREED`/`EMAIL`/`EDI`/`CONFIRMED`/`PARTIAL`/`FAILED`/`PENDING`/`GENERATED`/`SUBMITTED`等の内部値は、DB・API上は一切変更せず、表示直前に`status.json`（および各画面のnamespace内`〇〇Status`ブロック）でja/enのLabelへ変換する。
+- Audit Event（例: `OFFICIAL_PO_NUMBER_CONFIRMED`）も同様にEvent Code自体は変更せず、Timeline表示側でja/enのLabelに変換する（history.json）。
+
+## 10.5 Demo Environment Bannerの多言語化
+
+- `common.json`の`demoEnvironmentBanner`キーで管理。ja/en文言は要件定義書の指定文言をそのまま採用（デモ環境である旨・Legacy互換Demo Instanceのデータである旨・本番G-SYSデータではない旨を明記）。
+
+- Backend APIは内部Code（英語）のみ返却し、日本語表示文言は一切返さない（要件MD 30.12、当初決定を維持）。
 
 ---
 
@@ -712,6 +733,17 @@ frontend/src/shared/i18n/
 | API Test | `@SpringBootTest` + MockMvc/RestAssured | 8章の全Endpoint、特にStatus遷移の正常系・異常系（飛び越し禁止等） |
 | Frontend | Vitest + React Testing Library | Order Qty Validation、Confirmed Qty null/0表示の見分け等の重要ロジック |
 | E2E | Playwright | 20章 Demo Scenarioを1本のシナリオテストとして自動化、9/17前の最終ゲートとする |
+
+## i18n完成フェーズで追加したTest（10章参照）
+
+`frontend`にVitest + React Testing Libraryを新規導入（それまでPlaywright E2Eのみだったため、Frontend単体のTest基盤自体が本フェーズの追加）。
+
+| ファイル | 内容 |
+|---|---|
+| `src/shared/i18n/i18nResources.test.ts` | ja/en 18 namespace全てで、Key集合が完全一致することを検証（`fallbackLng`に隠れて欠落Keyが放置される回帰の防止） |
+| `src/shared/components/LanguageSwitcher.test.tsx` | Switcherのネイティブ表記表示・選択状態・切替・localStorage書込 |
+| `src/shared/i18n/i18nPersistence.test.ts` | `localStorage`からの初期言語復元（デフォルトja／保存済みen／不正値からのFallback／書込→再読込の往復） |
+| `frontend/e2e/i18n-language-switch.spec.ts` | 実ブラウザでの言語切替・永続化（Reload後も保持）・日英主要画面（Dashboard/発注候補/発注一覧）表示、Status Label解決の確認 |
 
 ## Legacy READ ONLY保証のテスト
 

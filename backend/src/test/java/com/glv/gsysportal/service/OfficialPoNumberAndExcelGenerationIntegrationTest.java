@@ -161,7 +161,7 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
         assertEquals("GENERATED", response.status());
         assertTrue(response.excelGenerated());
 
-        byte[] bytes = integrationService.downloadExcel(order.getId());
+        byte[] bytes = integrationService.downloadExcel(order.getId()).bytes();
         try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
             Sheet sheet = wb.getSheetAt(0);
             assertEquals(VALID_PO_NO, cellString(sheet, 3, 9), "PO No. cell");

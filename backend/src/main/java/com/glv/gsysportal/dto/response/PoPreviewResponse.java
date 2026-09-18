@@ -28,6 +28,13 @@ public record PoPreviewResponse(
         PoPreviewSummaryResponse summary,
         ManufacturerCommunicationResponse manufacturerCommunication,
         boolean demoMode,
-        String communicationChannel
+        String communicationChannel,
+        /** Phase 9-D's Manufacturer Channel Master resolved value (EMAIL/EDI/
+         * null=unresolved) for this Draft's supplier+brand - same field/
+         * semantics as OrderHistoryDetailResponse.resolvedManufacturerChannel,
+         * added here so this screen's Send/Record buttons can be
+         * Channel-aware too (independent of communicationChannel above,
+         * which only reflects a Send that has already happened). */
+        String resolvedManufacturerChannel
 ) {
 }

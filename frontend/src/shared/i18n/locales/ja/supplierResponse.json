@@ -90,6 +90,10 @@
     "title": "回答履歴（Revision別）",
     "revisionLabel": "Revision {{no}}",
     "current": "現在",
-    "agreedBy": "{{by}}が合意"
+    "agreedBy": "{{by}}が合意",
+    "status": {
+      "PARTIAL": "一部回答",
+      "CONFIRMED": "回答確定"
+    }
   }
 }

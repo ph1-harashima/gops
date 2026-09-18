@@ -212,26 +212,35 @@ export function MailTemplatePage() {
               </Alert>
             )}
             <TextField label={t('field.templateName')} value={form.templateName}
-                       onChange={(e) => setForm({ ...form, templateName: e.target.value })}
+                       onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, templateName: v })) }}
                        size="small" fullWidth data-testid="mail-template-templateName" />
+            {/* Gulliver UI最終安定化 #1: templateType/language(Select)は、MUIのSelectが
+                内部でonChangeを二重にforwardする経路を持つ(handleChange->handleChange -
+                実測スタックトレースで確認済み)。setForm({...form, ...})という古いclosure
+                ベースの更新だと、二重発火時に両方が同じ古いformから新オブジェクトを計算し、
+                Reactの再レンダーと競合して「Maximum update depth exceeded」を引き起こしうる
+                (insertVariable()は元々関数型updater setForm(prev=>...)を使っており、過去2回の
+                発生ともこの関数型updater経路では一度も再現していない - 唯一のクローズド差分)。
+                このFormの全onChangeを関数型updaterへ統一し、この再入時の競合クラスを解消する。
+                UIの見た目・挙動・保存データ形式は一切変更しない。 */}
             <TextField select label={t('field.templateType')} value={form.templateType}
-                       onChange={(e) => setForm({ ...form, templateType: e.target.value })}
+                       onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, templateType: v })) }}
                        size="small" fullWidth data-testid="mail-template-templateType">
               {TEMPLATE_TYPES.map((type) => (
                 <MenuItem key={type} value={type}>{t(`templateType.${type}`)}</MenuItem>
               ))}
             </TextField>
             <TextField label={t('field.supplierCode')} helperText={t('field.supplierCodeHelp')} value={form.supplierCode ?? ''}
-                       onChange={(e) => setForm({ ...form, supplierCode: e.target.value })}
+                       onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, supplierCode: v })) }}
                        size="small" fullWidth data-testid="mail-template-supplierCode" />
             <TextField label={t('field.brandCode')} value={form.brandCode ?? ''}
-                       onChange={(e) => setForm({ ...form, brandCode: e.target.value })}
+                       onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, brandCode: v })) }}
                        size="small" fullWidth data-testid="mail-template-brandCode" />
             <TextField select label={t('field.language')} value={form.language}
-                       onChange={(e) => setForm({ ...form, language: e.target.value })}
+                       onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, language: v })) }}
                        size="small" fullWidth data-testid="mail-template-language">
-              <MenuItem value="ja">日本語</MenuItem>
-              <MenuItem value="en">English</MenuItem>
+              <MenuItem value="ja">{t('languageOption.ja')}</MenuItem>
+              <MenuItem value="en">{t('languageOption.en')}</MenuItem>
             </TextField>
             {/* Phase 7-F Header/List UX Audit (Mail Template Variable UX):
                 business users click (or drag) a Chip instead of typing/
@@ -265,7 +274,7 @@ export function MailTemplatePage() {
             <TextField
               label={t('field.subjectTemplate')}
               value={form.subjectTemplate}
-              onChange={(e) => setForm({ ...form, subjectTemplate: e.target.value })}
+              onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, subjectTemplate: v })) }}
               onFocus={() => setActiveField('subject')}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => handleVariableDrop(e, 'subject')}
@@ -277,7 +286,7 @@ export function MailTemplatePage() {
             <TextField
               label={t('field.bodyTemplate')}
               value={form.bodyTemplate}
-              onChange={(e) => setForm({ ...form, bodyTemplate: e.target.value })}
+              onChange={(e) => { const v = e.target.value; setForm((prev) => ({ ...prev, bodyTemplate: v })) }}
               onFocus={() => setActiveField('body')}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => handleVariableDrop(e, 'body')}
@@ -290,7 +299,7 @@ export function MailTemplatePage() {
             />
             <Typography variant="caption" color="text.secondary">{t('variablesHelp')}</Typography>
             <FormControlLabel
-              control={<Checkbox checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })}
+              control={<Checkbox checked={form.active} onChange={(e) => { const v = e.target.checked; setForm((prev) => ({ ...prev, active: v })) }}
                                  data-testid="mail-template-active" />}
               label={t('field.active')} />
           </Stack>

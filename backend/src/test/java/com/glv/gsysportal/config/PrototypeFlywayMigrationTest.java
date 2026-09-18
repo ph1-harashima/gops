@@ -71,7 +71,10 @@ class PrototypeFlywayMigrationTest {
         // EDI_INPUT_COMPLETED Audit type.
         // V22 (Phase 9-E): Real Email Send - order_email table,
         // EMAIL_SENT/EMAIL_SEND_FAILED Audit types.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22"), versions);
+        // V23 (Gulliver UI最終仕上げ #2): demo portal_user.email updated to
+        // natural fictional addresses matching each account's V14 display_name
+        // (e.g. admin01 -> suzuki.hanako@...) - data-only, no schema change.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"), versions);
     }
 
     @Test

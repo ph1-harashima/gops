@@ -432,7 +432,7 @@ export function OrderHistoryDetailPage() {
               {t('atAGlance.excelLabel')}: <strong>{integration?.excelGenerated ? t('atAGlance.done') : t('atAGlance.notYet')}</strong>
             </Typography>
             <Typography variant="body2">
-              {t('atAGlance.channelLabel')}: <strong>{detail.resolvedManufacturerChannel ? t(`communicationChannel.${detail.resolvedManufacturerChannel}`) : t('atAGlance.unresolved')}</strong>
+              {t('atAGlance.channelLabel')}: <strong>{detail.resolvedManufacturerChannel ? t(`communicationChannelValue.${detail.resolvedManufacturerChannel}`) : t('atAGlance.unresolved')}</strong>
             </Typography>
             {detail.resolvedManufacturerChannel === 'EMAIL' && (
               <Typography variant="body2">
@@ -515,7 +515,7 @@ export function OrderHistoryDetailPage() {
             />
             {detail.ediStatus === 'COMPLETED' && detail.ediCompletedAt && (
               <Typography variant="caption" color="text.secondary">
-                {t('ediStatus.completedByLabel')}: {detail.ediCompletedBy} - {t('ediStatus.completedAtLabel')}: {new Date(detail.ediCompletedAt).toLocaleString('ja-JP')}
+                {t('ediStatus.completedByLabel')}: {detail.ediCompletedByDisplayName ?? detail.ediCompletedBy} - {t('ediStatus.completedAtLabel')}: {new Date(detail.ediCompletedAt).toLocaleString('ja-JP')}
               </Typography>
             )}
           </Stack>
@@ -555,12 +555,40 @@ export function OrderHistoryDetailPage() {
               <TableCell>{t('detailTable.requestedDelivery')}</TableCell>
               <TableCell>{t('detailTable.confirmedDelivery')}</TableCell>
               <TableCell>{t('detailTable.attention')}</TableCell>
+              {/* Gap Analysis B-1 (docs/gulliver-20260917-phase1-gap-analysis.md
+                  5章): the same judgement material the person who placed the
+                  order already saw on Candidate List/Draft - live Legacy READ
+                  ONLY values, not a new calculation. Appended AFTER the
+                  pre-existing columns (never inserted earlier) so no existing
+                  column's position shifts - existing E2E (e.g.
+                  fulfillment-follow-up-foundation.spec.ts) locates cells by
+                  fixed nth() index against this same table. */}
+              <TableCell align="right">{t('detailTable.currentStock')}</TableCell>
+              <TableCell align="right">{t('detailTable.monthlySales')}</TableCell>
+              <TableCell>{t('detailTable.leadTime')}</TableCell>
+              <TableCell align="right">{t('detailTable.openArrival')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {detail.details.map((line) => (
               <TableRow key={line.sku} hover>
-                <TableCell>{line.sku}</TableCell>
+                <TableCell>
+                  {/* Gap Analysis B-2: link to SKU Detail (Arrival予定 and
+                      full Stock/Sales history live there), carrying this
+                      screen's own path via returnTo - same idiom as
+                      Candidate List/Warehouse Stock/Stock-Sales already use
+                      (Phase 8-M Principle D), so SKU Detail's 戻る returns
+                      here specifically. */}
+                  <Button
+                    size="small"
+                    variant="text"
+                    sx={{ p: 0, minWidth: 0, textTransform: 'none' }}
+                    onClick={() => navigate(withReturnTo(`/items/${encodeURIComponent(line.sku)}`, ownPath))}
+                    data-testid={`sku-detail-link-${line.sku}`}
+                  >
+                    {line.sku}
+                  </Button>
+                </TableCell>
                 <TableCell>{line.itemName}</TableCell>
                 <TableCell align="right">{line.recommendedQty}</TableCell>
                 <TableCell align="right">{line.orderedQty}</TableCell>
@@ -568,6 +596,10 @@ export function OrderHistoryDetailPage() {
                 <TableCell>{line.requestedDelivery ?? t('notAvailable')}</TableCell>
                 <TableCell>{line.confirmedDelivery ?? t('notAvailable')}</TableCell>
                 <TableCell><AttentionChips attentions={line.attentions} acknowledgeable /></TableCell>
+                <TableCell align="right">{line.currentStock ?? t('notAvailable')}</TableCell>
+                <TableCell align="right">{line.monthlySales ?? t('notAvailable')}</TableCell>
+                <TableCell>{line.leadTime ?? t('notAvailable')}</TableCell>
+                <TableCell align="right">{line.openArrival ?? t('notAvailable')}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -675,12 +707,12 @@ export function OrderHistoryDetailPage() {
               )}
               {integration.requestedAt && (
                 <Typography variant="caption" color="text.secondary">
-                  {t('officialPoIntegration.requestedByLabel')}: {integration.requestedBy} - {t('officialPoIntegration.requestedAtLabel')}: {new Date(integration.requestedAt).toLocaleString('ja-JP')}
+                  {t('officialPoIntegration.requestedByLabel')}: {integration.requestedByDisplayName ?? integration.requestedBy} - {t('officialPoIntegration.requestedAtLabel')}: {new Date(integration.requestedAt).toLocaleString('ja-JP')}
                 </Typography>
               )}
               {integration.preflight && (
                 <Box data-testid="preflight-result">
-                  <Typography variant="body2" sx={{ fontWeight: 'bold', mt: 1 }}>
+                  <Typography component="div" variant="body2" sx={{ fontWeight: 'bold', mt: 1 }}>
                     {t('officialPoIntegration.lastResultLabel')}:{' '}
                     <Chip
                       size="small"
@@ -690,12 +722,18 @@ export function OrderHistoryDetailPage() {
                     />
                   </Typography>
                   <Stack spacing={0.5} sx={{ mt: 1 }}>
-                    {integration.preflight.issues.map((issue, i) => (
-                      <Typography key={i} variant="body2" color="text.secondary">
-                        {t(`officialPoIntegration.preflightIssue.${issue.code}`, { defaultValue: issue.code })}
-                        {issue.skuCode ? ` (${issue.skuCode})` : ''}
-                      </Typography>
-                    ))}
+                    {integration.preflight.issues
+                      // Gulliver UI最終仕上げ #1: OFFICIAL_PO_NO_NOT_ASSIGNEDはPreflight実行時点
+                      // (正式PO番号確定より前)のスナップショットなので、確定後もそのまま表示すると
+                      // 画面上部の正式PO番号表示と矛盾する。確定済みならこの注記だけ非表示にする
+                      // (他のissueや最終チェック結果Chip自体は従来通り表示 - 表示条件のみの変更)。
+                      .filter((issue) => !(issue.code === 'OFFICIAL_PO_NO_NOT_ASSIGNED' && integration.officialPoNo))
+                      .map((issue, i) => (
+                        <Typography key={i} variant="body2" color="text.secondary">
+                          {t(`officialPoIntegration.preflightIssue.${issue.code}`, { defaultValue: issue.code })}
+                          {issue.skuCode ? ` (${issue.skuCode})` : ''}
+                        </Typography>
+                      ))}
                   </Stack>
                 </Box>
               )}
@@ -1061,10 +1099,28 @@ export function OrderHistoryDetailPage() {
         </Paper>
       )}
 
+      {/* §6 Channel-aware audit fix: an EDI-resolved manufacturer never sees
+          Mail Preview/Send as a normal operating path - only a short notice
+          pointing at the EDI status tracker Section above. Gated on
+          resolvedManufacturerChannel (the Master's own "what SHOULD happen"),
+          not communicationChannel (only set after a Send already occurred),
+          so the notice also covers the APPROVED-but-not-yet-sent window. */}
+      {(detail.status === 'APPROVED' || (integration && integration.status !== 'NOT_REQUESTED'))
+        && detail.resolvedManufacturerChannel === 'EDI' && detail.communicationChannel !== 'EDI' && (
+        <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="edi-channel-notice">
+          <Alert severity="info">{t('mailPreview.ediChannelNotice')}</Alert>
+        </Paper>
+      )}
+
       {/* Phase 7-C3 9章/11章: Mail Preview only - no Send API exists this
           Phase. Same visibility/co-location as the Integration Section
-          above; deliberately separate Label from "Demo Send" (7-C3 11章). */}
-      {(detail.status === 'APPROVED' || (integration && integration.status !== 'NOT_REQUESTED')) && (
+          above; deliberately separate Label from "Demo Send" (7-C3 11章).
+          §6 Channel-aware audit fix: never shown at all once the
+          Manufacturer Channel Master has resolved to EDI - the notice Box
+          above takes its place so staff are never offered an Email-shaped
+          action for an EDI manufacturer. */}
+      {(detail.status === 'APPROVED' || (integration && integration.status !== 'NOT_REQUESTED'))
+        && detail.resolvedManufacturerChannel !== 'EDI' && (
         <Paper variant="outlined" sx={{ p: 2, mt: 2 }} data-testid="mail-preview-section">
           <Typography variant="subtitle1" gutterBottom>{t('mailPreview.title')}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('mailPreview.subtitle')}</Typography>
@@ -1111,7 +1167,7 @@ export function OrderHistoryDetailPage() {
               )}
               <Typography variant="body2" color="text.secondary">
                 {t('mailPreview.attachment')}: {mailPreviewMutation.data.attachment.fileName ?? '—'}
-                {' '}{t('mailPreview.attachmentNotGenerated')}
+                {' '}{t(mailPreviewMutation.data.attachment.generated ? 'mailPreview.attachmentGenerated' : 'mailPreview.attachmentNotGenerated')}
               </Typography>
             </Stack>
           )}
@@ -1143,7 +1199,7 @@ export function OrderHistoryDetailPage() {
 
               {emailStatus?.status === 'SENT' && (
                 <Alert severity="success" sx={{ mb: 2 }} data-testid="email-sent-note">
-                  {t('mailPreview.sentNote')} ({emailStatus.sentBy} - {emailStatus.sentAt ? new Date(emailStatus.sentAt).toLocaleString('ja-JP') : ''})
+                  {t('mailPreview.sentNote')} ({emailStatus.sentByDisplayName ?? emailStatus.sentBy} - {emailStatus.sentAt ? new Date(emailStatus.sentAt).toLocaleString('ja-JP') : ''})
                 </Alert>
               )}
               {emailStatus?.status === 'FAILED' && (
@@ -1216,7 +1272,9 @@ export function OrderHistoryDetailPage() {
                   {t('responseHistory.revisionLabel', { no: h.revisionNo })}
                   {h.isCurrent ? ` (${t('responseHistory.current')})` : ''}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">{h.responseStatus}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {t(`responseHistory.status.${h.responseStatus}`, { defaultValue: h.responseStatus })}
+                </Typography>
                 {h.agreedBy && (
                   <Typography variant="caption" color="text.secondary">
                     {t('responseHistory.agreedBy', { by: h.agreedByDisplayName ?? h.agreedBy })}

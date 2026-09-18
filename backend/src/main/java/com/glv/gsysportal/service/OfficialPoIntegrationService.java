@@ -30,6 +30,10 @@ import com.glv.gsysportal.repository.legacy.row.LegacyPoConcurrencyLineRow;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import com.glv.gsysportal.repository.prototype.PortalUserRepository;
+import com.glv.gsysportal.domain.PortalUser;
+import com.glv.gsysportal.service.excel.OfficialPoExcelDownload;
+import com.glv.gsysportal.service.excel.OfficialPoFileNaming;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderAdapter;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderWriteException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -37,7 +41,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -65,8 +68,6 @@ public class OfficialPoIntegrationService {
      * + "-" + revisionNo} (unique per actual hand-off attempt target). */
     static final String OPERATION_TYPE_FILE_PLACEMENT = "OFFICIAL_PO_FILE_PLACEMENT";
 
-    private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-
     private final PortalOrderRepository portalOrderRepository;
     private final OfficialPoIntegrationRequestRepository integrationRequestRepository;
     private final AuditEventRepository auditEventRepository;
@@ -76,6 +77,7 @@ public class OfficialPoIntegrationService {
     private final IdempotencyService idempotencyService;
     private final LegacyPoConcurrencyReadRepository legacyReadRepository;
     private final ObjectMapper objectMapper;
+    private final PortalUserRepository portalUserRepository;
 
     public OfficialPoIntegrationService(PortalOrderRepository portalOrderRepository,
                                          OfficialPoIntegrationRequestRepository integrationRequestRepository,
@@ -85,7 +87,8 @@ public class OfficialPoIntegrationService {
                                          OfficialPoImportFolderAdapter importFolderAdapter,
                                          IdempotencyService idempotencyService,
                                          LegacyPoConcurrencyReadRepository legacyReadRepository,
-                                         ObjectMapper objectMapper) {
+                                         ObjectMapper objectMapper,
+                                         PortalUserRepository portalUserRepository) {
         this.portalOrderRepository = portalOrderRepository;
         this.integrationRequestRepository = integrationRequestRepository;
         this.auditEventRepository = auditEventRepository;
@@ -95,6 +98,7 @@ public class OfficialPoIntegrationService {
         this.idempotencyService = idempotencyService;
         this.legacyReadRepository = legacyReadRepository;
         this.objectMapper = objectMapper;
+        this.portalUserRepository = portalUserRepository;
     }
 
     /**
@@ -329,7 +333,13 @@ public class OfficialPoIntegrationService {
 
         OffsetDateTime now = OffsetDateTime.now();
         byte[] excelBytes = excelGenerationService.load(request.getGeneratedFileKey());
-        String fileName = "order-" + orderId + "-rev" + targetRevisionNo + "-" + now.format(FILE_TS) + ".xlsx";
+        // Gap Analysis B-3/B-4 (docs/gulliver-20260917-phase1-gap-analysis.md
+        // 7章): human-identifiable name (Supplier/Brand/Date/PO No./3-digit
+        // Revision), same shared builder downloadExcel() uses - WORKING
+        // ASSUMPTION, Import Contract-safe (see OfficialPoFileNaming's
+        // Javadoc for the re-confirmed Legacy Fact backing that claim).
+        String fileName = OfficialPoFileNaming.buildFileName(order.getSupplierCode(), order.getBrandCode(),
+                now.toLocalDate(), request.getOfficialPoNo(), targetRevisionNo, "xlsx");
 
         try {
             importFolderAdapter.place(excelBytes, fileName);
@@ -422,16 +432,24 @@ public class OfficialPoIntegrationService {
     }
 
     /** Streams the stored Excel bytes for staff review (design doc §14's
-     * "生成結果" - never exposes the storage key itself to the caller). */
+     * "生成結果" - never exposes the storage key itself to the caller).
+     * Gap Analysis B-3: the returned file name is the same human-identifiable
+     * format {@link #placeToImportFolder} uses for the Import Folder copy -
+     * one shared naming source ({@link OfficialPoFileNaming}), not two. */
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
-    public byte[] downloadExcel(Long orderId) {
+    public OfficialPoExcelDownload downloadExcel(Long orderId) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
         OfficialPoIntegrationRequest request = integrationRequestRepository
                 .findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
                 .orElseThrow(() -> new OfficialPoExcelNotGeneratedException(orderId));
         if (request.getGeneratedFileKey() == null) {
             throw new OfficialPoExcelNotGeneratedException(orderId);
         }
-        return excelGenerationService.load(request.getGeneratedFileKey());
+        byte[] bytes = excelGenerationService.load(request.getGeneratedFileKey());
+        String fileName = OfficialPoFileNaming.buildFileName(order.getSupplierCode(), order.getBrandCode(),
+                request.getGeneratedAt() == null ? null : request.getGeneratedAt().toLocalDate(),
+                request.getOfficialPoNo(), request.getRevisionNo(), "xlsx");
+        return new OfficialPoExcelDownload(bytes, fileName);
     }
 
     /** PENDING/GENERATED are still editable; SUBMITTED/CONFIRMED/FAILED are
@@ -448,9 +466,11 @@ public class OfficialPoIntegrationService {
     private OfficialPoIntegrationResponse toResponse(OfficialPoIntegrationRequest r) {
         OfficialPoPreflightResult preflight = r.getPreflightResult() == null ? null
                 : new OfficialPoPreflightResult(r.getPreflightResult(), readIssuesJson(r.getPreflightIssuesJson()));
+        String requestedByDisplayName = r.getRequestedBy() == null ? null
+                : portalUserRepository.findByUsername(r.getRequestedBy()).map(PortalUser::getDisplayName).orElse(null);
         return new OfficialPoIntegrationResponse(
                 r.getPortalOrderId(), r.getRevisionNo(), r.getStatus(), r.getOfficialPoNo(),
-                r.getRequestedBy(), r.getRequestedAt(), preflight,
+                r.getRequestedBy(), requestedByDisplayName, r.getRequestedAt(), preflight,
                 r.getGeneratedAt(), r.getSubmittedAt(), r.getConfirmedAt(), r.getFailedAt(),
                 r.getErrorCode(), r.getErrorMessage(), r.getIntegrationIntent(),
                 r.getDeliveryWeek(), r.getDeliveryDate(), r.getShipVia(), r.getShipTerm(), r.getPaymentTerm(),

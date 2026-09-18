@@ -38,13 +38,16 @@ public class PoPreviewService {
     private final PortalOrderRepository portalOrderRepository;
     private final PoPreviewValidator validator;
     private final DemoManufacturerCommunicationFactory communicationFactory;
+    private final ManufacturerChannelResolutionService channelResolutionService;
 
     public PoPreviewService(PortalOrderRepository portalOrderRepository,
                              PoPreviewValidator validator,
-                             DemoManufacturerCommunicationFactory communicationFactory) {
+                             DemoManufacturerCommunicationFactory communicationFactory,
+                             ManufacturerChannelResolutionService channelResolutionService) {
         this.portalOrderRepository = portalOrderRepository;
         this.validator = validator;
         this.communicationFactory = communicationFactory;
+        this.channelResolutionService = channelResolutionService;
     }
 
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
@@ -78,13 +81,15 @@ public class PoPreviewService {
         PoPreviewSummaryResponse summary = new PoPreviewSummaryResponse(details.size(), totalQty, totalAmount);
 
         ManufacturerCommunicationResponse communication = communicationFactory.build(order, order.getPrototypePoNo());
+        String resolvedChannel = channelResolutionService.resolve(order.getSupplierCode(), order.getBrandCode());
 
         return new PoPreviewResponse(
                 order.getId(), order.getDraftNo(), order.getPrototypePoNo(),
                 order.getSupplierCode(), order.getSupplierNameSnapshot(),
                 order.getBrandCode(), order.getBrandNameSnapshot(),
                 order.getOrderDate(), order.getRequestedDelivery(), order.getCurrency(), order.getRemark(),
-                order.getStatus(), details, summary, communication, true, order.getCommunicationChannel()
+                order.getStatus(), details, summary, communication, true, order.getCommunicationChannel(),
+                resolvedChannel
         );
     }
 }

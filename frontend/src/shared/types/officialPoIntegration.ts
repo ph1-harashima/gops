@@ -22,6 +22,9 @@ export interface OfficialPoIntegration {
   status: string
   officialPoNo: string | null
   requestedBy: string | null
+  /** i18n localization audit: prefer this for display, fall back to
+   * requestedBy when null (matches AuditEventView.performedByDisplayName). */
+  requestedByDisplayName: string | null
   requestedAt: string | null
   preflight: OfficialPoPreflightResult | null
   generatedAt: string | null

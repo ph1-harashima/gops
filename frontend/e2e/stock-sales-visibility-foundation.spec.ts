@@ -114,6 +114,18 @@ test.describe('Phase 8-H: Stock / Sales Visibility Foundation', () => {
     await page.getByTestId('nav-stock-sales').click()
     await expect(page.getByTestId('stock-sales-pagination')).toBeVisible()
 
+    // Gulliver UI最終安定化 #2: force Rows-per-page down to 10 (one of
+    // StockSalesListPage.tsx's own rowsPerPageOptions=[10,20,50,100]) instead
+    // of relying on the default page size (20) happening to be smaller than
+    // however many rows Demo Data currently has. That coupling broke when an
+    // earlier Phase excluded CC-ITEM-001~005 from this Browse view (24 -> 19
+    // rows, below 20) - a Demo Data volume this test never needed to depend
+    // on. With size=10 "Go to next page" is deterministically enabled as long
+    // as there are more than 10 rows, true for any realistic seed catalog.
+    await page.getByTestId('stock-sales-pagination').getByRole('combobox').click()
+    await page.getByRole('option', { name: '10', exact: true }).click()
+    await expect(page).toHaveURL(/[?&]size=10/)
+
     await page.getByTestId('stock-sales-pagination').getByLabel('Go to next page').click()
     await expect(page).toHaveURL(/[?&]page=1/)
   })

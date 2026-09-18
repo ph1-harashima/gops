@@ -2,6 +2,7 @@
   "back": "発注候補一覧へ戻る",
   "backToWarehouseStock": "倉庫在庫へ戻る",
   "backToStockSales": "在庫・販売確認へ戻る",
+  "backToOrderDetail": "発注詳細へ戻る",
   "notFound": "指定されたSKUが見つかりませんでした。",
   "viewArrivals": "入荷確認を見る",
   "notAvailable": "—",
@@ -35,6 +36,6 @@
     "supplier": "メーカー",
     "qty": "数量",
     "unitPrice": "単価",
-    "status": "Status"
+    "status": "ステータス"
   }
 }

@@ -1,6 +1,12 @@
 {
-  "_comment": "Placeholder only, per Technical Design 10章. English resources are not required to be complete for 9/17.",
-  "appName": "G-SYS Online Ordering (Prototype)",
+  "appName": "G-SYS Online Ordering",
+  "demoEnvironmentBanner": "Demo Environment - Data shown is from the Legacy-compatible demo instance, not the production G-SYS environment.",
+  "loading": "Loading...",
+  "errorGeneric": "Failed to load data. Please wait a moment and try again.",
+  "retry": "Retry",
+  "logout": "Log Out",
+  "navDashboard": "Dashboard",
+  "navCandidates": "Order Candidates",
   "navHistory": "Orders",
   "navPriceChanges": "Price Changes",
   "navArrivals": "Arrivals",
@@ -9,5 +15,6 @@
   "navMasterMaintenance": "Master Maintenance",
   "navAdminSupplierContacts": "Supplier Contacts",
   "navAdminMailTemplates": "Mail Templates",
-  "navAdminManufacturerChannels": "Manufacturer Channels"
+  "navAdminManufacturerChannels": "Manufacturer Channels",
+  "demoEnvironmentBadge": "Demo Environment"
 }

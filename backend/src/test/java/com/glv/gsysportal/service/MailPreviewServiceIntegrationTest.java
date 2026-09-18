@@ -3,6 +3,7 @@ package com.glv.gsysportal.service;
 import com.glv.gsysportal.domain.MailTemplate;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.SupplierContact;
+import com.glv.gsysportal.dto.request.ConfirmOfficialPoNumberRequest;
 import com.glv.gsysportal.dto.request.CreateDraftRequest;
 import com.glv.gsysportal.dto.request.MailTemplateRequest;
 import com.glv.gsysportal.dto.request.SupplierContactRequest;
@@ -52,6 +53,8 @@ class MailPreviewServiceIntegrationTest {
     private MailTemplateService templateService;
     @Autowired
     private PortalOrderRepository portalOrderRepository;
+    @Autowired
+    private OfficialPoIntegrationService officialPoIntegrationService;
 
     private PortalOrder createApprovedOrder() {
         OrderDraftResponse draft = orderDraftService.createDraft(
@@ -116,7 +119,45 @@ class MailPreviewServiceIntegrationTest {
         assertEquals(List.of("taro@example.com"), preview.to());
         assertEquals("OFFICIAL_PO_EXCEL", preview.attachment().type());
         assertEquals("TSUP-TBR-01.xlsx", preview.attachment().fileName());
-        assertFalse(preview.attachment().generated(), "7-C3 16章: metadata only, no real File is generated");
+        // officialPoNo is set directly on the entity here (no
+        // official_po_integration_request row exists for this Order), so
+        // generated() correctly reflects "no Excel has actually been
+        // generated yet" - see attachmentGeneratedReflectsRealExcelGenerationState
+        // below for the true/has-been-generated case.
+        assertFalse(preview.attachment().generated());
+    }
+
+    /** Regression test for the Attachment表示 fix (audit finding: "未生成"
+     * stayed hardcoded even after Official PO Excel生成) - drives the real
+     * G-SYS連携準備 -> 正式PO番号確定 -> Excel生成 chain (not a direct entity
+     * write, unlike the Test-only officialPoNo set above) so
+     * attachment().generated() reflects the actual generated_file_key state. */
+    @Test
+    void attachmentGeneratedReflectsRealExcelGenerationState() {
+        PortalOrder order = createApprovedOrder();
+        contactService.create(new SupplierContactRequest("SUP_ALPHA", "BR_OUTDOOR", "Taro Yamada", "taro@example.com",
+                SupplierContact.CONTACT_TYPE_TO, SupplierContact.LANGUAGE_JA, null, null, true, true), ADMIN);
+        templateService.create(new MailTemplateRequest("PO Template 2", MailTemplate.TEMPLATE_TYPE_PURCHASE_ORDER,
+                "SUP_ALPHA", "BR_OUTDOOR", SupplierContact.LANGUAGE_JA,
+                "PO {{poNo}}", "{{contactName}} 様\nPO No: {{poNo}}", "OFFICIAL_PO_EXCEL", true), ADMIN);
+
+        var integration = officialPoIntegrationService.requestIntegration(order.getId(), ADMIN);
+        // Display Name統一 (audit finding: "申請者: admin01" showed the raw
+        // Login ID) - requestedByDisplayName resolves the real portal_user
+        // row for the "admin01" seeded fixture, same idiom as
+        // AuditEventView.performedByDisplayName.
+        assertEquals(ADMIN, integration.requestedBy());
+        assertTrue(integration.requestedByDisplayName() != null && !integration.requestedByDisplayName().equals(ADMIN));
+        officialPoIntegrationService.confirmOfficialPoNumber(order.getId(),
+                new ConfirmOfficialPoNumberRequest("TSUP-TBR-02", null, null, null, null, null), ADMIN);
+
+        MailPreviewResponse beforeGenerate = mailPreviewService.preview(order.getId(), ADMIN);
+        assertFalse(beforeGenerate.attachment().generated());
+
+        officialPoIntegrationService.generateExcel(order.getId(), ADMIN);
+
+        MailPreviewResponse afterGenerate = mailPreviewService.preview(order.getId(), ADMIN);
+        assertTrue(afterGenerate.attachment().generated());
     }
 
     @Test

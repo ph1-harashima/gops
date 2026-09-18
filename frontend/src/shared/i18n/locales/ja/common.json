@@ -1,5 +1,5 @@
 {
-  "appName": "G-SYS Online Ordering (Prototype)",
+  "appName": "G-SYS Online Ordering",
   "demoEnvironmentBanner": "Demo Environment - Legacy互換Demo Instanceのデータを表示しています（本番G-SYSデータではありません）",
   "loading": "読み込み中...",
   "errorGeneric": "データの取得に失敗しました。時間をおいて再度お試しください。",

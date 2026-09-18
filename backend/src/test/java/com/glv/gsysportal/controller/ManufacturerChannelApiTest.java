@@ -1,6 +1,7 @@
 package com.glv.gsysportal.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.glv.gsysportal.repository.prototype.ManufacturerChannelRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -32,6 +33,8 @@ class ManufacturerChannelApiTest {
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private ManufacturerChannelRepository manufacturerChannelRepository;
 
     private String body(String supplierCode, String channel) throws Exception {
         return objectMapper.writeValueAsString(Map.of(
@@ -77,6 +80,17 @@ class ManufacturerChannelApiTest {
                         .contentType("application/json").content(body("SUP_GAMMA", "EMAIL")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.channel").value("EMAIL"));
+
+        // Gulliver UI最終安定化 #3: this test's transaction is NOT rolled back
+        // (NOT_SUPPORTED, required for MockMvc's sequential create/list/update
+        // calls to see each other's committed state - same reason as
+        // SupplierContactMailTemplateApiTest, which this class already
+        // mirrors). Without an explicit cleanup, this row's (supplierCode,
+        // brandCode) identity (SUP_GAMMA/BR_KITCHEN) stayed committed after
+        // the test finished, so a second `mvn test` run against the same
+        // local Postgres collided with a 409 on the same POST. Clean up
+        // explicitly, matching the sibling test's own precedent exactly.
+        manufacturerChannelRepository.deleteById(id);
     }
 
     @Test

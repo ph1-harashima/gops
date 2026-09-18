@@ -122,7 +122,7 @@ test.describe('Phase 6-B: Order List / Order Detail', () => {
     await expect(page.getByText('承認しました。')).toBeVisible()
 
     const action = page.getByTestId('order-detail-primary-action')
-    await expect(action).toHaveText('PO Previewを見る')
+    await expect(action).toHaveText('PO プレビューを見る')
     await action.click()
     await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview`))
 

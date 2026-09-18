@@ -1,6 +1,6 @@
 {
   "title": "Mail Template Management",
-  "subtitle": "Mail Template Master (Portal-only). Only PURCHASE_ORDER has real Resolution logic this Phase.",
+  "subtitle": "Set the subject/body templates used for order emails.",
   "createButton": "New",
   "editButton": "Edit",
   "table": {
@@ -32,6 +32,10 @@
     "PURCHASE_ORDER_REVISION": "PURCHASE_ORDER_REVISION",
     "FOLLOW_UP": "FOLLOW_UP",
     "CANCELLATION": "CANCELLATION"
+  },
+  "languageOption": {
+    "ja": "Japanese",
+    "en": "English"
   },
   "variablesInsertHelp": "Click (or drag & drop) to insert a variable into whichever of Subject/Body was last focused.",
   "variable": {

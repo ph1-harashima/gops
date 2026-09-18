@@ -77,7 +77,7 @@
     "reopenDialogConfirm": "Reopen"
   },
   "revision": {
-    "createButton": "Create Corrected Version",
+    "createButton": "Create Revision",
     "errorReasonRequired": "Please enter a reason for the correction.",
     "createDialogTitle": "Create a corrected version?",
     "createDialogBody": "Returns the Order to an editable Draft. The current Order Revision is preserved as history exactly as it is.",
@@ -90,6 +90,10 @@
     "title": "Supplier Response History",
     "revisionLabel": "Revision {{no}}",
     "current": "current",
-    "agreedBy": "Agreed by {{by}}"
+    "agreedBy": "Agreed by {{by}}",
+    "status": {
+      "PARTIAL": "Partial",
+      "CONFIRMED": "Confirmed"
+    }
   }
 }

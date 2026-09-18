@@ -16,6 +16,8 @@ import MenuItem from '@mui/material/MenuItem'
 import PersonIcon from '@mui/icons-material/Person'
 import LogoutIcon from '@mui/icons-material/Logout'
 
+import { LanguageSwitcher } from '../shared/components/LanguageSwitcher'
+
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { CandidateListPage } from '../features/candidates/CandidateListPage'
 import { SkuDetailPage } from '../features/skuDetail/SkuDetailPage'
@@ -262,6 +264,13 @@ export function App() {
               </Stack>
             </>
           )}
+          {/* G-OPS i18n完成 #3: 右上、常時表示（未ログイン時のLoginページでも
+              言語を選べるよう{user && ...}の外に置く）。Mail Templateの
+              language(DB値、メーカー/Supplierごとの送信言語)とは無関係 -
+              これはUI表示言語のみを切り替える(§7)。 */}
+          <Box sx={{ ml: 2 }}>
+            <LanguageSwitcher />
+          </Box>
         </Toolbar>
       </AppBar>
       <Alert severity="warning" square sx={{ borderRadius: 0 }}>

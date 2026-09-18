@@ -322,7 +322,14 @@ export function PoPreviewPage() {
             {returnMutation.isPending ? <CircularProgress size={20} /> : t('editOrder')}
           </Button>
         )}
-        {preview.status === 'APPROVED' && (
+        {/* §6/§7 Channel-aware audit fix: gated on resolvedManufacturerChannel
+            (Manufacturer Channel Master's "what SHOULD happen") so an
+            EDI-resolved manufacturer never sees the Email action here.
+            Unresolved (no Master row yet, null) still shows BOTH actions -
+            preserves the pre-Phase-9-D fallback (edi-workflow-foundation.spec.ts
+            Scenario G/H's own explicit "both visible" assumption for an
+            unconfigured Supplier) rather than guessing which one applies. */}
+        {preview.status === 'APPROVED' && preview.resolvedManufacturerChannel !== 'EDI' && (
           <Button
             variant="contained"
             color="primary"
@@ -333,16 +340,7 @@ export function PoPreviewPage() {
             {demoSendMutation.isPending ? <CircularProgress size={20} /> : t('demoSend')}
           </Button>
         )}
-        {/* Phase 7-H (EDI発注Workflow Foundation): "PO確定" (this Order being
-            APPROVED) and "どのChannelでSupplierへ発注したか" are deliberately
-            NOT conflated (7-H 9章の設計原則) - shown side by side with 送信
-            rather than gated by any per-Supplier Master setting, since no
-            such "this Supplier uses EDI" data exists anywhere in Source yet
-            (Phase 7-H audit finding - inventing it would be guessing a
-            Business Rule). The ADMIN/OPERATOR picks per-Order which actually
-            happened; Supplier Response/Revision/Agreement afterward are
-            fully unaffected by which one was clicked. */}
-        {preview.status === 'APPROVED' && (
+        {preview.status === 'APPROVED' && preview.resolvedManufacturerChannel !== 'EMAIL' && (
           <Button
             variant="outlined"
             onClick={() => setEdiSendDialogOpen(true)}

@@ -573,7 +573,9 @@ export function SupplierResponsePage() {
                   {t('history.revisionLabel', { no: h.revisionNo })}
                   {h.isCurrent ? ` (${t('history.current')})` : ''}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">{h.responseStatus}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {t(`history.status.${h.responseStatus}`, { defaultValue: h.responseStatus })}
+                </Typography>
                 {h.agreedBy && <Typography variant="caption" color="text.secondary">{t('history.agreedBy', { by: h.agreedByDisplayName ?? h.agreedBy })}</Typography>}
               </Stack>
             ))}

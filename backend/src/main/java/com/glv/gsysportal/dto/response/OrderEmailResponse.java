@@ -15,11 +15,15 @@ public record OrderEmailResponse(
         String subject,
         OffsetDateTime sentAt,
         String sentBy,
+        /** i18n localization audit (matches {@code AuditEventView.performedByDisplayName}'s
+         * documented idiom) - Frontend prefers this for display, falling back
+         * to sentBy when null. */
+        String sentByDisplayName,
         String errorCode,
         String errorMessage,
         int retryCount
 ) {
     public static OrderEmailResponse notSent(Long orderId) {
-        return new OrderEmailResponse(orderId, 0, null, List.of(), List.of(), null, null, null, null, null, 0);
+        return new OrderEmailResponse(orderId, 0, null, List.of(), List.of(), null, null, null, null, null, null, 0);
     }
 }

@@ -87,7 +87,7 @@ test.describe('Phase 6-A: List State Preservation', () => {
 
     // Status options render even before any data loads, so this is the
     // most reliably non-empty Filter to drive for this Scenario.
-    await selectFirstRealOption(page, 'Status')
+    await selectFirstRealOption(page, 'ステータス')
     await expect(page).toHaveURL(/status=/)
     const listUrl = page.url()
 

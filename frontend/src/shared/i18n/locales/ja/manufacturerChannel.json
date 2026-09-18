@@ -1,6 +1,6 @@
 {
   "title": "メーカー通信方法管理",
-  "subtitle": "Manufacturer Channel Master（Portal専用 - Legacyにはメーカーの発注方法Masterが存在しません）。メーカーごとにEmail/EDIを設定します。",
+  "subtitle": "メーカーごとの発注方法（Email／EDI）を設定します。",
   "createButton": "新規作成",
   "editButton": "編集",
   "table": {

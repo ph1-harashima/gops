@@ -1,6 +1,6 @@
 {
   "title": "Manufacturer Channel Management",
-  "subtitle": "Manufacturer Channel Master (Portal-only - Legacy has no Master for how a manufacturer places orders). Set Email/EDI per manufacturer.",
+  "subtitle": "Set each manufacturer's ordering method (Email / EDI).",
   "createButton": "Create New",
   "editButton": "Edit",
   "table": {

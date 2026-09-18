@@ -1,14 +1,29 @@
 {
-  "_comment": "Placeholder only, per common.json's English convention - only the Phase 7-C1 new key is added here, existing keys fall back to ja.",
+  "title": "Dashboard",
   "kpi": {
+    "candidates": "Order Candidates",
+    "outOfStock": "Out of Stock",
+    "longTermOutOfStock": "Long-term Out of Stock",
+    "draft": "In Progress",
     "pendingApproval": "Pending Approval",
+    "awaitingSupplier": "Awaiting Supplier Response",
+    "attention": "Needs Attention",
     "openFollowUpCase": "Open Follow-up Cases",
     "priceChangeDraft": "Price Change (Draft)"
   },
   "nav": {
     "title": "Other Screens",
-    "arrivals": "Arrival Confirmation",
+    "arrivals": "Arrivals",
     "warehouseStock": "Warehouse Stock",
-    "stockSales": "Stock/Sales"
+    "stockSales": "Stock / Sales"
+  },
+  "brandBreakdown": "Breakdown by Brand",
+  "table": {
+    "brand": "Brand",
+    "candidates": "Order Candidates",
+    "outOfStock": "Out of Stock",
+    "draft": "In Progress",
+    "awaitingSupplier": "Awaiting Supplier",
+    "attention": "Needs Attention"
   }
 }

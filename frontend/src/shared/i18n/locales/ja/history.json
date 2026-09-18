@@ -5,7 +5,7 @@
   "filter": {
     "supplier": "メーカー",
     "brand": "ブランド",
-    "status": "Status",
+    "status": "ステータス",
     "all": "すべて",
     "hasAttentionOnly": "確認事項ありのみ表示",
     "orderNoKeyword": "PO No. / Draft No.",
@@ -23,7 +23,7 @@
     "skuCount": "SKU数",
     "totalOrderedQty": "発注数量合計",
     "totalAmount": "発注金額",
-    "status": "Status",
+    "status": "ステータス",
     "attention": "確認事項",
     "updatedAt": "更新日時"
   },
@@ -48,7 +48,12 @@
     "confirmedQty": "回答数量",
     "requestedDelivery": "希望納期",
     "confirmedDelivery": "回答納期",
-    "attention": "確認事項"
+    "attention": "確認事項",
+    "currentStock": "現在庫",
+    "monthlySales": "当月販売実績",
+    "leadTime": "リードタイム",
+    "openArrival": "入荷予定",
+    "viewSkuDetail": "SKU詳細を見る"
   },
   "notAvailable": "—",
   "demoSendSuccessMessage": "メーカーへの発注を記録しました。現在、メーカー回答待ちです。デモモードのため、実際のメールは送信されていません。",
@@ -56,6 +61,10 @@
   "communicationChannel": {
     "EMAIL": "発注方法: Email",
     "EDI": "発注方法: EDI"
+  },
+  "communicationChannelValue": {
+    "EMAIL": "Email",
+    "EDI": "EDI"
   },
   "ediStatus": {
     "title": "EDI入力状況",
@@ -70,7 +79,7 @@
   },
   "supplierResponseConfirmSuccessMessage": "メーカー回答を確定しました。",
   "goToDraftEdit": "ドラフトを編集",
-  "goToPreview": "PO Previewを見る",
+  "goToPreview": "PO プレビューを見る",
   "goToSupplierResponseInput": "メーカー回答を入力",
   "goToSupplierResponseReview": "メーカー回答を確認する",
   "timelineTitle": "操作履歴",
@@ -109,8 +118,8 @@
       "requestIntegration": "次にすべきこと: 「G-SYS連携準備」を行ってください。",
       "confirmPoNumber": "次にすべきこと: 正式PO番号を確定してください。",
       "generateExcel": "次にすべきこと: 正式PO Excelを生成してください。",
-      "placeToImportFolder": "次にすべきこと: Import Folderへ配置してください。",
-      "retryPlacement": "次にすべきこと: Import Folderへの配置に失敗しました。再試行してください。",
+      "placeToImportFolder": "次にすべきこと: G-SYS連携用ファイルを配置してください。",
+      "retryPlacement": "次にすべきこと: G-SYS連携用ファイルの配置に失敗しました。再試行してください。",
       "confirmImport": "次にすべきこと: G-SYS取込状況を確認してください。",
       "sendEmail": "次にすべきこと: メーカーへメールを送信してください。",
       "completeEdiInput": "次にすべきこと: EDI入力が完了したら「EDI入力完了にする」を押してください。"
@@ -118,7 +127,7 @@
   },
   "officialPoIntegration": {
     "title": "G-SYS正式PO連携",
-    "subtitle": "デモ送信とは独立した、将来の正式G-SYS連携のための機能です（Phase 7-C2A基盤）。",
+    "subtitle": "デモ送信とは別に、G-SYSへ正式PO番号を登録するための機能です。",
     "statusLabel": {
       "NOT_REQUESTED": "未申請",
       "PENDING": "準備中",
@@ -129,14 +138,14 @@
     },
     "officialPoNoLabel": "正式PO番号",
     "officialPoNoUnassigned": "正式PO番号未設定",
-    "officialPoNoUnassignedNote": "採番規則がCUSTOMER REVIEW未確定のため、このPhaseでは自動採番されません。エラーではありません。",
+    "officialPoNoUnassignedNote": "正式PO番号を入力してください。",
     "revisionLabel": "Revision",
     "requestedAtLabel": "申請日時",
     "requestedByLabel": "申請者",
-    "lastResultLabel": "最終Preflight結果",
+    "lastResultLabel": "最終チェック結果",
     "requestButton": "G-SYS連携準備",
     "requestDialogTitle": "G-SYS連携の準備をしますか？",
-    "requestDialogBody": "Integration Requestを作成し、Legacy側のMasterデータとの整合確認（Preflight）を行います。\nこの操作ではG-SYSへの実際の登録・File投入は一切行われません。",
+    "requestDialogBody": "G-SYS側のデータとの整合確認を行います。\nこの操作ではG-SYSへの実際の登録やデータ連携は一切行われません。",
     "requestDialogCancel": "キャンセル",
     "requestDialogConfirm": "準備する",
     "requestSuccess": "G-SYS連携の準備が完了しました。",
@@ -150,15 +159,15 @@
       "SUPPLIER_NOT_FOUND": "メーカーコードがG-SYS上で見つかりません。",
       "BRAND_NOT_FOUND": "ブランドコードがG-SYS上で見つかりません。",
       "ITEM_NOT_FOUND": "商品コードがG-SYS上で見つからないか、廃止されています。",
-      "OFFICIAL_PO_NO_NOT_ASSIGNED": "正式PO番号が未設定のため、既存PO/Invoice/入荷実績との整合確認は次のPhase以降で行われます。"
+      "OFFICIAL_PO_NO_NOT_ASSIGNED": "正式PO番号を確定すると、G-SYS連携処理を進められます。"
     },
     "numberFormTitle": "正式PO番号 / Excel項目",
-    "officialPoNoHelperText": "30文字以内。構造は強制されません（採番規則はCUSTOMER REVIEW未確定）。",
-    "deliveryWeekLabel": "Delivery Week",
-    "deliveryDateLabel": "Delivery Date",
-    "shipViaLabel": "Ship Via",
-    "shipTermLabel": "Ship Term",
-    "paymentTermLabel": "Payment Term",
+    "officialPoNoHelperText": "30文字以内で入力してください。",
+    "deliveryWeekLabel": "納品週",
+    "deliveryDateLabel": "納品日",
+    "shipViaLabel": "配送方法",
+    "shipTermLabel": "配送条件",
+    "paymentTermLabel": "支払条件",
     "confirmButton": "確定",
     "confirmSuccess": "正式PO番号を確定しました。",
     "numberLockedNote": "既にG-SYSへ投入済みのため、PO番号・Excel項目は変更できません。",
@@ -170,12 +179,12 @@
     "generateSuccess": "正式PO Excelを生成しました。",
     "downloadButton": "Excelダウンロード",
     "errorNumberRequired": "先に正式PO番号を確定してください。",
-    "errorPreflightBlocked": "最終Preflight結果がBLOCKEDです。問題を解消してから再度G-SYS連携準備を行ってください。",
-    "placeSectionTitle": "Import Folderへの配置",
-    "placeButton": "Import Folderへ配置",
+    "errorPreflightBlocked": "最終チェック結果が「登録不可」です。問題を解消してから再度G-SYS連携準備を行ってください。",
+    "placeSectionTitle": "G-SYS連携用ファイルの配置",
+    "placeButton": "G-SYS連携用ファイルを配置",
     "retryPlaceButton": "再試行",
-    "placeSuccess": "Import Folderへ配置しました。",
-    "placedNote": "既にImport Folderへ配置済みです。G-SYS側の取込を待っています。",
+    "placeSuccess": "G-SYS連携用ファイルを配置しました。",
+    "placedNote": "既にG-SYS連携用ファイルを配置済みです。G-SYS側の取込を待っています。",
     "placeFailedNote": "配置に失敗しました。再試行できます",
     "errorNotGenerated": "先にExcelを生成してください。",
     "resolvedChannelChip": {
@@ -195,7 +204,7 @@
   },
   "mailPreview": {
     "title": "メールプレビュー",
-    "subtitle": "デモ送信とは別機能です。実送信はこのSection下部の「メーカーへ送信」から行います（メーカーの通信方法がEmailの場合のみ）。",
+    "subtitle": "デモ送信とは別の機能です。実際の送信は、下部の「メーカーへ送信」から行います（メーカーの発注方法がEmailの場合のみ）。",
     "previewButton": "メールプレビューを表示",
     "from": "From",
     "to": "To",
@@ -203,8 +212,10 @@
     "subject": "件名",
     "body": "本文",
     "attachment": "添付ファイル",
-    "attachmentNotGenerated": "（未生成 - Preview表示のみ）",
+    "attachmentNotGenerated": "（未生成）",
+    "attachmentGenerated": "（生成済み）",
     "blockedNotice": "未確定の項目があるため、件名・本文は表示できません。",
+    "ediChannelNotice": "このメーカーの発注方法はEDIです。",
     "issue": {
       "OFFICIAL_PO_NO_NOT_ASSIGNED": "正式PO番号が未設定です。",
       "SUPPLIER_CONTACT_NOT_FOUND": "有効なTo担当者（メーカー担当者Master）が見つかりません。",
@@ -237,6 +248,10 @@
     "title": "回答履歴（Revision別）",
     "revisionLabel": "Revision {{no}}",
     "current": "現在",
+    "status": {
+      "PARTIAL": "一部回答",
+      "CONFIRMED": "回答確定"
+    },
     "agreedBy": "{{by}}が合意",
     "reopenedBy": "{{by}}が取り消し"
   },

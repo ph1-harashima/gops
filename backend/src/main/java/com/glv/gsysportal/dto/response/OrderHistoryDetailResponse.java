@@ -41,6 +41,10 @@ public record OrderHistoryDetailResponse(
         String resolvedManufacturerChannel,
         String ediStatus,
         String ediCompletedBy,
+        /** i18n localization audit (matches {@code AuditEventView.performedByDisplayName}'s
+         * documented idiom) - Frontend prefers this for display, falling back
+         * to ediCompletedBy when null. */
+        String ediCompletedByDisplayName,
         OffsetDateTime ediCompletedAt
 ) {
 }

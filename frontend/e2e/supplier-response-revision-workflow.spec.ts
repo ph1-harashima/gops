@@ -69,7 +69,7 @@ async function createAwaitingSupplierOrderAsAdmin(page: Page): Promise<string> {
   // demo-send-button lives on the PO Preview screen, not Order Detail
   // (core-demo-scenario.spec.ts's own established flow).
   const goToPreview = page.getByTestId('order-detail-primary-action')
-  await expect(goToPreview).toHaveText('PO Previewを見る')
+  await expect(goToPreview).toHaveText('PO プレビューを見る')
   await goToPreview.click()
   await expect(page).toHaveURL(new RegExp(`/orders/drafts/${orderId}/preview(\\?.*)?$`))
   await page.getByTestId('demo-send-button').click()
@@ -83,7 +83,7 @@ async function createAwaitingSupplierOrderAsAdmin(page: Page): Promise<string> {
   // core-demo-scenario.spec.ts's own established pattern: wait for the
   // primary Action's label to actually reflect the post-Send AWAITING_SUPPLIER
   // Status before clicking it - clicking immediately can race a still-stale
-  // cached "PO Previewを見る" render from just before Demo Send completed.
+  // cached "PO プレビューを見る" render from just before Demo Send completed.
   const enterSupplierResponse = page.getByTestId('order-detail-primary-action')
   await expect(enterSupplierResponse).toHaveText('メーカー回答を入力')
   await enterSupplierResponse.click()
@@ -177,7 +177,7 @@ test('Scenario C: Rev1 Qty差異 -> 修正版作成 -> Rev2 -> Rev1/Response1履
   await page.getByTestId('order-detail-approve-button').click()
   await page.getByTestId('approve-dialog-confirm').click()
   const goToPreviewAgain = page.getByTestId('order-detail-primary-action')
-  await expect(goToPreviewAgain).toHaveText('PO Previewを見る')
+  await expect(goToPreviewAgain).toHaveText('PO プレビューを見る')
   await goToPreviewAgain.click()
   await expect(page).toHaveURL(new RegExp(`/orders/drafts/${orderId}/preview(\\?.*)?$`))
   await page.getByTestId('demo-send-button').click()

@@ -1,6 +1,6 @@
 {
   "title": "メーカー担当者管理",
-  "subtitle": "Supplier Contact Master（Portal専用 - Legacyにはメーカー担当者・メールアドレスのMasterが存在しません）。",
+  "subtitle": "発注メールを送付するメーカー担当者を設定します。",
   "createButton": "新規作成",
   "editButton": "編集",
   "table": {

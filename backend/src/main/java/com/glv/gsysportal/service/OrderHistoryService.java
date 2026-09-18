@@ -14,6 +14,8 @@ import com.glv.gsysportal.dto.response.OrderHistorySummaryResponse;
 import com.glv.gsysportal.dto.response.PageResponse;
 import com.glv.gsysportal.domain.PortalUser;
 import com.glv.gsysportal.exception.DraftNotFoundException;
+import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository;
+import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OrderAttentionRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
@@ -60,19 +62,22 @@ public class OrderHistoryService {
     private final AuditEventRepository auditEventRepository;
     private final PortalUserRepository portalUserRepository;
     private final ManufacturerChannelResolutionService channelResolutionService;
+    private final LegacyStockReadRepository legacyStockReadRepository;
 
     public OrderHistoryService(PortalOrderRepository portalOrderRepository,
                                 SupplierResponseRepository supplierResponseRepository,
                                 OrderAttentionRepository orderAttentionRepository,
                                 AuditEventRepository auditEventRepository,
                                 PortalUserRepository portalUserRepository,
-                                ManufacturerChannelResolutionService channelResolutionService) {
+                                ManufacturerChannelResolutionService channelResolutionService,
+                                LegacyStockReadRepository legacyStockReadRepository) {
         this.portalOrderRepository = portalOrderRepository;
         this.supplierResponseRepository = supplierResponseRepository;
         this.orderAttentionRepository = orderAttentionRepository;
         this.auditEventRepository = auditEventRepository;
         this.portalUserRepository = portalUserRepository;
         this.channelResolutionService = channelResolutionService;
+        this.legacyStockReadRepository = legacyStockReadRepository;
     }
 
     /**
@@ -222,9 +227,23 @@ public class OrderHistoryService {
 
         List<OrderAttention> active = orderAttentionRepository.findByPortalOrderIdAndActiveTrue(id);
 
+        // Gap Analysis B-1 (docs/gulliver-20260917-phase1-gap-analysis.md 5章):
+        // one bulk Legacy READ ONLY lookup for every line's SKU, keyed by
+        // Item Code - same LegacyStockReadRepository.findBySkus source
+        // SKU Detail/Candidate List already use (Fact, no new calculation).
+        // A SKU absent from the result (e.g. since removed from Legacy
+        // Master) simply has no entry - toLineView leaves those fields null.
+        java.util.Set<String> skus = order.getDetails().stream()
+                .filter(d -> !d.isRemoved())
+                .map(PortalOrderDetail::getSku)
+                .collect(Collectors.toSet());
+        Map<String, LegacyStockRow> stockBySku = skus.isEmpty() ? Map.of()
+                : legacyStockReadRepository.findBySkus(skus).stream()
+                        .collect(Collectors.toMap(LegacyStockRow::itemCd, r -> r, (a, b) -> a));
+
         List<OrderHistoryDetailLineView> lines = order.getDetails().stream()
                 .filter(d -> !d.isRemoved())
-                .map(d -> toLineView(order, d, confirmedByDetailId.get(d.getId()), active))
+                .map(d -> toLineView(order, d, confirmedByDetailId.get(d.getId()), active, stockBySku.get(d.getSku())))
                 .toList();
 
         List<AttentionSummary> orderAttentions = active.stream()
@@ -233,6 +252,8 @@ public class OrderHistoryService {
                 .toList();
 
         String resolvedChannel = channelResolutionService.resolve(order.getSupplierCode(), order.getBrandCode());
+        String ediCompletedByDisplayName = order.getEdiCompletedBy() == null ? null
+                : portalUserRepository.findByUsername(order.getEdiCompletedBy()).map(PortalUser::getDisplayName).orElse(null);
 
         return new OrderHistoryDetailResponse(
                 order.getId(), order.getDraftNo(), order.getPrototypePoNo(),
@@ -241,7 +262,8 @@ public class OrderHistoryService {
                 order.getOrderDate(), order.getRequestedDelivery(), order.getCurrency(), order.getRemark(),
                 order.getStatus(), order.getTotalQty(), order.getTotalAmount(),
                 lines, orderAttentions, order.getCommunicationChannel(),
-                resolvedChannel, order.getEdiStatus(), order.getEdiCompletedBy(), order.getEdiCompletedAt()
+                resolvedChannel, order.getEdiStatus(), order.getEdiCompletedBy(), ediCompletedByDisplayName,
+                order.getEdiCompletedAt()
         );
     }
 
@@ -287,7 +309,8 @@ public class OrderHistoryService {
     }
 
     private static OrderHistoryDetailLineView toLineView(PortalOrder order, PortalOrderDetail detail,
-                                                           SupplierResponseDetail response, List<OrderAttention> active) {
+                                                           SupplierResponseDetail response, List<OrderAttention> active,
+                                                           LegacyStockRow stock) {
         List<AttentionSummary> attentions = active.stream()
                 .filter(a -> detail.getId().equals(a.getPortalOrderDetailId()))
                 .map(a -> new AttentionSummary(a.getId(), a.getAttentionType()))
@@ -297,7 +320,11 @@ public class OrderHistoryService {
                 response == null ? null : response.getConfirmedQty(),
                 response == null ? order.getRequestedDelivery() : response.getRequestedDelivery(),
                 response == null ? null : response.getConfirmedDelivery(),
-                attentions
+                attentions,
+                stock == null ? null : stock.currentStock(),
+                stock == null ? null : stock.monthlySales(),
+                stock == null ? null : stock.leadTime(),
+                stock == null ? null : stock.openArrival()
         );
     }
 }

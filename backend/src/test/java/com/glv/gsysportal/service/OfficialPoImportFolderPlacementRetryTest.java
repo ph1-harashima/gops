@@ -9,6 +9,7 @@ import com.glv.gsysportal.repository.legacy.LegacyPoConcurrencyReadRepository;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import com.glv.gsysportal.repository.prototype.PortalUserRepository;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderAdapter;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderWriteException;
 import org.junit.jupiter.api.Test;
@@ -67,6 +68,7 @@ class OfficialPoImportFolderPlacementRetryTest {
         IdempotencyService idempotencyService = mock(IdempotencyService.class);
         LegacyPoConcurrencyReadRepository legacyReadRepository = mock(LegacyPoConcurrencyReadRepository.class);
         ObjectMapper objectMapper = new ObjectMapper();
+        PortalUserRepository portalUserRepository = mock(PortalUserRepository.class);
 
         PortalOrder order = order();
         OfficialPoIntegrationRequest request = generatedRequest();
@@ -83,7 +85,7 @@ class OfficialPoImportFolderPlacementRetryTest {
 
         OfficialPoIntegrationService service = new OfficialPoIntegrationService(portalOrderRepository,
                 integrationRequestRepository, auditEventRepository, preflightService, excelGenerationService,
-                importFolderAdapter, idempotencyService, legacyReadRepository, objectMapper);
+                importFolderAdapter, idempotencyService, legacyReadRepository, objectMapper, portalUserRepository);
 
         // First attempt fails.
         doThrow(new OfficialPoImportFolderWriteException("disk full", new java.io.IOException("disk full")))

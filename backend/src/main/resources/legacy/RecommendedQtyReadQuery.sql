@@ -1,5 +1,14 @@
 -- Reduced Legacy Read Query for Order Candidate List + Recommended Qty (calc4 inputs).
 --
+-- Gulliver UI audit fix: :includeDeleted is a generic bypass of the
+-- del_flg exclusion below - false for every "browse what's currently
+-- orderable" caller (findOrderCandidates, the Stock/Sales List), true only
+-- for findBySkus (re-fetching context for SKUs the caller already knows by
+-- exact code, e.g. re-validating an existing Draft's lines - a soft-deleted
+-- Item should still resolve there even though it no longer shows up in a
+-- fresh browse list). Not an item-code-specific condition - any del_flg=1
+-- Item behaves the same way.
+--
 -- Phase 8-H (Stock/Sales Visibility Foundation) addition: update_datetime
 -- (agg.update_datetime, the SAME 'XX' aggregate ms_stk row every other
 -- column here already comes from - additive column only, no JOIN/WHERE
@@ -87,7 +96,7 @@ LEFT JOIN (
        ON latest_po.item_cd = i.item_cd AND latest_po.rn = 1
 LEFT JOIN ms_comm sup
        ON sup.cate_id = 'MS_SUPPL' AND sup.code_id = latest_po.supplier_cd
-WHERE i.del_flg IS NULL OR i.del_flg = 0
+WHERE (:includeDeleted = TRUE OR i.del_flg IS NULL OR i.del_flg = 0)
   AND (:brandCode IS NULL OR i.brand_cd = :brandCode)
   AND (:supplierCode IS NULL OR latest_po.supplier_cd = :supplierCode)
   AND (:keyword IS NULL OR i.item_cd LIKE :keywordLike OR i.description LIKE :keywordLike)

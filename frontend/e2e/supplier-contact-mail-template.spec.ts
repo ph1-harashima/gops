@@ -250,7 +250,7 @@ test.describe('Phase 7-C3: Supplier Contact / Mail Template Foundation', () => {
     const draftId = await createApprovedOrder(page)
 
     await page.goto(`/orders/${draftId}`)
-    await expect(page.getByText('デモ送信とは別機能です。実送信はこのSection下部の「メーカーへ送信」から行います')).toBeVisible()
+    await expect(page.getByText('デモ送信とは別の機能です。実際の送信は、下部の「メーカーへ送信」から行います（メーカーの発注方法がEmailの場合のみ）。')).toBeVisible()
     await page.getByTestId('mail-preview-button').click()
     await expect(page.getByTestId('mail-preview-result')).toBeVisible()
 

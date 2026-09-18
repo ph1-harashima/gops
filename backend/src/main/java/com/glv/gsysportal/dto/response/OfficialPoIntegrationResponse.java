@@ -22,6 +22,11 @@ public record OfficialPoIntegrationResponse(
         String status,
         String officialPoNo,
         String requestedBy,
+        /** i18n localization audit (matches {@code AuditEventView.performedByDisplayName}'s
+         * documented idiom): read-time-only lookup against portal_user.display_name
+         * for {@code requestedBy} - Frontend prefers this for display, falling
+         * back to requestedBy when null. Never changes what is persisted. */
+        String requestedByDisplayName,
         OffsetDateTime requestedAt,
         OfficialPoPreflightResult preflight,
         OffsetDateTime generatedAt,
@@ -42,8 +47,26 @@ public record OfficialPoIntegrationResponse(
     public static final String STATUS_NOT_REQUESTED = "NOT_REQUESTED";
 
     public static OfficialPoIntegrationResponse notRequested(Long orderId) {
-        return new OfficialPoIntegrationResponse(orderId, 0, STATUS_NOT_REQUESTED,
-                null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, false);
+        return new OfficialPoIntegrationResponse(
+                orderId, 0, STATUS_NOT_REQUESTED,
+                null, // officialPoNo
+                null, // requestedBy
+                null, // requestedByDisplayName
+                null, // requestedAt
+                null, // preflight
+                null, // generatedAt
+                null, // submittedAt
+                null, // confirmedAt
+                null, // failedAt
+                null, // errorCode
+                null, // errorMessage
+                null, // integrationIntent
+                null, // deliveryWeek
+                null, // deliveryDate
+                null, // shipVia
+                null, // shipTerm
+                null, // paymentTerm
+                false // excelGenerated
+        );
     }
 }

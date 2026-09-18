@@ -33,7 +33,7 @@
     "OUT_OF_STOCK": "Out of Stock",
     "LONG_TERM_OUT_OF_STOCK": "Long-Term Out of Stock"
   },
-  "stockJudgementTooltip": "This is the current Prototype's provisional judgement, on a separate axis from Item Status (Normal/Discontinued/On Hold etc.) - calculated from Stock Qty and Open PO. The official definition is pending confirmation by Gulliver.",
+  "stockJudgementTooltip": "This is a current provisional judgement, on a separate axis from Item Status (Normal/Discontinued/On Hold etc.) - calculated from Stock Qty and Open PO. The official definition is pending confirmation by Gulliver.",
   "supplyStatus": {
     "AVAILABLE": "Available",
     "OUT_OF_STOCK": "Out of Stock",
@@ -66,7 +66,7 @@
     "APPROVED_WITH_CHANGES": "Approved with Changes",
     "RETURNED_FOR_CORRECTION": "Returned for Correction",
     "OFFICIAL_PO_INTEGRATION_REQUESTED": "G-SYS Integration Prepared",
-    "PRECHECK_COMPLETED": "Preflight Run",
+    "PRECHECK_COMPLETED": "G-SYS Integration Check Run",
     "MAIL_PREVIEW_GENERATED": "Mail Preview Shown",
     "SUPPLIER_RESPONSE_AGREED": "Agreed",
     "ORDER_REVISION_CREATED": "Corrected Version Created",
@@ -75,6 +75,21 @@
     "PRICE_CHANGE_DETAIL_ADDED": "Product Added",
     "PRICE_CHANGE_PROPOSED_PRICE_CHANGED": "Proposed Price Changed",
     "PRICE_CHANGE_DETAIL_REMOVED": "Product Removed",
-    "PRICE_CHANGE_NOTE_CHANGED": "Note Changed"
+    "PRICE_CHANGE_NOTE_CHANGED": "Note Changed",
+    "EDI_SEND_RECORDED": "EDI Order Recorded",
+    "FOLLOW_UP_CREATED": "Follow-up Created",
+    "FOLLOW_UP_UPDATED": "Follow-up Note Updated",
+    "FOLLOW_UP_CLOSED": "Follow-up Closed",
+    "REORDER_CREATED": "Reorder Draft Created",
+    "LEGACY_PO_BASELINE_CAPTURED": "G-SYS Baseline Recorded",
+    "LEGACY_PO_CHANGE_DETECTED": "G-SYS Side Change Detected",
+    "OFFICIAL_PO_NUMBER_CONFIRMED": "Official PO No. Confirmed",
+    "OFFICIAL_PO_EXCEL_GENERATED": "Official PO Excel Generated",
+    "OFFICIAL_PO_FILE_PLACED": "G-SYS Hand-off File Placed",
+    "OFFICIAL_PO_FILE_PLACEMENT_FAILED": "G-SYS Hand-off File Placement Failed",
+    "OFFICIAL_PO_IMPORT_CONFIRMED": "G-SYS Import Confirmed",
+    "EDI_INPUT_COMPLETED": "EDI Input Completed",
+    "EMAIL_SENT": "Email Sent",
+    "EMAIL_SEND_FAILED": "Email Send Failed"
   }
 }

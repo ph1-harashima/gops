@@ -23,15 +23,22 @@ public class DemoManufacturerCommunicationFactory {
         String to = "demo-supplier+" + order.getSupplierCode().toLowerCase() + "@example.invalid";
         String cc = "demo-purchasing@example.invalid";
         String poRef = prototypePoNoForDisplay != null ? prototypePoNoForDisplay : order.getDraftNo();
-        String subject = "[Demo] Purchase Order " + poRef + " - " + order.getSupplierNameSnapshot();
-        String body = "This is a Demo Mode message for the G-SYS Online Ordering Prototype.\n"
-                + "No email has actually been sent.\n\n"
-                + "PO Reference: " + poRef + "\n"
-                + "Supplier: " + order.getSupplierNameSnapshot() + "\n"
-                + "Brand: " + order.getBrandNameSnapshot() + "\n"
-                + "Order Date: " + order.getOrderDate() + "\n"
-                + "Requested Delivery: " + (order.getRequestedDelivery() != null ? order.getRequestedDelivery() : "-");
-        String attachment = poRef + ".pdf";
+        String subject = "【デモ】発注書 " + poRef + " - " + order.getSupplierNameSnapshot();
+        // Gulliver UI最終仕上げ #3: この画面(旧PO Preview)は正式PO Excel連携
+        // (OfficialPoExcelGenerationService/MailPreviewService)とは無関係な、
+        // このLegacy Demo Preview固有の固定表示値。以前は英語+".pdf"だったため
+        // 「正式PO Excel(.xlsx)」の実際の生成フローと混同されて見えていた。
+        // Business Logicは変えず、Demo専用の表示であることが伝わる自然な日本語
+        // 文言に変更し、実ファイルを連想させる拡張子付きファイル名は外した
+        // (PDF生成機能を新設したわけではない - 添付ファイルは元々存在しない)。
+        String body = "これはG-SYS Online Orderingのデモ環境向け表示です。\n"
+                + "実際のメール送信は行われません。\n\n"
+                + "PO番号: " + poRef + "\n"
+                + "メーカー: " + order.getSupplierNameSnapshot() + "\n"
+                + "ブランド: " + order.getBrandNameSnapshot() + "\n"
+                + "発注日: " + order.getOrderDate() + "\n"
+                + "希望納期: " + (order.getRequestedDelivery() != null ? order.getRequestedDelivery() : "-");
+        String attachment = "デモ表示のみ（実際の添付ファイルはありません）";
         return new ManufacturerCommunicationResponse(to, cc, subject, body, attachment);
     }
 }

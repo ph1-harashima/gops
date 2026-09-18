@@ -145,14 +145,28 @@ public class MailPreviewService {
         List<String> cc = new ArrayList<>(ccContacts.stream().map(SupplierContact::getEmail).toList());
         cc.addAll(adminCcEmails);
 
+        // "generated" reflects the actual Official PO Excel generation state
+        // (integration_request.generated_file_key != null for the current
+        // revision) rather than a hardcoded false, so the Preview's own
+        // Attachment line stays accurate after Excel生成 has already run.
+        boolean attachmentGenerated = integrationRequestRepository
+                .findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
+                .map(r -> r.getGeneratedFileKey() != null)
+                .orElse(false);
         MailPreviewResponse.AttachmentSummary attachment = new MailPreviewResponse.AttachmentSummary(
                 officialPoNo != null ? "OFFICIAL_PO_EXCEL" : null,
                 officialPoNo != null ? officialPoNo + ".xlsx" : null,
-                false);
+                attachmentGenerated);
 
         auditEventRepository.save(new AuditEvent(orderId, null, AuditEvent.MAIL_PREVIEW_GENERATED,
                 null, null, blocked ? "BLOCKED" : "OK", performedBy, OffsetDateTime.now()));
 
-        return new MailPreviewResponse(sender.getEmail(), to, cc, subject, body, attachment, issues);
+        // "From" shows the sender's Display Name alongside the address (a
+        // real mail client's own convention) rather than the bare Login-ID-
+        // derived address, matching the same senderName/senderEmail split
+        // already used in the rendered Body above.
+        String from = sender.getDisplayName() == null ? sender.getEmail()
+                : sender.getDisplayName() + " <" + sender.getEmail() + ">";
+        return new MailPreviewResponse(from, to, cc, subject, body, attachment, issues);
     }
 }

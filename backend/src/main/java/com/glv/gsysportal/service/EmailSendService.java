@@ -11,10 +11,12 @@ import com.glv.gsysportal.exception.DraftNotFoundException;
 import com.glv.gsysportal.exception.EmailAttachmentNotReadyException;
 import com.glv.gsysportal.exception.EmailChannelNotApplicableException;
 import com.glv.gsysportal.exception.EmailPreviewBlockedException;
+import com.glv.gsysportal.domain.PortalUser;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.OrderEmailRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import com.glv.gsysportal.repository.prototype.PortalUserRepository;
 import com.glv.gsysportal.service.integration.EmailEnvelope;
 import com.glv.gsysportal.service.integration.EmailSendException;
 import com.glv.gsysportal.service.integration.EmailSenderPort;
@@ -48,6 +50,7 @@ public class EmailSendService {
     private final OfficialPoExcelGenerationService excelGenerationService;
     private final EmailSenderPort emailSenderPort;
     private final IdempotencyService idempotencyService;
+    private final PortalUserRepository portalUserRepository;
 
     public EmailSendService(PortalOrderRepository portalOrderRepository,
                              OrderEmailRepository orderEmailRepository,
@@ -57,7 +60,8 @@ public class EmailSendService {
                              MailPreviewService mailPreviewService,
                              OfficialPoExcelGenerationService excelGenerationService,
                              EmailSenderPort emailSenderPort,
-                             IdempotencyService idempotencyService) {
+                             IdempotencyService idempotencyService,
+                             PortalUserRepository portalUserRepository) {
         this.portalOrderRepository = portalOrderRepository;
         this.orderEmailRepository = orderEmailRepository;
         this.integrationRequestRepository = integrationRequestRepository;
@@ -67,6 +71,7 @@ public class EmailSendService {
         this.excelGenerationService = excelGenerationService;
         this.emailSenderPort = emailSenderPort;
         this.idempotencyService = idempotencyService;
+        this.portalUserRepository = portalUserRepository;
     }
 
     /** GET-equivalent: current Send state, any authenticated user (matches
@@ -170,10 +175,13 @@ public class EmailSendService {
     }
 
     private OrderEmailResponse toResponse(OrderEmail e) {
+        String sentByDisplayName = e.getSentBy() == null ? null
+                : portalUserRepository.findByUsername(e.getSentBy()).map(PortalUser::getDisplayName).orElse(null);
         return new OrderEmailResponse(
                 e.getPortalOrderId(), e.getRevisionNo(), e.getStatus(),
                 splitAddresses(e.getToAddresses()), splitAddresses(e.getCcAddresses()),
-                e.getSubject(), e.getSentAt(), e.getSentBy(), e.getErrorCode(), e.getErrorMessage(), e.getRetryCount()
+                e.getSubject(), e.getSentAt(), e.getSentBy(), sentByDisplayName,
+                e.getErrorCode(), e.getErrorMessage(), e.getRetryCount()
         );
     }
 

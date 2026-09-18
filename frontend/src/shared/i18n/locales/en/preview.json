@@ -1,4 +1,61 @@
 {
+  "title": "PO Preview",
+  "backToDraft": "Back to Order Draft",
+  "backToOrderDetail": "Back to Order Details",
+  "notFound": "The requested Draft could not be found.",
+  "errorNoOrderableItems": "No item has an order quantity of 1 or more. Please enter an order quantity on the Order Draft.",
+  "errorMissingUnitPrice": "The Preview cannot be shown because a unit price could not be resolved for one or more items.",
+  "errorInvalidOrderStatus": "The Preview cannot be shown at the current status.",
+  "errorInvalidStatusTransition": "This action cannot be performed at the current status.",
+  "errorGeneric": "The operation failed.",
+  "supplier": "Manufacturer",
+  "brand": "Brand",
+  "orderDate": "Order Date",
+  "requestedDelivery": "Requested Delivery",
+  "currency": "Currency",
+  "remark": "Remarks",
+  "demoModeChip": "Demo Mode",
+  "prototypePoNo": "PO No.",
+  "prototypePoNoUnassigned": "Not Yet Assigned",
+  "table": {
+    "sku": "SKU",
+    "itemName": "Item Name",
+    "orderQty": "Order Qty",
+    "unitPrice": "Unit Price",
+    "amount": "Amount"
+  },
+  "summary": {
+    "skuCount": "SKU Count",
+    "totalQty": "Total Order Qty",
+    "totalAmount": "Total Order Amount"
+  },
+  "manufacturerCommunication": {
+    "title": "Manufacturer Send Content",
+    "demoNotice": "Demo Mode - no email is actually sent. The content shown here uses Demo configuration values.",
+    "to": "To",
+    "cc": "CC",
+    "subject": "Subject",
+    "body": "Body",
+    "attachment": "Attachment"
+  },
+  "editOrder": "Edit Order",
+  "returnToDraftFailed": "Failed to return this order to Draft.",
+  "demoSend": "Send to Manufacturer",
+  "demoSendDialogTitle": "Run this order through Demo Mode?",
+  "demoSendDialogBody": "Runs the ordering process in Demo Mode.\nNo email is actually sent.",
+  "demoSendDialogCancel": "Cancel",
+  "demoSendDialogConfirm": "Send",
+  "demoSendFailed": "The operation failed.",
+  "ediSend": "Record as Sent via EDI",
+  "ediSendDialogTitle": "Record this order as sent via EDI?",
+  "ediSendDialogBody": "Records in the Portal that the order was placed on the manufacturer's own EDI system.\nNo actual EDI transmission or file hand-off is performed from the Portal.",
+  "ediSendDialogCancel": "Cancel",
+  "ediSendDialogConfirm": "Record",
+  "ediSendFailed": "The operation failed.",
   "goToSupplierResponseInput": "Enter Supplier Response",
-  "goToSupplierResponseReview": "View Supplier Response"
+  "goToSupplierResponseReview": "View Supplier Response",
+  "communicationChannel": {
+    "EMAIL": "Ordering Method: Email",
+    "EDI": "Ordering Method: EDI"
+  }
 }

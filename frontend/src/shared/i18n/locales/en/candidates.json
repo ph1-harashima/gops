@@ -1,7 +1,35 @@
 {
+  "title": "Order Candidates",
   "filter": {
+    "brand": "Brand",
+    "supplier": "Manufacturer",
+    "keyword": "SKU / Item Name",
+    "keywordPlaceholder": "Search by SKU or item name",
+    "all": "All",
     "recommendedOnly": "Show recommended only",
     "outOfStockOnly": "Show out of stock only",
     "longTermOutOfStockOnly": "Show long-term out of stock only"
-  }
+  },
+  "table": {
+    "select": "Select",
+    "sku": "SKU",
+    "itemName": "Item Name",
+    "brand": "Brand",
+    "supplier": "Manufacturer",
+    "currentStock": "Current Stock",
+    "safetyStock": "Safety Stock",
+    "openPo": "Open PO Qty",
+    "monthlySales": "Current Month Sales",
+    "leadTime": "Lead Time",
+    "recommendedQty": "Recommended Qty",
+    "itemStatus": "Item Status",
+    "stockJudgement": "Stock Judgement (Provisional)",
+    "unitPrice": "Unit Price"
+  },
+  "empty": "No order candidates were found.",
+  "resultCount": "{{count}} order candidates",
+  "notAvailable": "—",
+  "createDraft": "Create Draft from {{count}} selected",
+  "createDraftMixedSupplier": "A Draft cannot mix multiple manufacturers. Please select SKUs from a single manufacturer only.",
+  "createDraftFailed": "Failed to create the Draft ({{code}})."
 }

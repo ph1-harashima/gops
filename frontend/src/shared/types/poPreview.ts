@@ -48,6 +48,12 @@ export interface PoPreview {
   // channel) - 'EMAIL' (demoSend) or 'EDI' (recordEdiSend/ediSend). Independent
   // of `status` - see PortalOrder.communicationChannel's Javadoc.
   communicationChannel: 'EMAIL' | 'EDI' | null
+  // Phase 9-D's Manufacturer Channel Master resolved value - "what SHOULD
+  // happen" per the Master (independent of communicationChannel above,
+  // which only reflects a Send that already happened). null = unresolved
+  // (no Master row yet) - both Send/Record actions stay visible in that
+  // case, same fallback as Order Detail's own gating.
+  resolvedManufacturerChannel: 'EMAIL' | 'EDI' | null
 }
 
 /** Mirrors OrderStatusChangeResponse (Confirm Order / Return to Draft). */

@@ -33,7 +33,7 @@
     "OUT_OF_STOCK": "欠品",
     "LONG_TERM_OUT_OF_STOCK": "長期欠品"
   },
-  "stockJudgementTooltip": "現在のPrototype判定です。商品状態（通常/廃番/発注停止等）とは別の軸で、在庫数・発注残から算出しています。正式な判定条件はGulliver社確認後に確定します。",
+  "stockJudgementTooltip": "現在の暫定判定です。商品状態（通常/廃番/発注停止等）とは別の軸で、在庫数・発注残から算出しています。正式な判定条件はGulliver社確認後に確定します。",
   "supplyStatus": {
     "AVAILABLE": "供給可能",
     "OUT_OF_STOCK": "欠品",
@@ -66,7 +66,7 @@
     "APPROVED_WITH_CHANGES": "修正のうえ承認",
     "RETURNED_FOR_CORRECTION": "差し戻し",
     "OFFICIAL_PO_INTEGRATION_REQUESTED": "G-SYS連携準備",
-    "PRECHECK_COMPLETED": "Preflight実行",
+    "PRECHECK_COMPLETED": "G-SYS連携チェック実行",
     "MAIL_PREVIEW_GENERATED": "メールプレビュー表示",
     "SUPPLIER_RESPONSE_AGREED": "合意",
     "ORDER_REVISION_CREATED": "修正版の作成",
@@ -75,6 +75,21 @@
     "PRICE_CHANGE_DETAIL_ADDED": "商品を追加",
     "PRICE_CHANGE_PROPOSED_PRICE_CHANGED": "新価格を変更",
     "PRICE_CHANGE_DETAIL_REMOVED": "商品を削除",
-    "PRICE_CHANGE_NOTE_CHANGED": "メモを変更"
+    "PRICE_CHANGE_NOTE_CHANGED": "メモを変更",
+    "EDI_SEND_RECORDED": "EDI発注記録",
+    "FOLLOW_UP_CREATED": "問い合わせを作成",
+    "FOLLOW_UP_UPDATED": "問い合わせメモを更新",
+    "FOLLOW_UP_CLOSED": "問い合わせを完了",
+    "REORDER_CREATED": "再発注ドラフトを作成",
+    "LEGACY_PO_BASELINE_CAPTURED": "G-SYS基準を記録",
+    "LEGACY_PO_CHANGE_DETECTED": "G-SYS側の変更を検知",
+    "OFFICIAL_PO_NUMBER_CONFIRMED": "正式PO番号を確定",
+    "OFFICIAL_PO_EXCEL_GENERATED": "正式PO Excelを生成",
+    "OFFICIAL_PO_FILE_PLACED": "G-SYS連携用ファイルを配置",
+    "OFFICIAL_PO_FILE_PLACEMENT_FAILED": "G-SYS連携用ファイルの配置に失敗",
+    "OFFICIAL_PO_IMPORT_CONFIRMED": "G-SYS取込を確認",
+    "EDI_INPUT_COMPLETED": "EDI入力完了",
+    "EMAIL_SENT": "メール送信",
+    "EMAIL_SEND_FAILED": "メール送信に失敗"
   }
 }

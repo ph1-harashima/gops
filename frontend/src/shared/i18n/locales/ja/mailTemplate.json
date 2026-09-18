@@ -1,6 +1,6 @@
 {
   "title": "メールテンプレート管理",
-  "subtitle": "Mail Template Master（Portal専用）。今回実運用で解決されるのはPURCHASE_ORDERのみです。",
+  "subtitle": "発注メールの件名・本文のテンプレートを設定します。",
   "createButton": "新規作成",
   "editButton": "編集",
   "table": {
@@ -32,6 +32,10 @@
     "PURCHASE_ORDER_REVISION": "PURCHASE_ORDER_REVISION（発注書改訂）",
     "FOLLOW_UP": "FOLLOW_UP（フォローアップ）",
     "CANCELLATION": "CANCELLATION（取消）"
+  },
+  "languageOption": {
+    "ja": "日本語",
+    "en": "English"
   },
   "variablesInsertHelp": "クリック（またはドラッグ&ドロップ）で、直前にカーソルがあったSubjectまたはBodyへ変数を挿入します。",
   "variable": {

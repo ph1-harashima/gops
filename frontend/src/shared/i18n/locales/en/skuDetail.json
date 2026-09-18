@@ -1,0 +1,41 @@
+{
+  "back": "Back to Order Candidates",
+  "backToWarehouseStock": "Back to Warehouse Stock",
+  "backToStockSales": "Back to Stock / Sales",
+  "backToOrderDetail": "Back to Order Detail",
+  "notFound": "The requested SKU could not be found.",
+  "viewArrivals": "View Arrivals",
+  "notAvailable": "—",
+  "section": {
+    "product": "Product Information",
+    "inventory": "Inventory Information",
+    "ordering": "Ordering Information",
+    "margin": "Theoretical Margin (Reference)",
+    "history": "History (Legacy PO Records)"
+  },
+  "field": {
+    "brand": "Brand",
+    "supplier": "Manufacturer",
+    "currentStock": "Current Stock",
+    "safetyStock": "Safety Stock",
+    "openPo": "Open PO Qty",
+    "openArrival": "Open Arrival Qty",
+    "stockJudgement": "Stock Judgement (Provisional)",
+    "monthlySales": "Current Month Sales",
+    "leadTime": "Lead Time",
+    "recommendedQty": "Recommended Order Qty",
+    "unitPrice": "Unit Price",
+    "theoreticalMarginRate": "Theoretical Margin Rate",
+    "theoreticalMarginAmount": "Theoretical Margin Amount",
+    "marginDisclaimer": "A reference value calculated from Legacy's current selling price and this month's average cost. This is not Actual Gross Profit."
+  },
+  "historyEmpty": "There is no Legacy PO history for this item.",
+  "historyTable": {
+    "poNo": "PO No.",
+    "orderDate": "Order Date",
+    "supplier": "Manufacturer",
+    "qty": "Qty",
+    "unitPrice": "Unit Price",
+    "status": "Status"
+  }
+}

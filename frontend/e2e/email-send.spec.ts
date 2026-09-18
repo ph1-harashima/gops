@@ -118,7 +118,7 @@ test.describe('Phase 9-E: Real Email Send', () => {
     // never required it) - not a bug, Email and the G-SYS Handoff are
     // independent tracks.
     await expect(page.getByTestId('email-send-button')).toHaveCount(0)
-    await expect(page.getByTestId('next-action-hint')).toContainText('Import Folder')
+    await expect(page.getByTestId('next-action-hint')).toContainText('G-SYS連携用ファイル')
   })
 
   test('EDI-channel manufacturer never shows the Email Send section', async ({ page }) => {

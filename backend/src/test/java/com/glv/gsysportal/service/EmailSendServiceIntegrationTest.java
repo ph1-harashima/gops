@@ -125,6 +125,10 @@ class EmailSendServiceIntegrationTest {
         assertEquals("SENT", response.status());
         assertEquals(List.of("taro@example.com"), response.to());
         assertEquals("PO EMAIL-TEST-4", response.subject());
+        // Display Name統一 (audit finding: "送信済みです (admin01 - ...)" showed
+        // the raw Login ID) - same idiom as AuditEventView.performedByDisplayName.
+        assertEquals(ADMIN, response.sentBy());
+        assertTrue(response.sentByDisplayName() != null && !response.sentByDisplayName().equals(ADMIN));
 
         List<AuditEvent> trail = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(order.getId());
         assertTrue(trail.stream().anyMatch(e -> AuditEvent.EMAIL_SENT.equals(e.getEventType())));

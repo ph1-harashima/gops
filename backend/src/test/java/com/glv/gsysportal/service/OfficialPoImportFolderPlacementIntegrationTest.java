@@ -80,12 +80,19 @@ class OfficialPoImportFolderPlacementIntegrationTest {
         return order;
     }
 
-    private long countUploadedFilesFor(Long orderId) throws IOException {
+    /** Gap Analysis B-3/B-4 (docs/gulliver-20260917-phase1-gap-analysis.md
+     * 7章): the Import Folder file name no longer embeds the Portal orderId
+     * (format is now {@code OfficialPO_{Supplier}_{Brand}_{Date}_{PONo}_{Revision}.xlsx},
+     * OfficialPoFileNaming) - each test's own unique PO No. is the
+     * distinguishing marker instead, matching this shared, cross-run
+     * accumulating upload directory's existing "filter to just this test's
+     * own file" need. */
+    private long countUploadedFilesFor(String officialPoNo) throws IOException {
         if (!Files.exists(uploadDir())) {
             return 0;
         }
         try (Stream<Path> files = Files.list(uploadDir())) {
-            return files.filter(p -> p.getFileName().toString().startsWith("order-" + orderId + "-")).count();
+            return files.filter(p -> p.getFileName().toString().contains("_" + officialPoNo + "_")).count();
         }
     }
 
@@ -103,12 +110,13 @@ class OfficialPoImportFolderPlacementIntegrationTest {
 
     @Test
     void placeWritesExactlyOneFileAndMarksSubmitted() throws IOException {
-        PortalOrder order = readyForPlacement("PLACE-TEST-" + nextSuffix());
+        String poNo = "PLACE-TEST-" + nextSuffix();
+        PortalOrder order = readyForPlacement(poNo);
 
         OfficialPoIntegrationResponse response = integrationService.placeToImportFolder(order.getId(), ADMIN);
 
         assertEquals("SUBMITTED", response.status());
-        assertEquals(1, countUploadedFilesFor(order.getId()));
+        assertEquals(1, countUploadedFilesFor(poNo));
 
         List<AuditEvent> trail = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(order.getId());
         assertTrue(trail.stream().anyMatch(e -> AuditEvent.OFFICIAL_PO_FILE_PLACED.equals(e.getEventType())));
@@ -116,13 +124,14 @@ class OfficialPoImportFolderPlacementIntegrationTest {
 
     @Test
     void doublePlaceIsIdempotent_writesOnlyOneFile() throws IOException {
-        PortalOrder order = readyForPlacement("PLACE-TEST2-" + nextSuffix());
+        String poNo = "PLACE-TEST2-" + nextSuffix();
+        PortalOrder order = readyForPlacement(poNo);
 
         integrationService.placeToImportFolder(order.getId(), ADMIN);
         OfficialPoIntegrationResponse second = integrationService.placeToImportFolder(order.getId(), ADMIN);
 
         assertEquals("SUBMITTED", second.status());
-        assertEquals(1, countUploadedFilesFor(order.getId()), "double-click must not write a second File");
+        assertEquals(1, countUploadedFilesFor(poNo), "double-click must not write a second File");
 
         long placedAuditCount = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(order.getId()).stream()
                 .filter(e -> AuditEvent.OFFICIAL_PO_FILE_PLACED.equals(e.getEventType())).count();

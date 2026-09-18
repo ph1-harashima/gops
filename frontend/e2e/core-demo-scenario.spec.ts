@@ -117,10 +117,10 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Submit for Approval -
   await expect(page.getByText('承認しました。')).toBeVisible()
 
   // Approved -> PO No. is now assigned, and 発注詳細's primary Action is
-  // "PO Previewを見る" (Phase 7-C1 16章: APPROVED replaces the old
+  // "PO プレビューを見る" (Phase 7-C1 16章: APPROVED replaces the old
   // READY_TO_ORDER Preview entry point).
   const goToPreview = page.getByTestId('order-detail-primary-action')
-  await expect(goToPreview).toHaveText('PO Previewを見る')
+  await expect(goToPreview).toHaveText('PO プレビューを見る')
   await goToPreview.click()
   await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview(\\?.*)?$`))
   await expect(page.getByText('未採番')).toHaveCount(0)

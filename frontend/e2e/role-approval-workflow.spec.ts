@@ -119,7 +119,7 @@ test.describe('Phase 7-C1: Role / Approval Workflow', () => {
     await page.getByTestId('order-detail-approve-button').click()
     await page.getByTestId('approve-dialog-confirm').click()
     await expect(page.getByText('承認しました。')).toBeVisible()
-    await expect(page.getByTestId('order-detail-primary-action')).toHaveText('PO Previewを見る')
+    await expect(page.getByTestId('order-detail-primary-action')).toHaveText('PO プレビューを見る')
   })
 
   test('Scenario C: ADMIN 修正 -> 承認 records the change on the Audit Trail (APPROVED_WITH_CHANGES)', async ({ page }) => {

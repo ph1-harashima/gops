@@ -7,7 +7,16 @@ import java.util.List;
  * instructions 25章). {@code confirmedQty} is null whenever no Supplier
  * Response line exists yet for this Order (e.g. still DRAFT/READY_TO_ORDER)
  * or the line has not been answered - the same null/0 distinction as
- * elsewhere in Step 4. */
+ * elsewhere in Step 4.
+ *
+ * <p>Gap Analysis B-1 (docs/gulliver-20260917-phase1-gap-analysis.md 5章):
+ * {@code currentStock}/{@code monthlySales}/{@code leadTime}/{@code openArrival}
+ * are live Legacy READ ONLY values (same {@code LegacyStockReadRepository.findBySkus}
+ * source SKU Detail/Candidate List already use - Fact, no new calculation),
+ * so the Approval screen carries the same judgement material the person who
+ * placed the order already saw. Null when the SKU can no longer be resolved
+ * in Legacy (e.g. since discontinued/removed from Master) - never defaulted
+ * to 0, matching this DTO's existing null/0 discipline for confirmedQty. */
 public record OrderHistoryDetailLineView(
         String sku,
         String itemName,
@@ -16,6 +25,10 @@ public record OrderHistoryDetailLineView(
         Integer confirmedQty,
         LocalDate requestedDelivery,
         LocalDate confirmedDelivery,
-        List<AttentionSummary> attentions
+        List<AttentionSummary> attentions,
+        Integer currentStock,
+        Integer monthlySales,
+        String leadTime,
+        Integer openArrival
 ) {
 }

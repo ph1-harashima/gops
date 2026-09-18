@@ -51,11 +51,16 @@ export function SkuDetailPage() {
   // Stock-Sales Drawer) - the Label must reflect the actual origin instead
   // of always assuming Candidate List (the same "戻る hardcoded a stale
   // caller" pitfall Phase 7-H fixed for PoPreviewPage).
+  // Gap Analysis B-2 (docs/gulliver-20260917-phase1-gap-analysis.md 5章):
+  // 4th entry point - Order Detail (承認画面) linking here to let the
+  // approver check current Stock/Sales/Arrival for a specific line.
   const backLabel = backTarget.startsWith('/warehouse-stock')
     ? t('backToWarehouseStock')
     : backTarget.startsWith('/stock-sales')
       ? t('backToStockSales')
-      : t('back')
+      : backTarget.startsWith('/orders/')
+        ? t('backToOrderDetail')
+        : t('back')
   // Phase 8-M (Global Navigation Audit, Principle D): this screen's own
   // current path (with its own returnTo preserved) becomes the returnTo
   // Arrival List carries, so Arrival List's conditional Back button returns

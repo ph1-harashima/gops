@@ -1,6 +1,6 @@
 {
   "title": "Supplier Contact Management",
-  "subtitle": "Supplier Contact Master (Portal-only - Legacy has no Supplier contact/email Master).",
+  "subtitle": "Set the manufacturer contacts order emails are sent to.",
   "createButton": "New",
   "editButton": "Edit",
   "table": {
