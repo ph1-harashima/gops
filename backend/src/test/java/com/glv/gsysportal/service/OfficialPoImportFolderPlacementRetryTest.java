@@ -19,6 +19,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -70,6 +71,8 @@ class OfficialPoImportFolderPlacementRetryTest {
         LegacyPoConcurrencyReadRepository legacyReadRepository = mock(LegacyPoConcurrencyReadRepository.class);
         ObjectMapper objectMapper = new ObjectMapper();
         PortalUserRepository portalUserRepository = mock(PortalUserRepository.class);
+        com.glv.gsysportal.repository.prototype.OrderEmailRepository orderEmailRepository =
+                mock(com.glv.gsysportal.repository.prototype.OrderEmailRepository.class);
 
         PortalOrder order = order();
         OfficialPoIntegrationRequest request = generatedRequest();
@@ -77,6 +80,12 @@ class OfficialPoImportFolderPlacementRetryTest {
         when(integrationRequestRepository.findByPortalOrderIdAndRevisionNo(ORDER_ID, 1)).thenReturn(Optional.of(request));
         when(integrationRequestRepository.save(any(OfficialPoIntegrationRequest.class))).thenAnswer(inv -> inv.getArgument(0));
         when(excelGenerationService.load("some-file-key.xlsx")).thenReturn(new byte[]{1, 2, 3});
+        // Gap Analysis C-3: toResponse() now computes reissueRequired via an
+        // Audit Trail lookup on every call (including this Retry Scenario's
+        // own placeToImportFolder -> toResponse) - stub it to an empty
+        // history so isReissueRequired() sees no ORDER_REVISION_CREATED event
+        // and returns false, uninvolved in what this test actually verifies.
+        when(auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(anyLong())).thenReturn(java.util.List.of());
 
         IdempotentOperation op = new IdempotentOperation("OFFICIAL_PO_FILE_PLACEMENT", ORDER_ID.toString(),
                 ORDER_ID + "-SUPA-OUTD-TEST-1", OffsetDateTime.now());
@@ -87,7 +96,7 @@ class OfficialPoImportFolderPlacementRetryTest {
         OfficialPoIntegrationService service = new OfficialPoIntegrationService(portalOrderRepository,
                 integrationRequestRepository, auditEventRepository, preflightService, excelGenerationService,
                 pdfGenerationService, importFolderAdapter, idempotencyService, legacyReadRepository, objectMapper,
-                portalUserRepository);
+                portalUserRepository, orderEmailRepository);
 
         // First attempt fails.
         doThrow(new OfficialPoImportFolderWriteException("disk full", new java.io.IOException("disk full")))

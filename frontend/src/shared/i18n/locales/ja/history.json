@@ -114,6 +114,7 @@
     "done": "完了",
     "notYet": "未完了",
     "failed": "失敗",
+    "reissueRequiredMessage": "発注内容に修正が入りました。Official POの再発行が必要です。",
     "hint": {
       "requestIntegration": "次にすべきこと: 「G-SYS連携準備」を行ってください。",
       "confirmPoNumber": "次にすべきこと: 正式PO番号を確定してください。",
@@ -204,7 +205,35 @@
     "expectedQtyLabel": "Portal側数量",
     "actualQtyLabel": "G-SYS側数量",
     "importConfirmedNote": "確認済み: G-SYS登録内容がこの発注内容と一致しています。",
-    "errorNotSubmitted": "この発注はまだImport Folderへ配置されていません。"
+    "errorNotSubmitted": "この発注はまだImport Folderへ配置されていません。",
+    "reissueSectionTitle": "Official PO 再発行 / Revision History",
+    "reissueButton": "Official POを再発行",
+    "reissueDialogTitle": "Official POを再発行しますか？",
+    "reissueDialogBody": "現在のOfficial PO（このRevision）はSUPERSEDEDとなり、新しいRevisionのOfficial PO（PENDING）が作成されます。旧Revisionは削除されず、Revision Historyに残ります。\nこの操作ではG-SYSへの実際の登録・送信は一切行われません。",
+    "reissueDialogCancel": "キャンセル",
+    "reissueDialogConfirm": "再発行する",
+    "reissueSuccess": "Official POを再発行しました。新しいRevisionでPO番号の確定・Excel/PDF生成から再度行ってください。",
+    "errorReissueNotRequired": "現在、再発行が必要な状態ではありません。",
+    "lifecycleStatusLabel": {
+      "ACTIVE": "有効",
+      "SUPERSEDED": "旧版（再発行済み）",
+      "CANCELLED": "キャンセル済み"
+    },
+    "revisionHistory": {
+      "revisionNo": "Revision",
+      "createdAt": "作成日時",
+      "createdBy": "作成者",
+      "excel": "Excel",
+      "pdf": "PDF",
+      "integrationStatus": "G-SYS連携状態",
+      "lifecycleStatus": "状態",
+      "sendStatus": "送信状況",
+      "emailSendStatusValue": {
+        "DRAFT": "未送信",
+        "SENT": "送信済み",
+        "FAILED": "送信失敗"
+      }
+    }
   },
   "mailPreview": {
     "title": "メールプレビュー",

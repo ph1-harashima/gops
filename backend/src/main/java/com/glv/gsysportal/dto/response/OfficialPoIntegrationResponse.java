@@ -47,7 +47,17 @@ public record OfficialPoIntegrationResponse(
          * download - derived from {@code pdfFileKey != null}, independent of
          * {@code excelGenerated}/{@code status} (PDF never drives the
          * Integration Status axis). */
-        boolean pdfGenerated
+        boolean pdfGenerated,
+        /** Gap Analysis C-2/C-4: ACTIVE/SUPERSEDED/CANCELLED - the Document
+         * lifecycle axis, separate from {@code status} above. */
+        String lifecycleStatus,
+        String lifecycleReason,
+        /** Gap Analysis C-2/C-3: true when this ACTIVE Document was actually
+         * issued (GENERATED/SUBMITTED/CONFIRMED) and an Order correction
+         * (Revision) has happened since - the Frontend's "Official POの再発行
+         * が必要です" banner and the enabling condition for the Reissue
+         * Action (never automatic - C-3's explicit requirement). */
+        boolean reissueRequired
 ) {
     public static final String STATUS_NOT_REQUESTED = "NOT_REQUESTED";
 
@@ -72,7 +82,10 @@ public record OfficialPoIntegrationResponse(
                 null, // shipTerm
                 null, // paymentTerm
                 false, // excelGenerated
-                false // pdfGenerated
+                false, // pdfGenerated
+                null, // lifecycleStatus
+                null, // lifecycleReason
+                false // reissueRequired
         );
     }
 }

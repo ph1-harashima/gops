@@ -80,7 +80,11 @@ class PrototypeFlywayMigrationTest {
         // V25 (Gap Analysis Phase 4-8): ck_audit_event_type extended with
         // OFFICIAL_PO_PDF_GENERATED/OFFICIAL_PO_REISSUED/OFFICIAL_PO_CANCELLED/
         // EMAIL_RECIPIENT_OVERRIDE_USED.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25"), versions);
+        // V26 (Gap Analysis C-2/C-4): official_po_integration_request.
+        // lifecycle_status/lifecycle_reason/lifecycle_changed_by/
+        // lifecycle_changed_at - the Document lifecycle axis (ACTIVE/
+        // SUPERSEDED/CANCELLED), separate from the Integration Status above.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26"), versions);
     }
 
     @Test

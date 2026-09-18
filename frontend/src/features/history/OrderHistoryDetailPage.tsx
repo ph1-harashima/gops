@@ -36,6 +36,7 @@ import {
   useConfirmOfficialPoNumber, useGenerateOfficialPoExcel, downloadOfficialPoExcel,
   usePlaceOfficialPoToImportFolder, useConfirmOfficialPoImport,
   useGenerateOfficialPoPdf, downloadOfficialPoPdf,
+  useReissueOfficialPo, useOfficialPoRevisionHistory,
 } from './officialPoIntegrationApi'
 import { useLegacyPoConcurrency, useCaptureLegacyPoBaseline } from './legacyPoConcurrencyApi'
 import { useMailPreview } from './mailPreviewApi'
@@ -189,6 +190,8 @@ export function OrderHistoryDetailPage() {
   const confirmPoNumberMutation = useConfirmOfficialPoNumber(orderId)
   const generateExcelMutation = useGenerateOfficialPoExcel(orderId)
   const generatePdfMutation = useGenerateOfficialPoPdf(orderId)
+  const reissueMutation = useReissueOfficialPo(orderId)
+  const { data: revisionHistory } = useOfficialPoRevisionHistory(orderId)
   const placeMutation = usePlaceOfficialPoToImportFolder(orderId)
   const confirmImportMutation = useConfirmOfficialPoImport(orderId)
   const completeEdiInputMutation = useCompleteEdiInput(orderId)
@@ -205,6 +208,7 @@ export function OrderHistoryDetailPage() {
   const [returnDialogOpen, setReturnDialogOpen] = useState(false)
   const [returnReason, setReturnReason] = useState('')
   const [requestDialogOpen, setRequestDialogOpen] = useState(false)
+  const [reissueDialogOpen, setReissueDialogOpen] = useState(false)
   // Phase 9-A: PO Number confirm form - seeded once from the Integration
   // Request the first time it loads (a staff-entered form, not a live
   // server-value display like the rest of this READ ONLY page).
@@ -228,6 +232,10 @@ export function OrderHistoryDetailPage() {
 
   function handleRequestIntegration() {
     requestIntegrationMutation.mutate(undefined, { onSuccess: () => setRequestDialogOpen(false) })
+  }
+
+  function handleReissue() {
+    reissueMutation.mutate(undefined, { onSuccess: () => setReissueDialogOpen(false) })
   }
 
   function handleCaptureBaseline() {
@@ -459,6 +467,16 @@ export function OrderHistoryDetailPage() {
           {nextActionHintKey && (
             <Alert severity="info" sx={{ mt: 1.5 }} data-testid="next-action-hint">
               {t(`atAGlance.hint.${nextActionHintKey}`)}
+            </Alert>
+          )}
+          {/* Gap Analysis C-3 (docs/gulliver-20260917-phase1-gap-analysis.md
+              8章): "自動検知＋人間による再発行" - detected here (Backend's
+              isReissueRequired, shared with the Reissue Action's own Gate),
+              but NEVER auto-reissued - ADMIN must explicitly click Reissue
+              in the Official PO Section below. */}
+          {integration?.reissueRequired && (
+            <Alert severity="warning" sx={{ mt: 1.5 }} data-testid="reissue-required-banner">
+              {t('atAGlance.reissueRequiredMessage')}
             </Alert>
           )}
         </Paper>
@@ -696,7 +714,7 @@ export function OrderHistoryDetailPage() {
           {integration && (
             <Stack spacing={1} sx={{ mb: 2 }}>
               <Stack direction="row" spacing={4} sx={{ flexWrap: 'wrap', rowGap: 1, alignItems: 'center' }}>
-                <Typography variant="body2">
+                <Typography variant="body2" data-testid="official-po-status-label">
                   {t('officialPoIntegration.statusLabel.' + integration.status)}
                 </Typography>
                 <Typography variant="body2">
@@ -1151,6 +1169,84 @@ export function OrderHistoryDetailPage() {
             >
               {captureBaselineMutation.isPending ? <CircularProgress size={20} /> : t('legacyPoConcurrency.captureButton')}
             </Button>
+          )}
+
+          {/* Gap Analysis C-2/C-3 (docs/gulliver-20260917-phase1-gap-analysis.md
+              7章/8章): Reissue + Revision History - extends this same Section
+              (same convention as Legacy Concurrency above, 19章). */}
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle2" gutterBottom>{t('officialPoIntegration.reissueSectionTitle')}</Typography>
+
+          <Toast
+            open={reissueMutation.isSuccess}
+            severity="success"
+            message={t('officialPoIntegration.reissueSuccess')}
+            onClose={() => reissueMutation.reset()}
+          />
+          <Toast
+            open={reissueMutation.isError}
+            severity="error"
+            testId="official-po-reissue-error"
+            message={
+              errorCodeOf(reissueMutation.error) === 'OFFICIAL_PO_REISSUE_NOT_REQUIRED' ? t('officialPoIntegration.errorReissueNotRequired') :
+              errorCodeOf(reissueMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+              t('errorGeneric')
+            }
+            onClose={() => reissueMutation.reset()}
+          />
+
+          {isAdmin && (
+            <Button
+              variant="outlined"
+              color="warning"
+              onClick={() => setReissueDialogOpen(true)}
+              disabled={!integration?.reissueRequired || reissueMutation.isPending}
+              data-testid="official-po-reissue-button"
+              sx={{ mb: 2 }}
+            >
+              {t('officialPoIntegration.reissueButton')}
+            </Button>
+          )}
+
+          {revisionHistory && revisionHistory.length > 0 && (
+            <TableContainer sx={{ mt: 1 }}>
+              <Table size="small" data-testid="official-po-revision-history-table">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>{t('officialPoIntegration.revisionHistory.revisionNo')}</TableCell>
+                    <TableCell>{t('officialPoIntegration.revisionHistory.createdAt')}</TableCell>
+                    <TableCell>{t('officialPoIntegration.revisionHistory.createdBy')}</TableCell>
+                    <TableCell>{t('officialPoIntegration.officialPoNoLabel')}</TableCell>
+                    <TableCell>{t('officialPoIntegration.revisionHistory.excel')}</TableCell>
+                    <TableCell>{t('officialPoIntegration.revisionHistory.pdf')}</TableCell>
+                    <TableCell>{t('officialPoIntegration.revisionHistory.integrationStatus')}</TableCell>
+                    <TableCell>{t('officialPoIntegration.revisionHistory.lifecycleStatus')}</TableCell>
+                    <TableCell>{t('officialPoIntegration.revisionHistory.sendStatus')}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {revisionHistory.map((rev) => (
+                    <TableRow key={rev.revisionNo} hover data-testid={`revision-history-row-${rev.revisionNo}`}>
+                      <TableCell>{String(rev.revisionNo).padStart(3, '0')}</TableCell>
+                      <TableCell>{rev.createdAt ? new Date(rev.createdAt).toLocaleString('ja-JP') : t('notAvailable')}</TableCell>
+                      <TableCell>{rev.createdByDisplayName ?? rev.createdBy ?? t('notAvailable')}</TableCell>
+                      <TableCell>{rev.officialPoNo ?? t('notAvailable')}</TableCell>
+                      <TableCell>{rev.excelGenerated ? t('atAGlance.done') : t('atAGlance.notYet')}</TableCell>
+                      <TableCell>{rev.pdfGenerated ? t('atAGlance.done') : t('atAGlance.notYet')}</TableCell>
+                      <TableCell>{t(`officialPoIntegration.statusLabel.${rev.integrationStatus}`)}</TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          color={rev.lifecycleStatus === 'ACTIVE' ? 'success' : rev.lifecycleStatus === 'CANCELLED' ? 'error' : 'default'}
+                          label={t(`officialPoIntegration.lifecycleStatusLabel.${rev.lifecycleStatus}`)}
+                        />
+                      </TableCell>
+                      <TableCell>{rev.emailSendStatus ? t(`officialPoIntegration.revisionHistory.emailSendStatusValue.${rev.emailSendStatus}`) : t('notAvailable')}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
         </Paper>
       )}
@@ -1673,6 +1769,35 @@ export function OrderHistoryDetailPage() {
             data-testid="official-po-request-dialog-confirm"
           >
             {requestIntegrationMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.requestDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Gap Analysis C-2/C-3: Reissue confirmation - a human-confirmed
+          Action (never automatic), mirroring the G-SYS連携準備 dialog above. */}
+      <Dialog
+        open={reissueDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setReissueDialogOpen(false)
+        }}
+      >
+        <DialogTitle>{t('officialPoIntegration.reissueDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('officialPoIntegration.reissueDialogBody')}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReissueDialogOpen(false)} disabled={reissueMutation.isPending}>
+            {t('officialPoIntegration.reissueDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={handleReissue}
+            disabled={reissueMutation.isPending}
+            data-testid="official-po-reissue-dialog-confirm"
+          >
+            {reissueMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.reissueDialogConfirm')}
           </Button>
         </DialogActions>
       </Dialog>

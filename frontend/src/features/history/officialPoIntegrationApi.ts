@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../../shared/api/client'
-import type { OfficialPoIntegration, OfficialPoImportConfirmationResult } from '../../shared/types/officialPoIntegration'
+import type { OfficialPoIntegration, OfficialPoImportConfirmationResult, OfficialPoRevisionHistoryEntry } from '../../shared/types/officialPoIntegration'
 
 /** Phase 7-C2A 13章: Order Detail's "G-SYS正式PO連携" Section. Any
  * authenticated user may view it. */
@@ -173,6 +173,42 @@ export function useGenerateOfficialPoPdf(orderId: number) {
 
 /** Downloads the generated Official PO PDF. ADMIN only. Mirrors
  * {@link downloadOfficialPoExcel}. */
+/** Gap Analysis C-2/C-3 (docs/gulliver-20260917-phase1-gap-analysis.md
+ * 7章/8章): "Official POを再発行". ADMIN only. Human-confirmed action -
+ * refused (409 OFFICIAL_PO_REISSUE_NOT_REQUIRED) unless the Backend's own
+ * isReissueRequired detection agrees (same computation the "at a glance"
+ * reissueRequired flag uses). */
+async function reissueOfficialPo(orderId: number): Promise<OfficialPoIntegration> {
+  const { data } = await apiClient.post<OfficialPoIntegration>(`/orders/${orderId}/official-po/reissue`)
+  return data
+}
+
+export function useReissueOfficialPo(orderId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => reissueOfficialPo(orderId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+      void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
+      void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+    },
+  })
+}
+
+/** Gap Analysis C-2: Revision History - any authenticated user may view it. */
+async function fetchRevisionHistory(orderId: number): Promise<OfficialPoRevisionHistoryEntry[]> {
+  const { data } = await apiClient.get<OfficialPoRevisionHistoryEntry[]>(`/orders/${orderId}/official-po/revisions`)
+  return data
+}
+
+export function useOfficialPoRevisionHistory(orderId: number) {
+  return useQuery({
+    queryKey: ['official-po-revisions', orderId],
+    queryFn: () => fetchRevisionHistory(orderId),
+    enabled: Number.isFinite(orderId),
+  })
+}
+
 export async function downloadOfficialPoPdf(orderId: number): Promise<void> {
   const response = await apiClient.get<Blob>(`/orders/${orderId}/official-po/pdf`, { responseType: 'blob' })
   const url = window.URL.createObjectURL(response.data)

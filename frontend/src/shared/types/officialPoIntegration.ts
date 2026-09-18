@@ -50,6 +50,32 @@ export interface OfficialPoIntegration {
    * download - independent of excelGenerated/status (PDF never drives the
    * Integration Status axis). */
   pdfGenerated: boolean
+  /** Gap Analysis C-2/C-4: ACTIVE | SUPERSEDED | CANCELLED - the Document
+   * lifecycle axis, separate from `status` above. */
+  lifecycleStatus: string | null
+  lifecycleReason: string | null
+  /** Gap Analysis C-2/C-3: true when this ACTIVE Document was actually
+   * issued and an Order correction has happened since - drives the "Official
+   * POの再発行が必要です" banner and enables the Reissue button. */
+  reissueRequired: boolean
+}
+
+/** Gap Analysis C-2 (docs/gulliver-20260917-phase1-gap-analysis.md 7章):
+ * one row per Official PO Integration Request ever created for an Order. */
+export interface OfficialPoRevisionHistoryEntry {
+  revisionNo: number
+  createdAt: string | null
+  createdBy: string | null
+  createdByDisplayName: string | null
+  officialPoNo: string | null
+  integrationStatus: string
+  excelGenerated: boolean
+  pdfGenerated: boolean
+  lifecycleStatus: string
+  lifecycleReason: string | null
+  lifecycleChangedBy: string | null
+  lifecycleChangedAt: string | null
+  emailSendStatus: string | null
 }
 
 /** Mirrors backend OfficialPoImportConfirmationResponse (Phase 9-C). */

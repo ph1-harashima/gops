@@ -174,6 +174,53 @@ public class OfficialPoIntegrationRequest {
     @Column(name = "pdf_generated_at")
     private OffsetDateTime pdfGeneratedAt;
 
+    // --- Gap Analysis C-2/C-4 (docs/gulliver-20260917-phase1-gap-analysis.md
+    // 7章): Document lifecycle, entirely separate from the Integration
+    // Status axis above. ---
+    public static final String LIFECYCLE_ACTIVE = "ACTIVE";
+    public static final String LIFECYCLE_SUPERSEDED = "SUPERSEDED";
+    public static final String LIFECYCLE_CANCELLED = "CANCELLED";
+
+    @Column(name = "lifecycle_status", nullable = false, length = 20)
+    private String lifecycleStatus = LIFECYCLE_ACTIVE;
+
+    @Column(name = "lifecycle_reason")
+    private String lifecycleReason;
+
+    @Column(name = "lifecycle_changed_by", length = 50)
+    private String lifecycleChangedBy;
+
+    @Column(name = "lifecycle_changed_at")
+    private OffsetDateTime lifecycleChangedAt;
+
+    /** C-2: this Revision's Request has been replaced by a newer one
+     * (Reissue). Reachable only from ACTIVE - a SUPERSEDED or CANCELLED
+     * Request is a terminal historical record and is never re-superseded. */
+    public void markSuperseded(String reason, String performedBy, OffsetDateTime now) {
+        if (!LIFECYCLE_ACTIVE.equals(lifecycleStatus)) {
+            throw new IllegalStateException("Cannot supersede from lifecycle status " + lifecycleStatus);
+        }
+        this.lifecycleStatus = LIFECYCLE_SUPERSEDED;
+        this.lifecycleReason = reason;
+        this.lifecycleChangedBy = performedBy;
+        this.lifecycleChangedAt = now;
+        this.updatedAt = now;
+    }
+
+    /** C-4: ADMIN explicitly cancels this Document (reason required at the
+     * Service layer). Reachable only from ACTIVE - matches markSuperseded's
+     * own "terminal states never transition again" rule. */
+    public void markCancelled(String reason, String performedBy, OffsetDateTime now) {
+        if (!LIFECYCLE_ACTIVE.equals(lifecycleStatus)) {
+            throw new IllegalStateException("Cannot cancel from lifecycle status " + lifecycleStatus);
+        }
+        this.lifecycleStatus = LIFECYCLE_CANCELLED;
+        this.lifecycleReason = reason;
+        this.lifecycleChangedBy = performedBy;
+        this.lifecycleChangedAt = now;
+        this.updatedAt = now;
+    }
+
     /** GENERATED transition. Called for real by
      * {@code OfficialPoIntegrationService#generateExcel} since Phase 9-A -
      * only ever from PENDING (a re-generate on an already-GENERATED+

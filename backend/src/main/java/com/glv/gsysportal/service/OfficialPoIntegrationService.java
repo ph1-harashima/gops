@@ -23,12 +23,14 @@ import com.glv.gsysportal.exception.OfficialPoNotGeneratedException;
 import com.glv.gsysportal.exception.OfficialPoNotSubmittedException;
 import com.glv.gsysportal.exception.OfficialPoNumberRequiredException;
 import com.glv.gsysportal.exception.OfficialPoPreflightBlockedException;
+import com.glv.gsysportal.exception.OfficialPoReissueNotRequiredException;
 import com.glv.gsysportal.exception.OrderNotApprovedException;
 import com.glv.gsysportal.repository.legacy.LegacyPoConcurrencyReadRepository;
 import com.glv.gsysportal.repository.legacy.row.LegacyPoConcurrencyHeaderRow;
 import com.glv.gsysportal.repository.legacy.row.LegacyPoConcurrencyLineRow;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
+import com.glv.gsysportal.repository.prototype.OrderEmailRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import com.glv.gsysportal.repository.prototype.PortalUserRepository;
 import com.glv.gsysportal.domain.PortalUser;
@@ -81,6 +83,7 @@ public class OfficialPoIntegrationService {
     private final LegacyPoConcurrencyReadRepository legacyReadRepository;
     private final ObjectMapper objectMapper;
     private final PortalUserRepository portalUserRepository;
+    private final OrderEmailRepository orderEmailRepository;
 
     public OfficialPoIntegrationService(PortalOrderRepository portalOrderRepository,
                                          OfficialPoIntegrationRequestRepository integrationRequestRepository,
@@ -92,7 +95,8 @@ public class OfficialPoIntegrationService {
                                          IdempotencyService idempotencyService,
                                          LegacyPoConcurrencyReadRepository legacyReadRepository,
                                          ObjectMapper objectMapper,
-                                         PortalUserRepository portalUserRepository) {
+                                         PortalUserRepository portalUserRepository,
+                                         OrderEmailRepository orderEmailRepository) {
         this.portalOrderRepository = portalOrderRepository;
         this.integrationRequestRepository = integrationRequestRepository;
         this.auditEventRepository = auditEventRepository;
@@ -104,6 +108,7 @@ public class OfficialPoIntegrationService {
         this.legacyReadRepository = legacyReadRepository;
         this.objectMapper = objectMapper;
         this.portalUserRepository = portalUserRepository;
+        this.orderEmailRepository = orderEmailRepository;
     }
 
     /**
@@ -181,6 +186,105 @@ public class OfficialPoIntegrationService {
         return integrationRequestRepository.findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
                 .map(this::toResponse)
                 .orElseGet(() -> OfficialPoIntegrationResponse.notRequested(orderId));
+    }
+
+    /**
+     * Gap Analysis C-2 (docs/gulliver-20260917-phase1-gap-analysis.md 7章):
+     * "Official POを再発行" - a human-confirmed action (never automatic, C-3),
+     * enabled only when {@link #isReissueRequired} agrees a reissue is
+     * actually pending (same detection Phase 6's banner uses - UI and
+     * enforcement share this one computation so they can never disagree).
+     * Marks the current ACTIVE Request SUPERSEDED, then reuses
+     * {@link #requestIntegration} verbatim to create the new ACTIVE Request
+     * at the next target Revision (Preflight re-run included) - never a
+     * second, parallel "create a Request" code path.
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public OfficialPoIntegrationResponse reissue(Long orderId, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        if (!PortalOrder.STATUS_APPROVED.equals(order.getStatus())) {
+            throw new OrderNotApprovedException(orderId, order.getStatus());
+        }
+        OfficialPoIntegrationRequest current = integrationRequestRepository
+                .findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
+                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo(order)));
+        if (!isReissueRequired(current)) {
+            throw new OfficialPoReissueNotRequiredException(orderId);
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        int previousRevisionNo = current.getRevisionNo();
+        current.markSuperseded("Reissued for a corrected Revision", performedBy, now);
+        integrationRequestRepository.save(current);
+
+        OfficialPoIntegrationResponse created = requestIntegration(orderId, performedBy);
+
+        auditEventRepository.save(new AuditEvent(orderId, null, AuditEvent.OFFICIAL_PO_REISSUED,
+                "revisionNo", String.valueOf(previousRevisionNo), String.valueOf(created.revisionNo()), performedBy, now));
+        return created;
+    }
+
+    /** Gap Analysis C-3: the SAME computation both the "Official POの再発行が
+     * 必要です" banner (via {@link #toResponse}'s {@code reissueRequired}
+     * field) and {@link #reissue}'s own precondition use. True only when the
+     * current ACTIVE Document was actually issued (GENERATED/SUBMITTED/
+     * CONFIRMED - a still-PENDING Request was never handed to anyone, so
+     * there is nothing yet to invalidate) AND at least one
+     * {@code ORDER_REVISION_CREATED} correction has happened since (Phase
+     * 7-C5's existing "修正版を作成" Action) - reusing the existing Revision/
+     * Correction Audit trail rather than inventing a new Qty-comparison
+     * Business Rule (docs 7章's explicit "既存Revisionモデルを利用"
+     * instruction). */
+    private boolean isReissueRequired(OfficialPoIntegrationRequest r) {
+        if (!OfficialPoIntegrationRequest.LIFECYCLE_ACTIVE.equals(r.getLifecycleStatus())) {
+            return false;
+        }
+        if (!isIssued(r.getStatus())) {
+            return false;
+        }
+        OffsetDateTime referenceTime = r.getSubmittedAt() != null ? r.getSubmittedAt()
+                : r.getGeneratedAt() != null ? r.getGeneratedAt() : r.getRequestedAt();
+        if (referenceTime == null) {
+            return false;
+        }
+        return auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(r.getPortalOrderId()).stream()
+                .anyMatch(e -> AuditEvent.ORDER_REVISION_CREATED.equals(e.getEventType())
+                        && e.getPerformedAt().isAfter(referenceTime));
+    }
+
+    private static boolean isIssued(String status) {
+        return OfficialPoIntegrationRequest.STATUS_GENERATED.equals(status)
+                || OfficialPoIntegrationRequest.STATUS_SUBMITTED.equals(status)
+                || OfficialPoIntegrationRequest.STATUS_CONFIRMED.equals(status);
+    }
+
+    /** Gap Analysis C-2 (docs/gulliver-20260917-phase1-gap-analysis.md 7章):
+     * Revision History - every Official PO Integration Request ever created
+     * for this Order (old Revisions are never deleted, only marked
+     * SUPERSEDED/CANCELLED by {@link #reissue}/{@code cancel}). */
+    @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
+    public List<com.glv.gsysportal.dto.response.OfficialPoRevisionHistoryEntry> getRevisionHistory(Long orderId) {
+        if (!portalOrderRepository.existsById(orderId)) {
+            throw new DraftNotFoundException(orderId);
+        }
+        return integrationRequestRepository.findByPortalOrderIdOrderByRevisionNoAsc(orderId).stream()
+                .map(this::toRevisionHistoryEntry)
+                .toList();
+    }
+
+    private com.glv.gsysportal.dto.response.OfficialPoRevisionHistoryEntry toRevisionHistoryEntry(OfficialPoIntegrationRequest r) {
+        String requestedByDisplayName = r.getRequestedBy() == null ? null
+                : portalUserRepository.findByUsername(r.getRequestedBy()).map(PortalUser::getDisplayName).orElse(null);
+        String emailSendStatus = orderEmailRepository
+                .findByPortalOrderIdAndRevisionNo(r.getPortalOrderId(), r.getRevisionNo())
+                .map(com.glv.gsysportal.domain.OrderEmail::getStatus)
+                .orElse(null);
+        return new com.glv.gsysportal.dto.response.OfficialPoRevisionHistoryEntry(
+                r.getRevisionNo(), r.getRequestedAt(), r.getRequestedBy(), requestedByDisplayName,
+                r.getOfficialPoNo(), r.getStatus(), r.getGeneratedFileKey() != null, r.getPdfFileKey() != null,
+                r.getLifecycleStatus(), r.getLifecycleReason(), r.getLifecycleChangedBy(), r.getLifecycleChangedAt(),
+                emailSendStatus
+        );
     }
 
     /**
@@ -537,7 +641,10 @@ public class OfficialPoIntegrationService {
                 r.getErrorCode(), r.getErrorMessage(), r.getIntegrationIntent(),
                 r.getDeliveryWeek(), r.getDeliveryDate(), r.getShipVia(), r.getShipTerm(), r.getPaymentTerm(),
                 r.getGeneratedFileKey() != null,
-                r.getPdfFileKey() != null
+                r.getPdfFileKey() != null,
+                r.getLifecycleStatus(),
+                r.getLifecycleReason(),
+                isReissueRequired(r)
         );
     }
 

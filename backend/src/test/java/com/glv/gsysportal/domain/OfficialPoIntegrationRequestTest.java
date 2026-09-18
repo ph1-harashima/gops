@@ -131,4 +131,56 @@ class OfficialPoIntegrationRequestTest {
         assertEquals(2, r.getRetryCount());
         assertEquals("ERR_2", r.getErrorCode());
     }
+
+    // --- Gap Analysis C-2/C-4 (docs/gulliver-20260917-phase1-gap-analysis.md
+    // 7章): Document lifecycle - entirely separate axis from the Integration
+    // Status transitions above. ---
+
+    @Test
+    void newRequestDefaultsToActiveLifecycle() {
+        OfficialPoIntegrationRequest r = pending();
+        assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_ACTIVE, r.getLifecycleStatus());
+    }
+
+    @Test
+    void markSupersededRecordsReasonAndActor() {
+        OfficialPoIntegrationRequest r = pending();
+        OffsetDateTime now = OffsetDateTime.now();
+        r.markSuperseded("Reissued for Revision 2", "admin-tester", now);
+
+        assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_SUPERSEDED, r.getLifecycleStatus());
+        assertEquals("Reissued for Revision 2", r.getLifecycleReason());
+        assertEquals("admin-tester", r.getLifecycleChangedBy());
+        assertEquals(now, r.getLifecycleChangedAt());
+    }
+
+    @Test
+    void markCancelledRecordsReasonAndActor() {
+        OfficialPoIntegrationRequest r = pending();
+        OffsetDateTime now = OffsetDateTime.now();
+        r.markCancelled("Order cancelled by customer", "admin-tester", now);
+
+        assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_CANCELLED, r.getLifecycleStatus());
+        assertEquals("Order cancelled by customer", r.getLifecycleReason());
+    }
+
+    @Test
+    void supersededDocumentCannotBeSupersededOrCancelledAgain() {
+        OfficialPoIntegrationRequest r = pending();
+        OffsetDateTime now = OffsetDateTime.now();
+        r.markSuperseded("first", "admin-tester", now);
+
+        assertThrows(IllegalStateException.class, () -> r.markSuperseded("second", "admin-tester", now));
+        assertThrows(IllegalStateException.class, () -> r.markCancelled("cancel after supersede", "admin-tester", now));
+    }
+
+    @Test
+    void cancelledDocumentCannotBeSupersededOrCancelledAgain() {
+        OfficialPoIntegrationRequest r = pending();
+        OffsetDateTime now = OffsetDateTime.now();
+        r.markCancelled("first", "admin-tester", now);
+
+        assertThrows(IllegalStateException.class, () -> r.markCancelled("second", "admin-tester", now));
+        assertThrows(IllegalStateException.class, () -> r.markSuperseded("supersede after cancel", "admin-tester", now));
+    }
 }

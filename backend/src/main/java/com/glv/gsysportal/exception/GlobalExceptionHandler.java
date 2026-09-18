@@ -396,6 +396,13 @@ public class GlobalExceptionHandler {
         return error(request, HttpStatus.NOT_FOUND, "OFFICIAL_PO_PDF_NOT_GENERATED");
     }
 
+    // --- Gap Analysis C-2/C-3: Official PO Reissue ---
+
+    @ExceptionHandler(OfficialPoReissueNotRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoReissueNotRequired(OfficialPoReissueNotRequiredException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_REISSUE_NOT_REQUIRED");
+    }
+
     // --- Phase 9-B: Import Folder Integration (Production PO Workflow) ---
 
     @ExceptionHandler(OfficialPoNotGeneratedException.class)

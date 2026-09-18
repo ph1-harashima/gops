@@ -142,4 +142,21 @@ public class OfficialPoIntegrationController {
                         ContentDisposition.attachment().filename(download.fileName()).build().toString())
                 .body(download.bytes());
     }
+
+    /** Gap Analysis C-2/C-3 (docs/gulliver-20260917-phase1-gap-analysis.md
+     * 7章/8章): "Official POを再発行" - ADMIN only, human-confirmed (never
+     * automatic - C-3). Refused (409) unless a reissue is actually pending -
+     * see {@code OfficialPoIntegrationService#reissue}'s Javadoc. */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/orders/{id}/official-po/reissue")
+    public OfficialPoIntegrationResponse reissue(@PathVariable Long id) {
+        return integrationService.reissue(id, currentUserProvider.currentUsername());
+    }
+
+    /** Gap Analysis C-2: Revision History - any authenticated user may view
+     * it, matching every other read endpoint on this Controller. */
+    @GetMapping("/api/orders/{id}/official-po/revisions")
+    public java.util.List<com.glv.gsysportal.dto.response.OfficialPoRevisionHistoryEntry> revisionHistory(@PathVariable Long id) {
+        return integrationService.getRevisionHistory(id);
+    }
 }
