@@ -403,6 +403,18 @@ public class GlobalExceptionHandler {
         return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_REISSUE_NOT_REQUIRED");
     }
 
+    // --- Gap Analysis C-4: Official PO Cancel ---
+
+    @ExceptionHandler(OfficialPoCancelReasonRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoCancelReasonRequired(OfficialPoCancelReasonRequiredException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.BAD_REQUEST, "OFFICIAL_PO_CANCEL_REASON_REQUIRED");
+    }
+
+    @ExceptionHandler(OfficialPoCancelNotAllowedException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoCancelNotAllowed(OfficialPoCancelNotAllowedException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_CANCEL_NOT_ALLOWED");
+    }
+
     // --- Phase 9-B: Import Folder Integration (Production PO Workflow) ---
 
     @ExceptionHandler(OfficialPoNotGeneratedException.class)

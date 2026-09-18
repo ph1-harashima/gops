@@ -418,3 +418,54 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     await expect(page.getByTestId('at-a-glance-panel').getByText('準備中')).toBeVisible()
   })
 })
+
+/**
+ * Gap Analysis C-4 (docs/gulliver-20260917-phase1-gap-analysis.md 9章,
+ * Scenario 3 of the instruction's End-to-End Scenario list): Official PO
+ * issued -> Cancel -> reason required -> CANCELLED -> no automatic Legacy
+ * write -> Audit Trail.
+ */
+test.describe('Gap Analysis C-4: Official PO Cancel', () => {
+  test('Scenario L: ADMIN cancels the Official PO with a mandatory reason, no automatic Legacy write', async ({ page }) => {
+    const draftId = await createOrderableDraft(page)
+    await submitAndApprove(page, draftId)
+
+    await page.getByTestId('official-po-request-button').click()
+    await page.getByTestId('official-po-request-dialog-confirm').click()
+    const poNo = `E2E-CANCEL-${draftId}`
+    await page.getByTestId('official-po-number-input').locator('input').fill(poNo)
+    await page.getByTestId('official-po-number-confirm-button').click()
+    await page.getByTestId('official-po-generate-button').click()
+    await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+
+    // Reason required: the Confirm button stays disabled until something is typed.
+    await page.getByTestId('official-po-cancel-button').click()
+    await expect(page.getByTestId('official-po-cancel-dialog-confirm')).toBeDisabled()
+    await page.getByTestId('official-po-cancel-reason-input').locator('textarea').first().fill('顧客都合によりOrderをキャンセル')
+    await expect(page.getByTestId('official-po-cancel-dialog-confirm')).toBeEnabled()
+    await page.getByTestId('official-po-cancel-dialog-confirm').click()
+    await expect(page.getByText('Official POをキャンセルしました。')).toBeVisible()
+
+    await expect(page.getByTestId('official-po-cancelled-note')).toBeVisible()
+    await expect(page.getByTestId('official-po-cancelled-note')).toContainText('顧客都合によりOrderをキャンセル')
+    // The Integration Status axis (Excel/Import Folder progress) is left
+    // untouched by Cancel - it still reads GENERATED, never silently reset.
+    await expect(page.getByTestId('official-po-status-label')).toHaveText('Excel生成済み')
+    // Cancel Button itself is now disabled - a terminal state, matching the
+    // Backend's own "never re-cancel" rule.
+    await expect(page.getByTestId('official-po-cancel-button')).toBeDisabled()
+    await expect(page.getByTestId('official-po-reissue-button')).toBeDisabled()
+
+    const historyRow = page.getByTestId('revision-history-row-1')
+    await expect(historyRow).toContainText('キャンセル済み')
+    await expect(historyRow).toContainText(poNo)
+
+    // No automatic Legacy write of any kind is possible from this Action -
+    // Cancel only ever calls markCancelled()/saves the Portal DB row
+    // (Backend Fact, OfficialPoIntegrationService.cancel's own Javadoc);
+    // this Scenario's Browser-observable proxy is that the page never enters
+    // an error state and Integration Status/PO No. remain exactly as they
+    // were set by the Portal-only Actions above.
+    await expect(page.getByTestId('official-po-no')).toHaveText(poNo)
+  })
+})

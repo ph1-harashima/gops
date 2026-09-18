@@ -36,7 +36,7 @@ import {
   useConfirmOfficialPoNumber, useGenerateOfficialPoExcel, downloadOfficialPoExcel,
   usePlaceOfficialPoToImportFolder, useConfirmOfficialPoImport,
   useGenerateOfficialPoPdf, downloadOfficialPoPdf,
-  useReissueOfficialPo, useOfficialPoRevisionHistory,
+  useReissueOfficialPo, useOfficialPoRevisionHistory, useCancelOfficialPo,
 } from './officialPoIntegrationApi'
 import { useLegacyPoConcurrency, useCaptureLegacyPoBaseline } from './legacyPoConcurrencyApi'
 import { useMailPreview } from './mailPreviewApi'
@@ -191,6 +191,7 @@ export function OrderHistoryDetailPage() {
   const generateExcelMutation = useGenerateOfficialPoExcel(orderId)
   const generatePdfMutation = useGenerateOfficialPoPdf(orderId)
   const reissueMutation = useReissueOfficialPo(orderId)
+  const cancelMutation = useCancelOfficialPo(orderId)
   const { data: revisionHistory } = useOfficialPoRevisionHistory(orderId)
   const placeMutation = usePlaceOfficialPoToImportFolder(orderId)
   const confirmImportMutation = useConfirmOfficialPoImport(orderId)
@@ -209,6 +210,8 @@ export function OrderHistoryDetailPage() {
   const [returnReason, setReturnReason] = useState('')
   const [requestDialogOpen, setRequestDialogOpen] = useState(false)
   const [reissueDialogOpen, setReissueDialogOpen] = useState(false)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
   // Phase 9-A: PO Number confirm form - seeded once from the Integration
   // Request the first time it loads (a staff-entered form, not a live
   // server-value display like the rest of this READ ONLY page).
@@ -236,6 +239,15 @@ export function OrderHistoryDetailPage() {
 
   function handleReissue() {
     reissueMutation.mutate(undefined, { onSuccess: () => setReissueDialogOpen(false) })
+  }
+
+  function handleCancel() {
+    cancelMutation.mutate(cancelReason, {
+      onSuccess: () => {
+        setCancelDialogOpen(false)
+        setCancelReason('')
+      },
+    })
   }
 
   function handleCaptureBaseline() {
@@ -1195,17 +1207,51 @@ export function OrderHistoryDetailPage() {
             onClose={() => reissueMutation.reset()}
           />
 
+          <Toast
+            open={cancelMutation.isSuccess}
+            severity="success"
+            message={t('officialPoIntegration.cancelSuccess')}
+            onClose={() => cancelMutation.reset()}
+          />
+          <Toast
+            open={cancelMutation.isError}
+            severity="error"
+            testId="official-po-cancel-error"
+            message={
+              errorCodeOf(cancelMutation.error) === 'OFFICIAL_PO_CANCEL_NOT_ALLOWED' ? t('officialPoIntegration.errorCancelNotAllowed') :
+              errorCodeOf(cancelMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+              t('errorGeneric')
+            }
+            onClose={() => cancelMutation.reset()}
+          />
+
           {isAdmin && (
-            <Button
-              variant="outlined"
-              color="warning"
-              onClick={() => setReissueDialogOpen(true)}
-              disabled={!integration?.reissueRequired || reissueMutation.isPending}
-              data-testid="official-po-reissue-button"
-              sx={{ mb: 2 }}
-            >
-              {t('officialPoIntegration.reissueButton')}
-            </Button>
+            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+              <Button
+                variant="outlined"
+                color="warning"
+                onClick={() => setReissueDialogOpen(true)}
+                disabled={!integration?.reissueRequired || reissueMutation.isPending}
+                data-testid="official-po-reissue-button"
+              >
+                {t('officialPoIntegration.reissueButton')}
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={() => setCancelDialogOpen(true)}
+                disabled={integration?.lifecycleStatus !== 'ACTIVE' || cancelMutation.isPending}
+                data-testid="official-po-cancel-button"
+              >
+                {t('officialPoIntegration.cancelButton')}
+              </Button>
+            </Stack>
+          )}
+
+          {integration?.lifecycleStatus === 'CANCELLED' && (
+            <Alert severity="error" sx={{ mb: 2 }} data-testid="official-po-cancelled-note">
+              {t('officialPoIntegration.cancelledNote')}{integration.lifecycleReason ? `: ${integration.lifecycleReason}` : ''}
+            </Alert>
           )}
 
           {revisionHistory && revisionHistory.length > 0 && (
@@ -1798,6 +1844,46 @@ export function OrderHistoryDetailPage() {
             data-testid="official-po-reissue-dialog-confirm"
           >
             {reissueMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.reissueDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Gap Analysis C-4 (docs/gulliver-20260917-phase1-gap-analysis.md
+          9章): Cancel - reason is mandatory (Audit Trail: 誰が・いつ・何を・
+          なぜ), so this is a Reason-input Dialog rather than a plain confirm. */}
+      <Dialog
+        open={cancelDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setCancelDialogOpen(false)
+        }}
+      >
+        <DialogTitle>{t('officialPoIntegration.cancelDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{t('officialPoIntegration.cancelDialogBody')}</DialogContentText>
+          <TextField
+            label={t('officialPoIntegration.cancelReasonLabel')}
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            fullWidth
+            multiline
+            minRows={2}
+            required
+            data-testid="official-po-cancel-reason-input"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCancelDialogOpen(false)} disabled={cancelMutation.isPending}>
+            {t('officialPoIntegration.cancelDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleCancel}
+            disabled={cancelMutation.isPending || !cancelReason.trim()}
+            data-testid="official-po-cancel-dialog-confirm"
+          >
+            {cancelMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.cancelDialogConfirm')}
           </Button>
         </DialogActions>
       </Dialog>

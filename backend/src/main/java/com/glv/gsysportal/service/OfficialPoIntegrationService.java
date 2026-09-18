@@ -18,6 +18,8 @@ import com.glv.gsysportal.exception.IntegrationRequestRequiredException;
 import com.glv.gsysportal.exception.InvalidIntegrationIntentException;
 import com.glv.gsysportal.exception.InvalidOfficialPoNumberException;
 import com.glv.gsysportal.exception.OfficialPoAlreadySubmittedException;
+import com.glv.gsysportal.exception.OfficialPoCancelNotAllowedException;
+import com.glv.gsysportal.exception.OfficialPoCancelReasonRequiredException;
 import com.glv.gsysportal.exception.OfficialPoExcelNotGeneratedException;
 import com.glv.gsysportal.exception.OfficialPoNotGeneratedException;
 import com.glv.gsysportal.exception.OfficialPoNotSubmittedException;
@@ -222,6 +224,43 @@ public class OfficialPoIntegrationService {
         auditEventRepository.save(new AuditEvent(orderId, null, AuditEvent.OFFICIAL_PO_REISSUED,
                 "revisionNo", String.valueOf(previousRevisionNo), String.valueOf(created.revisionNo()), performedBy, now));
         return created;
+    }
+
+    /**
+     * Gap Analysis C-4 (docs/gulliver-20260917-phase1-gap-analysis.md 9章):
+     * "Cancel" - ADMIN cancels the current ACTIVE Official PO Document as a
+     * G-OPS-internal Workflow state (Legacy's own正式Cancel Rule is
+     * unconfirmed, so this NEVER writes to Legacy in any way - the Document
+     * simply becomes CANCELLED in Portal). Reason is mandatory (Audit Trail:
+     * 誰が・いつ・何を・なぜ). Only the current ACTIVE Document can be
+     * cancelled - a SUPERSEDED or already-CANCELLED Document is a terminal
+     * historical record (same "never re-transition a terminal state" rule
+     * {@link OfficialPoIntegrationRequest#markCancelled} itself enforces,
+     * translated here into a proper 409 instead of a raw IllegalStateException).
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public OfficialPoIntegrationResponse cancel(Long orderId, String reason, String performedBy) {
+        if (reason == null || reason.isBlank()) {
+            throw new OfficialPoCancelReasonRequiredException();
+        }
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        OfficialPoIntegrationRequest current = integrationRequestRepository
+                .findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
+                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo(order)));
+        if (!OfficialPoIntegrationRequest.LIFECYCLE_ACTIVE.equals(current.getLifecycleStatus())) {
+            throw new OfficialPoCancelNotAllowedException(orderId, current.getLifecycleStatus());
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        String trimmedReason = reason.trim();
+        current.markCancelled(trimmedReason, performedBy, now);
+        OfficialPoIntegrationRequest saved = integrationRequestRepository.save(current);
+
+        AuditEvent cancelEvent = new AuditEvent(orderId, null, AuditEvent.OFFICIAL_PO_CANCELLED,
+                null, null, null, performedBy, now);
+        cancelEvent.setNote(trimmedReason);
+        auditEventRepository.save(cancelEvent);
+        return toResponse(saved);
     }
 
     /** Gap Analysis C-3: the SAME computation both the "Official POの再発行が

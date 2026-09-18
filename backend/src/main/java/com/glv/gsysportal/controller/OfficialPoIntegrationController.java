@@ -1,5 +1,6 @@
 package com.glv.gsysportal.controller;
 
+import com.glv.gsysportal.dto.request.CancelOfficialPoRequest;
 import com.glv.gsysportal.dto.request.ConfirmOfficialPoNumberRequest;
 import com.glv.gsysportal.dto.request.SetIntegrationIntentRequest;
 import com.glv.gsysportal.dto.response.OfficialPoImportConfirmationResponse;
@@ -158,5 +159,14 @@ public class OfficialPoIntegrationController {
     @GetMapping("/api/orders/{id}/official-po/revisions")
     public java.util.List<com.glv.gsysportal.dto.response.OfficialPoRevisionHistoryEntry> revisionHistory(@PathVariable Long id) {
         return integrationService.getRevisionHistory(id);
+    }
+
+    /** Gap Analysis C-4 (docs/gulliver-20260917-phase1-gap-analysis.md 9章):
+     * "Official POをCancel" - ADMIN only, reason required. G-OPS-internal
+     * Workflow state only - never writes to Legacy in any way. */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/orders/{id}/official-po/cancel")
+    public OfficialPoIntegrationResponse cancel(@PathVariable Long id, @RequestBody CancelOfficialPoRequest body) {
+        return integrationService.cancel(id, body.reason(), currentUserProvider.currentUsername());
     }
 }

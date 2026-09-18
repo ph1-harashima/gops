@@ -195,6 +195,26 @@ export function useReissueOfficialPo(orderId: number) {
   })
 }
 
+/** Gap Analysis C-4 (docs/gulliver-20260917-phase1-gap-analysis.md 9章):
+ * "Official POをCancel". ADMIN only, reason mandatory. G-OPS-internal
+ * Workflow state - never writes to Legacy in any way. */
+async function cancelOfficialPo(orderId: number, reason: string): Promise<OfficialPoIntegration> {
+  const { data } = await apiClient.post<OfficialPoIntegration>(`/orders/${orderId}/official-po/cancel`, { reason })
+  return data
+}
+
+export function useCancelOfficialPo(orderId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (reason: string) => cancelOfficialPo(orderId, reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+      void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
+      void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+    },
+  })
+}
+
 /** Gap Analysis C-2: Revision History - any authenticated user may view it. */
 async function fetchRevisionHistory(orderId: number): Promise<OfficialPoRevisionHistoryEntry[]> {
   const { data } = await apiClient.get<OfficialPoRevisionHistoryEntry[]>(`/orders/${orderId}/official-po/revisions`)
