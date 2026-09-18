@@ -446,6 +446,23 @@ public class GlobalExceptionHandler {
         return error(request, HttpStatus.NOT_FOUND, "MANUFACTURER_CHANNEL_NOT_FOUND");
     }
 
+    // --- Gap Analysis §12: Domestic/Overseas Foundation ---
+
+    @ExceptionHandler(InvalidSupplierRegionClassificationException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidSupplierRegionClassification(InvalidSupplierRegionClassificationException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.BAD_REQUEST, "INVALID_SUPPLIER_REGION_CLASSIFICATION");
+    }
+
+    @ExceptionHandler(DuplicateSupplierRegionClassificationException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateSupplierRegionClassification(DuplicateSupplierRegionClassificationException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "DUPLICATE_SUPPLIER_REGION_CLASSIFICATION");
+    }
+
+    @ExceptionHandler(SupplierRegionClassificationNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleSupplierRegionClassificationNotFound(SupplierRegionClassificationNotFoundException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.NOT_FOUND, "SUPPLIER_REGION_CLASSIFICATION_NOT_FOUND");
+    }
+
     @ExceptionHandler(EdiCompletionNotApplicableException.class)
     public ResponseEntity<Map<String, Object>> handleEdiCompletionNotApplicable(EdiCompletionNotApplicableException ex, HttpServletRequest request) {
         return error(request, HttpStatus.CONFLICT, "EDI_COMPLETION_NOT_APPLICABLE");

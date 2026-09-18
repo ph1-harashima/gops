@@ -14,6 +14,7 @@ import jaSkuDetail from './locales/ja/skuDetail.json'
 import jaSupplierContact from './locales/ja/supplierContact.json'
 import jaMailTemplate from './locales/ja/mailTemplate.json'
 import jaManufacturerChannel from './locales/ja/manufacturerChannel.json'
+import jaSupplierRegionClassification from './locales/ja/supplierRegionClassification.json'
 import jaPriceChanges from './locales/ja/priceChanges.json'
 import jaArrivals from './locales/ja/arrivals.json'
 import jaWarehouseStock from './locales/ja/warehouseStock.json'
@@ -27,6 +28,7 @@ import enSkuDetail from './locales/en/skuDetail.json'
 import enSupplierContact from './locales/en/supplierContact.json'
 import enMailTemplate from './locales/en/mailTemplate.json'
 import enManufacturerChannel from './locales/en/manufacturerChannel.json'
+import enSupplierRegionClassification from './locales/en/supplierRegionClassification.json'
 import enDrafts from './locales/en/drafts.json'
 import enSupplierResponse from './locales/en/supplierResponse.json'
 import enCandidates from './locales/en/candidates.json'
@@ -84,6 +86,7 @@ void i18n.use(initReactI18next).init({
       supplierContact: jaSupplierContact,
       mailTemplate: jaMailTemplate,
       manufacturerChannel: jaManufacturerChannel,
+      supplierRegionClassification: jaSupplierRegionClassification,
       priceChanges: jaPriceChanges,
       arrivals: jaArrivals,
       warehouseStock: jaWarehouseStock,
@@ -104,6 +107,7 @@ void i18n.use(initReactI18next).init({
       supplierContact: enSupplierContact,
       mailTemplate: enMailTemplate,
       manufacturerChannel: enManufacturerChannel,
+      supplierRegionClassification: enSupplierRegionClassification,
       priceChanges: enPriceChanges,
       arrivals: enArrivals,
       warehouseStock: enWarehouseStock,

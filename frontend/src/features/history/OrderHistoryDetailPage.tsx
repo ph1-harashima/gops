@@ -472,6 +472,17 @@ export function OrderHistoryDetailPage() {
             data-testid="resolved-manufacturer-channel-chip"
           />
         )}
+        {/* Gap Analysis §12 (Domestic/Overseas Foundation): display-only Chip
+            resolved from the new Portal-only Supplier Region Classification
+            Master - never consulted by Recommended Qty, purely informational. */}
+        {detail.resolvedRegionClassification && (
+          <Chip
+            size="small"
+            variant="outlined"
+            label={t(`supplierRegionClassification:regionClassification.${detail.resolvedRegionClassification}`)}
+            data-testid="resolved-region-classification-chip"
+          />
+        )}
         <AttentionChips attentions={detail.orderAttentions} acknowledgeable />
       </Stack>
 

@@ -30,6 +30,7 @@ import { SupplierContactPage } from '../features/admin/SupplierContactPage'
 import { ManufacturerChannelPage } from '../features/admin/ManufacturerChannelPage'
 import { MailTemplatePage } from '../features/admin/MailTemplatePage'
 import { PortalMailSettingsPage } from '../features/admin/PortalMailSettingsPage'
+import { SupplierRegionClassificationPage } from '../features/admin/SupplierRegionClassificationPage'
 import { PriceChangeListPage } from '../features/priceChanges/PriceChangeListPage'
 import { PriceChangeEditPage } from '../features/priceChanges/PriceChangeEditPage'
 import { PriceChangeDetailPage } from '../features/priceChanges/PriceChangeDetailPage'
@@ -65,6 +66,7 @@ export function App() {
   const isMasterMaintenanceSection =
     location.pathname === '/admin/supplier-contacts' || location.pathname === '/admin/mail-templates'
     || location.pathname === '/admin/manufacturer-channels' || location.pathname === '/admin/mail-settings'
+    || location.pathname === '/admin/supplier-region-classifications'
   const [masterMenuAnchor, setMasterMenuAnchor] = useState<HTMLElement | null>(null)
 
   const roleLabel = user ? t(`drafts:roleLabel.${user.role}`, { defaultValue: user.role }) : ''
@@ -228,6 +230,15 @@ export function App() {
                       >
                         {t('navAdminMailSettings')}
                       </MenuItem>
+                      <MenuItem
+                        component={Link}
+                        to="/admin/supplier-region-classifications"
+                        selected={location.pathname === '/admin/supplier-region-classifications'}
+                        onClick={() => setMasterMenuAnchor(null)}
+                        data-testid="nav-admin-supplier-region-classifications"
+                      >
+                        {t('navAdminSupplierRegionClassifications')}
+                      </MenuItem>
                     </Menu>
                   </>
                 )}
@@ -320,6 +331,7 @@ export function App() {
             <Route path="/admin/manufacturer-channels" element={<ManufacturerChannelPage />} />
             <Route path="/admin/mail-templates" element={<MailTemplatePage />} />
             <Route path="/admin/mail-settings" element={<PortalMailSettingsPage />} />
+            <Route path="/admin/supplier-region-classifications" element={<SupplierRegionClassificationPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}

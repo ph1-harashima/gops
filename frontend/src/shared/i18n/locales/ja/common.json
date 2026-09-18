@@ -17,5 +17,6 @@
   "navAdminMailTemplates": "メールテンプレート",
   "navAdminManufacturerChannels": "メーカー通信方法",
   "navAdminMailSettings": "メール送信設定（Default CC）",
+  "navAdminSupplierRegionClassifications": "国内／海外区分",
   "demoEnvironmentBadge": "デモ環境"
 }

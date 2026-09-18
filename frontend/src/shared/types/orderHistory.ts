@@ -61,6 +61,11 @@ export interface OrderHistoryDetail {
   // (unresolved, no Master row yet). "What SHOULD happen", independent of
   // communicationChannel above ("what actually happened" on a past Send).
   resolvedManufacturerChannel: 'EMAIL' | 'EDI' | null
+  // Gap Analysis §12 (Domestic/Overseas Foundation): Supplier Region
+  // Classification Master's resolved value - DOMESTIC/OVERSEAS/null
+  // (unresolved, no Master row yet). Display only, never used to compute
+  // Recommended Qty (still Legacy MS_FORMULA, unchanged).
+  resolvedRegionClassification: 'DOMESTIC' | 'OVERSEAS' | null
   ediStatus: 'WAITING_INPUT' | 'COMPLETED' | null
   ediCompletedBy: string | null
   /** i18n localization audit: prefer this for display, fall back to

@@ -88,7 +88,12 @@ class PrototypeFlywayMigrationTest {
         // master_cc_addresses/recipient_override_used - Email Recipient
         // Override; portal_mail_settings (new, singleton) - Default CC
         // Foundation (prefill only, never an enforced Business Rule).
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27"), versions);
+        // V28 (Gap Analysis §12): supplier_region_classification (new,
+        // Portal-only, ADMIN-set) - Domestic/Overseas Foundation. Never
+        // derived from Legacy (no such field exists there, re-confirmed
+        // READ ONLY this Phase) and never consulted by recommendedQty's
+        // calculation - display only.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28"), versions);
     }
 
     @Test

@@ -17,5 +17,6 @@
   "navAdminMailTemplates": "Mail Templates",
   "navAdminManufacturerChannels": "Manufacturer Channels",
   "navAdminMailSettings": "Mail Settings (Default CC)",
+  "navAdminSupplierRegionClassifications": "Domestic / Overseas Classification",
   "demoEnvironmentBadge": "Demo Environment"
 }

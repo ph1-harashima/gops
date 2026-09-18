@@ -45,6 +45,12 @@ public record OrderHistoryDetailResponse(
          * documented idiom) - Frontend prefers this for display, falling back
          * to ediCompletedBy when null. */
         String ediCompletedByDisplayName,
-        OffsetDateTime ediCompletedAt
+        OffsetDateTime ediCompletedAt,
+        /** Gap Analysis §12 (docs/gulliver-20260917-phase1-gap-analysis.md
+         * 12章): Domestic/Overseas Foundation - DOMESTIC/OVERSEAS/null
+         * (unresolved, no Master row yet). Portal-only classification, NEVER
+         * derived from Legacy and NEVER consulted by recommendedQty's
+         * calculation - display only. */
+        String resolvedRegionClassification
 ) {
 }

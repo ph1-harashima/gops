@@ -1,0 +1,38 @@
+{
+  "title": "国内／海外区分管理",
+  "subtitle": "メーカー（ブランド単位も可）ごとに国内／海外の区分を設定します。この区分は表示のみに使用され、発注数量の計算には一切影響しません。",
+  "createButton": "新規作成",
+  "editButton": "編集",
+  "table": {
+    "supplierCode": "メーカーコード",
+    "brandCode": "ブランドコード",
+    "regionClassification": "区分",
+    "active": "状態"
+  },
+  "statusActive": "有効",
+  "statusInactive": "無効",
+  "dialogTitleCreate": "国内／海外区分を新規作成",
+  "dialogTitleEdit": "国内／海外区分を編集",
+  "field": {
+    "supplierCode": "メーカーコード",
+    "brandCode": "ブランドコード",
+    "brandCodeHelp": "空欄の場合、このメーカーの全ブランドに適用されます。",
+    "regionClassification": "区分",
+    "active": "有効"
+  },
+  "regionClassification": {
+    "DOMESTIC": "国内",
+    "OVERSEAS": "海外"
+  },
+  "save": "保存",
+  "cancel": "キャンセル",
+  "empty": "登録されている設定がありません。",
+  "error": {
+    "INVALID_SUPPLIER_REGION_CLASSIFICATION": "区分は国内または海外を指定してください。",
+    "SUPPLIER_CODE_NOT_FOUND": "メーカーコードがG-SYS上で見つかりません。",
+    "BRAND_CODE_NOT_FOUND": "ブランドコードがG-SYS上で見つかりません。",
+    "DUPLICATE_SUPPLIER_REGION_CLASSIFICATION": "同一メーカー・ブランドの有効な設定が既に存在します。",
+    "FORBIDDEN": "この操作を行う権限がありません。",
+    "GENERIC": "処理に失敗しました。"
+  }
+}

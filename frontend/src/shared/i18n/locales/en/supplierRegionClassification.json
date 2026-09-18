@@ -1,0 +1,38 @@
+{
+  "title": "Domestic / Overseas Classification",
+  "subtitle": "Set Domestic/Overseas classification per Supplier (optionally per Brand). Display only — never used in Recommended Qty calculation.",
+  "createButton": "Create New",
+  "editButton": "Edit",
+  "table": {
+    "supplierCode": "Supplier Code",
+    "brandCode": "Brand Code",
+    "regionClassification": "Classification",
+    "active": "Status"
+  },
+  "statusActive": "Active",
+  "statusInactive": "Inactive",
+  "dialogTitleCreate": "Create Region Classification",
+  "dialogTitleEdit": "Edit Region Classification",
+  "field": {
+    "supplierCode": "Supplier Code",
+    "brandCode": "Brand Code",
+    "brandCodeHelp": "Leave blank to apply to every Brand under this Supplier.",
+    "regionClassification": "Classification",
+    "active": "Active"
+  },
+  "regionClassification": {
+    "DOMESTIC": "Domestic",
+    "OVERSEAS": "Overseas"
+  },
+  "save": "Save",
+  "cancel": "Cancel",
+  "empty": "No entries registered.",
+  "error": {
+    "INVALID_SUPPLIER_REGION_CLASSIFICATION": "Classification must be DOMESTIC or OVERSEAS.",
+    "SUPPLIER_CODE_NOT_FOUND": "Supplier code was not found in G-SYS.",
+    "BRAND_CODE_NOT_FOUND": "Brand code was not found in G-SYS.",
+    "DUPLICATE_SUPPLIER_REGION_CLASSIFICATION": "An active entry for this Supplier/Brand already exists.",
+    "FORBIDDEN": "You do not have permission to perform this action.",
+    "GENERIC": "The operation failed."
+  }
+}

@@ -63,6 +63,7 @@ public class OrderHistoryService {
     private final PortalUserRepository portalUserRepository;
     private final ManufacturerChannelResolutionService channelResolutionService;
     private final LegacyStockReadRepository legacyStockReadRepository;
+    private final SupplierRegionClassificationResolutionService regionClassificationResolutionService;
 
     public OrderHistoryService(PortalOrderRepository portalOrderRepository,
                                 SupplierResponseRepository supplierResponseRepository,
@@ -70,7 +71,8 @@ public class OrderHistoryService {
                                 AuditEventRepository auditEventRepository,
                                 PortalUserRepository portalUserRepository,
                                 ManufacturerChannelResolutionService channelResolutionService,
-                                LegacyStockReadRepository legacyStockReadRepository) {
+                                LegacyStockReadRepository legacyStockReadRepository,
+                                SupplierRegionClassificationResolutionService regionClassificationResolutionService) {
         this.portalOrderRepository = portalOrderRepository;
         this.supplierResponseRepository = supplierResponseRepository;
         this.orderAttentionRepository = orderAttentionRepository;
@@ -78,6 +80,7 @@ public class OrderHistoryService {
         this.portalUserRepository = portalUserRepository;
         this.channelResolutionService = channelResolutionService;
         this.legacyStockReadRepository = legacyStockReadRepository;
+        this.regionClassificationResolutionService = regionClassificationResolutionService;
     }
 
     /**
@@ -252,6 +255,7 @@ public class OrderHistoryService {
                 .toList();
 
         String resolvedChannel = channelResolutionService.resolve(order.getSupplierCode(), order.getBrandCode());
+        String resolvedRegionClassification = regionClassificationResolutionService.resolve(order.getSupplierCode(), order.getBrandCode());
         String ediCompletedByDisplayName = order.getEdiCompletedBy() == null ? null
                 : portalUserRepository.findByUsername(order.getEdiCompletedBy()).map(PortalUser::getDisplayName).orElse(null);
 
@@ -263,7 +267,7 @@ public class OrderHistoryService {
                 order.getStatus(), order.getTotalQty(), order.getTotalAmount(),
                 lines, orderAttentions, order.getCommunicationChannel(),
                 resolvedChannel, order.getEdiStatus(), order.getEdiCompletedBy(), ediCompletedByDisplayName,
-                order.getEdiCompletedAt()
+                order.getEdiCompletedAt(), resolvedRegionClassification
         );
     }
 
