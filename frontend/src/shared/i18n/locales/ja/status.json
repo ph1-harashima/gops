@@ -7,7 +7,7 @@
     "RETURNIDw/opage": "掲載保留"
   },
   "dataSource": {
-    "DEMO_LEGACY": "Demo Data（Legacy互換）",
+    "DEMO_LEGACY": "サンプルデータ",
     "LEGACY": "Legacy実データ"
   },
   "orderStatus": {

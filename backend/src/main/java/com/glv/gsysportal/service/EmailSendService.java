@@ -78,14 +78,46 @@ public class EmailSendService {
      * every other read endpoint's visibility). */
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
     public OrderEmailResponse getStatus(Long orderId) {
-        if (!portalOrderRepository.existsById(orderId)) {
-            throw new DraftNotFoundException(orderId);
-        }
-        int revisionNo = OfficialPoIntegrationService.targetRevisionNo(
-                portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId)));
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        int revisionNo = emailRevisionNo(orderId, order);
         return orderEmailRepository.findByPortalOrderIdAndRevisionNo(orderId, revisionNo)
                 .map(this::toResponse)
                 .orElseGet(() -> OrderEmailResponse.notSent(orderId));
+    }
+
+    /**
+     * Acceptance Review C-2 fix (docs/gulliver-phase1-acceptance-fix-report.md):
+     * Source of Truth for "which Revision does this Email Send/Status belong
+     * to". Previously this reused {@link OfficialPoIntegrationService#targetRevisionNo}
+     * directly - a PROSPECTIVE "one past whatever Revision was last actually
+     * sent" number, correct for Official PO Integration Request/Reissue
+     * (which prepare a Revision that has not been Demo/EDI-Sent yet), but
+     * wrong for Email: {@code targetRevisionNo} silently advances the moment
+     * {@code demoSend}/{@code recordEdiSend} writes the first
+     * {@code PortalOrderRevision} snapshot (Order Status Transition Service's
+     * own Javadoc), even though no Order correction/Reissue happened. A real
+     * Send performed before that moment (Revision 1) would then look
+     * "unsent" after a later, unrelated Demo Send bumped the target to 2 -
+     * exactly the Acceptance Review's repro (Manufacturer Send, then Demo
+     * Send, made a successfully-sent Email look "未完了"/"Not yet").
+     *
+     * <p>The fix: an Email always belongs to whichever Revision the ACTUAL,
+     * already-created {@link OfficialPoIntegrationRequest} row for this
+     * Order most recently targeted - never a number recomputed from Order
+     * state that can shift out from under a Send already on record. This is
+     * stable under Demo/EDI Send (neither one ever creates or changes an
+     * Integration Request) and still resolves correctly after a genuine
+     * Reissue (Reissue creates a NEW, higher-numbered ACTIVE Integration
+     * Request, so a fresh Email Send is correctly required for it). Falls
+     * back to {@code targetRevisionNo} only when no Integration Request has
+     * ever been created yet (Email Send is not reachable at that point
+     * anyway - Excel/attachment readiness always requires one - so the
+     * fallback value is never actually compared against a real sent row).
+     */
+    private int emailRevisionNo(Long orderId, PortalOrder order) {
+        return integrationRequestRepository.findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
+                .map(OfficialPoIntegrationRequest::getRevisionNo)
+                .orElseGet(() -> OfficialPoIntegrationService.targetRevisionNo(order));
     }
 
     /** Mirrors {@link #send(Long, String, List, List)} with no Override -
@@ -117,7 +149,7 @@ public class EmailSendService {
     @Transactional(transactionManager = "prototypeTransactionManager")
     public OrderEmailResponse send(Long orderId, String performedBy, List<String> toOverride, List<String> ccOverride) {
         PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
-        int revisionNo = OfficialPoIntegrationService.targetRevisionNo(order);
+        int revisionNo = emailRevisionNo(orderId, order);
 
         Optional<OrderEmail> existing = orderEmailRepository.findByPortalOrderIdAndRevisionNo(orderId, revisionNo);
         if (existing.isPresent() && OrderEmail.STATUS_SENT.equals(existing.get().getStatus())) {

@@ -196,6 +196,16 @@ test('Scenario D: confirmedQty=0 -> NULLと区別 -> Reason/Supply Status表示'
   // Before answering: unanswered (null), never shown as 0.
   await expect(page.getByTestId(`confirmed-qty-input-${SKU}`).locator('input')).toHaveValue('')
 
+  // Acceptance Fix (item 10): while genuinely unanswered (null), the
+  // Difference section must read as a plain "not yet answered" statement,
+  // never as an "X -> 未回答" pseudo-change (the confusing
+  // "未回答: 6 -> 未回答" the Acceptance Review found) - null and 0 must
+  // stay visibly distinct, this existing Business Rule is unchanged.
+  const unansweredDiff = page.getByTestId(`difference-${SKU}-UNANSWERED`)
+  await expect(unansweredDiff).toBeVisible()
+  await expect(unansweredDiff).not.toContainText('→')
+  await expect(unansweredDiff).toContainText('メーカー回答はまだありません')
+
   await page.getByTestId(`confirmed-qty-input-${SKU}`).locator('input').fill('0')
   await page.getByTestId(`supply-status-select-${SKU}`).click()
   await page.getByRole('option', { name: '欠品', exact: true }).click()
@@ -207,6 +217,12 @@ test('Scenario D: confirmedQty=0 -> NULLと区別 -> Reason/Supply Status表示'
   // auto-inferred, 7-C5 7章) - the explicit OUT_OF_STOCK selection raises its
   // own SUPPLY_STATUS_CHANGED Attention chip, distinct from QUANTITY_CHANGED.
   await expect(page.getByText('供給状況の確認が必要').first()).toBeVisible()
+
+  // confirmedQty=0 is a real, displayed difference (0 is a value, not an
+  // absence) - the UNANSWERED entry is gone and a QUANTITY_CHANGED entry
+  // with confirmedValue "0" (not blank, not "未回答") takes its place.
+  await expect(page.getByTestId(`difference-${SKU}-UNANSWERED`)).toHaveCount(0)
+  await expect(page.getByTestId(`difference-${SKU}-QUANTITY_CHANGED`)).toContainText('→ 0')
   void orderId
 })
 

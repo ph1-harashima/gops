@@ -1,6 +1,6 @@
 {
   "appName": "G-SYS Online Ordering",
-  "demoEnvironmentBanner": "Demo Environment - Legacy互換Demo Instanceのデータを表示しています（本番G-SYSデータではありません）",
+  "demoEnvironmentBanner": "Demo Environment - 検証用のサンプルデータを表示しています（本番のG-SYSデータではありません）",
   "loading": "読み込み中...",
   "errorGeneric": "データの取得に失敗しました。時間をおいて再度お試しください。",
   "retry": "再読み込み",
@@ -18,5 +18,9 @@
   "navAdminManufacturerChannels": "メーカー通信方法",
   "navAdminMailSettings": "メール送信設定（Default CC）",
   "navAdminSupplierRegionClassifications": "国内／海外区分",
-  "demoEnvironmentBadge": "デモ環境"
+  "demoEnvironmentBadge": "デモ環境",
+  "searchLabel": "検索（メーカーコード・ブランドコード等）",
+  "showInactiveLabel": "無効な項目も表示",
+  "clearFilters": "クリア",
+  "noSearchResults": "検索条件に一致する項目がありません。"
 }

@@ -86,13 +86,16 @@ test.describe('Phase 7-C2A: Official PO Integration Foundation', () => {
     await expect(page.getByTestId('official-po-no')).toHaveText('正式PO番号未設定')
     await expect(page.getByTestId('official-po-no-unassigned-note')).toBeVisible()
     await expect(page.getByTestId('preflight-result')).toBeVisible()
-    // Scoped to the Preflight Section, not the whole page - the Audit
-    // Timeline below also renders "PASS" (Phase 7-H: no Arrow, no "—" - a
-    // Create-shaped event with only one side of a value, since
-    // PRECHECK_COMPLETED has no real "before") for the same
-    // PRECHECK_COMPLETED event, which a page-wide getByText('PASS') would
+    // Acceptance Fix (B-1): the live-state Chip now reads "問題なし" (natural
+    // Japanese) instead of the raw internal Code "PASS". Scoped to the
+    // Preflight Section, not the whole page - the Audit Timeline below
+    // still renders the raw stored Code "PASS" for the same
+    // PRECHECK_COMPLETED event (a deliberate, separately-audited exception -
+    // resolveTimelineValue's own Javadoc - the historical record intentionally
+    // keeps the exact stored value, only "status"/"attentionType" fields are
+    // translated there), which a page-wide getByText('PASS') would still
     // collide with.
-    await expect(page.getByTestId('preflight-result').getByText('PASS')).toBeVisible()
+    await expect(page.getByTestId('preflight-result').getByText('問題なし')).toBeVisible()
   })
 
   test('Scenario B: a second Request on the same Order/Revision does not duplicate', async ({ page }) => {
@@ -215,6 +218,16 @@ test.describe('Phase 9-A: Official PO Number / Excel Generation', () => {
     // History table also render this same statusLabel text - scoped to the
     // dedicated status label element to disambiguate.
     await expect(page.getByTestId('official-po-status-label')).toHaveText('Excel生成済み') // statusLabel.GENERATED
+
+    // Acceptance Fix C-1: the Excel and PDF Download buttons must never
+    // share one label - a user must never be able to mistake which
+    // Artifact a Download button actually downloads. Generate the PDF too
+    // so both buttons are on screen at once and assert their exact,
+    // distinct text (not just visibility).
+    await page.getByTestId('official-po-pdf-generate-button').click()
+    await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
+    await expect(page.getByTestId('official-po-download-button')).toHaveText('Excelをダウンロード')
+    await expect(page.getByTestId('official-po-pdf-download-button')).toHaveText('PDFをダウンロード')
   })
 
   test('Scenario G: Excel generation is blocked until a PO No. is confirmed', async ({ page }) => {
@@ -399,7 +412,7 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
 
     await page.getByTestId('official-po-reissue-button').click()
     await page.getByTestId('official-po-reissue-dialog-confirm').click()
-    await expect(page.getByText('Official POを再発行しました。')).toBeVisible()
+    await expect(page.getByText('正式POを再発行しました。')).toBeVisible()
 
     // Revision Required cleared (the new ACTIVE Document has not been issued
     // yet), and Revision History shows both rows with the correct lifecycle.
@@ -444,7 +457,7 @@ test.describe('Gap Analysis C-4: Official PO Cancel', () => {
     await page.getByTestId('official-po-cancel-reason-input').locator('textarea').first().fill('顧客都合によりOrderをキャンセル')
     await expect(page.getByTestId('official-po-cancel-dialog-confirm')).toBeEnabled()
     await page.getByTestId('official-po-cancel-dialog-confirm').click()
-    await expect(page.getByText('Official POをキャンセルしました。')).toBeVisible()
+    await expect(page.getByText('正式POをキャンセルしました。')).toBeVisible()
 
     await expect(page.getByTestId('official-po-cancelled-note')).toBeVisible()
     await expect(page.getByTestId('official-po-cancelled-note')).toContainText('顧客都合によりOrderをキャンセル')

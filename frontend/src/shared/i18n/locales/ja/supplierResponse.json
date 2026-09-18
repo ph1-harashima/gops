@@ -54,7 +54,8 @@
       "QUANTITY_CHANGED": "数量変更",
       "DELIVERY_CHANGED": "納期変更",
       "UNANSWERED": "未回答"
-    }
+    },
+    "unansweredLine": "発注数量: {{orderedQty}}（メーカー回答はまだありません）"
   },
   "agreement": {
     "title": "合意",

@@ -477,8 +477,23 @@ export function SupplierResponsePage() {
           <Stack spacing={0.5}>
             {response.differences.map((diff, i) => (
               <Typography key={i} variant="body2" data-testid={`difference-${diff.skuCode}-${diff.type}`}>
-                {diff.skuCode} - {t(`differences.type.${diff.type}`)}:{' '}
-                {diff.orderedValue ?? '—'} → {diff.confirmedValue ?? t('unanswered')}
+                {/* Acceptance Fix (item 10): UNANSWERED is not yet a real
+                    content difference (Confirmed Qty is genuinely null, an
+                    existing, unchanged Business Rule kept distinct from
+                    Confirmed Qty = 0 - see SupplierResponsePage's own
+                    zeroQty summary/differences.type.QUANTITY_CHANGED path
+                    for that case) - rendering it through the same "X → Y"
+                    template as an actual change produced the confusing
+                    "未回答: 6 → 未回答". This SKU gets its own, non-arrow
+                    phrasing instead; real differences keep the template. */}
+                {diff.type === 'UNANSWERED' ? (
+                  <>{diff.skuCode} - {t('differences.unansweredLine', { orderedQty: diff.orderedValue ?? '—' })}</>
+                ) : (
+                  <>
+                    {diff.skuCode} - {t(`differences.type.${diff.type}`)}:{' '}
+                    {diff.orderedValue ?? '—'} → {diff.confirmedValue ?? t('unanswered')}
+                  </>
+                )}
               </Typography>
             ))}
           </Stack>

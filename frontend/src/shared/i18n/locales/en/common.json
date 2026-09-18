@@ -18,5 +18,9 @@
   "navAdminManufacturerChannels": "Manufacturer Channels",
   "navAdminMailSettings": "Mail Settings (Default CC)",
   "navAdminSupplierRegionClassifications": "Domestic / Overseas Classification",
-  "demoEnvironmentBadge": "Demo Environment"
+  "demoEnvironmentBadge": "Demo Environment",
+  "searchLabel": "Search (Supplier Code, Brand Code, etc.)",
+  "showInactiveLabel": "Show inactive entries",
+  "clearFilters": "Clear",
+  "noSearchResults": "No entries match the current search."
 }

@@ -139,12 +139,28 @@ test.describe('Phase 7-F: Sticky Table Header', () => {
   test('G: Supplier Contact List keeps its Column Header visible on scroll', async ({ page }) => {
     await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
     await page.goto('/admin/supplier-contacts')
+    // Acceptance Fix C-4: the list now defaults to hiding inactive rows, so
+    // a moment where every existing Contact happens to be inactive would
+    // otherwise render the "no results" Alert instead of the Table at all.
+    // Reveal the (many, real, already-existing) inactive rows this shared
+    // Demo DB accumulates from repeated test runs, rather than creating a
+    // brand new one - an earlier version of this fix created a real
+    // SUP_ALPHA-wide active Contact here, which collided with
+    // supplier-contact-mail-template.spec.ts's own "nothing configured yet"
+    // Scenario C/D premise; toggling the existing checkbox writes nothing
+    // and touches no shared identity at all.
+    await page.getByTestId('supplier-contact-show-inactive').check()
+    await page.getByTestId('supplier-contact-table-container').waitFor()
     await assertHeaderStaysVisibleOnScroll(page, 'supplier-contact-table-container')
   })
 
   test('H: Mail Template List keeps its Column Header visible on scroll', async ({ page }) => {
     await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
     await page.goto('/admin/mail-templates')
+    // Acceptance Fix C-4: same "reveal existing inactive rows, create
+    // nothing" fix as Scenario G just above.
+    await page.getByTestId('mail-template-show-inactive').check()
+    await page.getByTestId('mail-template-table-container').waitFor()
     await assertHeaderStaysVisibleOnScroll(page, 'mail-template-table-container')
   })
 

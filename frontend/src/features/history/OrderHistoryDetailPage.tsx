@@ -450,6 +450,16 @@ export function OrderHistoryDetailPage() {
         <Typography variant="h5" component="h1">
           {t('detailTitle')} - {detail.prototypePoNo ?? detail.draftNo}
         </Typography>
+        {/* Acceptance Fix C-5: the header number (Prototype PO No., e.g.
+            PO-DEMO-...) and the G-SYS正式PO連携 section's "正式PO番号" are two
+            intentionally distinct identifiers (PrototypePoNoGenerator's own
+            Javadoc: "unmistakably distinct from Legacy PO Number... never
+            intended to resemble Legacy's own format") - this Chip makes that
+            explicit at the one place a user is most likely to mistake the
+            header number for the real PO No. */}
+        <Tooltip title={t('portalPoNoCaptionTooltip')}>
+          <Chip size="small" variant="outlined" label={t('portalPoNoCaption')} data-testid="portal-po-no-caption" />
+        </Tooltip>
         <OrderStatusChip status={detail.status} />
         {/* Phase 7-H (EDI発注Workflow Foundation): shown here, not on PO
             Preview (unreachable once past APPROVED - PoPreviewService's own
@@ -974,7 +984,7 @@ export function OrderHistoryDetailPage() {
                 </Button>
                 {integration.excelGenerated && (
                   <Button variant="text" onClick={handleDownloadExcel} data-testid="official-po-download-button">
-                    {t('officialPoIntegration.downloadButton')}
+                    {t('officialPoIntegration.downloadExcelButton')}
                   </Button>
                 )}
               </Stack>
@@ -1019,7 +1029,7 @@ export function OrderHistoryDetailPage() {
                 </Button>
                 {integration.pdfGenerated && (
                   <Button variant="text" onClick={handleDownloadPdf} data-testid="official-po-pdf-download-button">
-                    {t('officialPoIntegration.downloadButton')}
+                    {t('officialPoIntegration.downloadPdfButton')}
                   </Button>
                 )}
               </Stack>
@@ -1406,7 +1416,11 @@ export function OrderHistoryDetailPage() {
                     onChange={(e) => { setToOverrideInput(e.target.value); setToManuallyEdited(true) }}
                     fullWidth
                     size="small"
-                    helperText={t('mailPreview.overrideHelperText')}
+                    // Acceptance Fix (item 7): once the user actually edits
+                    // this field, the helper text must stop claiming it is
+                    // still "the auto-selected address" - it now says what
+                    // is actually true (this Send only, Master unchanged).
+                    helperText={toManuallyEdited ? t('mailPreview.overrideHelperTextEdited') : t('mailPreview.overrideHelperText')}
                     data-testid="mail-send-to-input"
                   />
                   <TextField
@@ -1415,6 +1429,7 @@ export function OrderHistoryDetailPage() {
                     onChange={(e) => { setCcOverrideInput(e.target.value); setCcManuallyEdited(true) }}
                     fullWidth
                     size="small"
+                    helperText={ccManuallyEdited ? t('mailPreview.overrideHelperTextEdited') : undefined}
                     data-testid="mail-send-cc-input"
                   />
                 </>

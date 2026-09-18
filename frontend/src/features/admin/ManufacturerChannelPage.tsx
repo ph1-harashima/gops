@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import Box from '@mui/material/Box'
@@ -51,6 +51,29 @@ export function ManufacturerChannelPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<ManufacturerChannelRequest>(EMPTY_FORM)
+
+  // Acceptance Fix C-4: minimal client-side Search/Filter - this Master
+  // stays small enough that a Backend-driven Filter (Candidate List's own
+  // pattern) would be disproportionate; a plain in-memory filter over the
+  // already-fetched list is enough to stop stale/inactive rows from
+  // crowding out the ones a user actually wants (Acceptance Review's
+  // observation: repeated Demo/E2E use already leaves dozens of inactive
+  // rows behind here). Defaults to hiding inactive rows - "無効も表示"
+  // brings them back on demand for reactivation.
+  const [search, setSearch] = useState('')
+  const [showInactive, setShowInactive] = useState(false)
+  const filtered = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    return (data ?? []).filter((c) => {
+      if (!showInactive && !c.active) return false
+      if (!keyword) return true
+      return c.supplierCode.toLowerCase().includes(keyword) || (c.brandCode ?? '').toLowerCase().includes(keyword)
+    })
+  }, [data, search, showInactive])
+  function clearFilters() {
+    setSearch('')
+    setShowInactive(false)
+  }
 
   function openCreate() {
     setEditingId(null)
@@ -105,8 +128,22 @@ export function ManufacturerChannelPage() {
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('subtitle')}</Typography>
 
-      {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
       {data && data.length > 0 && (
+        <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
+          <TextField size="small" label={t('common:searchLabel')} value={search}
+                     onChange={(e) => setSearch(e.target.value)}
+                     data-testid="manufacturer-channel-search" sx={{ minWidth: 240 }} />
+          <FormControlLabel
+            control={<Checkbox checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)}
+                               data-testid="manufacturer-channel-show-inactive" />}
+            label={t('common:showInactiveLabel')} />
+          <Button size="small" onClick={clearFilters} data-testid="manufacturer-channel-clear-filters">{t('common:clearFilters')}</Button>
+        </Stack>
+      )}
+
+      {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
+      {data && data.length > 0 && filtered.length === 0 && <Alert severity="info">{t('common:noSearchResults')}</Alert>}
+      {filtered.length > 0 && (
         <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="manufacturer-channel-table-container">
           <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
             <TableHead>
@@ -119,7 +156,7 @@ export function ManufacturerChannelPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.map((c) => (
+              {filtered.map((c) => (
                 <TableRow key={c.id} hover data-testid={`manufacturer-channel-row-${c.id}`}>
                   <TableCell>{c.supplierCode}</TableCell>
                   <TableCell>{c.brandCode ?? '—'}</TableCell>

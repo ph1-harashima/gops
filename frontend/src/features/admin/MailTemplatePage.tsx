@@ -1,4 +1,4 @@
-import { useRef, useState, type DragEvent } from 'react'
+import { useMemo, useRef, useState, type DragEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import Box from '@mui/material/Box'
@@ -132,6 +132,25 @@ export function MailTemplatePage() {
 
   const activeMutation = editingId != null ? updateMutation : createMutation
 
+  // Acceptance Fix C-4: same minimal client-side Search/Filter as
+  // ManufacturerChannelPage - see that file's own comment for rationale.
+  const [search, setSearch] = useState('')
+  const [showInactive, setShowInactive] = useState(false)
+  const filtered = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    return (data ?? []).filter((tpl) => {
+      if (!showInactive && !tpl.active) return false
+      if (!keyword) return true
+      return tpl.templateName.toLowerCase().includes(keyword)
+        || (tpl.supplierCode ?? '').toLowerCase().includes(keyword)
+        || (tpl.brandCode ?? '').toLowerCase().includes(keyword)
+    })
+  }, [data, search, showInactive])
+  function clearFilters() {
+    setSearch('')
+    setShowInactive(false)
+  }
+
   if (isLoading) {
     return (
       <Stack direction="row" spacing={1} sx={{ m: 4, alignItems: 'center' }}>
@@ -163,8 +182,22 @@ export function MailTemplatePage() {
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('subtitle')}</Typography>
 
-      {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
       {data && data.length > 0 && (
+        <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
+          <TextField size="small" label={t('common:searchLabel')} value={search}
+                     onChange={(e) => setSearch(e.target.value)}
+                     data-testid="mail-template-search" sx={{ minWidth: 240 }} />
+          <FormControlLabel
+            control={<Checkbox checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)}
+                               data-testid="mail-template-show-inactive" />}
+            label={t('common:showInactiveLabel')} />
+          <Button size="small" onClick={clearFilters} data-testid="mail-template-clear-filters">{t('common:clearFilters')}</Button>
+        </Stack>
+      )}
+
+      {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
+      {data && data.length > 0 && filtered.length === 0 && <Alert severity="info">{t('common:noSearchResults')}</Alert>}
+      {filtered.length > 0 && (
         <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="mail-template-table-container">
           <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
             <TableHead>
@@ -179,7 +212,7 @@ export function MailTemplatePage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.map((tpl) => (
+              {filtered.map((tpl) => (
                 <TableRow key={tpl.id} hover data-testid={`mail-template-row-${tpl.id}`}>
                   <TableCell>{tpl.templateName}</TableCell>
                   <TableCell>{t(`templateType.${tpl.templateType}`)}</TableCell>

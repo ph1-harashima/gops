@@ -169,6 +169,12 @@ test.describe('Gap Analysis Implementation Instruction Scenario 1: full continuo
     await expect(goToPreview).toHaveText('PO プレビューを見る')
     await goToPreview.click()
     await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview(\\?.*)?$`))
+    // Acceptance Fix C-3: this Button's label must never collide with the
+    // real Manufacturer Email Send Action's own label/Section title
+    // ("メーカーへ送信") shown later on Order Detail - they are different
+    // Actions (this one only records/advances Status, never transmits
+    // anything) and must be visually distinguishable at first glance.
+    await expect(page.getByTestId('demo-send-button')).toHaveText('メール発注済みとして記録')
     await page.getByTestId('demo-send-button').click()
     await page.getByTestId('demo-send-dialog-confirm').click()
     await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))

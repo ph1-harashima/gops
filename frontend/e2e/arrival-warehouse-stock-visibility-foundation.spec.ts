@@ -214,7 +214,7 @@ test.describe('Phase 8-G: Arrival / Warehouse Stock Visibility Foundation', () =
     // calculation). Must never read as Actual Gross Profit.
     await expect(page.getByTestId('sku-detail-margin-section')).toContainText('35.21%')
     await expect(page.getByTestId('sku-detail-margin-section')).toContainText('¥793')
-    await expect(page.getByTestId('sku-detail-margin-section')).toContainText('実績の粗利益（Actual Gross Profit）ではありません。')
+    await expect(page.getByTestId('sku-detail-margin-section')).toContainText('実績の粗利益ではありません。')
 
     await page.getByTestId('sku-detail-view-arrivals-button').click()
 

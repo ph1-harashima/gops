@@ -125,15 +125,15 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Submit for Approval -
   await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview(\\?.*)?$`))
   await expect(page.getByText('未採番')).toHaveCount(0)
 
-  // ---- Demo Send (メーカーへ送信) - continuing as this ADMIN session since
-  // Demo Send itself is not Role-restricted (SupplierWorkflowController has
-  // no @PreAuthorize gate); the strict OPERATOR/ADMIN separation itself is
-  // already covered above and by role-approval-workflow.spec.ts's Scenarios
-  // A-E. ----
+  // ---- Demo Send (メール発注済みとして記録) - continuing as this ADMIN session
+  // since Demo Send itself is not Role-restricted (SupplierWorkflowController
+  // has no @PreAuthorize gate); the strict OPERATOR/ADMIN separation itself
+  // is already covered above and by role-approval-workflow.spec.ts's
+  // Scenarios A-E. ----
   await page.getByTestId('demo-send-button').click()
   await page.getByTestId('demo-send-dialog-confirm').click()
 
-  // Phase 6-C: "送信する" and "後日回答を登録する" are separate Business
+  // Phase 6-C: "記録する" and "後日回答を登録する" are separate Business
   // Tasks now - Demo Send no longer auto-opens Supplier Response, it lands
   // on 発注詳細 (Order Detail) instead. The returnTo chain is reset to the
   // Order List's AWAITING_SUPPLIER bucket rather than carrying forward the

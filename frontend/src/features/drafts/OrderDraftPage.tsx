@@ -74,6 +74,17 @@ export function OrderDraftPage() {
   const [remark, setRemark] = useState('')
   const [orderQtyById, setOrderQtyById] = useState<Record<number, number>>({})
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false)
+  // Acceptance Fix (item 8, Toast/Banner重複): Save's own onSuccess fires
+  // the instant the PUT resolves, but isDirty only clears once the
+  // Requirements MD 13章 re-GET below actually lands and resyncs local
+  // state - a real (if brief) async gap in which the persistent
+  // "unsaved-changes-toast" Banner and the one-shot "保存しました。" success
+  // Toast contradicted each other on screen. This flag suppresses ONLY the
+  // Banner for that gap; it never skips or fakes the re-GET itself; the
+  // Banner's usual isDirty-driven display comes right back once the
+  // resynced Draft doesn't match (e.g. the user typed something else
+  // in the meantime).
+  const [justSaved, setJustSaved] = useState(false)
 
   // Reset local edit state whenever a fresh Draft is loaded (initial load,
   // or after Save triggers the re-GET per Requirements MD 13章).
@@ -83,6 +94,7 @@ export function OrderDraftPage() {
     setRequestedDelivery(draft.requestedDelivery ?? '')
     setRemark(draft.remark ?? '')
     setOrderQtyById(Object.fromEntries(draft.details.map((d) => [d.id, d.orderQty])))
+    setJustSaved(false)
   }, [draft])
 
   const isDirty = useMemo(() => {
@@ -144,6 +156,8 @@ export function OrderDraftPage() {
       requestedDelivery: requestedDelivery || null,
       remark,
       details: draft.details.map((d) => ({ detailId: d.id, orderQty: orderQtyById[d.id] ?? d.orderQty })),
+    }, {
+      onSuccess: () => setJustSaved(true),
     })
   }
 
@@ -272,7 +286,7 @@ export function OrderDraftPage() {
         onClose={() => submitMutation.reset()}
       />
       <Toast
-        open={isDirty}
+        open={isDirty && !justSaved}
         severity="warning"
         message={t('drafts:unsavedChangesBanner')}
         autoHideDuration={null}

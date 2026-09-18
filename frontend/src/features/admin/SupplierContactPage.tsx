@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import Box from '@mui/material/Box'
@@ -51,6 +51,26 @@ export function SupplierContactPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<SupplierContactRequest>(EMPTY_FORM)
+
+  // Acceptance Fix C-4: same minimal client-side Search/Filter as
+  // ManufacturerChannelPage - see that file's own comment for rationale.
+  const [search, setSearch] = useState('')
+  const [showInactive, setShowInactive] = useState(false)
+  const filtered = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    return (data ?? []).filter((c) => {
+      if (!showInactive && !c.active) return false
+      if (!keyword) return true
+      return c.supplierCode.toLowerCase().includes(keyword)
+        || (c.brandCode ?? '').toLowerCase().includes(keyword)
+        || c.contactName.toLowerCase().includes(keyword)
+        || c.email.toLowerCase().includes(keyword)
+    })
+  }, [data, search, showInactive])
+  function clearFilters() {
+    setSearch('')
+    setShowInactive(false)
+  }
 
   function openCreate() {
     setEditingId(null)
@@ -111,8 +131,22 @@ export function SupplierContactPage() {
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('subtitle')}</Typography>
 
-      {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
       {data && data.length > 0 && (
+        <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
+          <TextField size="small" label={t('common:searchLabel')} value={search}
+                     onChange={(e) => setSearch(e.target.value)}
+                     data-testid="supplier-contact-search" sx={{ minWidth: 240 }} />
+          <FormControlLabel
+            control={<Checkbox checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)}
+                               data-testid="supplier-contact-show-inactive" />}
+            label={t('common:showInactiveLabel')} />
+          <Button size="small" onClick={clearFilters} data-testid="supplier-contact-clear-filters">{t('common:clearFilters')}</Button>
+        </Stack>
+      )}
+
+      {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
+      {data && data.length > 0 && filtered.length === 0 && <Alert severity="info">{t('common:noSearchResults')}</Alert>}
+      {filtered.length > 0 && (
         <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="supplier-contact-table-container">
           <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
             <TableHead>
@@ -129,7 +163,7 @@ export function SupplierContactPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.map((c) => (
+              {filtered.map((c) => (
                 <TableRow key={c.id} hover data-testid={`supplier-contact-row-${c.id}`}>
                   <TableCell>{c.supplierCode}</TableCell>
                   <TableCell>{c.brandCode ?? '—'}</TableCell>

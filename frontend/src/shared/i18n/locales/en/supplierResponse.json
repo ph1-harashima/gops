@@ -54,7 +54,8 @@
       "QUANTITY_CHANGED": "Quantity Changed",
       "DELIVERY_CHANGED": "Delivery Changed",
       "UNANSWERED": "Unanswered"
-    }
+    },
+    "unansweredLine": "Ordered Qty: {{orderedQty}} (no Supplier Response yet)"
   },
   "agreement": {
     "title": "Agreement",

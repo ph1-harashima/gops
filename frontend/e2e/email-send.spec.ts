@@ -166,6 +166,11 @@ test.describe('Phase 9-E: Real Email Send', () => {
     // ...but the user overrides it for this Send only.
     const overrideAddress = 'override-recipient@example.com'
     await page.getByTestId('mail-send-to-input').locator('input').fill(overrideAddress)
+    // Acceptance Fix (item 7): once actually edited, the helper text must
+    // stop claiming this is still "the auto-selected address" - Master vs
+    // this-Send-only must be distinguishable at a glance.
+    await expect(page.getByText('自動選択された宛先です。')).toHaveCount(0)
+    await expect(page.getByText('今回の送信のみ、この宛先に変更されています。')).toBeVisible()
     await page.getByTestId('email-send-button').click()
     await expect(page.getByText('メールを送信しました。')).toBeVisible()
 

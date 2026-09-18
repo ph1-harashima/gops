@@ -101,7 +101,17 @@ export function App() {
                   visually confused with each other (found during manual
                   review: all 7 items - 4 Nav links, user name, Role, Logout
                   - previously rendered in one undifferentiated row). */}
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }} data-testid="header-nav-area">
+              {/* Acceptance Fix item 9: English labels (e.g. "ORDER
+                  CANDIDATES", "MASTER MAINTENANCE") run noticeably longer
+                  than their Japanese equivalents and, without an explicit
+                  nowrap, would wrap onto a second line inside their own
+                  Button and grow the whole Header's height. `whiteSpace:
+                  'nowrap'` keeps every label on one line; `overflowX: 'auto'`
+                  is the fallback for a viewport too narrow to fit them all
+                  (a horizontal scroll within this one Nav strip, never a
+                  page-wide scrollbar) - both are no-ops for the shorter
+                  Japanese labels, so ja layout is unchanged. */}
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5, '& .MuiButton-root': { whiteSpace: 'nowrap' } }} data-testid="header-nav-area">
                 <Button
                   size="small"
                   component={Link}
