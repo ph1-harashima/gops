@@ -220,6 +220,76 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
         return cell.getStringCellValue();
     }
 
+    // --- Gap Analysis C-1 (docs/gulliver-20260917-phase1-gap-analysis.md 7章): PDF ---
+
+    @Test
+    void generatePdfProducesRealPdfMatchingOrderData() throws IOException {
+        PortalOrder order = approvedOrderWithRequest();
+        integrationService.confirmOfficialPoNumber(order.getId(), validRequest(VALID_PO_NO), ADMIN);
+
+        OfficialPoIntegrationResponse response = integrationService.generatePdf(order.getId(), ADMIN);
+
+        assertTrue(response.pdfGenerated());
+        // Independent of the Excel/Import-Folder Integration Status axis -
+        // no Excel has been generated in this test at all, yet PDF still
+        // works (7章's "PDF never drives the Integration Status axis").
+        assertEquals("PENDING", response.status());
+
+        var download = integrationService.downloadPdf(order.getId());
+        try (org.apache.pdfbox.pdmodel.PDDocument pdf = org.apache.pdfbox.pdmodel.PDDocument.load(
+                new ByteArrayInputStream(download.bytes()))) {
+            String text = new org.apache.pdfbox.text.PDFTextStripper().getText(pdf);
+            assertTrue(text.contains(VALID_PO_NO));
+            assertTrue(text.contains(SKU_TENT_1));
+        }
+        assertTrue(download.fileName().startsWith("OfficialPO_"));
+        assertTrue(download.fileName().endsWith(".pdf"));
+
+        List<AuditEvent> trail = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(order.getId());
+        assertTrue(trail.stream().anyMatch(e -> AuditEvent.OFFICIAL_PO_PDF_GENERATED.equals(e.getEventType())));
+    }
+
+    @Test
+    void generatePdfRequiresConfirmedPoNumber() {
+        PortalOrder order = approvedOrderWithRequest();
+
+        assertThrows(OfficialPoNumberRequiredException.class,
+                () -> integrationService.generatePdf(order.getId(), ADMIN));
+    }
+
+    @Test
+    void downloadPdfBeforeGenerationThrows() {
+        PortalOrder order = approvedOrderWithRequest();
+
+        assertThrows(com.glv.gsysportal.exception.OfficialPoPdfNotGeneratedException.class,
+                () -> integrationService.downloadPdf(order.getId()));
+    }
+
+    @Test
+    void pdfAndExcelAgreeOnQuantityAndPoInfo_sameBusinessDataSource() throws IOException {
+        PortalOrder order = approvedOrderWithRequest();
+        integrationService.confirmOfficialPoNumber(order.getId(), validRequest(VALID_PO_NO), ADMIN);
+        integrationService.generateExcel(order.getId(), ADMIN);
+        integrationService.generatePdf(order.getId(), ADMIN);
+
+        byte[] excelBytes = integrationService.downloadExcel(order.getId()).bytes();
+        byte[] pdfBytes = integrationService.downloadPdf(order.getId()).bytes();
+
+        String excelSku;
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(excelBytes))) {
+            excelSku = cellString(wb.getSheetAt(0), 17, 2);
+        }
+        String pdfText;
+        try (org.apache.pdfbox.pdmodel.PDDocument pdf = org.apache.pdfbox.pdmodel.PDDocument.load(
+                new ByteArrayInputStream(pdfBytes))) {
+            pdfText = new org.apache.pdfbox.text.PDFTextStripper().getText(pdf);
+        }
+
+        assertEquals(SKU_TENT_1, excelSku);
+        assertTrue(pdfText.contains(excelSku), "Excel and PDF must show the SAME SKU - one Business Data Source");
+        assertTrue(pdfText.contains(VALID_PO_NO));
+    }
+
     @Autowired
     private com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository integrationRequestRepository;
 }

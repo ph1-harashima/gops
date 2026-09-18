@@ -45,6 +45,11 @@ export interface OfficialPoIntegration {
    * (derived from generatedFileKey != null - the key itself is never sent
    * to the Frontend). */
   excelGenerated: boolean
+  /** Gap Analysis C-1 (docs/gulliver-20260917-phase1-gap-analysis.md 7章):
+   * whether a "G-OPS Standard Format" PDF is currently available to
+   * download - independent of excelGenerated/status (PDF never drives the
+   * Integration Status axis). */
+  pdfGenerated: boolean
 }
 
 /** Mirrors backend OfficialPoImportConfirmationResponse (Phase 9-C). */

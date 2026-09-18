@@ -54,13 +54,24 @@ public class OfficialPoExcelGenerationService {
      * the Integration Request. Never writes to Legacy or the Import Folder
      * (Phase 9-B's responsibility). */
     public String generateAndStore(PortalOrder order, OfficialPoIntegrationRequest request) {
+        OfficialPoExcelInput input = buildInput(order, request);
+        byte[] bytes = generator.generate(input);
+        return storageService.store(order.getId(), request.getRevisionNo(), bytes);
+    }
+
+    /** Gap Analysis C-1 (docs/gulliver-20260917-phase1-gap-analysis.md 7章):
+     * extracted so {@code OfficialPoPdfGenerationService} assembles the PDF
+     * from this EXACT SAME {@link OfficialPoExcelInput} - one Business Data
+     * Source for both artifacts, never two independently-maintained
+     * assembly paths that could silently disagree on Qty/PO info. */
+    public OfficialPoExcelInput buildInput(PortalOrder order, OfficialPoIntegrationRequest request) {
         String brandName = preflightReadRepository.findBrandName(order.getBrandCode());
         List<OfficialPoExcelInput.Line> lines = order.getDetails().stream()
                 .filter(d -> !d.isRemoved())
                 .map(d -> toLine(d, order.getCurrency()))
                 .toList();
 
-        OfficialPoExcelInput input = new OfficialPoExcelInput(
+        return new OfficialPoExcelInput(
                 request.getOfficialPoNo(),
                 order.getSupplierCode(),
                 order.getBrandCode(),
@@ -73,9 +84,6 @@ public class OfficialPoExcelGenerationService {
                 request.getPaymentTerm(),
                 lines
         );
-
-        byte[] bytes = generator.generate(input);
-        return storageService.store(order.getId(), request.getRevisionNo(), bytes);
     }
 
     public byte[] load(String fileKey) {

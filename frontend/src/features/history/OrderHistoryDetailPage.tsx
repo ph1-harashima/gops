@@ -35,6 +35,7 @@ import {
   useOfficialPoIntegration, useRequestOfficialPoIntegration,
   useConfirmOfficialPoNumber, useGenerateOfficialPoExcel, downloadOfficialPoExcel,
   usePlaceOfficialPoToImportFolder, useConfirmOfficialPoImport,
+  useGenerateOfficialPoPdf, downloadOfficialPoPdf,
 } from './officialPoIntegrationApi'
 import { useLegacyPoConcurrency, useCaptureLegacyPoBaseline } from './legacyPoConcurrencyApi'
 import { useMailPreview } from './mailPreviewApi'
@@ -187,6 +188,7 @@ export function OrderHistoryDetailPage() {
   const requestIntegrationMutation = useRequestOfficialPoIntegration(orderId)
   const confirmPoNumberMutation = useConfirmOfficialPoNumber(orderId)
   const generateExcelMutation = useGenerateOfficialPoExcel(orderId)
+  const generatePdfMutation = useGenerateOfficialPoPdf(orderId)
   const placeMutation = usePlaceOfficialPoToImportFolder(orderId)
   const confirmImportMutation = useConfirmOfficialPoImport(orderId)
   const completeEdiInputMutation = useCompleteEdiInput(orderId)
@@ -274,6 +276,15 @@ export function OrderHistoryDetailPage() {
   function handleDownloadExcel() {
     setDownloadError(false)
     void downloadOfficialPoExcel(orderId).catch(() => setDownloadError(true))
+  }
+
+  function handleGeneratePdf() {
+    generatePdfMutation.mutate()
+  }
+
+  function handleDownloadPdf() {
+    setDownloadError(false)
+    void downloadOfficialPoPdf(orderId).catch(() => setDownloadError(true))
   }
 
   function openFollowUpDialog(sku?: string) {
@@ -892,6 +903,51 @@ export function OrderHistoryDetailPage() {
                 </Button>
                 {integration.excelGenerated && (
                   <Button variant="text" onClick={handleDownloadExcel} data-testid="official-po-download-button">
+                    {t('officialPoIntegration.downloadButton')}
+                  </Button>
+                )}
+              </Stack>
+
+              {/* Gap Analysis C-1 (docs/gulliver-20260917-phase1-gap-analysis.md
+                  7章): "G-OPS Standard Official PO PDF" - Gate mirrors Excel
+                  (needs a confirmed PO No.) but is otherwise independent of
+                  the Excel/Import Folder Integration Status above. */}
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle2" gutterBottom>{t('officialPoIntegration.pdfSectionTitle')}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                {t('officialPoIntegration.pdfSectionNote')}
+              </Typography>
+
+              <Toast
+                open={generatePdfMutation.isSuccess}
+                severity="success"
+                message={t('officialPoIntegration.pdfGenerateSuccess')}
+                onClose={() => generatePdfMutation.reset()}
+              />
+              <Toast
+                open={generatePdfMutation.isError}
+                severity="error"
+                testId="official-po-pdf-generate-error"
+                message={
+                  errorCodeOf(generatePdfMutation.error) === 'OFFICIAL_PO_NUMBER_REQUIRED' ? t('officialPoIntegration.errorNumberRequired') :
+                  errorCodeOf(generatePdfMutation.error) === 'OFFICIAL_PO_PREFLIGHT_BLOCKED' ? t('officialPoIntegration.errorPreflightBlocked') :
+                  errorCodeOf(generatePdfMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+                  t('errorGeneric')
+                }
+                onClose={() => generatePdfMutation.reset()}
+              />
+
+              <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
+                <Button
+                  variant="outlined"
+                  onClick={handleGeneratePdf}
+                  disabled={generatePdfMutation.isPending || !integration.officialPoNo}
+                  data-testid="official-po-pdf-generate-button"
+                >
+                  {generatePdfMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.pdfGenerateButton')}
+                </Button>
+                {integration.pdfGenerated && (
+                  <Button variant="text" onClick={handleDownloadPdf} data-testid="official-po-pdf-download-button">
                     {t('officialPoIntegration.downloadButton')}
                   </Button>
                 )}

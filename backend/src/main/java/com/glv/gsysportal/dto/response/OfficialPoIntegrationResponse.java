@@ -42,7 +42,12 @@ public record OfficialPoIntegrationResponse(
         String shipVia,
         String shipTerm,
         String paymentTerm,
-        boolean excelGenerated
+        boolean excelGenerated,
+        /** Gap Analysis C-1: whether a PDF is currently available for
+         * download - derived from {@code pdfFileKey != null}, independent of
+         * {@code excelGenerated}/{@code status} (PDF never drives the
+         * Integration Status axis). */
+        boolean pdfGenerated
 ) {
     public static final String STATUS_NOT_REQUESTED = "NOT_REQUESTED";
 
@@ -66,7 +71,8 @@ public record OfficialPoIntegrationResponse(
                 null, // shipVia
                 null, // shipTerm
                 null, // paymentTerm
-                false // excelGenerated
+                false, // excelGenerated
+                false // pdfGenerated
         );
     }
 }

@@ -119,4 +119,27 @@ public class OfficialPoIntegrationController {
                         ContentDisposition.attachment().filename(download.fileName()).build().toString())
                 .body(download.bytes());
     }
+
+    /** Gap Analysis C-1 (docs/gulliver-20260917-phase1-gap-analysis.md 7章):
+     * "G-OPS Standard Official PO PDF" generation. ADMIN only, same Gate as
+     * Excel generation (confirmed PO No., Preflight not BLOCKED) but always
+     * re-generates (no separate PDF state machine to protect). */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/orders/{id}/official-po/pdf/generate")
+    public OfficialPoIntegrationResponse generatePdf(@PathVariable Long id) {
+        return integrationService.generatePdf(id, currentUserProvider.currentUsername());
+    }
+
+    /** Downloads the generated Official PO PDF for staff review. ADMIN only,
+     * mirrors {@link #downloadExcel}. */
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/api/orders/{id}/official-po/pdf")
+    public ResponseEntity<byte[]> downloadPdf(@PathVariable Long id) {
+        var download = integrationService.downloadPdf(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(download.fileName()).build().toString())
+                .body(download.bytes());
+    }
 }

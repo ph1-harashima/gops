@@ -389,6 +389,13 @@ public class GlobalExceptionHandler {
         return error(request, HttpStatus.NOT_FOUND, "OFFICIAL_PO_EXCEL_NOT_GENERATED");
     }
 
+    // --- Gap Analysis C-1: Official PO PDF ---
+
+    @ExceptionHandler(OfficialPoPdfNotGeneratedException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoPdfNotGenerated(OfficialPoPdfNotGeneratedException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.NOT_FOUND, "OFFICIAL_PO_PDF_NOT_GENERATED");
+    }
+
     // --- Phase 9-B: Import Folder Integration (Production PO Workflow) ---
 
     @ExceptionHandler(OfficialPoNotGeneratedException.class)

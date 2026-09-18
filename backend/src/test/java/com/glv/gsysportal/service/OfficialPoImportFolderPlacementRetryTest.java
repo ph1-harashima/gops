@@ -64,6 +64,7 @@ class OfficialPoImportFolderPlacementRetryTest {
         AuditEventRepository auditEventRepository = mock(AuditEventRepository.class);
         OfficialPoPreflightService preflightService = mock(OfficialPoPreflightService.class);
         OfficialPoExcelGenerationService excelGenerationService = mock(OfficialPoExcelGenerationService.class);
+        OfficialPoPdfGenerationService pdfGenerationService = mock(OfficialPoPdfGenerationService.class);
         OfficialPoImportFolderAdapter importFolderAdapter = mock(OfficialPoImportFolderAdapter.class);
         IdempotencyService idempotencyService = mock(IdempotencyService.class);
         LegacyPoConcurrencyReadRepository legacyReadRepository = mock(LegacyPoConcurrencyReadRepository.class);
@@ -85,7 +86,8 @@ class OfficialPoImportFolderPlacementRetryTest {
 
         OfficialPoIntegrationService service = new OfficialPoIntegrationService(portalOrderRepository,
                 integrationRequestRepository, auditEventRepository, preflightService, excelGenerationService,
-                importFolderAdapter, idempotencyService, legacyReadRepository, objectMapper, portalUserRepository);
+                pdfGenerationService, importFolderAdapter, idempotencyService, legacyReadRepository, objectMapper,
+                portalUserRepository);
 
         // First attempt fails.
         doThrow(new OfficialPoImportFolderWriteException("disk full", new java.io.IOException("disk full")))

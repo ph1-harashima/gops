@@ -164,6 +164,16 @@ public class OfficialPoIntegrationRequest {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+    // --- Gap Analysis C-1 (docs/gulliver-20260917-phase1-gap-analysis.md
+    // 7章): PDF artifact, independent of the Integration Status state
+    // machine above (PDF is never handed off to the Import Folder/Legacy -
+    // it never drives PENDING/GENERATED/SUBMITTED/CONFIRMED/FAILED). ---
+    @Column(name = "pdf_file_key", length = 255)
+    private String pdfFileKey;
+
+    @Column(name = "pdf_generated_at")
+    private OffsetDateTime pdfGeneratedAt;
+
     /** GENERATED transition. Called for real by
      * {@code OfficialPoIntegrationService#generateExcel} since Phase 9-A -
      * only ever from PENDING (a re-generate on an already-GENERATED+

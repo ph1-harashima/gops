@@ -150,3 +150,37 @@ export async function downloadOfficialPoExcel(orderId: number): Promise<void> {
   link.remove()
   window.URL.revokeObjectURL(url)
 }
+
+/** Gap Analysis C-1 (docs/gulliver-20260917-phase1-gap-analysis.md 7章):
+ * "G-OPS Standard Official PO PDF" generation. ADMIN only. Always
+ * re-generates (no separate PDF state machine to protect - see the
+ * Backend's own Javadoc). */
+async function generateOfficialPoPdf(orderId: number): Promise<OfficialPoIntegration> {
+  const { data } = await apiClient.post<OfficialPoIntegration>(`/orders/${orderId}/official-po/pdf/generate`)
+  return data
+}
+
+export function useGenerateOfficialPoPdf(orderId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => generateOfficialPoPdf(orderId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+      void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+    },
+  })
+}
+
+/** Downloads the generated Official PO PDF. ADMIN only. Mirrors
+ * {@link downloadOfficialPoExcel}. */
+export async function downloadOfficialPoPdf(orderId: number): Promise<void> {
+  const response = await apiClient.get<Blob>(`/orders/${orderId}/official-po/pdf`, { responseType: 'blob' })
+  const url = window.URL.createObjectURL(response.data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileNameFromContentDisposition(response.headers['content-disposition'], `official-po-${orderId}.pdf`)
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}

@@ -193,6 +193,29 @@ public class AuditEvent {
      * afterward. */
     public static final String EMAIL_SEND_FAILED = "EMAIL_SEND_FAILED";
 
+    // --- Gap Analysis Phase 4-8 (docs/gulliver-20260917-phase1-gap-analysis.md) ---
+    /** C-1: PDF generated from the same Business Data Source as the Excel -
+     * written every generate call, mirroring OFFICIAL_PO_EXCEL_GENERATED's
+     * own precedent. */
+    public static final String OFFICIAL_PO_PDF_GENERATED = "OFFICIAL_PO_PDF_GENERATED";
+    /** C-2: a new Official PO Integration Request created for a later
+     * Revision than the previously-ACTIVE one, and that previous one marked
+     * SUPERSEDED in the same operation - the explicit, ADMIN-confirmed
+     * "reissue" action (never automatic - C-3). */
+    public static final String OFFICIAL_PO_REISSUED = "OFFICIAL_PO_REISSUED";
+    /** C-4: an Official PO Integration Request's lifecycle explicitly set to
+     * CANCELLED by ADMIN (reason required, {@link #note}). Never triggered by
+     * Legacy or by any automatic condition. */
+    public static final String OFFICIAL_PO_CANCELLED = "OFFICIAL_PO_CANCELLED";
+    /** C-5: an actual Email Send whose To/CC differed from the Master-resolved
+     * (Supplier Contact) addresses for at least one recipient - {@link #note}
+     * holds a human-readable summary of Master vs. actually-sent addresses
+     * (EmailSendServiceIntegrationTest et al. read the full detail from
+     * OrderEmail's own masterTo/masterCc columns; this Audit row exists so
+     * the override is visible on the same Timeline as every other Order
+     * event, not only in the OrderEmail table). */
+    public static final String EMAIL_RECIPIENT_OVERRIDE_USED = "EMAIL_RECIPIENT_OVERRIDE_USED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

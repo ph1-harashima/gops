@@ -32,8 +32,10 @@ import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepos
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import com.glv.gsysportal.repository.prototype.PortalUserRepository;
 import com.glv.gsysportal.domain.PortalUser;
+import com.glv.gsysportal.exception.OfficialPoPdfNotGeneratedException;
 import com.glv.gsysportal.service.excel.OfficialPoExcelDownload;
 import com.glv.gsysportal.service.excel.OfficialPoFileNaming;
+import com.glv.gsysportal.service.excel.OfficialPoPdfDownload;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderAdapter;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderWriteException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -73,6 +75,7 @@ public class OfficialPoIntegrationService {
     private final AuditEventRepository auditEventRepository;
     private final OfficialPoPreflightService preflightService;
     private final OfficialPoExcelGenerationService excelGenerationService;
+    private final OfficialPoPdfGenerationService pdfGenerationService;
     private final OfficialPoImportFolderAdapter importFolderAdapter;
     private final IdempotencyService idempotencyService;
     private final LegacyPoConcurrencyReadRepository legacyReadRepository;
@@ -84,6 +87,7 @@ public class OfficialPoIntegrationService {
                                          AuditEventRepository auditEventRepository,
                                          OfficialPoPreflightService preflightService,
                                          OfficialPoExcelGenerationService excelGenerationService,
+                                         OfficialPoPdfGenerationService pdfGenerationService,
                                          OfficialPoImportFolderAdapter importFolderAdapter,
                                          IdempotencyService idempotencyService,
                                          LegacyPoConcurrencyReadRepository legacyReadRepository,
@@ -94,6 +98,7 @@ public class OfficialPoIntegrationService {
         this.auditEventRepository = auditEventRepository;
         this.preflightService = preflightService;
         this.excelGenerationService = excelGenerationService;
+        this.pdfGenerationService = pdfGenerationService;
         this.importFolderAdapter = importFolderAdapter;
         this.idempotencyService = idempotencyService;
         this.legacyReadRepository = legacyReadRepository;
@@ -300,6 +305,63 @@ public class OfficialPoIntegrationService {
     }
 
     /**
+     * Gap Analysis C-1 (docs/gulliver-20260917-phase1-gap-analysis.md 7章):
+     * "G-OPS Standard Official PO PDF" - same Gate as Excel generation
+     * (confirmed PO No., Preflight not BLOCKED) but INDEPENDENT of the
+     * Integration Status state machine (PDF never drives PENDING/GENERATED/
+     * SUBMITTED/CONFIRMED/FAILED - that axis stays exclusively about the
+     * Excel -> Import Folder -> G-SYS hand-off). Unlike Excel, always
+     * re-generates on every call (no "already GENERATED, no-op" short
+     * circuit) - there is no separate PDF state machine to protect from a
+     * stale re-generate, and Phase 5 (Reissue) needs to regenerate this
+     * freely per Revision.
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public OfficialPoIntegrationResponse generatePdf(Long orderId, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        int targetRevisionNo = targetRevisionNo(order);
+        OfficialPoIntegrationRequest request = integrationRequestRepository
+                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
+                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+
+        if (request.getOfficialPoNo() == null) {
+            throw new OfficialPoNumberRequiredException(orderId);
+        }
+        if (OfficialPoPreflightResult.RESULT_BLOCKED.equals(request.getPreflightResult())) {
+            throw new OfficialPoPreflightBlockedException(orderId);
+        }
+
+        String fileKey = pdfGenerationService.generateAndStore(order, request);
+        OffsetDateTime now = OffsetDateTime.now();
+        request.setPdfFileKey(fileKey);
+        request.setPdfGeneratedAt(now);
+        request.setUpdatedAt(now);
+        OfficialPoIntegrationRequest saved = integrationRequestRepository.save(request);
+
+        auditEventRepository.save(new AuditEvent(orderId, null,
+                AuditEvent.OFFICIAL_PO_PDF_GENERATED, null, null, fileKey, performedBy, now));
+        return toResponse(saved);
+    }
+
+    /** Streams the stored PDF bytes for staff review - mirrors
+     * {@link #downloadExcel}'s own shape exactly. */
+    @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
+    public OfficialPoPdfDownload downloadPdf(Long orderId) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        OfficialPoIntegrationRequest request = integrationRequestRepository
+                .findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
+                .orElseThrow(() -> new OfficialPoPdfNotGeneratedException(orderId));
+        if (request.getPdfFileKey() == null) {
+            throw new OfficialPoPdfNotGeneratedException(orderId);
+        }
+        byte[] bytes = pdfGenerationService.load(request.getPdfFileKey());
+        String fileName = OfficialPoFileNaming.buildFileName(order.getSupplierCode(), order.getBrandCode(),
+                request.getPdfGeneratedAt() == null ? null : request.getPdfGeneratedAt().toLocalDate(),
+                request.getOfficialPoNo(), request.getRevisionNo(), "pdf");
+        return new OfficialPoPdfDownload(bytes, fileName);
+    }
+
+    /**
      * "Import Folderへ配置" (Production PO Workflow §C/Phase 9-B). Requires
      * the Excel to already be GENERATED (a retry from FAILED is allowed -
      * the same stored bytes are re-placed, never regenerated). Idempotent
@@ -474,7 +536,8 @@ public class OfficialPoIntegrationService {
                 r.getGeneratedAt(), r.getSubmittedAt(), r.getConfirmedAt(), r.getFailedAt(),
                 r.getErrorCode(), r.getErrorMessage(), r.getIntegrationIntent(),
                 r.getDeliveryWeek(), r.getDeliveryDate(), r.getShipVia(), r.getShipTerm(), r.getPaymentTerm(),
-                r.getGeneratedFileKey() != null
+                r.getGeneratedFileKey() != null,
+                r.getPdfFileKey() != null
         );
     }
 
