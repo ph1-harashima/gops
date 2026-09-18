@@ -268,7 +268,82 @@ Production DB・Production Import Folder・Production SMTP・Productionデプロ
    ことを直接確認済みで、Revision Source of Truthの問題ではない。画面を再読み込みすれば正しい値が
    表示される。今回は「Revision整合性のみ」というスコープに厳密に従い、UI/Reactの変更を伴うこの修正は
    行っていない。
+   > **【解消済み】** 後続の Cache Consistency Fix（本Doc末尾「24. Cache Consistency Fix」参照）で
+   > `useSendEmail`のonSuccessに`['official-po-revisions', orderId]`のinvalidateを追加し、解消済み。
+   > Business Rule・Revision Source of Truthには一切触れていない、純粋なCache Invalidation修正。
 3. **Domestic/Overseas計算式・PO番号Business Rule等**: 指示書9章の「変更禁止」対象はすべて無変更。
+
+---
+
+## 24. Cache Consistency Fix（追記: 2026-09-19）
+
+上記Remaining Limitation (2) は「Business Ruleではなく明確なUI状態整合性問題」として、Production候補化前に
+解消するようユーザーから指示があり、別Phaseとして対応した。
+
+### 24.1 Root Cause
+
+`useSendEmail`（`emailSendApi.ts`）のonSuccessが`['order-email', orderId]`と`['order-events', orderId]`のみを
+invalidateしており、Revision Historyテーブル自身のQuery（`['official-po-revisions', orderId]`、
+`OfficialPoRevisionHistoryEntry.emailSendStatus`を含む）を対象に含んでいなかった。同一画面上に両方の
+Queryが同時にマウントされているため、Email Send成功後も再読み込みなしではRevision Historyテーブルの
+「送信状況」列だけが古い値のまま表示され続けていた。
+
+### 24.2 対象queryKeyの監査結果
+
+| 画面/機能 | Hook | queryKey |
+|---|---|---|
+| Order Detail本体 | `useOrderHistoryDetail` | `['order-history-detail', orderId]` |
+| Order Detail Audit Timeline | `useOrderEvents` | `['order-events', orderId]` |
+| Official PO「at a glance」 | `useOfficialPoIntegration` | `['official-po-integration', orderId]` |
+| Official PO Revision History | `useOfficialPoRevisionHistory` | `['official-po-revisions', orderId]` |
+| Email Send Status | `useEmailStatus` | `['order-email', orderId]` |
+| Legacy PO Concurrency | `useLegacyPoConcurrency` | `['legacy-po-concurrency', orderId]` |
+
+### 24.3 修正内容
+
+- `emailSendApi.ts`の`useSendEmail`: onSuccessに`['official-po-revisions', orderId]`のinvalidateを追加。
+- `officialPoIntegrationApi.ts`の横断監査で、同型の漏れを追加で発見・修正（Reissue/Cancelは元々
+  `official-po-revisions`をinvalidate済みだったが、他の「既存Revisionを操作する」Mutationが漏れていた）:
+  `useRequestOfficialPoIntegration`/`useConfirmOfficialPoNumber`/`useGenerateOfficialPoExcel`/
+  `usePlaceOfficialPoToImportFolder`/`useConfirmOfficialPoImport`/`useGenerateOfficialPoPdf`の
+  各onSuccessに`['official-po-revisions', orderId]`のinvalidateを追加。
+- `useReissueOfficialPo`: Reissueは「現在のRevision」をLegacy Concurrency Compareの対象として変える
+  操作でもあるため、`['legacy-po-concurrency', orderId]`のinvalidateも追加（同一画面に
+  Legacy Concurrency Sectionが同居しているケースの同型漏れ）。
+- Demo Send（`useDemoSend`/`useEdiSend`）はRevision History表示内容を一切参照・算出しないことを
+  再確認し、無変更（Business Ruleどおり）。
+- Supplier Response / Agreement / Reopen 系Mutation（`useConfirmSupplierResponse`/`useAgreeResponse`/
+  `useReopenAgreement`）は、いずれもRevision Historyや今回のTarget Queryとは別画面
+  （`SupplierResponsePage`）からのみ呼ばれ、画面遷移を伴うため、遷移後の新規マウントで
+  React Query既定の`staleTime: 0`により自動再取得される - 今回の「同一画面に複数Query同時表示」
+  という不整合パターンには該当せず、明確なInvalidate漏れは見つからなかった（無変更）。
+- 「Replace」に該当する操作はコード上に存在しないことを確認（無変更）。
+- Business Logic・Revision Rule・PDF Layout・File Naming・Reissue/Cancel Rule等は一切変更していない。
+
+### 24.4 Regression Test
+
+- `frontend/e2e/email-send.spec.ts`: 「ADMIN sends the Official PO Email to an EMAIL-channel manufacturer」に
+  `page.reload()`なしでの`revision-history-row-1`「送信済み」表示Assertionを追加。
+- `frontend/e2e/official-po-integration.spec.ts` Scenario M: 既存の`page.reload()`ワークアラウンドを削除し、
+  Reissue後のRevision 2 Sendが`page.reload()`なしで`revision-history-row-2`のみ「送信済み」になり
+  `revision-history-row-1`はならないことを検証する形に修正（Cache Consistency Fixの直接的な
+  Regression Testを兼ねる）。
+
+### 24.5 Browser Verification
+
+claude-in-chrome拡張機能が本セッションで接続できなかったため、実Chromeブラウザでの手動確認の代わりに、
+本プロジェクトのE2E基盤と同一のPlaywright（実Chromiumを起動して操作する自動化ブラウザテスト）で
+上記2つのRegression Testを個別実行し、次を確認した:
+
+- Official PO -> Manufacturer Send -> Send成功 -> `page.reload()`なしでRevision Historyが「送信済み」表示。
+- Reissue 002 -> Manufacturer Send -> `page.reload()`なしで、Revision 2の行のみ「送信済み」表示、
+  Revision 1の行は「送信済み」にならない（001/002の取り違えなし）。
+
+### 24.6 Full Regression
+
+Backend 560/560、Frontend Build/Test（TypeScriptビルド エラー0件、Vitest 47/47、i18n parity 39/39）、
+E2E 172/172（新規テストケース追加ではなく、既存2件 - email-send.spec.tsの1件・official-po-integration.spec.ts
+Scenario Mの1件 - に`page.reload()`なしでのAssertionを追加/強化）。詳細は完了報告を参照。
 
 ---
 

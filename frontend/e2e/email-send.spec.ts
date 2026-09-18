@@ -111,6 +111,12 @@ test.describe('Phase 9-E: Real Email Send', () => {
     await expect(page.getByText('メールを送信しました。')).toBeVisible()
     await expect(page.getByTestId('email-sent-note')).toBeVisible()
 
+    // Cache Consistency Fix regression check: Revision History's own
+    // 送信状況 column reflects the Send immediately on the same page render -
+    // no page.reload() here. useSendEmail's onSuccess now invalidates
+    // ['official-po-revisions', orderId] in addition to ['order-email', ...].
+    await expect(page.getByTestId('revision-history-row-1')).toContainText('送信済み')
+
     // Idempotent - the Button disappears once SENT (no re-send affordance
     // needed for a successful Send; a genuinely new Send only happens on a
     // future Revision). The hint now honestly reflects that G-SYS Import

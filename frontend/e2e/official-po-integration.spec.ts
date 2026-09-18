@@ -528,12 +528,9 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     // Revision History: Revision 2 shows 送信済み, Revision 1 never does -
     // the Send is correctly scoped to the Revision it actually belongs to
     // (confirmed directly in Postgres: order_email.revision_no=2 for this
-    // Order). A reload is required first - sending Email does not
-    // currently invalidate the Revision History query's own cache (a
-    // pre-existing, separate Frontend staleness gap, not a Revision
-    // resolution bug - out of this Audit's "Revision consistency only"
-    // scope; noted in the Audit doc's Remaining Limitations).
-    await page.reload()
+    // Order). Cache Consistency Fix regression check: NO page.reload() here -
+    // useSendEmail's onSuccess now invalidates ['official-po-revisions', orderId]
+    // too, so this must already be up to date on the same page render.
     await expect(page.getByTestId('revision-history-row-2')).toContainText('送信済み')
     await expect(page.getByTestId('revision-history-row-1')).not.toContainText('送信済み')
 

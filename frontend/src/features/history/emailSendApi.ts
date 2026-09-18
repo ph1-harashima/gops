@@ -40,6 +40,11 @@ export function useSendEmail(orderId: number) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['order-email', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+      // Cache Consistency Fix: Revision History's own 送信状況 column
+      // (OfficialPoRevisionHistoryEntry.emailSendStatus) is fetched via this
+      // separate query - without invalidating it too, the table kept
+      // showing the pre-Send value until an unrelated refetch/reload.
+      void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
     },
   })
 }

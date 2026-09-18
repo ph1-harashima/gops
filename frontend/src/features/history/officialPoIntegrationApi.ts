@@ -32,6 +32,10 @@ export function useRequestOfficialPoIntegration(orderId: number) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+      // Cache Consistency Fix: creates this Order's first Revision History
+      // row (same field set - officialPoNo/integrationStatus/lifecycleStatus -
+      // Reissue/Cancel already invalidate this key for the same reason).
+      void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
     },
   })
 }
@@ -60,6 +64,8 @@ export function useConfirmOfficialPoNumber(orderId: number) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+      // Cache Consistency Fix: Revision History's own officialPoNo column.
+      void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
     },
   })
 }
@@ -79,6 +85,9 @@ export function useGenerateOfficialPoExcel(orderId: number) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+      // Cache Consistency Fix: Revision History's own excelGenerated/
+      // integrationStatus columns.
+      void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
     },
   })
 }
@@ -98,6 +107,8 @@ export function usePlaceOfficialPoToImportFolder(orderId: number) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+      // Cache Consistency Fix: Revision History's own integrationStatus column.
+      void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
     },
   })
 }
@@ -117,6 +128,8 @@ export function useConfirmOfficialPoImport(orderId: number) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+      // Cache Consistency Fix: Revision History's own integrationStatus column.
+      void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
     },
   })
 }
@@ -167,6 +180,8 @@ export function useGenerateOfficialPoPdf(orderId: number) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+      // Cache Consistency Fix: Revision History's own pdfGenerated column.
+      void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
     },
   })
 }
@@ -191,6 +206,11 @@ export function useReissueOfficialPo(orderId: number) {
       void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+      // Cache Consistency Fix: Reissue moves which Revision is "current" for
+      // LegacyPoConcurrencyService.compare's own Revision resolution
+      // (resolveCurrentRevisionNo) - the old Revision's Baseline result must
+      // not keep showing once a new Revision exists.
+      void queryClient.invalidateQueries({ queryKey: ['legacy-po-concurrency', orderId] })
     },
   })
 }
