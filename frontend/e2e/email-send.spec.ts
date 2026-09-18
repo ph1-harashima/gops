@@ -121,6 +121,65 @@ test.describe('Phase 9-E: Real Email Send', () => {
     await expect(page.getByTestId('next-action-hint')).toContainText('G-SYS連携用ファイル')
   })
 
+  /**
+   * Gap Analysis C-5 (docs/gulliver-20260917-phase1-gap-analysis.md 10章,
+   * Scenario 4 of the instruction's End-to-End Scenario list): Master
+   * Contact selected -> Mail Preview -> To/CC Override -> Send Simulation
+   * -> Master address retained unchanged -> actual recipient stored in
+   * Audit. Reuses the SUP_ALPHA/BR_OUTDOOR EMAIL Channel/Contact/Template
+   * the test above already registered (still active - the EDI-flip test
+   * runs after this one, and cleanup runs last).
+   */
+  test('ADMIN overrides the To address at Send time - Master Contact is left unchanged', async ({ page }) => {
+    await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
+    await page.getByTestId('nav-candidates').click()
+    await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
+    await page.getByTestId(`candidate-checkbox-${SKU}`).locator('input').check()
+    await page.getByTestId('create-draft-button').click()
+    await expect(page).toHaveURL(/\/orders\/drafts\/(\d+)/)
+    const draftId = page.url().match(/\/orders\/drafts\/(\d+)/)?.[1]
+    expect(draftId).toBeTruthy()
+    await page.getByTestId(`order-qty-input-${SKU}`).locator('input').fill('4')
+    await page.getByTestId('save-draft-button').click()
+    await expect(page.getByText('保存しました。')).toBeVisible()
+    await page.getByTestId('submit-for-approval-button').click()
+    await page.getByTestId('submit-for-approval-dialog-confirm').click()
+    await logout(page)
+
+    await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
+    await page.goto(`/orders/${draftId}`)
+    await page.getByTestId('order-detail-approve-button').click()
+    await page.getByTestId('approve-dialog-confirm').click()
+    await page.getByTestId('official-po-request-button').click()
+    await page.getByTestId('official-po-request-dialog-confirm').click()
+    await page.getByTestId('official-po-number-input').locator('input').fill(`E2E-OVERRIDE-${draftId}`)
+    await page.getByTestId('official-po-number-confirm-button').click()
+    await page.getByTestId('official-po-generate-button').click()
+    await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+
+    await page.getByTestId('mail-preview-button').click()
+    await expect(page.getByTestId('mail-preview-result')).toBeVisible()
+    // The Master-selected Contact (taro@example.com, registered by the
+    // first test in this file) is seeded into the editable field...
+    await expect(page.getByTestId('mail-send-to-input').locator('input')).toHaveValue('taro@example.com')
+
+    // ...but the user overrides it for this Send only.
+    const overrideAddress = 'override-recipient@example.com'
+    await page.getByTestId('mail-send-to-input').locator('input').fill(overrideAddress)
+    await page.getByTestId('email-send-button').click()
+    await expect(page.getByText('メールを送信しました。')).toBeVisible()
+
+    // The Send actually used the Override, and the record makes clear it
+    // was an Override (not silently indistinguishable from the normal path).
+    await expect(page.getByTestId('email-recipient-override-note')).toBeVisible()
+    await expect(page.getByTestId('email-recipient-override-note')).toContainText('taro@example.com')
+
+    // Master Data itself (Supplier Contact) is completely untouched.
+    await page.goto('/admin/supplier-contacts')
+    await expect(page.getByTestId('supplier-contact-table-container')).toContainText('taro@example.com')
+    await expect(page.getByTestId('supplier-contact-table-container')).not.toContainText(overrideAddress)
+  })
+
   test('EDI-channel manufacturer never shows the Email Send section', async ({ page }) => {
     // Reuses SUP_ALPHA/BR_OUTDOOR (same Supplier/Brand the first test in
     // this file already registered as EMAIL) - flips that same Master row

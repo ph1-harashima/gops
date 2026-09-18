@@ -16,5 +16,6 @@
   "navAdminSupplierContacts": "メーカー担当者",
   "navAdminMailTemplates": "メールテンプレート",
   "navAdminManufacturerChannels": "メーカー通信方法",
+  "navAdminMailSettings": "メール送信設定（Default CC）",
   "demoEnvironmentBadge": "デモ環境"
 }

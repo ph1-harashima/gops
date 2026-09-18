@@ -182,8 +182,15 @@ test.describe('Phase 7-C3: Supplier Contact / Mail Template Foundation', () => {
     await page.goto(`/orders/${draftId}`)
     await page.getByTestId('mail-preview-button').click()
     await expect(page.getByTestId('mail-preview-result')).toBeVisible()
-    await expect(page.getByTestId('mail-preview-result')).toContainText(toEmail)
-    await expect(page.getByTestId('mail-preview-result')).toContainText('@portal-demo.invalid') // Admin CC
+    // Gap Analysis C-5 (docs/gulliver-20260917-phase1-gap-analysis.md 10章):
+    // To/CC now render as editable Override fields (ADMIN), so the
+    // resolved address lives in the input's VALUE, not the container's
+    // text content - toContainText can no longer see it (an <input>'s
+    // value never contributes to textContent). Same underlying Fact
+    // (Master resolution succeeded), verified via the field's value instead.
+    await expect(page.getByTestId('mail-send-to-input').locator('input')).toHaveValue(toEmail)
+    const ccValue = await page.getByTestId('mail-send-cc-input').locator('input').inputValue()
+    expect(ccValue).toContain('@portal-demo.invalid') // Admin CC
     // Subject/Body are never shown - officialPoNo is never assigned this Phase.
     await expect(page.getByText('未確定の項目があるため、件名・本文は表示できません。')).toBeVisible()
 

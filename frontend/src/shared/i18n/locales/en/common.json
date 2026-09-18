@@ -16,5 +16,6 @@
   "navAdminSupplierContacts": "Supplier Contacts",
   "navAdminMailTemplates": "Mail Templates",
   "navAdminManufacturerChannels": "Manufacturer Channels",
+  "navAdminMailSettings": "Mail Settings (Default CC)",
   "demoEnvironmentBadge": "Demo Environment"
 }

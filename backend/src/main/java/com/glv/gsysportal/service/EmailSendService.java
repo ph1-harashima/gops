@@ -88,6 +88,14 @@ public class EmailSendService {
                 .orElseGet(() -> OrderEmailResponse.notSent(orderId));
     }
 
+    /** Mirrors {@link #send(Long, String, List, List)} with no Override -
+     * every pre-existing caller (Backend tests included) keeps working
+     * unchanged. */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public OrderEmailResponse send(Long orderId, String performedBy) {
+        return send(orderId, performedBy, null, null);
+    }
+
     /**
      * ADMIN-only Business Action. Idempotent via {@link IdempotencyService}
      * (same pattern as Import Folder placement, Phase 9-B): a repeat call
@@ -95,9 +103,19 @@ public class EmailSendService {
      * resolved envelope/attachment, re-resolved fresh each attempt - Master
      * data can change between attempts, so a stale resolution should never
      * be trusted, same principle as Preflight's own re-run-every-call design).
+     *
+     * <p>Gap Analysis C-5 (docs/gulliver-20260917-phase1-gap-analysis.md
+     * 10章): {@code toOverride}/{@code ccOverride} - null or empty means "no
+     * Override, use the Master-resolved addresses as-is" (existing
+     * behavior, unchanged). A non-empty value replaces ONLY what is actually
+     * sent THIS one time - the Master (Supplier Contact) itself is never
+     * written to by this method, and the Master-resolved addresses are
+     * always recorded separately ({@code OrderEmail.masterToAddresses}/
+     * {@code masterCcAddresses}) regardless of whether an Override was used,
+     * so the two are always distinguishable in the record.
      */
     @Transactional(transactionManager = "prototypeTransactionManager")
-    public OrderEmailResponse send(Long orderId, String performedBy) {
+    public OrderEmailResponse send(Long orderId, String performedBy, List<String> toOverride, List<String> ccOverride) {
         PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
         int revisionNo = OfficialPoIntegrationService.targetRevisionNo(order);
 
@@ -131,6 +149,10 @@ public class EmailSendService {
             return existing.map(this::toResponse).orElseGet(() -> OrderEmailResponse.notSent(orderId));
         }
 
+        boolean overrideUsed = (toOverride != null && !toOverride.isEmpty()) || (ccOverride != null && !ccOverride.isEmpty());
+        List<String> actualTo = (toOverride != null && !toOverride.isEmpty()) ? toOverride : preview.to();
+        List<String> actualCc = (ccOverride != null && !ccOverride.isEmpty()) ? ccOverride : preview.cc();
+
         OffsetDateTime now = OffsetDateTime.now();
         OrderEmail orderEmail = existing.orElseGet(() -> {
             OrderEmail e = new OrderEmail();
@@ -140,19 +162,30 @@ public class EmailSendService {
             return e;
         });
         orderEmail.setFromAddress(preview.from());
-        orderEmail.setToAddresses(String.join(",", preview.to()));
-        orderEmail.setCcAddresses(String.join(",", preview.cc()));
+        orderEmail.setToAddresses(String.join(",", actualTo));
+        orderEmail.setCcAddresses(String.join(",", actualCc));
+        orderEmail.setMasterToAddresses(String.join(",", preview.to()));
+        orderEmail.setMasterCcAddresses(String.join(",", preview.cc()));
+        orderEmail.setRecipientOverrideUsed(overrideUsed);
         orderEmail.setSubject(preview.subject());
         orderEmail.setBody(preview.body());
         orderEmail.setAttachmentType(OrderEmail.ATTACHMENT_TYPE_OFFICIAL_PO_EXCEL);
         orderEmail.setAttachmentFileKey(integrationRequest.getGeneratedFileKey());
         orderEmail.setUpdatedAt(now);
 
+        if (overrideUsed) {
+            AuditEvent overrideEvent = new AuditEvent(orderId, null, AuditEvent.EMAIL_RECIPIENT_OVERRIDE_USED,
+                    null, null, null, performedBy, now);
+            overrideEvent.setNote("Master To: [" + String.join(",", preview.to()) + "] / Master CC: [" + String.join(",", preview.cc())
+                    + "] -> Sent To: [" + String.join(",", actualTo) + "] / Sent CC: [" + String.join(",", actualCc) + "]");
+            auditEventRepository.save(overrideEvent);
+        }
+
         byte[] attachmentBytes = excelGenerationService.load(integrationRequest.getGeneratedFileKey());
         String attachmentFileName = (integrationRequest.getOfficialPoNo() == null
                 ? "official-po" : integrationRequest.getOfficialPoNo()) + ".xlsx";
         EmailEnvelope envelope = new EmailEnvelope(
-                preview.from(), preview.to(), preview.cc(), preview.subject(), preview.body(),
+                preview.from(), actualTo, actualCc, preview.subject(), preview.body(),
                 attachmentFileName, attachmentBytes);
 
         try {
@@ -181,7 +214,9 @@ public class EmailSendService {
                 e.getPortalOrderId(), e.getRevisionNo(), e.getStatus(),
                 splitAddresses(e.getToAddresses()), splitAddresses(e.getCcAddresses()),
                 e.getSubject(), e.getSentAt(), e.getSentBy(), sentByDisplayName,
-                e.getErrorCode(), e.getErrorMessage(), e.getRetryCount()
+                e.getErrorCode(), e.getErrorMessage(), e.getRetryCount(),
+                splitAddresses(e.getMasterToAddresses()), splitAddresses(e.getMasterCcAddresses()),
+                e.isRecipientOverrideUsed()
         );
     }
 

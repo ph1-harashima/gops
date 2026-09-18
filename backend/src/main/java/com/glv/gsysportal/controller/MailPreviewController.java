@@ -1,5 +1,6 @@
 package com.glv.gsysportal.controller;
 
+import com.glv.gsysportal.dto.request.SendEmailRequest;
 import com.glv.gsysportal.dto.response.MailPreviewResponse;
 import com.glv.gsysportal.dto.response.OrderEmailResponse;
 import com.glv.gsysportal.security.CurrentUserProvider;
@@ -9,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Phase 7-C3 9章: Mail Preview - any authenticated user may preview (same
@@ -43,10 +45,14 @@ public class MailPreviewController {
     }
 
     /** "送信" (Phase 9-E). ADMIN only. Idempotent/Retry-safe - see
-     * {@code EmailSendService#send}'s Javadoc. */
+     * {@code EmailSendService#send}'s Javadoc. Gap Analysis C-5: an
+     * optional Request body carries a per-Send To/CC Override - omitted
+     * (or an empty body) means "use the Master-resolved addresses as-is",
+     * identical to the pre-C-5 behavior. */
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/orders/{id}/email/send")
-    public OrderEmailResponse sendEmail(@PathVariable Long id) {
-        return emailSendService.send(id, currentUserProvider.currentUsername());
+    public OrderEmailResponse sendEmail(@PathVariable Long id, @RequestBody(required = false) SendEmailRequest body) {
+        SendEmailRequest request = body == null ? SendEmailRequest.NONE : body;
+        return emailSendService.send(id, currentUserProvider.currentUsername(), request.to(), request.cc());
     }
 }

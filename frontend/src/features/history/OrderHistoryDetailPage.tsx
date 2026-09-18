@@ -85,6 +85,13 @@ function resolveTimelineValue(t: TFunction, fieldName: string | null, value: str
   return value
 }
 
+/** Gap Analysis C-5 (docs/gulliver-20260917-phase1-gap-analysis.md 10章):
+ * parses a comma-separated address input field into a trimmed,
+ * non-empty-only array - shared by the To/CC Override fields. */
+function splitAddressInput(value: string): string[] {
+  return value.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+}
+
 function errorCodeOf(error: unknown): string | null {
   if (axios.isAxiosError<ApiErrorBody>(error)) {
     return error.response?.data?.errorCode ?? null
@@ -198,6 +205,18 @@ export function OrderHistoryDetailPage() {
   const completeEdiInputMutation = useCompleteEdiInput(orderId)
   const captureBaselineMutation = useCaptureLegacyPoBaseline(orderId)
   const mailPreviewMutation = useMailPreview(orderId)
+  // Gap Analysis C-5 (docs/gulliver-20260917-phase1-gap-analysis.md 10章):
+  // Email To/CC Override - editable fields the user may change before
+  // Send, seeded once from the Master-resolved Preview values. "Manually
+  // edited" tracks whether the current field content should be sent as an
+  // Override, so a Send with untouched fields is never wrongly flagged as
+  // an Override at the Backend (EmailSendService's own overrideUsed
+  // semantics: null/empty means "no Override").
+  const [toOverrideInput, setToOverrideInput] = useState('')
+  const [ccOverrideInput, setCcOverrideInput] = useState('')
+  const [toManuallyEdited, setToManuallyEdited] = useState(false)
+  const [ccManuallyEdited, setCcManuallyEdited] = useState(false)
+  const [recipientFormSeeded, setRecipientFormSeeded] = useState(false)
   const { data: emailStatus } = useEmailStatus(orderId)
   const sendEmailMutation = useSendEmail(orderId)
   const createFollowUpCaseMutation = useCreateFollowUpCase(orderId)
@@ -269,6 +288,17 @@ export function OrderHistoryDetailPage() {
       setPoNoFormSeeded(true)
     }
   }, [integration, poNoFormSeeded])
+
+  // Gap Analysis C-5: seed the To/CC Override fields once from the first
+  // successful Preview's Master-resolved addresses - never overwrites what
+  // staff is mid-way editing on a later re-Preview.
+  useEffect(() => {
+    if (mailPreviewMutation.data && !recipientFormSeeded) {
+      setToOverrideInput(mailPreviewMutation.data.to.join(', '))
+      setCcOverrideInput(mailPreviewMutation.data.cc.join(', '))
+      setRecipientFormSeeded(true)
+    }
+  }, [mailPreviewMutation.data, recipientFormSeeded])
 
   function handleConfirmPoNumber() {
     confirmPoNumberMutation.mutate({
@@ -1351,8 +1381,38 @@ export function OrderHistoryDetailPage() {
                 </Stack>
               )}
               <Typography variant="body2">{t('mailPreview.from')}: {mailPreviewMutation.data.from}</Typography>
-              <Typography variant="body2">{t('mailPreview.to')}: {mailPreviewMutation.data.to.join(', ') || '—'}</Typography>
-              <Typography variant="body2">{t('mailPreview.cc')}: {mailPreviewMutation.data.cc.join(', ') || '—'}</Typography>
+              {/* Gap Analysis C-5 (docs/gulliver-20260917-phase1-gap-analysis.md
+                  10章): To/CC are editable here - the Master自動選択 stays the
+                  default (seeded once above), but Send-time Override is
+                  allowed. Editing Master Data itself is a completely
+                  separate Admin screen/action (10章's explicit separation) -
+                  these fields never write back to supplier_contact. */}
+              {isAdmin ? (
+                <>
+                  <TextField
+                    label={t('mailPreview.to')}
+                    value={toOverrideInput}
+                    onChange={(e) => { setToOverrideInput(e.target.value); setToManuallyEdited(true) }}
+                    fullWidth
+                    size="small"
+                    helperText={t('mailPreview.overrideHelperText')}
+                    data-testid="mail-send-to-input"
+                  />
+                  <TextField
+                    label={t('mailPreview.cc')}
+                    value={ccOverrideInput}
+                    onChange={(e) => { setCcOverrideInput(e.target.value); setCcManuallyEdited(true) }}
+                    fullWidth
+                    size="small"
+                    data-testid="mail-send-cc-input"
+                  />
+                </>
+              ) : (
+                <>
+                  <Typography variant="body2">{t('mailPreview.to')}: {mailPreviewMutation.data.to.join(', ') || '—'}</Typography>
+                  <Typography variant="body2">{t('mailPreview.cc')}: {mailPreviewMutation.data.cc.join(', ') || '—'}</Typography>
+                </>
+              )}
               {mailPreviewMutation.data.subject ? (
                 <>
                   <Typography variant="body2">{t('mailPreview.subject')}: <strong>{mailPreviewMutation.data.subject}</strong></Typography>
@@ -1398,6 +1458,19 @@ export function OrderHistoryDetailPage() {
               {emailStatus?.status === 'SENT' && (
                 <Alert severity="success" sx={{ mb: 2 }} data-testid="email-sent-note">
                   {t('mailPreview.sentNote')} ({emailStatus.sentByDisplayName ?? emailStatus.sentBy} - {emailStatus.sentAt ? new Date(emailStatus.sentAt).toLocaleString('ja-JP') : ''})
+                  {/* Gap Analysis C-5: Audit visibility - Master-resolved vs
+                      actually-sent addresses are always distinguishable, not
+                      only in the Audit Timeline below. */}
+                  {emailStatus.recipientOverrideUsed && (
+                    <Box sx={{ mt: 0.5 }} data-testid="email-recipient-override-note">
+                      <Typography variant="caption" sx={{ display: 'block' }}>
+                        {t('mailPreview.overrideUsedNote')}
+                      </Typography>
+                      <Typography variant="caption" sx={{ display: 'block' }} color="text.secondary">
+                        {t('mailPreview.masterAddressesLabel')}: To [{emailStatus.masterTo.join(', ')}] / CC [{emailStatus.masterCc.join(', ') || '—'}]
+                      </Typography>
+                    </Box>
+                  )}
                 </Alert>
               )}
               {emailStatus?.status === 'FAILED' && (
@@ -1409,7 +1482,10 @@ export function OrderHistoryDetailPage() {
               {emailStatus?.status !== 'SENT' && (
                 <Button
                   variant="contained"
-                  onClick={() => sendEmailMutation.mutate()}
+                  onClick={() => sendEmailMutation.mutate({
+                    to: toManuallyEdited ? splitAddressInput(toOverrideInput) : undefined,
+                    cc: ccManuallyEdited ? splitAddressInput(ccOverrideInput) : undefined,
+                  })}
                   disabled={sendEmailMutation.isPending}
                   data-testid="email-send-button"
                 >

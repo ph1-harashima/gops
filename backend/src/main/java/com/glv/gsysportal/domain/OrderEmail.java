@@ -89,6 +89,21 @@ public class OrderEmail {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+    // --- Gap Analysis C-5 (docs/gulliver-20260917-phase1-gap-analysis.md
+    // 10章): Email Recipient Override. toAddresses/ccAddresses above stay
+    // "what was actually sent" (Phase 9-E's original meaning, unchanged) -
+    // these record "what the Master (Supplier Contact Resolution) actually
+    // resolved to", so an Override is always distinguishable in the record
+    // even when Send later happens without one. ---
+    @Column(name = "master_to_addresses")
+    private String masterToAddresses;
+
+    @Column(name = "master_cc_addresses")
+    private String masterCcAddresses;
+
+    @Column(name = "recipient_override_used", nullable = false)
+    private boolean recipientOverrideUsed;
+
     public void markSent(OffsetDateTime now, String performedBy) {
         this.status = STATUS_SENT;
         this.sentAt = now;

@@ -21,9 +21,17 @@ public record OrderEmailResponse(
         String sentByDisplayName,
         String errorCode,
         String errorMessage,
-        int retryCount
+        int retryCount,
+        /** Gap Analysis C-5 (docs/gulliver-20260917-phase1-gap-analysis.md
+         * 10章): the Master-resolved addresses, ALWAYS present regardless of
+         * whether an Override was used - {@code to}/{@code cc} above stay
+         * "what was actually sent". */
+        List<String> masterTo,
+        List<String> masterCc,
+        boolean recipientOverrideUsed
 ) {
     public static OrderEmailResponse notSent(Long orderId) {
-        return new OrderEmailResponse(orderId, 0, null, List.of(), List.of(), null, null, null, null, null, null, 0);
+        return new OrderEmailResponse(orderId, 0, null, List.of(), List.of(), null, null, null, null, null, null, 0,
+                List.of(), List.of(), false);
     }
 }

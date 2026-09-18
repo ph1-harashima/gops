@@ -1,0 +1,9 @@
+{
+  "title": "メール送信設定（Default CC）",
+  "description": "ここで設定したDefault CCは、発注メール送信画面のCC欄に初期値として表示されるだけです。実際の送信を自動的にCCする機能ではありません（送信時に担当者が自由に変更・削除できます）。",
+  "defaultCcLabel": "Default CC（カンマ区切りで複数指定可）",
+  "defaultCcHelperText": "例: admin1@example.com, admin2@example.com",
+  "saveButton": "保存",
+  "saveSuccess": "Default CC設定を保存しました。",
+  "lastUpdatedLabel": "最終更新"
+}

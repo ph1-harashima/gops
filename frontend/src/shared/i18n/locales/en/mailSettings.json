@@ -1,0 +1,9 @@
+{
+  "title": "Mail Settings (Default CC)",
+  "description": "The Default CC set here only prefills the CC field on the Order email Send screen - it is never automatically CC'd on an actual Send (the person sending can freely change or remove it before sending).",
+  "defaultCcLabel": "Default CC (comma-separated for multiple)",
+  "defaultCcHelperText": "e.g. admin1@example.com, admin2@example.com",
+  "saveButton": "Save",
+  "saveSuccess": "Saved the Default CC setting.",
+  "lastUpdatedLabel": "Last updated"
+}

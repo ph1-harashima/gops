@@ -156,4 +156,58 @@ class EmailSendServiceIntegrationTest {
 
         assertEquals(null, status.status());
     }
+
+    // --- Gap Analysis C-5 (docs/gulliver-20260917-phase1-gap-analysis.md
+    // 10章): Email Recipient Override ---
+
+    @Test
+    void sendWithoutOverride_masterAndActualAddressesAreIdentical_overrideFlagFalse() {
+        PortalOrder order = readyOrderWithExcelGenerated("EMAIL-OVERRIDE-1");
+        configureEmailChannelContactAndTemplate();
+
+        OrderEmailResponse response = emailSendService.send(order.getId(), ADMIN, null, null);
+
+        assertEquals(List.of("taro@example.com"), response.to());
+        assertEquals(List.of("taro@example.com"), response.masterTo());
+        assertTrue(!response.recipientOverrideUsed());
+        assertTrue(auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(order.getId()).stream()
+                .noneMatch(e -> AuditEvent.EMAIL_RECIPIENT_OVERRIDE_USED.equals(e.getEventType())));
+    }
+
+    @Test
+    void sendWithToOverride_actualSentDiffersFromMaster_masterStillRecorded() {
+        PortalOrder order = readyOrderWithExcelGenerated("EMAIL-OVERRIDE-2");
+        configureEmailChannelContactAndTemplate();
+
+        OrderEmailResponse response = emailSendService.send(order.getId(), ADMIN,
+                List.of("override-recipient@example.com"), null);
+
+        assertEquals(List.of("override-recipient@example.com"), response.to(), "actually-sent To must reflect the Override");
+        assertEquals(List.of("taro@example.com"), response.masterTo(), "Master-resolved To must still be recorded unchanged");
+        assertTrue(response.recipientOverrideUsed());
+
+        AuditEvent overrideEvent = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(order.getId()).stream()
+                .filter(e -> AuditEvent.EMAIL_RECIPIENT_OVERRIDE_USED.equals(e.getEventType()))
+                .findFirst().orElseThrow();
+        assertTrue(overrideEvent.getNote().contains("taro@example.com"));
+        assertTrue(overrideEvent.getNote().contains("override-recipient@example.com"));
+        assertEquals(ADMIN, overrideEvent.getPerformedBy());
+    }
+
+    @Test
+    void overrideNeverWritesToTheSupplierContactMaster() {
+        PortalOrder order = readyOrderWithExcelGenerated("EMAIL-OVERRIDE-3");
+        configureEmailChannelContactAndTemplate();
+
+        emailSendService.send(order.getId(), ADMIN, List.of("override-only-this-send@example.com"), null);
+
+        // The Supplier Contact Master row itself is untouched by the
+        // Override - "今回の送信だけ宛先をOverride" never becomes a Master edit.
+        boolean masterStillHasOriginalContact = contactService.list().stream()
+                .anyMatch(c -> "SUP_ALPHA".equals(c.supplierCode()) && "taro@example.com".equals(c.email()));
+        boolean masterHasOverrideAddress = contactService.list().stream()
+                .anyMatch(c -> "override-only-this-send@example.com".equals(c.email()));
+        assertTrue(masterStillHasOriginalContact);
+        assertTrue(!masterHasOverrideAddress);
+    }
 }

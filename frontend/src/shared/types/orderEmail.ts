@@ -15,4 +15,10 @@ export interface OrderEmail {
   errorCode: string | null
   errorMessage: string | null
   retryCount: number
+  /** Gap Analysis C-5 (docs/gulliver-20260917-phase1-gap-analysis.md 10章):
+   * the Master-resolved addresses, always present regardless of whether an
+   * Override was used - `to`/`cc` above stay "what was actually sent". */
+  masterTo: string[]
+  masterCc: string[]
+  recipientOverrideUsed: boolean
 }

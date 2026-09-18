@@ -84,7 +84,11 @@ class PrototypeFlywayMigrationTest {
         // lifecycle_status/lifecycle_reason/lifecycle_changed_by/
         // lifecycle_changed_at - the Document lifecycle axis (ACTIVE/
         // SUPERSEDED/CANCELLED), separate from the Integration Status above.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26"), versions);
+        // V27 (Gap Analysis C-5/§11): order_email.master_to_addresses/
+        // master_cc_addresses/recipient_override_used - Email Recipient
+        // Override; portal_mail_settings (new, singleton) - Default CC
+        // Foundation (prefill only, never an enforced Business Rule).
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27"), versions);
     }
 
     @Test
