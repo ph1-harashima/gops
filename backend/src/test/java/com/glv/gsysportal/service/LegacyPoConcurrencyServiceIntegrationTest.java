@@ -2,7 +2,10 @@ package com.glv.gsysportal.service;
 
 import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.PortalOrder;
+import com.glv.gsysportal.dto.request.ConfirmOfficialPoNumberRequest;
 import com.glv.gsysportal.dto.request.CreateDraftRequest;
+import com.glv.gsysportal.dto.request.CreateRevisionRequest;
+import com.glv.gsysportal.dto.request.SaveSupplierResponseRequest;
 import com.glv.gsysportal.dto.response.LegacyPoBaselineResponse;
 import com.glv.gsysportal.dto.response.LegacyPoConcurrencyResponse;
 import com.glv.gsysportal.dto.response.OrderDraftResponse;
@@ -54,6 +57,10 @@ class LegacyPoConcurrencyServiceIntegrationTest {
     private OfficialPoIntegrationService integrationService;
     @Autowired
     private LegacyPoConcurrencyService concurrencyService;
+    @Autowired
+    private SupplierResponseService supplierResponseService;
+    @Autowired
+    private OrderRevisionService orderRevisionService;
     @Autowired
     private PortalOrderRepository portalOrderRepository;
     @Autowired
@@ -176,21 +183,55 @@ class LegacyPoConcurrencyServiceIntegrationTest {
      * targeting Revision 2. */
     @Test
     void revision1BaselineIsNeverReusedForRevision2() {
+        // Revision Consistency Audit (docs/gulliver-phase1-revision-consistency-audit.md):
+        // this test previously asserted the exact bug that Audit fixed - it
+        // treated a plain demoSend (no actual correction/Reissue) as if it
+        // had already advanced the Order to "Revision 2", and expected
+        // compare() to (wrongly) report NOT_BASELINED at that point. Under
+        // the corrected model, a demoSend alone never creates a new
+        // Official PO Document Revision - only an actual Reissue does (after
+        // a genuine Supplier Response correction cycle) - so a Revision 1
+        // Baseline correctly still satisfies Compare after a plain demoSend.
+        // This test now drives a REAL Revision 2 into existence (the same
+        // correction+Reissue cycle OfficialPoReissueIntegrationTest's own
+        // fullReissueCycle test uses) before asserting NOT_BASELINED,
+        // proving the "never reused across a genuine Revision change" claim
+        // against an actual Revision 2, not a simulated one.
         PortalOrder order = createApprovedOrder("OD-TENT-001");
         integrationService.requestIntegration(order.getId(), ADMIN); // targets Revision 1
-        linkToOfficialPo(order, "PO-CONC-01");
+        // isReissueRequired (and therefore reissue() below) requires the
+        // current Document to have actually been issued (GENERATED or
+        // later) - confirm the PO No. and generate the Excel so Revision 1
+        // reaches that state, matching OfficialPoReissueIntegrationTest's
+        // own fullReissueCycle_... precondition.
+        integrationService.confirmOfficialPoNumber(order.getId(),
+                new ConfirmOfficialPoNumberRequest("PO-CONC-01", "WK36", "2026-09-05", null, null, null), ADMIN);
+        integrationService.generateExcel(order.getId(), ADMIN);
         concurrencyService.captureBaseline(order.getId(), ADMIN); // Revision 1 Baseline
 
+        LegacyPoConcurrencyResponse comparedBeforeReissue = concurrencyService.compare(order.getId());
+        assertEquals(LegacyPoConcurrencyResponse.RESULT_UNCHANGED, comparedBeforeReissue.result(),
+                "a plain Demo Send with no correction must not invalidate Revision 1's own Baseline");
+
+        // Send, get a Supplier Response with a different Qty, correct the
+        // Order, re-approve, then Reissue - only THIS sequence actually
+        // creates Revision 2 (mirrors OfficialPoReissueIntegrationTest's own
+        // fullReissueCycle_... test).
         PortalOrder sent = statusTransitionService.demoSend(order.getId(), ADMIN);
-        assertEquals(1, sent.getCurrentRevisionNo());
+        Long detailId = supplierResponseService.getSupplierResponse(sent.getId()).details().get(0).detailId();
+        supplierResponseService.saveSupplierResponse(sent.getId(),
+                new SaveSupplierResponseRequest(null, null, List.of(new SaveSupplierResponseRequest.LineUpdate(detailId, 2, null, null, null))),
+                ADMIN);
+        supplierResponseService.confirmSupplierResponse(sent.getId(), ADMIN);
+        orderRevisionService.createCorrection(sent.getId(),
+                new CreateRevisionRequest("Supplier can only supply 2", true), ADMIN);
+        statusTransitionService.submitForApproval(sent.getId(), OPERATOR, false);
+        PortalOrder reapproved = statusTransitionService.approve(sent.getId(), ADMIN);
+        integrationService.reissue(reapproved.getId(), ADMIN); // creates the real Revision 2
 
-        // Simulate an Order that has moved on and is now being re-prepared for
-        // Revision 2 (mirrors OfficialPoIntegrationServiceIntegrationTest's
-        // own correction-cycle idiom, simplified: currentRevisionNo=1 already
-        // means the NEXT Integration/Baseline targets Revision 2).
-        LegacyPoConcurrencyResponse compared = concurrencyService.compare(sent.getId());
+        LegacyPoConcurrencyResponse comparedAfterReissue = concurrencyService.compare(reapproved.getId());
 
-        assertEquals(LegacyPoConcurrencyResponse.RESULT_NOT_BASELINED, compared.result(),
+        assertEquals(LegacyPoConcurrencyResponse.RESULT_NOT_BASELINED, comparedAfterReissue.result(),
                 "Revision 1's Baseline must not silently satisfy Revision 2's Compare");
     }
 

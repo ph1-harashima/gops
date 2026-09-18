@@ -189,19 +189,61 @@ test.describe('Phase 7-C6: Excel / Legacy Concurrency Control Foundation', () =>
     resetConcurrencyFixtures()
     const orderId = await createApprovedOrder(page, 'OD-TENT-001')
     await prepareIntegration(page, orderId)
+
+    // Revision 1 must actually be issued (GENERATED) before it can later be
+    // Reissued - same precondition Scenario K in official-po-integration.spec.ts
+    // relies on.
+    await page.getByTestId('official-po-number-input').locator('input').fill(`E2E-CONC-${orderId}`)
+    await page.getByTestId('official-po-number-confirm-button').click()
+    await page.getByTestId('official-po-generate-button').click()
+    await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+
     linkOrderToOfficialPoNo(orderId, 'PO-CONC-01')
     await page.reload()
     await page.getByTestId('legacy-po-baseline-capture-button').click()
     await expect(page.getByTestId('concurrency-unchanged')).toBeVisible()
 
-    // Demo Send: crystallizes Revision 1, moving the Order to AWAITING_SUPPLIER
-    // and shifting the NEXT target Revision to 2 - Revision 1's Baseline must
-    // never be silently reused for it.
+    // Revision Consistency Audit: a plain Demo Send with no correction never
+    // crystallizes a new Official PO Document Revision by itself - Revision
+    // 1's own Baseline must remain valid straight through it.
     await page.getByTestId('order-detail-primary-action').click();
     await expect(page).toHaveURL(/\/orders\/drafts\/\d+\/preview(\?.*)?$/)
     await page.getByTestId('demo-send-button').click()
     await page.getByTestId('demo-send-dialog-confirm').click()
     await expect(page).toHaveURL(new RegExp(`/orders/${orderId}(\\?.*)?$`))
+
+    await page.reload()
+    await expect(page.getByTestId('concurrency-unchanged')).toBeVisible()
+
+    // Only a genuine correction + Reissue crystallizes Revision 2 - and
+    // Revision 1's Baseline must never be silently reused for it.
+    const enterSupplierResponse = page.getByTestId('order-detail-primary-action')
+    await enterSupplierResponse.click()
+    const orderedQtyCell = page.getByTestId('response-row-OD-TENT-001').locator('td').nth(2)
+    const orderedQty = Number(await orderedQtyCell.innerText())
+    await page.getByTestId('confirmed-qty-input-OD-TENT-001').locator('input').fill(String(Math.max(0, orderedQty - 1)))
+    await page.getByTestId('save-response-button').click()
+    await expect(page.getByText('回答を保存しました。')).toBeVisible()
+    await page.getByTestId('confirm-response-button').click()
+    await page.getByTestId('confirm-response-dialog-confirm').click()
+    await expect(page).toHaveURL(new RegExp(`/orders/${orderId}(\\?.*)?$`))
+
+    await page.getByTestId('order-detail-primary-action').click()
+    await expect(page).toHaveURL(new RegExp(`/orders/${orderId}/supplier-response(\\?.*)?$`))
+    await page.getByTestId('create-revision-button').click()
+    await page.getByTestId('revision-reason-input').locator('textarea').first().fill('メーカー在庫の都合により数量を修正')
+    await page.getByTestId('apply-confirmed-values-checkbox').check()
+    await page.getByTestId('revision-dialog-confirm').click()
+    await expect(page).toHaveURL(new RegExp(`/orders/drafts/${orderId}(\\?.*)?$`))
+    await page.getByTestId('submit-for-approval-button').click()
+    await page.getByTestId('submit-for-approval-dialog-confirm').click()
+    await page.getByTestId('order-detail-approve-button').click()
+    await page.getByTestId('approve-dialog-confirm').click()
+
+    await expect(page.getByTestId('official-po-reissue-button')).toBeEnabled()
+    await page.getByTestId('official-po-reissue-button').click()
+    await page.getByTestId('official-po-reissue-dialog-confirm').click()
+    await expect(page.getByText('正式POを再発行しました。')).toBeVisible()
 
     await page.reload()
     await expect(page.getByTestId('concurrency-not-baselined')).toBeVisible()

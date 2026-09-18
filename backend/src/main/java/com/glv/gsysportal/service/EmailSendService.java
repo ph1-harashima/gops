@@ -113,11 +113,18 @@ public class EmailSendService {
      * ever been created yet (Email Send is not reachable at that point
      * anyway - Excel/attachment readiness always requires one - so the
      * fallback value is never actually compared against a real sent row).
+     *
+     * <p>Revision Consistency Audit (docs/gulliver-phase1-revision-consistency-audit.md):
+     * this now delegates to {@link OfficialPoIntegrationService#resolveCurrentRevisionNo}
+     * directly - the audit generalized this exact resolution (originally
+     * written here for C-2) into the one Source of Truth every other
+     * Official-PO-Document-scoped operation (Excel/PDF generation, PO No.
+     * confirmation, Import Folder placement, Import confirmation, Legacy
+     * Concurrency Compare) also resolves through, rather than leaving this
+     * as a second, independently-maintained copy of the same query.
      */
     private int emailRevisionNo(Long orderId, PortalOrder order) {
-        return integrationRequestRepository.findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
-                .map(OfficialPoIntegrationRequest::getRevisionNo)
-                .orElseGet(() -> OfficialPoIntegrationService.targetRevisionNo(order));
+        return OfficialPoIntegrationService.resolveCurrentRevisionNo(integrationRequestRepository, order);
     }
 
     /** Mirrors {@link #send(Long, String, List, List)} with no Override -

@@ -77,7 +77,11 @@ class OfficialPoImportFolderPlacementRetryTest {
         PortalOrder order = order();
         OfficialPoIntegrationRequest request = generatedRequest();
         when(portalOrderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
-        when(integrationRequestRepository.findByPortalOrderIdAndRevisionNo(ORDER_ID, 1)).thenReturn(Optional.of(request));
+        // Revision Consistency Audit: placeToImportFolder now resolves the
+        // Request to operate on via resolveCurrentRequest (the actual latest
+        // Integration Request), not a recomputed target Revision - stub the
+        // Repository method that resolver actually calls.
+        when(integrationRequestRepository.findFirstByPortalOrderIdOrderByRevisionNoDesc(ORDER_ID)).thenReturn(Optional.of(request));
         when(integrationRequestRepository.save(any(OfficialPoIntegrationRequest.class))).thenAnswer(inv -> inv.getArgument(0));
         when(excelGenerationService.load("some-file-key.xlsx")).thenReturn(new byte[]{1, 2, 3});
         // Gap Analysis C-3: toResponse() now computes reissueRequired via an

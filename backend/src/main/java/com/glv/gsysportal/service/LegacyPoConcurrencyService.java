@@ -134,7 +134,18 @@ public class LegacyPoConcurrencyService {
             return LegacyPoConcurrencyResponse.notLinked(orderId);
         }
         String officialPoNo = order.getOfficialPoNo();
-        int targetRevisionNo = OfficialPoIntegrationService.targetRevisionNo(order);
+        // Revision Consistency Audit (docs/gulliver-phase1-revision-consistency-audit.md):
+        // compare() reads an EXISTING Baseline (Class B - "operate on an
+        // already-existing Revision"), so it must resolve the Order's
+        // actual current Revision (the latest real Integration Request),
+        // never targetRevisionNo's own prospective "next Revision" value -
+        // using that here reproduced the exact same class of bug the
+        // Acceptance Fix found and fixed in EmailSendService (C-2): once a
+        // Demo/EDI Send crystallizes the first Order Revision, this number
+        // would silently advance past the Revision the Baseline was
+        // actually captured for, and every subsequent Compare would report
+        // NOT_BASELINED even though a real Baseline still exists.
+        int targetRevisionNo = OfficialPoIntegrationService.resolveCurrentRevisionNo(integrationRequestRepository, order);
 
         // PO_NOT_FOUND is checked BEFORE NOT_BASELINED (7-C6 6章/8章): if the
         // Legacy PO does not currently exist at all, that fact is more

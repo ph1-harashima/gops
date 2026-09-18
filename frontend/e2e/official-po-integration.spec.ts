@@ -430,6 +430,137 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     // Revision History table's own PENDING status cell for this same new row).
     await expect(page.getByTestId('at-a-glance-panel').getByText('準備中')).toBeVisible()
   })
+
+  /**
+   * Revision Consistency Audit (docs/gulliver-phase1-revision-consistency-audit.md)
+   * Scenario D: after a genuine Reissue, Manufacturer Send (real Email
+   * Send, Phase 9-E) must target the NEW ACTIVE Revision 2 - never the
+   * SUPERSEDED Revision 1 - proven through the real UI, not just the
+   * Backend Service layer (OfficialPoRevisionConsistencyIntegrationTest's
+   * own scenarioD test covers the same claim at that layer).
+   */
+  test('Scenario M: Manufacturer Send after Reissue targets the new ACTIVE Revision, not the SUPERSEDED one', async ({ page }) => {
+    const draftId = await createOrderableDraft(page)
+    await submitAndApprove(page, draftId)
+
+    await page.getByTestId('official-po-request-button').click()
+    await page.getByTestId('official-po-request-dialog-confirm').click()
+    const poNo1 = `E2E-REV-CONSIST-${draftId}`
+    await page.getByTestId('official-po-number-input').locator('input').fill(poNo1)
+    await page.getByTestId('official-po-number-confirm-button').click()
+    await page.getByTestId('official-po-generate-button').click()
+    await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+
+    const goToPreview = page.getByTestId('order-detail-primary-action')
+    await goToPreview.click()
+    await page.getByTestId('demo-send-button').click()
+    await page.getByTestId('demo-send-dialog-confirm').click()
+    await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))
+
+    await page.getByTestId('order-detail-primary-action').click()
+    const orderedQtyCell = page.getByTestId(`response-row-${SKU}`).locator('td').nth(2)
+    const orderedQty = Number(await orderedQtyCell.innerText())
+    await page.getByTestId(`confirmed-qty-input-${SKU}`).locator('input').fill(String(Math.max(0, orderedQty - 1)))
+    await page.getByTestId('save-response-button').click()
+    await expect(page.getByText('回答を保存しました。')).toBeVisible()
+    await page.getByTestId('confirm-response-button').click()
+    await page.getByTestId('confirm-response-dialog-confirm').click()
+    await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))
+
+    await page.getByTestId('order-detail-primary-action').click()
+    await page.getByTestId('create-revision-button').click()
+    await page.getByTestId('revision-reason-input').locator('textarea').first().fill('メーカー在庫の都合により数量を修正')
+    await page.getByTestId('apply-confirmed-values-checkbox').check()
+    await page.getByTestId('revision-dialog-confirm').click()
+    await page.getByTestId('submit-for-approval-button').click()
+    await page.getByTestId('submit-for-approval-dialog-confirm').click()
+    await page.getByTestId('order-detail-approve-button').click()
+    await page.getByTestId('approve-dialog-confirm').click()
+    await page.getByTestId('official-po-reissue-button').click()
+    await page.getByTestId('official-po-reissue-dialog-confirm').click()
+    await expect(page.getByText('正式POを再発行しました。')).toBeVisible()
+
+    // Revision 2 is now ACTIVE/PENDING - confirm its own PO No. and Excel.
+    const poNo2 = `E2E-REV-CONSIST-2-${draftId}`
+    await page.getByTestId('official-po-number-input').locator('input').fill(poNo2)
+    await page.getByTestId('official-po-number-confirm-button').click()
+    await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
+    await page.getByTestId('official-po-generate-button').click()
+    await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+
+    // Manufacturer Channel/Contact/Template for SUP_ALPHA/BR_OUTDOOR.
+    await page.getByTestId('nav-master-maintenance').click()
+    await page.getByTestId('nav-admin-manufacturer-channels').click()
+    await page.getByTestId('manufacturer-channel-create-button').click()
+    await page.getByTestId('manufacturer-channel-supplierCode').locator('input').fill('SUP_ALPHA')
+    await page.getByTestId('manufacturer-channel-brandCode').locator('input').fill('BR_OUTDOOR')
+    await page.getByTestId('manufacturer-channel-save').click()
+    await expect(page.getByTestId('manufacturer-channel-table-container')).toContainText('SUP_ALPHA')
+
+    await page.goto('/admin/supplier-contacts')
+    await page.getByTestId('supplier-contact-create-button').click()
+    await page.getByTestId('supplier-contact-supplierCode').locator('input').fill('SUP_ALPHA')
+    await page.getByTestId('supplier-contact-brandCode').locator('input').fill('BR_OUTDOOR')
+    await page.getByTestId('supplier-contact-contactName').locator('input').fill('Revision Consistency Tester')
+    await page.getByTestId('supplier-contact-email').locator('input').fill('revision-consistency@example.com')
+    await page.getByTestId('supplier-contact-save').click()
+    await expect(page.getByTestId('supplier-contact-table-container')).toContainText('revision-consistency@example.com')
+
+    await page.goto('/admin/mail-templates')
+    await page.getByTestId('mail-template-create-button').click()
+    await page.getByTestId('mail-template-templateName').locator('input').fill('Revision Consistency Template')
+    await page.getByTestId('mail-template-supplierCode').locator('input').fill('SUP_ALPHA')
+    await page.getByTestId('mail-template-brandCode').locator('input').fill('BR_OUTDOOR')
+    await page.getByTestId('mail-template-subjectTemplate').locator('input').fill('PO {{poNo}}')
+    await page.getByTestId('mail-template-bodyTemplate').locator('textarea').first().fill('Dear {{contactName}}, PO No: {{poNo}}')
+    await page.getByTestId('mail-template-save').click()
+    await expect(page.getByTestId('mail-template-table-container')).toContainText('Revision Consistency Template')
+
+    // Manufacturer Send - must resolve to Revision 2 (the poNo2 Excel), not
+    // Revision 1's stale attachment.
+    await page.goto(`/orders/${draftId}`)
+    await page.getByTestId('mail-preview-button').click()
+    await expect(page.getByTestId('mail-preview-result')).toBeVisible()
+    await expect(page.getByText(`PO ${poNo2}`)).toBeVisible()
+    await page.getByTestId('email-send-button').click()
+    await expect(page.getByText('メールを送信しました。')).toBeVisible()
+
+    // Revision History: Revision 2 shows 送信済み, Revision 1 never does -
+    // the Send is correctly scoped to the Revision it actually belongs to
+    // (confirmed directly in Postgres: order_email.revision_no=2 for this
+    // Order). A reload is required first - sending Email does not
+    // currently invalidate the Revision History query's own cache (a
+    // pre-existing, separate Frontend staleness gap, not a Revision
+    // resolution bug - out of this Audit's "Revision consistency only"
+    // scope; noted in the Audit doc's Remaining Limitations).
+    await page.reload()
+    await expect(page.getByTestId('revision-history-row-2')).toContainText('送信済み')
+    await expect(page.getByTestId('revision-history-row-1')).not.toContainText('送信済み')
+
+    // Cleanup: this Master data is SUP_ALPHA/BR_OUTDOOR-wide and would
+    // otherwise collide with other specs' own "nothing configured yet"
+    // assumptions for the same Supplier/Brand in a full-suite run.
+    const channels = await (await page.request.get('/api/admin/manufacturer-channels')).json()
+    for (const c of channels) {
+      if (c.supplierCode === 'SUP_ALPHA' && c.brandCode === 'BR_OUTDOOR' && c.active) {
+        await page.request.put(`/api/admin/manufacturer-channels/${c.id}`, {
+          data: { supplierCode: c.supplierCode, brandCode: c.brandCode, channel: c.channel, active: false },
+        })
+      }
+    }
+    const contacts = await (await page.request.get('/api/admin/supplier-contacts')).json()
+    for (const c of contacts) {
+      if (c.email === 'revision-consistency@example.com' && c.active) {
+        await page.request.put(`/api/admin/supplier-contacts/${c.id}`, { data: { ...c, active: false } })
+      }
+    }
+    const templates = await (await page.request.get('/api/admin/mail-templates')).json()
+    for (const t of templates) {
+      if (t.templateName === 'Revision Consistency Template' && t.active) {
+        await page.request.put(`/api/admin/mail-templates/${t.id}`, { data: { ...t, active: false } })
+      }
+    }
+  })
 })
 
 /**

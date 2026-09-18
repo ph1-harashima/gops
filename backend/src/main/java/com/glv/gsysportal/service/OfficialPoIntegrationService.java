@@ -207,9 +207,7 @@ public class OfficialPoIntegrationService {
         if (!PortalOrder.STATUS_APPROVED.equals(order.getStatus())) {
             throw new OrderNotApprovedException(orderId, order.getStatus());
         }
-        OfficialPoIntegrationRequest current = integrationRequestRepository
-                .findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
-                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo(order)));
+        OfficialPoIntegrationRequest current = resolveCurrentRequest(order);
         if (!isReissueRequired(current)) {
             throw new OfficialPoReissueNotRequiredException(orderId);
         }
@@ -244,9 +242,7 @@ public class OfficialPoIntegrationService {
             throw new OfficialPoCancelReasonRequiredException();
         }
         PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
-        OfficialPoIntegrationRequest current = integrationRequestRepository
-                .findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
-                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo(order)));
+        OfficialPoIntegrationRequest current = resolveCurrentRequest(order);
         if (!OfficialPoIntegrationRequest.LIFECYCLE_ACTIVE.equals(current.getLifecycleStatus())) {
             throw new OfficialPoCancelNotAllowedException(orderId, current.getLifecycleStatus());
         }
@@ -337,6 +333,49 @@ public class OfficialPoIntegrationService {
         return order.getCurrentRevisionNo() == null ? 1 : order.getCurrentRevisionNo() + 1;
     }
 
+    /**
+     * Revision Consistency Audit (docs/gulliver-phase1-revision-consistency-audit.md):
+     * Single Source of Truth for "which Revision does an operation on an
+     * ALREADY-EXISTING Official PO Document target" - the actual latest
+     * {@link OfficialPoIntegrationRequest} row for this Order, never a
+     * number recomputed from Order state. {@link #targetRevisionNo} above
+     * answers a DIFFERENT question ("which Revision should a brand-new
+     * Request be created for") and must only be used by operations that
+     * actually create one ({@link #requestIntegration}, via {@link #reissue}) -
+     * every operation that instead reads/modifies/downloads an Artifact
+     * belonging to a Request that must already exist (Excel/PDF generation,
+     * PO No. confirmation, Import Folder placement, Import confirmation,
+     * Integration Intent) resolves through this method instead, so it can
+     * never target a Revision one-past whatever Demo/EDI Send most recently
+     * crystallized (the exact class of bug the Acceptance Fix found in
+     * {@code EmailSendService}, C-2).
+     *
+     * <p>Throws {@link IntegrationRequestRequiredException} when no Request
+     * has ever been created for this Order - every caller of this method
+     * requires one to already exist (mirrors {@link #cancel}'s own
+     * pre-existing "no Request yet" handling).
+     */
+    private OfficialPoIntegrationRequest resolveCurrentRequest(PortalOrder order) {
+        return integrationRequestRepository.findFirstByPortalOrderIdOrderByRevisionNoDesc(order.getId())
+                .orElseThrow(() -> new IntegrationRequestRequiredException(order.getId(), targetRevisionNo(order)));
+    }
+
+    /**
+     * Non-throwing sibling of {@link #resolveCurrentRequest} - the Revision
+     * number of the current/latest Integration Request if one exists, else
+     * the same value a brand-new Request would target. For callers (like
+     * {@link LegacyPoConcurrencyService#compare}) whose own "no Request/
+     * Baseline yet" case is a normal, non-error response rather than an
+     * Exception - the fallback is harmless there since a lookup keyed by it
+     * against a table that legitimately has no row yet still correctly
+     * comes back empty.
+     */
+    static int resolveCurrentRevisionNo(OfficialPoIntegrationRequestRepository repo, PortalOrder order) {
+        return repo.findFirstByPortalOrderIdOrderByRevisionNoDesc(order.getId())
+                .map(OfficialPoIntegrationRequest::getRevisionNo)
+                .orElseGet(() -> targetRevisionNo(order));
+    }
+
     /** Phase 7-C6 12章/13章: ADMIN explicitly records whether this Order's
      * upcoming Official PO Integration targets a brand-new G-SYS PO or an
      * update to an existing one. Requires an Integration Request to already
@@ -348,10 +387,7 @@ public class OfficialPoIntegrationService {
             throw new InvalidIntegrationIntentException(intent);
         }
         PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
-        int targetRevisionNo = targetRevisionNo(order);
-        OfficialPoIntegrationRequest request = integrationRequestRepository
-                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
-                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+        OfficialPoIntegrationRequest request = resolveCurrentRequest(order);
 
         request.setIntegrationIntent(intent);
         request.setUpdatedAt(OffsetDateTime.now());
@@ -372,10 +408,7 @@ public class OfficialPoIntegrationService {
     @Transactional(transactionManager = "prototypeTransactionManager")
     public OfficialPoIntegrationResponse confirmOfficialPoNumber(Long orderId, ConfirmOfficialPoNumberRequest body, String performedBy) {
         PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
-        int targetRevisionNo = targetRevisionNo(order);
-        OfficialPoIntegrationRequest request = integrationRequestRepository
-                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
-                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+        OfficialPoIntegrationRequest request = resolveCurrentRequest(order);
         requireEditable(request, orderId);
 
         String officialPoNo = body.officialPoNo() == null ? null : body.officialPoNo().trim();
@@ -422,10 +455,7 @@ public class OfficialPoIntegrationService {
     @Transactional(transactionManager = "prototypeTransactionManager")
     public OfficialPoIntegrationResponse generateExcel(Long orderId, String performedBy) {
         PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
-        int targetRevisionNo = targetRevisionNo(order);
-        OfficialPoIntegrationRequest request = integrationRequestRepository
-                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
-                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+        OfficialPoIntegrationRequest request = resolveCurrentRequest(order);
 
         if (!OfficialPoIntegrationRequest.STATUS_PENDING.equals(request.getStatus())) {
             return toResponse(request);
@@ -462,10 +492,7 @@ public class OfficialPoIntegrationService {
     @Transactional(transactionManager = "prototypeTransactionManager")
     public OfficialPoIntegrationResponse generatePdf(Long orderId, String performedBy) {
         PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
-        int targetRevisionNo = targetRevisionNo(order);
-        OfficialPoIntegrationRequest request = integrationRequestRepository
-                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
-                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+        OfficialPoIntegrationRequest request = resolveCurrentRequest(order);
 
         if (request.getOfficialPoNo() == null) {
             throw new OfficialPoNumberRequiredException(orderId);
@@ -515,10 +542,7 @@ public class OfficialPoIntegrationService {
     @Transactional(transactionManager = "prototypeTransactionManager")
     public OfficialPoIntegrationResponse placeToImportFolder(Long orderId, String performedBy) {
         PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
-        int targetRevisionNo = targetRevisionNo(order);
-        OfficialPoIntegrationRequest request = integrationRequestRepository
-                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
-                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+        OfficialPoIntegrationRequest request = resolveCurrentRequest(order);
 
         if (OfficialPoIntegrationRequest.STATUS_SUBMITTED.equals(request.getStatus())
                 || OfficialPoIntegrationRequest.STATUS_CONFIRMED.equals(request.getStatus())) {
@@ -529,7 +553,7 @@ public class OfficialPoIntegrationService {
             throw new OfficialPoNotGeneratedException(orderId);
         }
 
-        String idempotencyKey = orderId + "-" + request.getOfficialPoNo() + "-" + targetRevisionNo;
+        String idempotencyKey = orderId + "-" + request.getOfficialPoNo() + "-" + request.getRevisionNo();
         IdempotencyService.IdempotencyClaim claim = idempotencyService.claim(
                 OPERATION_TYPE_FILE_PLACEMENT, orderId.toString(), idempotencyKey);
         if (!claim.claimed()) {
@@ -543,8 +567,12 @@ public class OfficialPoIntegrationService {
         // Revision), same shared builder downloadExcel() uses - WORKING
         // ASSUMPTION, Import Contract-safe (see OfficialPoFileNaming's
         // Javadoc for the re-confirmed Legacy Fact backing that claim).
+        // Revision Consistency Audit: the Revision component comes from the
+        // actual resolved Request (request.getRevisionNo()), never a
+        // recomputed prospective value - so the placed File's own name can
+        // never disagree with which Revision it actually belongs to.
         String fileName = OfficialPoFileNaming.buildFileName(order.getSupplierCode(), order.getBrandCode(),
-                now.toLocalDate(), request.getOfficialPoNo(), targetRevisionNo, "xlsx");
+                now.toLocalDate(), request.getOfficialPoNo(), request.getRevisionNo(), "xlsx");
 
         try {
             importFolderAdapter.place(excelBytes, fileName);
@@ -577,10 +605,7 @@ public class OfficialPoIntegrationService {
     @Transactional(transactionManager = "prototypeTransactionManager")
     public OfficialPoImportConfirmationResponse confirmImport(Long orderId, String performedBy) {
         PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
-        int targetRevisionNo = targetRevisionNo(order);
-        OfficialPoIntegrationRequest request = integrationRequestRepository
-                .findByPortalOrderIdAndRevisionNo(orderId, targetRevisionNo)
-                .orElseThrow(() -> new IntegrationRequestRequiredException(orderId, targetRevisionNo));
+        OfficialPoIntegrationRequest request = resolveCurrentRequest(order);
 
         if (OfficialPoIntegrationRequest.STATUS_CONFIRMED.equals(request.getStatus())) {
             return new OfficialPoImportConfirmationResponse(true, null, List.of(), toResponse(request));
