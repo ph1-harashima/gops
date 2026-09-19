@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import Box from '@mui/material/Box'
@@ -39,6 +39,12 @@ function errorCodeOf(error: unknown): string | null {
   return null
 }
 
+interface Props {
+  /** Master Maintenance Hub - see SupplierContactPage's own Props doc for
+   * the full rationale (identical pattern). */
+  supplierCodeFilter?: string
+}
+
 /**
  * Gap Analysis §12 (docs/gulliver-20260917-phase1-gap-analysis.md 12章):
  * Domestic/Overseas Foundation admin screen - mirrors ManufacturerChannelPage's
@@ -49,7 +55,7 @@ function errorCodeOf(error: unknown): string | null {
  * READ ONLY, see the Backend Entity's own Javadoc). It is never consulted
  * by the Recommended Qty calculation (発注数量計算式) - display only.
  */
-export function SupplierRegionClassificationPage() {
+export function SupplierRegionClassificationPage({ supplierCodeFilter }: Props = {}) {
   const { t } = useTranslation(['supplierRegionClassification', 'common'])
   const { data, isLoading, isError, refetch } = useSupplierRegionClassifications()
   const createMutation = useCreateSupplierRegionClassification()
@@ -59,9 +65,22 @@ export function SupplierRegionClassificationPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<SupplierRegionClassificationRequest>(EMPTY_FORM)
 
+  // Master Maintenance Hub / IA Audit §8 (Inactive行の扱い): mirrors
+  // SupplierContactPage/ManufacturerChannelPage's own "Active=Default表示"
+  // convention, retrofitted here for consistency (this screen previously had
+  // no Filter at all and showed every row unconditionally).
+  const [showInactive, setShowInactive] = useState(false)
+  const filtered = useMemo(() => {
+    return (data ?? []).filter((c) => {
+      if (supplierCodeFilter && c.supplierCode !== supplierCodeFilter) return false
+      if (!showInactive && !c.active) return false
+      return true
+    })
+  }, [data, showInactive, supplierCodeFilter])
+
   function openCreate() {
     setEditingId(null)
-    setForm(EMPTY_FORM)
+    setForm(supplierCodeFilter ? { ...EMPTY_FORM, supplierCode: supplierCodeFilter } : EMPTY_FORM)
     setDialogOpen(true)
   }
 
@@ -112,8 +131,18 @@ export function SupplierRegionClassificationPage() {
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('subtitle')}</Typography>
 
-      {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
       {data && data.length > 0 && (
+        <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
+          <FormControlLabel
+            control={<Checkbox checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)}
+                               data-testid="supplier-region-classification-show-inactive" />}
+            label={t('common:showInactiveLabel')} />
+        </Stack>
+      )}
+
+      {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
+      {data && data.length > 0 && filtered.length === 0 && <Alert severity="info">{t('common:noSearchResults')}</Alert>}
+      {filtered.length > 0 && (
         <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="supplier-region-classification-table-container">
           <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
             <TableHead>
@@ -126,7 +155,7 @@ export function SupplierRegionClassificationPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.map((c) => (
+              {filtered.map((c) => (
                 <TableRow key={c.id} hover data-testid={`supplier-region-classification-row-${c.id}`}>
                   <TableCell>{c.supplierCode}</TableCell>
                   <TableCell>{c.brandCode ?? '—'}</TableCell>

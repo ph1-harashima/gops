@@ -24,6 +24,8 @@
     "outOfStock": "欠品",
     "draft": "発注作成中",
     "awaitingSupplier": "メーカー回答待ち",
-    "attention": "要確認"
-  }
+    "attention": "要確認",
+    "priceChange": "価格変更"
+  },
+  "priceChangeAction": "作成"
 }

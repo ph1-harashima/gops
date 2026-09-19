@@ -52,7 +52,7 @@ export function PriceChangeEditPage() {
   // Named navSearchParams (not searchParams) - this screen already uses
   // `searchParams` below as the Product Search filter object passed to
   // usePriceChangeCandidates; reusing the name would shadow/collide with it.
-  const [navSearchParams] = useSearchParams()
+  const [navSearchParams, setNavSearchParams] = useSearchParams()
   // Phase 8-M (Global Navigation Audit): same two-tier returnTo/backTo chain
   // PoPreviewPage already established (Phase 6-A/7-H) - backTo (immediate
   // parent, set only when reached from Detail's "編集" button) takes
@@ -65,10 +65,31 @@ export function PriceChangeEditPage() {
   const { data, isLoading, isError, refetch } = usePriceChangeDetail(id)
   const { data: itemGroups } = usePriceChangeItemGroups()
 
-  const [brandCode, setBrandCode] = useState('')
+  // IA Audit §6/10 (docs/gops-information-architecture-cross-screen-audit.md,
+  // docs/gops-master-maintenance-hub-implementation.md): brandCode is
+  // URL-driven (same convention as CandidateListPage's own brandCode Filter)
+  // so a Brand-context screen elsewhere can Deep Link straight into a
+  // pre-filtered Product Selection, and Back-then-Forward (or a page reload)
+  // never loses the Brand a user was already working with here.
+  const brandCode = navSearchParams.get('brandCode') ?? ''
+  function setBrandCode(value: string) {
+    setNavSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (value) next.set('brandCode', value)
+        else next.delete('brandCode')
+        return next
+      },
+      { replace: true },
+    )
+  }
   const [itemGrpCd, setItemGrpCd] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [searchArmed, setSearchArmed] = useState(false)
+  // A Brand Deep Link should show its results immediately, not require an
+  // extra manual "検索" click - lazy-init only (never re-armed by a later
+  // brandCode edit, matching the existing manual-Search-button UX for every
+  // other Filter change on this screen).
+  const [searchArmed, setSearchArmed] = useState(() => Boolean(navSearchParams.get('brandCode')))
   const searchParams = useMemo(
     () => ({ brandCode: brandCode || undefined, itemGrpCd: itemGrpCd || undefined, keyword: keyword || undefined }),
     [brandCode, itemGrpCd, keyword],

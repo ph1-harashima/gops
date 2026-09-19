@@ -39,10 +39,16 @@ function errorCodeOf(error: unknown): string | null {
   return null
 }
 
+interface Props {
+  /** Master Maintenance Hub - see SupplierContactPage's own Props doc for
+   * the full rationale (identical pattern). */
+  supplierCodeFilter?: string
+}
+
 /** Phase 9-D: ADMIN-only Master screen - mirrors SupplierContactPage's own
  * shape exactly (Backend also enforces this - reaching this page as
  * OPERATOR would just get 403s on every call). */
-export function ManufacturerChannelPage() {
+export function ManufacturerChannelPage({ supplierCodeFilter }: Props = {}) {
   const { t } = useTranslation(['manufacturerChannel', 'common'])
   const { data, isLoading, isError, refetch } = useManufacturerChannels()
   const createMutation = useCreateManufacturerChannel()
@@ -65,11 +71,12 @@ export function ManufacturerChannelPage() {
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase()
     return (data ?? []).filter((c) => {
+      if (supplierCodeFilter && c.supplierCode !== supplierCodeFilter) return false
       if (!showInactive && !c.active) return false
       if (!keyword) return true
       return c.supplierCode.toLowerCase().includes(keyword) || (c.brandCode ?? '').toLowerCase().includes(keyword)
     })
-  }, [data, search, showInactive])
+  }, [data, search, showInactive, supplierCodeFilter])
   function clearFilters() {
     setSearch('')
     setShowInactive(false)
@@ -77,7 +84,7 @@ export function ManufacturerChannelPage() {
 
   function openCreate() {
     setEditingId(null)
-    setForm(EMPTY_FORM)
+    setForm(supplierCodeFilter ? { ...EMPTY_FORM, supplierCode: supplierCodeFilter } : EMPTY_FORM)
     setDialogOpen(true)
   }
 

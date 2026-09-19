@@ -13,6 +13,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Box from '@mui/material/Box'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
+import ListSubheader from '@mui/material/ListSubheader'
 import PersonIcon from '@mui/icons-material/Person'
 import LogoutIcon from '@mui/icons-material/Logout'
 
@@ -32,6 +33,8 @@ import { MailTemplatePage } from '../features/admin/MailTemplatePage'
 import { PortalMailSettingsPage } from '../features/admin/PortalMailSettingsPage'
 import { SupplierRegionClassificationPage } from '../features/admin/SupplierRegionClassificationPage'
 import { OfficialPoShortCodePage } from '../features/admin/OfficialPoShortCodePage'
+import { SupplierMasterListPage } from '../features/admin/SupplierMasterListPage'
+import { SupplierSettingsLayout } from '../features/admin/SupplierSettingsLayout'
 import { PriceChangeListPage } from '../features/priceChanges/PriceChangeListPage'
 import { PriceChangeEditPage } from '../features/priceChanges/PriceChangeEditPage'
 import { PriceChangeDetailPage } from '../features/priceChanges/PriceChangeDetailPage'
@@ -69,6 +72,7 @@ export function App() {
     || location.pathname === '/admin/manufacturer-channels' || location.pathname === '/admin/mail-settings'
     || location.pathname === '/admin/supplier-region-classifications'
     || location.pathname === '/admin/official-po-short-codes'
+    || location.pathname.startsWith('/master/suppliers')
   const [masterMenuAnchor, setMasterMenuAnchor] = useState<HTMLElement | null>(null)
 
   const roleLabel = user ? t(`drafts:roleLabel.${user.role}`, { defaultValue: user.role }) : ''
@@ -206,6 +210,23 @@ export function App() {
                       {t('navMasterMaintenance')}
                     </Button>
                     <Menu anchorEl={masterMenuAnchor} open={Boolean(masterMenuAnchor)} onClose={() => setMasterMenuAnchor(null)}>
+                      {/* IA Audit (docs/gops-information-architecture-cross-screen-audit.md
+                          4章) / Master Maintenance Hub: Supplier Settings vs
+                          Global Settings, per §7's own example layout. The 4
+                          existing Flat List entries stay exactly as they were
+                          (Backward Compatibility - same testid, same URL) -
+                          "Suppliers" is purely an ADDITIONAL entry point into
+                          the same underlying screens, Supplier-scoped. */}
+                      <ListSubheader data-testid="master-menu-supplier-settings-header">{t('navMasterMaintenanceSupplierSettings')}</ListSubheader>
+                      <MenuItem
+                        component={Link}
+                        to="/master/suppliers"
+                        selected={location.pathname.startsWith('/master/suppliers')}
+                        onClick={() => setMasterMenuAnchor(null)}
+                        data-testid="nav-admin-suppliers"
+                      >
+                        {t('navAdminSuppliers')}
+                      </MenuItem>
                       <MenuItem
                         component={Link}
                         to="/admin/supplier-contacts"
@@ -217,30 +238,12 @@ export function App() {
                       </MenuItem>
                       <MenuItem
                         component={Link}
-                        to="/admin/mail-templates"
-                        selected={location.pathname === '/admin/mail-templates'}
-                        onClick={() => setMasterMenuAnchor(null)}
-                        data-testid="nav-admin-mail-templates"
-                      >
-                        {t('navAdminMailTemplates')}
-                      </MenuItem>
-                      <MenuItem
-                        component={Link}
                         to="/admin/manufacturer-channels"
                         selected={location.pathname === '/admin/manufacturer-channels'}
                         onClick={() => setMasterMenuAnchor(null)}
                         data-testid="nav-admin-manufacturer-channels"
                       >
                         {t('navAdminManufacturerChannels')}
-                      </MenuItem>
-                      <MenuItem
-                        component={Link}
-                        to="/admin/mail-settings"
-                        selected={location.pathname === '/admin/mail-settings'}
-                        onClick={() => setMasterMenuAnchor(null)}
-                        data-testid="nav-admin-mail-settings"
-                      >
-                        {t('navAdminMailSettings')}
                       </MenuItem>
                       <MenuItem
                         component={Link}
@@ -259,6 +262,25 @@ export function App() {
                         data-testid="nav-admin-official-po-short-codes"
                       >
                         {t('navAdminOfficialPoShortCodes')}
+                      </MenuItem>
+                      <ListSubheader data-testid="master-menu-global-settings-header">{t('navMasterMaintenanceGlobalSettings')}</ListSubheader>
+                      <MenuItem
+                        component={Link}
+                        to="/admin/mail-templates"
+                        selected={location.pathname === '/admin/mail-templates'}
+                        onClick={() => setMasterMenuAnchor(null)}
+                        data-testid="nav-admin-mail-templates"
+                      >
+                        {t('navAdminMailTemplates')}
+                      </MenuItem>
+                      <MenuItem
+                        component={Link}
+                        to="/admin/mail-settings"
+                        selected={location.pathname === '/admin/mail-settings'}
+                        onClick={() => setMasterMenuAnchor(null)}
+                        data-testid="nav-admin-mail-settings"
+                      >
+                        {t('navAdminMailSettings')}
                       </MenuItem>
                     </Menu>
                   </>
@@ -354,6 +376,12 @@ export function App() {
             <Route path="/admin/mail-settings" element={<PortalMailSettingsPage />} />
             <Route path="/admin/supplier-region-classifications" element={<SupplierRegionClassificationPage />} />
             <Route path="/admin/official-po-short-codes" element={<OfficialPoShortCodePage />} />
+            {/* Master Maintenance Hub (docs/gops-master-maintenance-hub-implementation.md):
+                the existing 5 Routes above are all untouched (Backward
+                Compatibility) - these are purely additive, Supplier-scoped
+                entry points into the same underlying screens. */}
+            <Route path="/master/suppliers" element={<SupplierMasterListPage />} />
+            <Route path="/master/suppliers/:supplierCode/*" element={<SupplierSettingsLayout />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}

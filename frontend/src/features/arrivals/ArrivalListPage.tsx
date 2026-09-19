@@ -12,6 +12,7 @@ import TableRow from '@mui/material/TableRow'
 import TablePagination from '@mui/material/TablePagination'
 import TextField from '@mui/material/TextField'
 import Stack from '@mui/material/Stack'
+import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
@@ -102,6 +103,19 @@ export function ArrivalListPage() {
 
   const { data, isLoading, isError, refetch } = useArrivalList(filter, page, size)
 
+  // IA Audit §13 (docs/gops-information-architecture-cross-screen-audit.md /
+  // gops-master-maintenance-hub-implementation.md): PO No/Supplier/Brand are
+  // all legitimate entry points into this screen (no single one is forced) -
+  // Filter Chips make whichever combination is currently active explicit,
+  // same pattern as CandidateListPage/StockSalesListPage/WarehouseStockListPage.
+  const activeFilterChips = [
+    filter.supplierCode ? { key: 'supplierCode', label: `${t('filter.supplierCode')}: ${filter.supplierCode}`, onDelete: () => updateFilter({ supplierCode: undefined }) } : null,
+    filter.brandCode ? { key: 'brandCode', label: `${t('filter.brandCode')}: ${filter.brandCode}`, onDelete: () => updateFilter({ brandCode: undefined }) } : null,
+    filter.poNumber ? { key: 'poNumber', label: `${t('filter.poNumber')}: ${filter.poNumber}`, onDelete: () => updateFilter({ poNumber: undefined }) } : null,
+    filter.invoiceNumber ? { key: 'invoiceNumber', label: `${t('filter.invoiceNumber')}: ${filter.invoiceNumber}`, onDelete: () => updateFilter({ invoiceNumber: undefined }) } : null,
+    filter.skuKeyword ? { key: 'skuKeyword', label: `${t('filter.skuKeyword')}: ${filter.skuKeyword}`, onDelete: () => updateFilter({ skuKeyword: undefined }) } : null,
+  ].filter((c): c is { key: string; label: string; onDelete: () => void } => c !== null)
+
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 1 }}>
@@ -118,6 +132,7 @@ export function ArrivalListPage() {
 
       <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', gap: 2 }}>
         <TextField
+          key={`supplier-${filter.supplierCode ?? ''}`}
           size="small"
           label={t('filter.supplierCode')}
           sx={{ minWidth: 160 }}
@@ -126,6 +141,7 @@ export function ArrivalListPage() {
           data-testid="arrival-filter-supplier"
         />
         <TextField
+          key={`brand-${filter.brandCode ?? ''}`}
           size="small"
           label={t('filter.brandCode')}
           sx={{ minWidth: 160 }}
@@ -134,6 +150,7 @@ export function ArrivalListPage() {
           data-testid="arrival-filter-brand"
         />
         <TextField
+          key={`po-${filter.poNumber ?? ''}`}
           size="small"
           label={t('filter.poNumber')}
           sx={{ minWidth: 180 }}
@@ -142,6 +159,7 @@ export function ArrivalListPage() {
           data-testid="arrival-filter-po-number"
         />
         <TextField
+          key={`invoice-${filter.invoiceNumber ?? ''}`}
           size="small"
           label={t('filter.invoiceNumber')}
           sx={{ minWidth: 180 }}
@@ -150,6 +168,7 @@ export function ArrivalListPage() {
           data-testid="arrival-filter-invoice-number"
         />
         <TextField
+          key={`sku-${filter.skuKeyword ?? ''}`}
           size="small"
           label={t('filter.skuKeyword')}
           sx={{ minWidth: 180 }}
@@ -176,6 +195,14 @@ export function ArrivalListPage() {
           data-testid="arrival-filter-date-to"
         />
       </Stack>
+
+      {activeFilterChips.length > 0 && (
+        <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1 }} data-testid="arrival-active-filter-chips">
+          {activeFilterChips.map((chip) => (
+            <Chip key={chip.key} size="small" label={chip.label} onDelete={chip.onDelete} data-testid={`arrival-filter-chip-${chip.key}`} />
+          ))}
+        </Stack>
+      )}
 
       {isLoading && (
         <Stack direction="row" spacing={1} sx={{ my: 4, alignItems: 'center' }}>

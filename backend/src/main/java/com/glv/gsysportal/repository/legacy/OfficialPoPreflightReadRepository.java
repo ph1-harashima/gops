@@ -1,5 +1,6 @@
 package com.glv.gsysportal.repository.legacy;
 
+import com.glv.gsysportal.repository.legacy.row.LegacySupplierRow;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -45,6 +46,30 @@ public class OfficialPoPreflightReadRepository {
         List<String> names = legacyJdbc.query(
                 "SELECT code_name FROM ms_comm WHERE cate_id = 'MS_BRAND' AND code_id = :code",
                 new MapSqlParameterSource("code", brandCode), (rs, rowNum) -> rs.getString("code_name"));
+        return names.isEmpty() ? null : names.get(0);
+    }
+
+    /** Master Maintenance Hub (docs/gops-master-maintenance-hub-implementation.md):
+     * the Supplier List's Source of Truth. Same {@code ms_comm CATE_ID='MS_SUPPL'}
+     * table {@link #supplierExists} already validates against - this simply
+     * returns every registered row instead of checking one Code, so the
+     * Portal never has to guess/fabricate a Supplier that isn't actually
+     * registered in Legacy. No new table, no new Legacy query pattern. */
+    @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
+    public List<LegacySupplierRow> findAllSuppliers() {
+        return legacyJdbc.query(
+                "SELECT code_id, code_name FROM ms_comm WHERE cate_id = 'MS_SUPPL' ORDER BY code_id",
+                (rs, rowNum) -> new LegacySupplierRow(rs.getString("code_id"), rs.getString("code_name")));
+    }
+
+    /** Mirrors {@link #findBrandName} for the Supplier side - used by the
+     * Supplier Settings Context header so it always shows the current
+     * Legacy-registered name, not a name snapshotted on some earlier Order. */
+    @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
+    public String findSupplierName(String supplierCode) {
+        List<String> names = legacyJdbc.query(
+                "SELECT code_name FROM ms_comm WHERE cate_id = 'MS_SUPPL' AND code_id = :code",
+                new MapSqlParameterSource("code", supplierCode), (rs, rowNum) -> rs.getString("code_name"));
         return names.isEmpty() ? null : names.get(0);
     }
 

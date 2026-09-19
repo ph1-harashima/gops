@@ -171,6 +171,15 @@ export function WarehouseStockListPage() {
 
   const { data, isLoading, isError, refetch } = useWarehouseStockList(filter, page, size)
 
+  // IA Audit §12 (docs/gops-information-architecture-cross-screen-audit.md /
+  // gops-master-maintenance-hub-implementation.md): "現在何を見ているのか"
+  // Filter Chips - same pattern as CandidateListPage/StockSalesListPage.
+  const activeFilterChips = [
+    filter.brandCode ? { key: 'brandCode', label: `${t('filter.brandCode')}: ${filter.brandCode}`, onDelete: () => updateFilter({ brandCode: undefined }) } : null,
+    filter.warehouseCode ? { key: 'warehouseCode', label: `${t('filter.warehouseCode')}: ${filter.warehouseCode}`, onDelete: () => updateFilter({ warehouseCode: undefined }) } : null,
+    filter.skuKeyword ? { key: 'skuKeyword', label: `${t('filter.skuKeyword')}: ${filter.skuKeyword}`, onDelete: () => updateFilter({ skuKeyword: undefined }) } : null,
+  ].filter((c): c is { key: string; label: string; onDelete: () => void } => c !== null)
+
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 1 }}>
@@ -187,6 +196,7 @@ export function WarehouseStockListPage() {
 
       <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', gap: 2 }}>
         <TextField
+          key={`sku-${filter.skuKeyword ?? ''}`}
           size="small"
           label={t('filter.skuKeyword')}
           sx={{ minWidth: 200 }}
@@ -195,6 +205,7 @@ export function WarehouseStockListPage() {
           data-testid="warehouse-stock-filter-sku"
         />
         <TextField
+          key={`brand-${filter.brandCode ?? ''}`}
           size="small"
           label={t('filter.brandCode')}
           sx={{ minWidth: 160 }}
@@ -203,6 +214,7 @@ export function WarehouseStockListPage() {
           data-testid="warehouse-stock-filter-brand"
         />
         <TextField
+          key={`warehouse-${filter.warehouseCode ?? ''}`}
           size="small"
           label={t('filter.warehouseCode')}
           sx={{ minWidth: 160 }}
@@ -229,6 +241,14 @@ export function WarehouseStockListPage() {
           data-testid="warehouse-stock-filter-max-qty"
         />
       </Stack>
+
+      {activeFilterChips.length > 0 && (
+        <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1 }} data-testid="warehouse-stock-active-filter-chips">
+          {activeFilterChips.map((chip) => (
+            <Chip key={chip.key} size="small" label={chip.label} onDelete={chip.onDelete} data-testid={`warehouse-stock-filter-chip-${chip.key}`} />
+          ))}
+        </Stack>
+      )}
 
       {isLoading && (
         <Stack direction="row" spacing={1} sx={{ my: 4, alignItems: 'center' }}>

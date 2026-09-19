@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
 import Box from '@mui/material/Box'
@@ -51,7 +51,15 @@ function errorCodeOf(error: unknown): string | null {
  * (OfficialPoNumberGenerator) fails with a clear error until both the
  * Order's Supplier and Brand have an active row here.
  */
-export function OfficialPoShortCodePage() {
+interface Props {
+  /** Master Maintenance Hub - see SupplierContactPage's own Props doc for
+   * the full rationale. Matches on {@code businessCode} (codeType=SUPPLIER
+   * rows for this Supplier's own PO Short Code - a Brand's own short code,
+   * codeType=BRAND, is a separate concept not scoped to any one Supplier). */
+  supplierCodeFilter?: string
+}
+
+export function OfficialPoShortCodePage({ supplierCodeFilter }: Props = {}) {
   const { t } = useTranslation(['officialPoShortCode', 'common'])
   const { data, isLoading, isError, refetch } = useOfficialPoShortCodes()
   const createMutation = useCreateOfficialPoShortCode()
@@ -61,9 +69,21 @@ export function OfficialPoShortCodePage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<OfficialPoShortCodeRequest>(EMPTY_FORM)
 
+  // Master Maintenance Hub / IA Audit §8 (Inactive行の扱い): mirrors
+  // SupplierContactPage/ManufacturerChannelPage's "Active=Default表示"
+  // convention, retrofitted here for consistency.
+  const [showInactive, setShowInactive] = useState(false)
+  const filtered = useMemo(() => {
+    return (data ?? []).filter((c) => {
+      if (supplierCodeFilter && !(c.codeType === 'SUPPLIER' && c.businessCode === supplierCodeFilter)) return false
+      if (!showInactive && !c.active) return false
+      return true
+    })
+  }, [data, showInactive, supplierCodeFilter])
+
   function openCreate() {
     setEditingId(null)
-    setForm(EMPTY_FORM)
+    setForm(supplierCodeFilter ? { ...EMPTY_FORM, codeType: 'SUPPLIER', businessCode: supplierCodeFilter } : EMPTY_FORM)
     setDialogOpen(true)
   }
 
@@ -114,8 +134,18 @@ export function OfficialPoShortCodePage() {
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{t('subtitle')}</Typography>
 
-      {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
       {data && data.length > 0 && (
+        <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
+          <FormControlLabel
+            control={<Checkbox checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)}
+                               data-testid="official-po-short-code-show-inactive" />}
+            label={t('common:showInactiveLabel')} />
+        </Stack>
+      )}
+
+      {data && data.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
+      {data && data.length > 0 && filtered.length === 0 && <Alert severity="info">{t('common:noSearchResults')}</Alert>}
+      {filtered.length > 0 && (
         <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="official-po-short-code-table-container">
           <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
             <TableHead>
@@ -128,7 +158,7 @@ export function OfficialPoShortCodePage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.map((c) => (
+              {filtered.map((c) => (
                 <TableRow key={c.id} hover data-testid={`official-po-short-code-row-${c.id}`}>
                   <TableCell>{t(`codeType.${c.codeType}`)}</TableCell>
                   <TableCell>{c.businessCode}</TableCell>

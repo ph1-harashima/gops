@@ -64,6 +64,13 @@ export function PriceChangeListPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const status = searchParams.get('status') ?? undefined
+  // IA Audit §6/10 (docs/gops-master-maintenance-hub-implementation.md):
+  // this List's own structure/Filter stays Status-only (a Price Change Set
+  // is a work batch, not inherently Brand-scoped) - brandCode is never a
+  // visible Filter control here, only a silent passthrough for a Brand
+  // context screen elsewhere to Deep Link through into the newly-created
+  // Set's Product Selection (PriceChangeEditPage's own brandCode Filter).
+  const deepLinkBrandCode = searchParams.get('brandCode') ?? undefined
 
   const { data, isLoading, isError, refetch } = usePriceChangeList(status)
   const createMutation = useCreatePriceChangeSet()
@@ -88,7 +95,12 @@ export function PriceChangeListPage() {
 
   function handleCreate() {
     createMutation.mutate(null, {
-      onSuccess: (set) => navigate(withReturnTo(`/price-changes/${set.id}/edit`, listPath)),
+      onSuccess: (set) => {
+        const editPath = deepLinkBrandCode
+          ? `/price-changes/${set.id}/edit?brandCode=${encodeURIComponent(deepLinkBrandCode)}`
+          : `/price-changes/${set.id}/edit`
+        navigate(withReturnTo(editPath, listPath))
+      },
     })
   }
 

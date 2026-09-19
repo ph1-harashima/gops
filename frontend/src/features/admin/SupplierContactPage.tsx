@@ -40,9 +40,19 @@ function errorCodeOf(error: unknown): string | null {
   return null
 }
 
+interface Props {
+  /** Master Maintenance Hub (docs/gops-master-maintenance-hub-implementation.md):
+   * when set (Supplier Settings' own Contacts tab), hard-scopes the table to
+   * this exact Supplier and pre-fills it on Create - the Supplier Context a
+   * user already selected is never lost/re-searched. Omitted entirely on the
+   * existing standalone `/admin/supplier-contacts` route, whose behavior is
+   * therefore completely unchanged (Backward Compatibility). */
+  supplierCodeFilter?: string
+}
+
 /** Phase 7-C3 12章/13章: ADMIN-only Master screen (Backend also enforces
  * this - reaching this page as OPERATOR would just get 403s on every call). */
-export function SupplierContactPage() {
+export function SupplierContactPage({ supplierCodeFilter }: Props = {}) {
   const { t } = useTranslation(['supplierContact', 'common'])
   const { data, isLoading, isError, refetch } = useSupplierContacts()
   const createMutation = useCreateSupplierContact()
@@ -59,6 +69,7 @@ export function SupplierContactPage() {
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase()
     return (data ?? []).filter((c) => {
+      if (supplierCodeFilter && c.supplierCode !== supplierCodeFilter) return false
       if (!showInactive && !c.active) return false
       if (!keyword) return true
       return c.supplierCode.toLowerCase().includes(keyword)
@@ -66,7 +77,7 @@ export function SupplierContactPage() {
         || c.contactName.toLowerCase().includes(keyword)
         || c.email.toLowerCase().includes(keyword)
     })
-  }, [data, search, showInactive])
+  }, [data, search, showInactive, supplierCodeFilter])
   function clearFilters() {
     setSearch('')
     setShowInactive(false)
@@ -74,7 +85,7 @@ export function SupplierContactPage() {
 
   function openCreate() {
     setEditingId(null)
-    setForm(EMPTY_FORM)
+    setForm(supplierCodeFilter ? { ...EMPTY_FORM, supplierCode: supplierCodeFilter } : EMPTY_FORM)
     setDialogOpen(true)
   }
 

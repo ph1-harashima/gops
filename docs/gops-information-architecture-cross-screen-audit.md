@@ -3,9 +3,16 @@
 Dashboard → Brand → Order Candidatesで成立している「業務上の上位概念を選択してから、
 そのContext内で下位データを操作する」という操作思想を、G-OPS全21画面に対して横断監査した結果。
 
-**本ドキュメントは監査結果と提案であり、Master Maintenance全体の再構成等の
-Information Architecture変更は一切実装していない。** 実装したのは、既存Filter/
-Context Preservation機構の範囲内での明白なMinor Gapのみ（8章参照）。
+**本ドキュメントは元々、監査結果と提案のみをまとめたものだった。** 初版時点では
+Master Maintenance全体の再構成等のInformation Architecture変更は未実装で、実装した
+のは既存Filter/Context Preservation機構の範囲内での明白なMinor Gapのみだった（8章参照）。
+
+**追記（Information Architecture Phase 2、`docs/gops-master-maintenance-hub-implementation.md`
+参照）**: 本監査の結果を正式なInputとして、Master Maintenance Hub（Supplier一覧＋Supplier
+Settings）、Price Change EditのBrand Context Deep Link、Stock/Sales・Warehouse Stock・
+ArrivalへのFilter Chip追加を実装済み。4章「Major Change Candidates」に記載していた
+Master Maintenance統合ビューは実装完了（既存4画面は削除せず、新しいEntry Pointとして追加）。
+6章のPrice Change Edit Deep Linkも実装完了。11章の詳細は上記実装ドキュメントを参照。
 
 ---
 
@@ -298,25 +305,23 @@ Brand起点・PO起点のいずれも成立しうるが、既存Filterが3つと
 
 ## 11. Minor Fixes（本フェーズで実装したもの）
 
-**今回のBrowser実測・コード監査の結果、既存Architectureの範囲内で明白に
-安全と判断できるMinor Gapは特定したが、Master Maintenance全体の再構成を
-含む今回のスコープの大きさ、および依頼文末尾の「こちらで監査結果を確認して
-から、次の実装指示を出します」という明示的なレビューゲートを踏まえ、
-**本ラウンドでは実装を行っていない**。3〜10章に記載した内容は全て提案であり、
-次の実装指示を待って着手する。
+初版時点では、Master Maintenance全体の再構成を含む今回のスコープの大きさ、および
+依頼文末尾の明示的なレビューゲートを踏まえ、実装を行わず提案のみに留めていた。
 
-（Filter Chip追加、Deep Link追加など、実装コストが小さく既存Filter機構を
-そのまま使えるものから優先着手することを推奨する。）
+**追記（Information Architecture Phase 2で実装完了）**: Stock/Sales・Warehouse Stock・
+ArrivalへのFilter Chip追加を実装済み。詳細は`docs/gops-master-maintenance-hub-implementation.md`
+10章を参照。
 
 ---
 
-## 12. Major Change Candidates（未実装、提案のみ）
+## 12. Major Change Candidates（Information Architecture Phase 2で実装完了）
 
-- Master Maintenance全体のSupplier起点統合ビュー（4.4章）— 新規「Supplier一覧」
-  UI要素の追加を伴うため、Major Change候補とする。
-- Price Change Edit画面のBrand Context対応（6章）— Filter自体の追加ではなく
-  既存Filterの「引き継ぎ」対応のため実装コストは比較的小さいが、Edit画面の
-  State管理変更を伴うためMajor側に分類。
+- Master Maintenance全体のSupplier起点統合ビュー（4.4章）— **実装完了**。
+  `docs/gops-master-maintenance-hub-implementation.md`参照。既存4画面（Supplier
+  Contact/Manufacturer Channel/Region Classification/Official PO Short Code）は
+  一切削除・変更せず、新しい「メーカー一覧」Entry Pointを追加する形で実現した。
+- Price Change Edit画面のBrand Context対応（6章）— **実装完了**。同上ドキュメント
+  9章参照。
 
 ---
 

@@ -168,6 +168,7 @@ export function DashboardPage() {
               <TableCell align="right">{t('table.draft')}</TableCell>
               <TableCell align="right">{t('table.awaitingSupplier')}</TableCell>
               <TableCell align="right">{t('table.attention')}</TableCell>
+              <TableCell align="right">{t('table.priceChange')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -201,6 +202,16 @@ export function DashboardPage() {
                 <TableCell align="right">
                   <Button size="small" onClick={() => navigate(`/orders/history?brandCode=${b.brandCode}&hasAttention=true`)}>
                     {b.attentionCount}
+                  </Button>
+                </TableCell>
+                {/* IA Audit §6/10 (docs/gops-master-maintenance-hub-implementation.md):
+                    Brand -> 対象SKU -> Price Change - PriceChangeListPage's
+                    own brandCode passthrough carries this Brand into the
+                    newly-created Set's Edit screen (already Brand-filterable
+                    via its existing Product Selection panel, now URL-driven). */}
+                <TableCell align="right">
+                  <Button size="small" onClick={() => navigate(`/price-changes?brandCode=${b.brandCode}`)} data-testid={`dashboard-brand-price-change-${b.brandCode}`}>
+                    {t('priceChangeAction')}
                   </Button>
                 </TableCell>
               </TableRow>

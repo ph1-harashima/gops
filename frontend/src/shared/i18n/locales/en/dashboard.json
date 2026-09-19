@@ -24,6 +24,8 @@
     "outOfStock": "Out of Stock",
     "draft": "In Progress",
     "awaitingSupplier": "Awaiting Supplier",
-    "attention": "Needs Attention"
-  }
+    "attention": "Needs Attention",
+    "priceChange": "Price Change"
+  },
+  "priceChangeAction": "Create"
 }

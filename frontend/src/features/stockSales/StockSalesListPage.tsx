@@ -13,6 +13,7 @@ import TableRow from '@mui/material/TableRow'
 import TablePagination from '@mui/material/TablePagination'
 import TextField from '@mui/material/TextField'
 import Stack from '@mui/material/Stack'
+import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
@@ -170,6 +171,17 @@ export function StockSalesListPage() {
 
   const { data, isLoading, isError, refetch } = useStockSalesList(filter, page, size)
 
+  // IA Audit §11 (docs/gops-information-architecture-cross-screen-audit.md /
+  // gops-master-maintenance-hub-implementation.md): "現在何を見ているのか"
+  // Filter Chips, same visual pattern CandidateListPage already established -
+  // Brand/Supplier/SKU Keyword are the identity-context Filters (min/max
+  // stock/sales are refinements, not "what am I looking at" Context).
+  const activeFilterChips = [
+    filter.brandCode ? { key: 'brandCode', label: `${t('filter.brandCode')}: ${filter.brandCode}`, onDelete: () => updateFilter({ brandCode: undefined }) } : null,
+    filter.supplierCode ? { key: 'supplierCode', label: `${t('filter.supplierCode')}: ${filter.supplierCode}`, onDelete: () => updateFilter({ supplierCode: undefined }) } : null,
+    filter.skuKeyword ? { key: 'skuKeyword', label: `${t('filter.skuKeyword')}: ${filter.skuKeyword}`, onDelete: () => updateFilter({ skuKeyword: undefined }) } : null,
+  ].filter((c): c is { key: string; label: string; onDelete: () => void } => c !== null)
+
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 1 }}>
@@ -186,6 +198,7 @@ export function StockSalesListPage() {
 
       <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', gap: 2 }}>
         <TextField
+          key={`sku-${filter.skuKeyword ?? ''}`}
           size="small"
           label={t('filter.skuKeyword')}
           sx={{ minWidth: 200 }}
@@ -194,6 +207,7 @@ export function StockSalesListPage() {
           data-testid="stock-sales-filter-sku"
         />
         <TextField
+          key={`brand-${filter.brandCode ?? ''}`}
           size="small"
           label={t('filter.brandCode')}
           sx={{ minWidth: 160 }}
@@ -202,6 +216,7 @@ export function StockSalesListPage() {
           data-testid="stock-sales-filter-brand"
         />
         <TextField
+          key={`supplier-${filter.supplierCode ?? ''}`}
           size="small"
           label={t('filter.supplierCode')}
           sx={{ minWidth: 160 }}
@@ -246,6 +261,14 @@ export function StockSalesListPage() {
           data-testid="stock-sales-filter-max-sales"
         />
       </Stack>
+
+      {activeFilterChips.length > 0 && (
+        <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1 }} data-testid="stock-sales-active-filter-chips">
+          {activeFilterChips.map((chip) => (
+            <Chip key={chip.key} size="small" label={chip.label} onDelete={chip.onDelete} data-testid={`stock-sales-filter-chip-${chip.key}`} />
+          ))}
+        </Stack>
+      )}
 
       {isLoading && (
         <Stack direction="row" spacing={1} sx={{ my: 4, alignItems: 'center' }}>

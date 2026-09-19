@@ -1,0 +1,37 @@
+{
+  "listTitle": "Suppliers",
+  "listSubtitle": "Select the Supplier whose settings you want to check or change.",
+  "table": {
+    "supplierCode": "Supplier Code",
+    "supplierName": "Supplier Name",
+    "region": "Domestic / Overseas",
+    "brands": "Brands",
+    "contact": "Contact",
+    "channel": "Channel",
+    "poCode": "PO Short Code"
+  },
+  "configured": "Configured",
+  "missing": "Missing",
+  "mixed": "Varies by Brand",
+  "contextHeader": "Supplier: {{name}}",
+  "contextSupplierCode": "Supplier Code: {{code}}",
+  "backToList": "Back to Supplier List",
+  "tabs": {
+    "overview": "Overview",
+    "contacts": "Contacts",
+    "communication": "Communication",
+    "region": "Region",
+    "poCode": "PO Short Code"
+  },
+  "overview": {
+    "brandsTitle": "Brands Handled",
+    "brandsEmpty": "No Brand for this Supplier could be found from current Order Candidates or Order history.",
+    "contactTitle": "Contact Settings",
+    "channelTitle": "Communication Channel",
+    "regionTitle": "Domestic / Overseas Classification",
+    "poCodeTitle": "Official PO Short Code",
+    "activeContactCount": "Active Contacts: {{count}}"
+  },
+  "notFound": "This Supplier Code could not be found in G-SYS.",
+  "globalSettingsNote": "Mail Template and Default CC are not Supplier-specific settings, so they are managed separately as Global Settings."
+}

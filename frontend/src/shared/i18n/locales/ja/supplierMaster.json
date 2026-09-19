@@ -1,0 +1,37 @@
+{
+  "listTitle": "メーカー一覧",
+  "listSubtitle": "設定を確認・変更したいメーカーを選択してください。",
+  "table": {
+    "supplierCode": "メーカーコード",
+    "supplierName": "メーカー名",
+    "region": "国内／海外",
+    "brands": "ブランド数",
+    "contact": "担当者",
+    "channel": "通信方法",
+    "poCode": "PO略称コード"
+  },
+  "configured": "設定済み",
+  "missing": "未設定",
+  "mixed": "ブランドにより異なる",
+  "contextHeader": "メーカー: {{name}}",
+  "contextSupplierCode": "メーカーコード: {{code}}",
+  "backToList": "メーカー一覧へ戻る",
+  "tabs": {
+    "overview": "基本情報",
+    "contacts": "担当者",
+    "communication": "通信方法",
+    "region": "国内／海外区分",
+    "poCode": "PO略称コード"
+  },
+  "overview": {
+    "brandsTitle": "取り扱いブランド",
+    "brandsEmpty": "現在、発注候補または発注実績からこのメーカーに紐づくブランドは確認できません。",
+    "contactTitle": "担当者設定",
+    "channelTitle": "通信方法",
+    "regionTitle": "国内／海外区分",
+    "poCodeTitle": "Official PO略称コード",
+    "activeContactCount": "有効な担当者: {{count}}件"
+  },
+  "notFound": "指定されたメーカーコードはG-SYS上に見つかりませんでした。",
+  "globalSettingsNote": "メールテンプレートとメール送信設定（Default CC）はメーカー固有の設定ではないため、共通設定として別に管理されます。"
+}
