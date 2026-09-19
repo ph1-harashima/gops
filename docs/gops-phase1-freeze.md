@@ -133,4 +133,4 @@ After this Freeze, no new Phase1 Feature is added except to address a P0/P1 Prod
 
 ## 22. Git (Final Commit)
 
-**Final Commit**: `2816ce35fd607c16c2d6dc6def66649ae809cf78` (see `docs/gops-phase1-final-cleanup-report.md` for the full change list this commit contains)
+**Final Commit**: `71ad25d1433e2e23e64df3348759e4424c015df2` (Freeze Blocker Final Fix round; the preceding round's Final Commit was `2816ce35fd607c16c2d6dc6def66649ae809cf78` - see `docs/gops-phase1-final-cleanup-report.md` §7 for this round's change list, §1-6 for the preceding round)
