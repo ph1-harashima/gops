@@ -133,4 +133,4 @@ After this Freeze, no new Phase1 Feature is added except to address a P0/P1 Prod
 
 ## 22. Git (Final Commit)
 
-**Final Commit**: `<FINAL_COMMIT_HASH>` (see `docs/gops-phase1-final-cleanup-report.md` for the full change list this commit contains)
+**Final Commit**: `2816ce35fd607c16c2d6dc6def66649ae809cf78` (see `docs/gops-phase1-final-cleanup-report.md` for the full change list this commit contains)

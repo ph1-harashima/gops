@@ -1,7 +1,7 @@
 # G-OPS Phase1 Final Cleanup Report
 
 Baseline Commit: `4bb7473`
-Final Commit: `<FINAL_COMMIT_HASH>`
+Final Commit: `2816ce35fd607c16c2d6dc6def66649ae809cf78`
 
 Scope: Order History Number Model fix (Cleanup-1) and Test Data Lifecycle isolation (Cleanup-2) only. No new Business Feature, no new Business Rule, no UI redesign, no IA redesign, no Production connection - per the explicit rules for this work.
 
@@ -19,7 +19,7 @@ Scope: Order History Number Model fix (Cleanup-1) and Test Data Lifecycle isolat
 
 - `OrderHistorySummaryResponse` (backend) now carries `officialPoNo` and `revisionNo`.
   - `officialPoNo` is read directly from `PortalOrder.officialPoNo` (already correctly populated by `OfficialPoIntegrationService` at Request-creation time - its own Javadoc was stale, claiming "always NULL", but the code has written it since BR-08 was confirmed).
-  - `revisionNo` is read from `OfficialPoIntegrationRequestRepository.findFirstByPortalOrderIdOrderByRevisionNoDesc` - **not** `PortalOrder.currentRevisionNo`, which is a different field set only by Demo Send (`OrderStatusTransitionService.demoSend`) and would have shown a false "not yet assigned" for an Order that already has an Official PO Request but was never Demo-Sent. This was caught by the new OH-2 E2E scenario (see §7) failing on first run and fixed before this report was written.
+  - `revisionNo` is read from `OfficialPoIntegrationRequestRepository.findFirstByPortalOrderIdOrderByRevisionNoDesc` - **not** `PortalOrder.currentRevisionNo`, which is a different field set only by Demo Send (`OrderStatusTransitionService.demoSend`) and would have shown a false "not yet assigned" for an Order that already has an Official PO Request but was never Demo-Sent. This was caught by the new OH-2 E2E scenario (see §3) failing on first run and fixed before this report was written.
 - `OrderHistoryListPage.tsx` now renders 3 columns instead of 1 ambiguous one: **Portal管理番号** (reuses the exact existing term/tooltip from Order Detail, `portalPoNoCaption`/`portalPoNoCaptionTooltip`), **正式PO番号** (new `table.officialPoNo` key, same term already used elsewhere: `officialPoIntegration.officialPoNoLabel`), and **Revision** (reuses `officialPoIntegration.revisionLabel`).
 - A Draft-stage Order (no Official PO yet) shows **正式PO番号未設定 / "Not Yet Assigned"** in the Official PO No. column - the exact existing term from `officialPoIntegration.officialPoNoUnassigned`, never a substitute of the internal number.
 - English `portalPoNoCaption` changed from "Portal Tracking No." to "**Portal Management No.**" to align with BR-07's own English gloss ("Management No.") - the only terminology reconciliation needed for Order Detail; no other change was required there.
@@ -35,7 +35,7 @@ No functional change needed - Order Detail already distinguished all three conce
 
 ### 1.5 Mobile consistency
 
-Order History List has a single responsive table (no separate mobile card view) - the 3 new columns render identically at Mobile width; verified by the OH-2 (Mobile) E2E scenario at 390×844px (§7).
+Order History List has a single responsive table (no separate mobile card view) - the 3 new columns render identically at Mobile width; verified by the OH-2 (Mobile) E2E scenario at 390×844px (§3).
 
 ## 2. Test Data Lifecycle
 
@@ -152,7 +152,7 @@ Docs:
 
 ## 5. Commit
 
-See Git log - Final Commit `<FINAL_COMMIT_HASH>`.
+See Git log - Final Commit `2816ce35fd607c16c2d6dc6def66649ae809cf78`.
 
 ## 6. Remaining Issues
 
