@@ -41,7 +41,24 @@ import java.util.Set;
  * Prototype connection's actual host and database name at runtime,
  * independent of that startup-time check, before issuing any DELETE/TRUNCATE.
  * This never touches the Legacy Demo MySQL Seed Schema in any way.
- */
+ *
+ * <p><b>Phase 1 Final Cleanup (Test Data Lifecycle)</b>: {@link #includeTestMasterData}
+ * (opt-in, {@code app.demo-reset.include-test-master-data=true}, see
+ * {@code demo-reset.sh --include-test-master-data}) additionally runs
+ * {@link #cleanupTestMasterData()} - a physical DELETE of E2E-generated
+ * Portal Master rows, restricted to patterns confirmed (by direct audit of
+ * every row-creation path, docs/gops-phase1-final-cleanup-report.md) to be
+ * 100% Test-only: {@code supplier_contact} rows whose email ends in
+ * {@code @example.com} (never used by any migration/seed data) and
+ * {@code mail_template} rows literally named {@code "Follow-up E2E Template %"}.
+ * Both predicates also require {@code is_active = false}, so an Active row -
+ * Demo Business Master or otherwise - is never touched (Regression C).
+ * {@code manufacturer_channel}, {@code supplier_region_classification}, and
+ * every other {@code mail_template} row are deliberately left alone: no
+ * content-based marker distinguishes their E2E-created rows from genuine
+ * Demo Master data today, and "曖昧な条件によるDELETEは禁止" (100%識別できない場合：削除しない)
+ * is an absolute rule here, not a preference - see Known Limitations in the
+ * Freeze doc for the follow-up. */
 @Component
 public class DemoResetRunner implements CommandLineRunner {
 
@@ -52,12 +69,15 @@ public class DemoResetRunner implements CommandLineRunner {
     private static final String ALLOWED_PROTOTYPE_DB_NAME = "gsys_portal";
 
     private final boolean enabled;
+    private final boolean includeTestMasterData;
     private final DataSource prototypeDataSource;
     private final JdbcTemplate prototypeJdbc;
 
     public DemoResetRunner(@Value("${app.demo-reset.enabled:false}") boolean enabled,
+                            @Value("${app.demo-reset.include-test-master-data:false}") boolean includeTestMasterData,
                             @Qualifier("prototypeDataSource") DataSource prototypeDataSource) {
         this.enabled = enabled;
+        this.includeTestMasterData = includeTestMasterData;
         this.prototypeDataSource = prototypeDataSource;
         this.prototypeJdbc = new JdbcTemplate(prototypeDataSource);
     }
@@ -108,8 +128,37 @@ public class DemoResetRunner implements CommandLineRunner {
                         + "price_change_set_detail, price_change_set, idempotent_operation RESTART IDENTITY");
         prototypeJdbc.execute("ALTER SEQUENCE prototype_po_no_seq RESTART WITH 1");
 
+        if (includeTestMasterData) {
+            cleanupTestMasterData();
+        }
+
         log.warn("=== DEMO RESET: complete. portal_user accounts unchanged. Exiting. ===");
         System.exit(0);
+    }
+
+    /** Package-private (not {@code private}) so an integration test can call
+     * it directly against a real Prototype connection without going through
+     * {@link #run}, which unconditionally calls {@link System#exit} on
+     * success. Re-validates the connection itself (defense in depth,
+     * independent of {@link #run}'s own call) since this is a second,
+     * independently reachable entry point into the same destructive
+     * capability. See the class Javadoc for exactly which rows this deletes
+     * and why the rest are deliberately left alone. */
+    void cleanupTestMasterData() throws Exception {
+        verifyPrototypeConnectionIsLocal();
+
+        int contactsDeleted = prototypeJdbc.update(
+                "DELETE FROM supplier_contact WHERE is_active = false AND email LIKE '%@example.com'");
+        int templatesDeleted = prototypeJdbc.update(
+                "DELETE FROM mail_template WHERE is_active = false AND template_name LIKE 'Follow-up E2E Template %'");
+
+        log.warn("=== TEST MASTER DATA CLEANUP: deleted {} supplier_contact row(s) "
+                        + "(is_active=false AND email LIKE '%@example.com') and {} mail_template row(s) "
+                        + "(is_active=false AND template_name LIKE 'Follow-up E2E Template %'). "
+                        + "manufacturer_channel, supplier_region_classification, official_po_short_code, and every "
+                        + "other mail_template row are left untouched - no reliable content-based Test marker "
+                        + "exists for them yet. ===",
+                contactsDeleted, templatesDeleted);
     }
 
     private void verifyPrototypeConnectionIsLocal() throws Exception {

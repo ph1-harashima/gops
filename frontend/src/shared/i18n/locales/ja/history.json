@@ -8,15 +8,15 @@
     "status": "ステータス",
     "all": "すべて",
     "hasAttentionOnly": "確認事項ありのみ表示",
-    "orderNoKeyword": "PO No. / Draft No.",
-    "orderNoKeywordPlaceholder": "PO NoまたはDraft Noで検索",
+    "orderNoKeyword": "管理番号 / 正式PO番号",
+    "orderNoKeywordPlaceholder": "Portal管理番号・正式PO番号・Draft Noで検索",
     "itemKeyword": "SKU / 商品名",
     "itemKeywordPlaceholder": "SKUまたは商品名で検索",
     "updatedFrom": "更新日（From）",
     "updatedTo": "更新日（To）"
   },
   "table": {
-    "poNo": "PO No.",
+    "officialPoNo": "正式PO番号",
     "orderDate": "発注日",
     "supplier": "メーカー",
     "brand": "ブランド",

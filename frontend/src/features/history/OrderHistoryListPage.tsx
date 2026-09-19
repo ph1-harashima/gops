@@ -17,6 +17,7 @@ import Stack from '@mui/material/Stack'
 import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Chip from '@mui/material/Chip'
+import Tooltip from '@mui/material/Tooltip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
@@ -284,7 +285,20 @@ export function OrderHistoryListPage() {
             <Table size="small" stickyHeader sx={{ minWidth: 650, '& .MuiTableCell-root': { whiteSpace: 'nowrap' }, '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
               <TableHead>
                 <TableRow>
-                  <TableCell>{t('table.poNo')}</TableCell>
+                  {/* Phase 1 Final Cleanup (Order History Number Model Audit):
+                      Portal管理番号 (Portal-internal tracking) and 正式PO番号
+                      (Official PO No. - the Excel/PDF/Manufacturer Send
+                      source of truth) are now shown as two distinct columns,
+                      reusing the same terms/tooltip already established on
+                      Order Detail (portalPoNoCaption) rather than the
+                      previously-ambiguous single "PO No." column. */}
+                  <TableCell>
+                    <Tooltip title={t('portalPoNoCaptionTooltip')}>
+                      <span>{t('portalPoNoCaption')}</span>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell>{t('table.officialPoNo')}</TableCell>
+                  <TableCell>{t('officialPoIntegration.revisionLabel')}</TableCell>
                   <TableCell>{t('table.orderDate')}</TableCell>
                   <TableCell>{t('table.supplier')}</TableCell>
                   <TableCell>{t('table.brand')}</TableCell>
@@ -304,7 +318,13 @@ export function OrderHistoryListPage() {
                     sx={{ cursor: 'pointer' }}
                     onClick={() => navigate(withReturnTo(`/orders/${row.id}`, listPath))}
                   >
-                    <TableCell>{row.prototypePoNo ?? row.draftNo}</TableCell>
+                    <TableCell data-testid="order-history-management-no">{row.prototypePoNo ?? row.draftNo}</TableCell>
+                    <TableCell data-testid="order-history-official-po-no">
+                      {row.officialPoNo ?? t('officialPoIntegration.officialPoNoUnassigned')}
+                    </TableCell>
+                    <TableCell data-testid="order-history-revision">
+                      {row.revisionNo ?? '—'}
+                    </TableCell>
                     <TableCell>{row.orderDate ?? '—'}</TableCell>
                     <TableCell>{row.supplierName ?? row.supplierCode}</TableCell>
                     <TableCell>{row.brandName ?? row.brandCode}</TableCell>

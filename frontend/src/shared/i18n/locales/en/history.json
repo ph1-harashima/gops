@@ -8,15 +8,15 @@
     "status": "Status",
     "all": "All",
     "hasAttentionOnly": "Show attention only",
-    "orderNoKeyword": "PO No. / Draft No.",
-    "orderNoKeywordPlaceholder": "Search by PO No. or Draft No.",
+    "orderNoKeyword": "Mgmt No. / Official PO No.",
+    "orderNoKeywordPlaceholder": "Search by Portal Management No., Official PO No., or Draft No.",
     "itemKeyword": "SKU / Item Name",
     "itemKeywordPlaceholder": "Search by SKU or item name",
     "updatedFrom": "Updated (From)",
     "updatedTo": "Updated (To)"
   },
   "table": {
-    "poNo": "PO No.",
+    "officialPoNo": "Official PO No.",
     "orderDate": "Order Date",
     "supplier": "Supplier",
     "brand": "Brand",
@@ -30,7 +30,7 @@
   "empty": "No matching orders found.",
   "resultCount": "{{count}} order(s)",
   "detailTitle": "Order Details",
-  "portalPoNoCaption": "Portal Tracking No.",
+  "portalPoNoCaption": "Portal Management No.",
   "portalPoNoCaptionTooltip": "An internal Portal tracking number. This is separate from the Official PO No. registered with G-SYS (see the \"G-SYS Official PO Integration\" section below).",
   "detail": {
     "supplier": "Supplier",

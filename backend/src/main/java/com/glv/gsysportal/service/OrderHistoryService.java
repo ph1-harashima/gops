@@ -1,6 +1,7 @@
 package com.glv.gsysportal.service;
 
 import com.glv.gsysportal.domain.AuditEvent;
+import com.glv.gsysportal.domain.OfficialPoIntegrationRequest;
 import com.glv.gsysportal.domain.OrderAttention;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.PortalOrderDetail;
@@ -17,6 +18,7 @@ import com.glv.gsysportal.exception.DraftNotFoundException;
 import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository;
 import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
+import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.OrderAttentionRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import com.glv.gsysportal.repository.prototype.PortalUserRepository;
@@ -64,6 +66,7 @@ public class OrderHistoryService {
     private final ManufacturerChannelResolutionService channelResolutionService;
     private final LegacyStockReadRepository legacyStockReadRepository;
     private final SupplierRegionClassificationResolutionService regionClassificationResolutionService;
+    private final OfficialPoIntegrationRequestRepository officialPoIntegrationRequestRepository;
 
     public OrderHistoryService(PortalOrderRepository portalOrderRepository,
                                 SupplierResponseRepository supplierResponseRepository,
@@ -72,7 +75,8 @@ public class OrderHistoryService {
                                 PortalUserRepository portalUserRepository,
                                 ManufacturerChannelResolutionService channelResolutionService,
                                 LegacyStockReadRepository legacyStockReadRepository,
-                                SupplierRegionClassificationResolutionService regionClassificationResolutionService) {
+                                SupplierRegionClassificationResolutionService regionClassificationResolutionService,
+                                OfficialPoIntegrationRequestRepository officialPoIntegrationRequestRepository) {
         this.portalOrderRepository = portalOrderRepository;
         this.supplierResponseRepository = supplierResponseRepository;
         this.orderAttentionRepository = orderAttentionRepository;
@@ -81,6 +85,7 @@ public class OrderHistoryService {
         this.channelResolutionService = channelResolutionService;
         this.legacyStockReadRepository = legacyStockReadRepository;
         this.regionClassificationResolutionService = regionClassificationResolutionService;
+        this.officialPoIntegrationRequestRepository = officialPoIntegrationRequestRepository;
     }
 
     /**
@@ -145,14 +150,19 @@ public class OrderHistoryService {
             if (status != null && !status.isBlank()) {
                 predicates.add(cb.equal(root.get("status"), status));
             }
-            // Matches either PO No. (prototypePoNo) or Draft No. (draftNo) -
-            // same "either number the user might be holding" convention as
-            // the pre-8-J matchesOrderNoKeyword().
+            // Matches Draft No., Portal管理番号 (prototypePoNo), or 正式PO番号
+            // (officialPoNo) - same "either number the user might be
+            // holding" convention as the pre-8-J matchesOrderNoKeyword();
+            // Phase 1 Final Cleanup (Order History Number Model Audit)
+            // extends this to officialPoNo, which was previously
+            // unsearchable even though it's the number Excel/PDF/
+            // Manufacturer Send actually use.
             if (normalizedOrderNoKeyword != null) {
                 String pattern = "%" + normalizedOrderNoKeyword + "%";
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("draftNo")), pattern),
-                        cb.like(cb.lower(root.get("prototypePoNo")), pattern)));
+                        cb.like(cb.lower(root.get("prototypePoNo")), pattern),
+                        cb.like(cb.lower(root.get("officialPoNo")), pattern)));
             }
             // Matches SKU or item name on any non-removed line - same
             // "!d.isRemoved()" convention as detail()/toLineView() and the
@@ -305,8 +315,22 @@ public class OrderHistoryService {
                 .distinct()
                 .toList();
         long skuCount = order.getDetails().stream().filter(d -> !d.isRemoved()).count();
+        // Phase 1 Final Cleanup (Order History Number Model Audit):
+        // PortalOrder.currentRevisionNo is NOT the same value as of this
+        // Phase - it's only set by demoSend (Email path), while the Official
+        // PO Integration Request's own revisionNo is set immediately at
+        // Request creation, independent of any Send. Order Detail's
+        // "Revision" display already reads from OfficialPoIntegrationRequest
+        // (via a separate API call) for exactly this reason - History must
+        // read the SAME source, not PortalOrder.currentRevisionNo, to avoid
+        // showing a false "—" for an Order that already has a Revision.
+        Integer revisionNo = officialPoIntegrationRequestRepository
+                .findFirstByPortalOrderIdOrderByRevisionNoDesc(order.getId())
+                .map(OfficialPoIntegrationRequest::getRevisionNo)
+                .orElse(null);
         return new OrderHistorySummaryResponse(
-                order.getId(), order.getDraftNo(), order.getPrototypePoNo(), order.getOrderDate(),
+                order.getId(), order.getDraftNo(), order.getPrototypePoNo(),
+                order.getOfficialPoNo(), revisionNo, order.getOrderDate(),
                 order.getSupplierCode(), order.getSupplierNameSnapshot(), order.getBrandCode(), order.getBrandNameSnapshot(),
                 (int) skuCount, order.getTotalQty(), order.getTotalAmount(), order.getStatus(), activeTypes, order.getUpdatedAt()
         );

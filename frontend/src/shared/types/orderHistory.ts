@@ -6,6 +6,11 @@ export interface OrderHistorySummary {
   id: number
   draftNo: string
   prototypePoNo: string | null
+  // Phase 1 Final Cleanup (Order History Number Model Audit): distinct from
+  // prototypePoNo (Portal管理番号) - the number Excel/PDF/Manufacturer Send
+  // actually use. Null until Official PO integration first assigns it.
+  officialPoNo: string | null
+  revisionNo: number | null
   orderDate: string | null
   supplierCode: string | null
   supplierName: string | null

@@ -26,6 +26,17 @@
 #
 # Usage:
 #   cd backend && ./demo-reset.sh
+#   cd backend && ./demo-reset.sh --include-test-master-data
+#
+# --include-test-master-data (Phase 1 Final Cleanup, Test Data Lifecycle):
+# additionally physically DELETEs the E2E-generated supplier_contact/
+# mail_template rows DemoResetRunner.cleanupTestMasterData() can identify
+# with 100% confidence (see its Javadoc) - Inactive rows only, restricted to
+# content patterns confirmed to never appear in real Demo Master data.
+# manufacturer_channel, supplier_region_classification, official_po_short_code,
+# and every other mail_template row are NEVER touched by this option - no
+# reliable Test marker exists for them yet. Omit this flag for the ordinary
+# Demo Reset behavior (Master data of every kind untouched, as before).
 #
 # Requires: local Legacy Demo MySQL + Prototype PostgreSQL containers
 # already running (docker compose up -d).
@@ -33,14 +44,20 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-echo "=== G-SYS Prototype Demo Reset ==="
+RUN_ARGS="--app.demo-reset.enabled=true"
+if [[ "${1:-}" == "--include-test-master-data" ]]; then
+    RUN_ARGS="${RUN_ARGS} --app.demo-reset.include-test-master-data=true"
+    echo "=== G-SYS Prototype Demo Reset (+ Test Master Data Cleanup) ==="
+else
+    echo "=== G-SYS Prototype Demo Reset ==="
+fi
 echo "Target: Prototype PostgreSQL (localhost:54321/gsys_portal) business-data tables only."
 echo "portal_user accounts are preserved. Legacy Demo MySQL is never touched."
 echo ""
 
 mvn -q spring-boot:run \
     -Dspring-boot.run.profiles=local \
-    -Dspring-boot.run.arguments=--app.demo-reset.enabled=true
+    -Dspring-boot.run.arguments="${RUN_ARGS}"
 
 echo ""
 echo "=== Demo Reset finished. ==="
