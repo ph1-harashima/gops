@@ -38,6 +38,7 @@ test.describe('Phase 6-B: Order List / Order Detail', () => {
   test('DRAFT Order Detail shows "ドラフトを編集" and links to the Draft edit screen', async ({ page }) => {
     await login(page)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('candidates-view-all-button').click()
     const firstCheckbox = page.locator('table tbody tr').first().locator('input[type="checkbox"]')
     await firstCheckbox.check()
     await page.getByTestId('create-draft-button').click()
@@ -103,6 +104,7 @@ test.describe('Phase 6-B: Order List / Order Detail', () => {
   test('APPROVED Order Detail -> PO Preview -> 戻る returns to Order Detail, not the Draft screen', async ({ page }) => {
     await login(page)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('candidates-view-all-button').click()
     const firstCheckbox = page.locator('table tbody tr').first().locator('input[type="checkbox"]')
     await firstCheckbox.check()
     await page.getByTestId('create-draft-button').click()
@@ -148,6 +150,7 @@ test.describe('Phase 6-B: Order List / Order Detail', () => {
   test('Audit Timeline: Create events show only the new value (no "—"/Arrow); real changes show both sides with an Arrow icon', async ({ page }) => {
     await login(page)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('candidates-view-all-button').click()
     const firstCheckbox = page.locator('table tbody tr').first().locator('input[type="checkbox"]')
     await firstCheckbox.check()
     await page.getByTestId('create-draft-button').click()

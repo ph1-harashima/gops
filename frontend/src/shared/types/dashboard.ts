@@ -6,6 +6,7 @@ export interface DashboardBrandRow {
   brandName: string
   candidateCount: number
   outOfStockCount: number
+  longTermOutOfStockCount: number
   draftCount: number
   awaitingSupplierCount: number
   attentionCount: number

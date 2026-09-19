@@ -112,7 +112,7 @@ test.describe('Phase 7-F: Sticky Table Header', () => {
 
   test('E: Order Candidate List keeps its Column Header visible on scroll', async ({ page }) => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
-    await page.goto('/candidates')
+    await page.goto('/candidates?brandCode=BR_HOME')
     await expect(page.getByTestId('candidate-row-HM-MUG-001')).toBeVisible()
     await assertHeaderStaysVisibleOnScroll(page, 'candidate-list-table-container')
   })
@@ -123,7 +123,7 @@ test.describe('Phase 7-F: Sticky Table Header', () => {
     // enough to make the List (and therefore its sticky header) exist, the
     // scroll behavior itself doesn't depend on row count.
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
-    await page.goto('/candidates')
+    await page.goto('/candidates?brandCode=BR_HOME')
     await page.getByTestId('candidate-checkbox-HM-MUG-001').locator('input').check()
     await page.getByTestId('create-draft-button').click()
     // create-draft-button already persists the Draft (POST) - the freshly
@@ -166,7 +166,7 @@ test.describe('Phase 7-F: Sticky Table Header', () => {
 
   test('I: sticky Table header has an opaque background (underlying row text does not show through)', async ({ page }) => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
-    await page.goto('/candidates')
+    await page.goto('/candidates?brandCode=BR_HOME')
     const bg = await page.locator('.MuiTableCell-stickyHeader').first().evaluate((el) => getComputedStyle(el).backgroundColor)
     expect(bg).not.toBe('rgba(0, 0, 0, 0)')
     expect(bg).not.toBe('transparent')
@@ -188,7 +188,7 @@ test.describe('Phase 7-F: Sticky Table Header', () => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.setViewportSize({ width: 1280, height: 500 })
 
-    await page.goto('/candidates')
+    await page.goto('/candidates?brandCode=BR_HOME')
     const candidateContainer = page.getByTestId('candidate-list-table-container')
     await expect(candidateContainer).toBeVisible()
     const candidateBox = await candidateContainer.boundingBox()

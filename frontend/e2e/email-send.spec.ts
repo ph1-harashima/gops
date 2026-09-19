@@ -31,6 +31,7 @@ test.describe('Phase 9-E: Real Email Send', () => {
     // --- Order setup: Candidate -> Draft -> 承認依頼 -> 承認 ---
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_OUTDOOR').click()
     await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
     await page.getByTestId(`candidate-checkbox-${SKU}`).locator('input').check()
     await page.getByTestId('create-draft-button').click()
@@ -143,6 +144,7 @@ test.describe('Phase 9-E: Real Email Send', () => {
   test('ADMIN overrides the To address at Send time - Master Contact is left unchanged', async ({ page }) => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_OUTDOOR').click()
     await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
     await page.getByTestId(`candidate-checkbox-${SKU}`).locator('input').check()
     await page.getByTestId('create-draft-button').click()
@@ -213,6 +215,7 @@ test.describe('Phase 9-E: Real Email Send', () => {
   test('ADMIN overrides To/CC with a different Domain - Warning shown but never blocks Send', async ({ page }) => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_OUTDOOR').click()
     await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
     await page.getByTestId(`candidate-checkbox-${SKU}`).locator('input').check()
     await page.getByTestId('create-draft-button').click()
@@ -279,6 +282,7 @@ test.describe('Phase 9-E: Real Email Send', () => {
     // Suppliers have shipped BR_KITCHEN over time) makes ambiguous.
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_OUTDOOR').click()
     await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
     await page.getByTestId(`candidate-checkbox-${SKU}`).locator('input').check()
     await page.getByTestId('create-draft-button').click()

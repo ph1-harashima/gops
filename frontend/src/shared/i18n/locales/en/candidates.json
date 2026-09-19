@@ -32,5 +32,20 @@
   "recommendedQtyDomesticPending": "Rule pending",
   "createDraft": "Create Draft from {{count}} selected",
   "createDraftMixedSupplier": "A Draft cannot mix multiple manufacturers. Please select SKUs from a single manufacturer only.",
-  "createDraftFailed": "Failed to create the Draft ({{code}})."
+  "createDraftFailed": "Failed to create the Draft ({{code}}).",
+  "brandList": {
+    "title": "Order Candidates - Select Brand",
+    "subtitle": "Select the Brand you want to check.",
+    "table": {
+      "brand": "Brand",
+      "candidates": "Order Candidates",
+      "outOfStock": "Out of Stock",
+      "longTermOutOfStock": "Long-term Out of Stock",
+      "draft": "In Progress",
+      "awaitingSupplier": "Awaiting Supplier",
+      "attention": "Needs Attention"
+    },
+    "viewAllButton": "Show All Order Candidates",
+    "backToBrandList": "Back to Brand List"
+  }
 }

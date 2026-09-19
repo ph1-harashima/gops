@@ -65,6 +65,7 @@ test.describe('Gap Analysis Implementation Instruction Scenario 1: full continuo
     // ---- Candidate -> SKU Detail (B-2 pre-existing entry point) -> back -> Draft ----
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_OUTDOOR').click()
     await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
     await page.getByRole('button', { name: SKU }).click()
     await expect(page).toHaveURL(new RegExp(`/items/${SKU}`))

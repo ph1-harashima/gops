@@ -41,6 +41,8 @@ test.describe('Phase 6-A: List State Preservation', () => {
     await login(page)
     await page.getByTestId('nav-candidates').click()
     await expect(page).toHaveURL(/\/candidates$/)
+    await page.getByTestId('candidates-view-all-button').click()
+    await expect(page).toHaveURL(/\/candidates\?recommendedOnly=true$/)
 
     const brandName = await selectFirstRealOption(page, 'ブランド')
     await expect(page).toHaveURL(/brandCode=/)
@@ -67,6 +69,7 @@ test.describe('Phase 6-A: List State Preservation', () => {
   test('Scenario B: Candidate List Filter survives a Draft creation round trip', async ({ page }) => {
     await login(page)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('candidates-view-all-button').click()
     await selectFirstRealOption(page, 'ブランド')
     await expect(page).toHaveURL(/brandCode=/)
     const listUrl = page.url()
@@ -115,6 +118,7 @@ test.describe('Phase 6-A: List State Preservation', () => {
     // matches its URL, and Forward returns to Detail.
     await login(page)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('candidates-view-all-button').click()
 
     const brandName = await selectFirstRealOption(page, 'ブランド')
     await expect(page).toHaveURL(/brandCode=/)

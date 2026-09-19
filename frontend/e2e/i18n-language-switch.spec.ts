@@ -69,6 +69,7 @@ test.describe('G-OPS i18n完成: Language Switch / Persistence / JA・EN Main Sc
     await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible()
 
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('candidates-view-all-button').click()
     await expect(page.getByRole('heading', { name: 'Order Candidates', level: 1 })).toBeVisible()
 
     await page.getByTestId('nav-history').click()
@@ -78,6 +79,7 @@ test.describe('G-OPS i18n完成: Language Switch / Persistence / JA・EN Main Sc
   test('F: Order Detail in English resolves a Status/Enum label from Resources, not a raw internal value (要件§5)', async ({ page }) => {
     await login(page)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_KITCHEN').click()
     await expect(page.getByTestId('candidate-row-KT-KNIFE-001')).toBeVisible()
     await page.getByTestId('candidate-checkbox-KT-KNIFE-001').locator('input').check()
     await page.getByTestId('create-draft-button').click()

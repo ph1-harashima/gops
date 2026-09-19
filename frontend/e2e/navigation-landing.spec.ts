@@ -48,11 +48,14 @@ test.describe('Navigation / Login Landing (Phase 7-E Section 1)', () => {
     // auth state changes in the first place (verified via source: LoginPage
     // has no navigate() call). Direct-URL access before login already
     // preserves itself for free.
+    // Order Candidates Brand Entry: a bare /candidates (no Query Parameter)
+    // now lands on the Brand List first, not the flat SKU List directly -
+    // the heading checked here reflects that new landing screen.
     await page.goto('/candidates')
     await expect(page.getByLabel('ユーザー名')).toBeVisible()
     await fillLoginForm(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await expect(page).toHaveURL(/\/candidates(\?.*)?$/)
-    await expect(page.getByRole('heading', { name: '発注候補一覧', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '発注候補 - ブランド選択', level: 1 })).toBeVisible()
   })
 
   test('D: logout -> login -> Dashboardへ (URL/content両方)', async ({ page }) => {
@@ -76,6 +79,7 @@ test.describe('Navigation / Login Landing (Phase 7-E Section 1)', () => {
     await page.goto('/')
     await fillLoginForm(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('candidates-view-all-button').click()
     await expect(page).toHaveURL(/\/candidates(\?.*)?$/)
 
     await page.reload()

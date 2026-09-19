@@ -162,6 +162,7 @@ test.describe('Phase 8-B: Price Change Foundation', () => {
   test('H: Existing Ordering Workflow (Candidate List -> Create Draft) is unaffected', async ({ page }) => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_KITCHEN').click()
     await expect(page.getByTestId('candidate-row-KT-KNIFE-002')).toBeVisible()
     await page.getByTestId('candidate-checkbox-KT-KNIFE-002').locator('input').check()
     await page.getByTestId('create-draft-button').click()

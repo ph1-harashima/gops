@@ -39,6 +39,20 @@ class DashboardServiceIntegrationTest {
         assertTrue(after.brands().stream().anyMatch(b -> "BR_OUTDOOR".equals(b.brandCode()) && b.draftCount() >= 1));
     }
 
+    /** Order Candidates Brand Entry (docs/gops-order-candidates-brand-entry-implementation.md):
+     * per-Brand longTermOutOfStockCount reuses the exact same predicate the
+     * Dashboard-wide KPI already computes - never a fabricated/independent
+     * count. */
+    @Test
+    void dashboardBrandRowsIncludeLongTermOutOfStockCount() {
+        DashboardResponse response = dashboardService.getDashboard();
+        assertTrue(response.brands().stream().allMatch(b -> b.longTermOutOfStockCount() >= 0),
+                "every Brand row must expose a non-negative longTermOutOfStockCount");
+        int sumAcrossBrands = response.brands().stream().mapToInt(b -> b.longTermOutOfStockCount()).sum();
+        assertTrue(sumAcrossBrands <= response.longTermOutOfStockCount(),
+                "the sum of per-Brand Long-term OOS can never exceed the Dashboard-wide total");
+    }
+
     /** Phase 8-J 11章/13章: Dashboard had zero entry point into Price Change
      * (Phase 8-B/8-D) until this Phase. */
     @Test

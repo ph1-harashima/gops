@@ -40,7 +40,12 @@ async function logout(page: Page) {
 
 async function createAwaitingSupplierResponse(page: Page, skuA: string, skuB: string): Promise<string> {
   await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
+  // Order Candidates Brand Entry: navigate via skuA's own Brand rather than
+  // "すべての発注候補を表示" (recommendedOnly=true would miss a SKU whose
+  // recommendedQty has drifted to 0 over repeated Demo/E2E runs).
+  const brandCode = skuA.startsWith('HM-') ? 'BR_HOME' : skuA.startsWith('KT-') ? 'BR_KITCHEN' : 'BR_OUTDOOR'
   await page.getByTestId('nav-candidates').click()
+  await page.getByTestId(`order-candidate-brand-link-${brandCode}`).click()
   await expect(page.getByTestId(`candidate-row-${skuA}`)).toBeVisible()
   await page.getByTestId(`candidate-checkbox-${skuA}`).locator('input').check()
   await page.getByTestId(`candidate-checkbox-${skuB}`).locator('input').check()

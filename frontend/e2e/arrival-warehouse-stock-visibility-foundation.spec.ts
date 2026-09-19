@@ -50,7 +50,13 @@ function linkOrderToOfficialPoNo(orderId: string, officialPoNo: string) {
 
 async function createApprovedOrder(page: Page, sku: string): Promise<string> {
   await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
+  // Order Candidates Brand Entry: navigate via this SKU's own Brand rather
+  // than "すべての発注候補を表示" (which applies recommendedOnly=true and
+  // would miss a SKU whose recommendedQty has drifted to 0 over repeated
+  // Demo/E2E runs) - matches the real workflow this SKU's own Brand belongs to.
+  const brandCode = sku.startsWith('HM-') ? 'BR_HOME' : sku.startsWith('KT-') ? 'BR_KITCHEN' : 'BR_OUTDOOR'
   await page.getByTestId('nav-candidates').click()
+  await page.getByTestId(`order-candidate-brand-link-${brandCode}`).click()
   await expect(page.getByTestId(`candidate-row-${sku}`)).toBeVisible()
   await page.getByTestId(`candidate-checkbox-${sku}`).locator('input').check()
   await page.getByTestId('create-draft-button').click()
@@ -203,6 +209,7 @@ test.describe('Phase 8-G: Arrival / Warehouse Stock Visibility Foundation', () =
   test('G2 (Phase 8-J 6章): SKU Detail -> 入荷確認を見る Navigation filters the Arrival List by skuKeyword', async ({ page }) => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_OUTDOOR').click()
     await expect(page.getByTestId('candidate-row-OD-TENT-001')).toBeVisible()
     await page.getByRole('button', { name: 'OD-TENT-001' }).click()
     await expect(page).toHaveURL(/\/items\/OD-TENT-001/)
@@ -228,6 +235,7 @@ test.describe('Phase 8-G: Arrival / Warehouse Stock Visibility Foundation', () =
   test('H: Existing Ordering Workflow (Candidate List -> Create Draft) is unaffected', async ({ page }) => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_KITCHEN').click()
     await expect(page.getByTestId('candidate-row-KT-KNIFE-002')).toBeVisible()
     await page.getByTestId('candidate-checkbox-KT-KNIFE-002').locator('input').check()
     await page.getByTestId('create-draft-button').click()

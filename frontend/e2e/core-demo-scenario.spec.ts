@@ -64,7 +64,11 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Submit for Approval -
   await login(page)
 
   // ---- Candidate List: SKU選択 ----
+  // Order Candidates Brand Entry: KT-BOWL-* is KITCHENNE (BR_KITCHEN) -
+  // navigate via its own Brand rather than "すべての発注候補を表示"
+  // (recommendedOnly=true could miss a SKU driven to 0 by this very test).
   await page.getByTestId('nav-candidates').click()
+  await page.getByTestId('order-candidate-brand-link-BR_KITCHEN').click()
   await expect(page.getByTestId(`candidate-row-${SKU_A}`)).toBeVisible()
   await page.getByTestId(`candidate-checkbox-${SKU_A}`).locator('input').check()
   await page.getByTestId(`candidate-checkbox-${SKU_B}`).locator('input').check()
@@ -77,7 +81,7 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Submit for Approval -
   await expect(page).toHaveURL(/\/orders\/drafts\/\d+(\?.*)?$/)
   const draftId = page.url().match(/\/orders\/drafts\/(\d+)/)?.[1]
   expect(draftId).toBeTruthy()
-  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/candidates')
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/candidates?brandCode=BR_KITCHEN')
 
   // ---- Order Qty変更 ----
   const qtyInputA = page.getByTestId(`order-qty-input-${SKU_A}`).locator('input')
@@ -93,7 +97,7 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Submit for Approval -
   // Phase 6-A: the returnTo chain is forwarded from Draft to Preview too.
   await page.getByTestId('go-to-preview-button').click()
   await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview(\\?.*)?$`))
-  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/candidates')
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/candidates?brandCode=BR_KITCHEN')
   await expect(page.getByText('未採番')).toBeVisible()
 
   // ---- 承認依頼 (Phase 7-C1: back to Draft, Submit for Approval) ----

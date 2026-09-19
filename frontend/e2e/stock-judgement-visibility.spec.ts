@@ -39,7 +39,7 @@ function stockJudgementChipsInRow(page: Page, sku: string) {
 test.describe('Phase 7-G: 在庫判定（暫定）Badge visibility and cross-screen consistency', () => {
   test('A: Candidate List unfiltered shows a 在庫判定 Badge on every row, separate from 商品状態', async ({ page }) => {
     await login(page, DEMO_USERNAME, DEMO_PASSWORD)
-    await page.goto('/candidates')
+    await page.goto('/candidates?brandCode=BR_HOME')
     await expect(page.getByText(/件の発注候補/)).toBeVisible()
 
     // Column header exists and is distinct from 商品状態's own header.
@@ -58,7 +58,7 @@ test.describe('Phase 7-G: 在庫判定（暫定）Badge visibility and cross-scr
 
   test('B: HM-MUG-002 shows 商品状態=通常 and 在庫判定=長期欠品 together, non-contradictorily (Section 7 case)', async ({ page }) => {
     await login(page, DEMO_USERNAME, DEMO_PASSWORD)
-    await page.goto('/candidates')
+    await page.goto('/candidates?brandCode=BR_HOME')
     await expect(page.getByText(/件の発注候補/)).toBeVisible()
 
     const row = page.getByTestId('candidate-row-HM-MUG-002')
@@ -116,7 +116,7 @@ test.describe('Phase 7-G: 在庫判定（暫定）Badge visibility and cross-scr
 
   test('F: SKU Detail 在庫判定 Badge matches the Candidate List Badge for the same SKU (HM-MUG-002)', async ({ page }) => {
     await login(page, DEMO_USERNAME, DEMO_PASSWORD)
-    await page.goto('/candidates')
+    await page.goto('/candidates?brandCode=BR_HOME')
     await expect(page.getByText(/件の発注候補/)).toBeVisible()
     const listBadge = await stockJudgementChipsInRow(page, 'HM-MUG-002').textContent()
 
@@ -132,7 +132,7 @@ test.describe('Phase 7-G: 在庫判定（暫定）Badge visibility and cross-scr
 
   test('G: 在庫判定 column header / Chip Tooltip discloses this is a provisional Prototype judgement', async ({ page }) => {
     await login(page, DEMO_USERNAME, DEMO_PASSWORD)
-    await page.goto('/candidates')
+    await page.goto('/candidates?brandCode=BR_HOME')
     await expect(page.getByText(/件の発注候補/)).toBeVisible()
 
     // Column header itself carries the （暫定）caveat - visible without any
@@ -157,7 +157,7 @@ test.describe('Phase 7-G: 在庫判定（暫定）Badge visibility and cross-scr
 
   test('I: ADMIN role sees the same 在庫判定 column/Badge as OPERATOR', async ({ page }) => {
     await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
-    await page.goto('/candidates')
+    await page.goto('/candidates?brandCode=BR_HOME')
     await expect(page.getByText(/件の発注候補/)).toBeVisible()
     await expect(page.getByTestId('candidate-list-table-container').getByRole('columnheader', { name: /在庫判定/ })).toBeVisible()
     await expect(stockJudgementChipsInRow(page, 'HM-MUG-002')).toHaveText('長期欠品')

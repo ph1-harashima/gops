@@ -36,6 +36,7 @@ test.describe('Gap Analysis §12: Supplier Region Classification Master', () => 
   test('ADMIN creates a Region Classification entry and it appears as a Chip on Order Detail', async ({ page }) => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_OUTDOOR').click()
     await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
     await page.getByTestId(`candidate-checkbox-${SKU}`).locator('input').check()
     await page.getByTestId('create-draft-button').click()
@@ -115,6 +116,7 @@ test.describe('Gap Analysis §12: Supplier Region Classification Master', () => 
       // Candidate List now shows "設定準備中" for OD-TENT-001 - never a
       // number silently computed via the Overseas formula.
       await page.getByTestId('nav-candidates').click()
+      await page.getByTestId('order-candidate-brand-link-BR_OUTDOOR').click()
       await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
       await expect(page.getByTestId(`recommended-qty-domestic-pending-${SKU}`)).toBeVisible()
       await expect(page.getByTestId(`recommended-qty-domestic-pending-${SKU}`)).toHaveText('設定準備中')

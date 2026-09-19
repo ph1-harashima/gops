@@ -38,6 +38,7 @@ async function logout(page: Page) {
 async function createApprovedOrderAndOpenPreview(page: Page): Promise<string> {
   await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
   await page.getByTestId('nav-candidates').click()
+  await page.getByTestId('order-candidate-brand-link-BR_KITCHEN').click()
   await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
   await page.getByTestId(`candidate-checkbox-${SKU}`).locator('input').check()
   await page.getByTestId('create-draft-button').click()

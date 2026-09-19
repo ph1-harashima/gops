@@ -30,6 +30,7 @@ test.describe('Phase 9-D: Manufacturer Channel Master', () => {
     // exists yet, to also prove the "no Chip when unresolved" case.
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_OUTDOOR').click()
     await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
     await page.getByTestId(`candidate-checkbox-${SKU}`).locator('input').check()
     await page.getByTestId('create-draft-button').click()

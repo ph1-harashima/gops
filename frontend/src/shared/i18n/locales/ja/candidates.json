@@ -32,5 +32,20 @@
   "recommendedQtyDomesticPending": "設定準備中",
   "createDraft": "選択した{{count}}件でドラフト作成",
   "createDraftMixedSupplier": "複数のメーカーが混在しているため、ドラフトを作成できません。同一メーカーのSKUのみ選択してください。",
-  "createDraftFailed": "ドラフトの作成に失敗しました（{{code}}）。"
+  "createDraftFailed": "ドラフトの作成に失敗しました（{{code}}）。",
+  "brandList": {
+    "title": "発注候補 - ブランド選択",
+    "subtitle": "確認したいブランドを選択してください。",
+    "table": {
+      "brand": "ブランド",
+      "candidates": "発注候補",
+      "outOfStock": "欠品",
+      "longTermOutOfStock": "長期欠品",
+      "draft": "発注作成中",
+      "awaitingSupplier": "メーカー回答待ち",
+      "attention": "要確認"
+    },
+    "viewAllButton": "すべての発注候補を表示",
+    "backToBrandList": "ブランド一覧へ戻る"
+  }
 }

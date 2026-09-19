@@ -106,6 +106,8 @@ public class DashboardService {
                             .filter(c -> brandCode.equals(c.brandCode())).filter(DashboardService::isCandidate).count();
                     int outOfStockCount = (int) candidates.stream()
                             .filter(c -> brandCode.equals(c.brandCode())).filter(DashboardService::isOutOfStock).count();
+                    int longTermOutOfStockCount = (int) candidates.stream()
+                            .filter(c -> brandCode.equals(c.brandCode())).filter(DashboardService::isLongTermOutOfStock).count();
                     int draftCount = (int) orders.stream()
                             .filter(o -> brandCode.equals(o.getBrandCode()) && PortalOrder.STATUS_DRAFT.equals(o.getStatus())).count();
                     int awaitingSupplierCount = (int) orders.stream()
@@ -113,7 +115,7 @@ public class DashboardService {
                     int attentionCount = (int) orders.stream()
                             .filter(o -> brandCode.equals(o.getBrandCode()) && orderIdsWithActiveAttention.contains(o.getId())).count();
                     return new DashboardBrandRow(brandCode, entry.getValue(), candidateCount, outOfStockCount,
-                            draftCount, awaitingSupplierCount, attentionCount);
+                            longTermOutOfStockCount, draftCount, awaitingSupplierCount, attentionCount);
                 })
                 .toList();
     }

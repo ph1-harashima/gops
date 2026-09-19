@@ -20,7 +20,7 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import { LanguageSwitcher } from '../shared/components/LanguageSwitcher'
 
 import { DashboardPage } from '../features/dashboard/DashboardPage'
-import { CandidateListPage } from '../features/candidates/CandidateListPage'
+import { CandidatesEntryPage } from '../features/candidates/CandidatesEntryPage'
 import { SkuDetailPage } from '../features/skuDetail/SkuDetailPage'
 import { OrderDraftPage } from '../features/drafts/OrderDraftPage'
 import { PoPreviewPage } from '../features/drafts/PoPreviewPage'
@@ -351,7 +351,7 @@ export function App() {
         ) : (
           <Routes>
             <Route path="/" element={<DashboardPage />} />
-            <Route path="/candidates" element={<CandidateListPage />} />
+            <Route path="/candidates" element={<CandidatesEntryPage />} />
             <Route path="/items/:sku" element={<SkuDetailPage />} />
             <Route path="/orders/drafts/:id" element={<OrderDraftPage />} />
             <Route path="/orders/drafts/:id/preview" element={<PoPreviewPage />} />

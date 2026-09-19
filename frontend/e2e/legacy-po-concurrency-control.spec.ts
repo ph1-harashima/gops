@@ -67,7 +67,13 @@ function resetConcurrencyFixtures() {
 
 async function createApprovedOrder(page: Page, sku: string): Promise<string> {
   await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
+  // Order Candidates Brand Entry: navigate via this SKU's own Brand rather
+  // than "すべての発注候補を表示" (which applies recommendedOnly=true and
+  // would miss a SKU whose recommendedQty has drifted to 0 over repeated
+  // Demo/E2E runs) - matches the real workflow this SKU's own Brand belongs to.
+  const brandCode = sku.startsWith('HM-') ? 'BR_HOME' : sku.startsWith('KT-') ? 'BR_KITCHEN' : 'BR_OUTDOOR'
   await page.getByTestId('nav-candidates').click()
+  await page.getByTestId(`order-candidate-brand-link-${brandCode}`).click()
   await expect(page.getByTestId(`candidate-row-${sku}`)).toBeVisible()
   await page.getByTestId(`candidate-checkbox-${sku}`).locator('input').check()
   await page.getByTestId('create-draft-button').click()

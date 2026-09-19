@@ -211,6 +211,19 @@ export function CandidateListPage() {
     // `stickyHeader` - while everything above it (title/filters/Filter
     // Chips/alerts) stays on-screen, never scrolling out of view.
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Order Candidates Brand Entry (docs/gops-order-candidates-brand-entry-implementation.md
+          §5): this screen is only ever reached via a Query Parameter now
+          (CandidatesEntryPage routes the bare /candidates to the Brand List
+          instead) - so a "grandparent" Back button back to the Brand List
+          belongs here, distinct from the List<->Detail returnTo chain below. */}
+      <Button
+        size="small"
+        onClick={() => navigate('/candidates')}
+        sx={{ alignSelf: 'flex-start', mb: 1 }}
+        data-testid="candidates-back-to-brand-list"
+      >
+        {t('candidates:brandList.backToBrandList')}
+      </Button>
       <Typography variant="h5" component="h1" gutterBottom>
         {t('candidates:title')}
       </Typography>
