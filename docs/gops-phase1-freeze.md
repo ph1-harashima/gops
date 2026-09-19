@@ -2,7 +2,7 @@
 
 ## 1. Freeze Date
 
-2026-09-19
+2026-09-20 (updated after the Freeze Blocker Final Fix round - see `docs/gops-phase1-final-cleanup-report.md` §7)
 
 ## 2. Baseline Commit
 
@@ -12,7 +12,7 @@ Phase1 Final Cleanup work started from `4bb7473` (Phase 5: Mobile Responsive aud
 
 Implemented Business Capability (Prototype/Demo, never connected to Production):
 
-- Dashboard → Brand-first Order Candidate entry → Draft creation/edit
+- Dashboard → Brand-first Order Candidate entry (every entry point, including the Dashboard KPI itself as of the Freeze Blocker fix - see the Final Cleanup Report §7.1) → Draft creation/edit
 - Draft → Submit for Approval → Approval / Return for Correction (Role-gated: OPERATOR/ADMIN)
 - Approval → Official PO Integration Preparation (G-SYS連携準備) → Official PO No. auto-numbering (Supplier Short Code 3 + Brand Short Code 3 + 3-digit Serial, BR-08) → Excel/PDF generation
 - Official PO → Import Folder hand-off (Demo, no real file placement) → G-SYS取込確認 (Demo)
@@ -93,7 +93,7 @@ Primary source: `docs/gulliver-20260917-confirmed-business-rules.md`. This Phase
 - Icon Button real-device touch-target confirmation not performed
 - Past Revision individual download is out of Phase1 scope
 - Production Integration not performed (by design - see §11, §14)
-- **Test Data Lifecycle (this Phase's Cleanup-2, partial)**: a safe, identifier-based physical-delete cleanup now exists for `supplier_contact` (`@example.com` domain) and a subset of `mail_template` rows (`"Follow-up E2E Template %"` name pattern) - both 100%-confident Test-only markers, confirmed by full audit of every row-creation path. `manufacturer_channel`, `supplier_region_classification`, and the remaining ambiguously-named `mail_template` rows (e.g. `"PO Template"`, `"Scenario A Template"`) have **no reliable content-based Test marker today** and are deliberately left unaddressed - per the explicit rule "曖昧な条件によるDELETEは禁止" / "100%識別できない場合：削除しない". See the Final Cleanup Report §Test Data Lifecycle for the full accounting and a recommended Phase 2 follow-up (tagging new E2E-created Master rows with a reserved, unambiguous Test marker at creation time, so they become cleanable without touching today's ambiguous backlog).
+- **Test Data Lifecycle (Cleanup-2 + Freeze Blocker-2, resolved for growth; existing ambiguous backlog remains)**: a safe, identifier-based physical-delete cleanup exists for `supplier_contact` (`@example.com` domain) and a subset of `mail_template` rows (`"Follow-up E2E Template %"` name pattern) - both 100%-confident Test-only markers. Separately, `manufacturer_channel` and `supplier_region_classification` (which have no content-based Test marker, so cannot use the same DELETE approach) now instead **reuse a prior run's Fixture row** rather than creating a new one every E2E run - verified to add zero new rows across repeated runs (Final Cleanup Report §7.2/§7.4). The already-accumulated ambiguous backlog for these two tables, and the majority of `mail_template`'s rows, is **not** retroactively cleaned - per the explicit rule "曖昧な条件によるDELETEは禁止" / "100%識別できない場合：削除しない", this is deliberate, not an oversight. `price_change_set` was audited too (Final Cleanup Report §7.3) and needed no new mechanism - it is ordinary workflow data already fully covered by the pre-existing Demo Reset TRUNCATE, same as `portal_order` itself.
 
 ## 11. Production Readiness Remaining
 

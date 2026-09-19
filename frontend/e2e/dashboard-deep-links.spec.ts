@@ -41,11 +41,22 @@ async function waitForListSettled(page: Page, emptyText: RegExp) {
 }
 
 test.describe('Phase 6-D: Dashboard Deep Links', () => {
-  test('発注候補 KPI -> Candidate List with recommendedOnly, count matches', async ({ page }) => {
+  /** Freeze Blocker-1: the KPI used to jump straight to the all-Brand
+   * flat SKU List (?recommendedOnly=true), the one entry point into
+   * 発注候補 that skipped the Brand-first landing every other entry point
+   * (Global Nav, Brand row "戻る") already used. It now lands on the Brand
+   * List first, same as those - the all-Brand flat List is still reachable,
+   * just one explicit "すべての発注候補を表示" click away, where the same
+   * count-matches check this test always did still applies. */
+  test('発注候補 KPI -> Brand一覧 -> すべての発注候補を表示 -> Candidate List, count matches', async ({ page }) => {
     await login(page)
     const expected = await kpiValue(page, '発注候補')
 
     await kpiTile(page, '発注候補').click()
+    await expect(page).toHaveURL(/\/candidates$/)
+    await expect(page.getByTestId('order-candidate-brand-list-table-container')).toBeVisible()
+
+    await page.getByTestId('candidates-view-all-button').click()
     await expect(page).toHaveURL(/\/candidates\?recommendedOnly=true/)
     await expect(page.getByTestId('recommended-only-checkbox').locator('input')).toBeChecked()
     await waitForListSettled(page, /件の発注候補|発注候補が見つかりませんでした/)
@@ -224,7 +235,7 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
    * KPI's own all-Brand entry point (Section E: 全候補一覧) is untouched by
    * any of this.
    */
-  test('Scenario 1-5: Dashboard Brand Name click -> Brand-only Candidate List, Context survives SKU Detail / Draft Back, all-Brand KPI entry unaffected', async ({ page }) => {
+  test('Scenario 1-5: Dashboard Brand Name click -> Brand-only Candidate List, Context survives SKU Detail / Draft Back, all-Brand KPI entry lands on Brand List first (Freeze Blocker-1)', async ({ page }) => {
     await login(page)
     const brandNameCell = page.locator('table tbody tr').first().locator('td').first().getByRole('button')
     const brandName = (await brandNameCell.textContent())?.trim()
@@ -265,13 +276,18 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
     await expect(page).toHaveURL(brandFilteredListUrl)
     await expect(page.getByTestId('filter-chip-brandCode')).toContainText(brandName ?? '')
 
-    // Scenario 5: the Dashboard's own all-Brand KPI entry (発注候補 tile)
-    // still reaches the FULL, unfiltered-by-Brand Candidate List - Brand
-    // selection was never made mandatory.
+    // Scenario 5 (Freeze Blocker-1 fix): the Dashboard's own all-Brand KPI
+    // entry (発注候補 tile) now lands on the Brand List first, the SAME
+    // Brand-first entry point every other 発注候補 route (Global Nav, this
+    // very Brand-row flow) already used - it no longer skips straight to an
+    // unfiltered-by-Brand flat Candidate List. Brand selection is still
+    // optional from there (the Brand List's own "すべての発注候補を表示"
+    // button reaches the all-Brand flat List, unchanged) - just no longer
+    // the KPI's own default destination.
     await page.goto('/')
     await kpiTile(page, '発注候補').click()
-    await expect(page).toHaveURL(/\/candidates\?recommendedOnly=true$/)
-    await expect(page.getByTestId('filter-chip-brandCode')).toHaveCount(0)
+    await expect(page).toHaveURL(/\/candidates$/)
+    await expect(page.getByTestId('order-candidate-brand-list-table-container')).toBeVisible()
   })
 
   test('Browser Back/Forward preserves the Dashboard Deep Link Filter', async ({ page }) => {
@@ -293,17 +309,17 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
 
     await kpiTile(page, '価格変更（下書き）').click()
     await expect(page).toHaveURL(/\/price-changes\?status=DRAFT/)
-    // `networkidle` can resolve before a large (100+ row, and growing every
-    // time this Demo DB accumulates more Drafts across repeated full-suite
-    // runs) result finishes rendering - wait for the "読み込み中" spinner
-    // itself to clear. A generous explicit timeout: under a long shard run
-    // the runner itself is under load, and MUI Table rendering 100+ rows can
-    // take several seconds longer than this suite's other (much smaller)
-    // Lists ever need.
-    await expect(page.getByText('読み込み中...')).toHaveCount(0, { timeout: 20000 })
-
-    const rowCount = await page.locator('[data-testid="price-change-list-table-container"] table tbody tr').count()
-    expect(rowCount).toBe(expected)
+    // Freeze Blocker-2 audit (docs/gops-phase1-final-cleanup-report.md):
+    // this test's own manual "read 読み込み中 -> then call the ROW locator's
+    // .count() once" idiom is not auto-retrying - a `.count()` call sampled
+    // the instant the loading spinner disappears can still read 0 if
+    // React hasn't finished the next paint yet, independent of how many
+    // rows actually exist (confirmed live via Browser: the same navigation
+    // reliably rendered all rows correctly, just not always within that one
+    // synchronous instant). `toHaveCount` polls/retries until it matches or
+    // times out - the correct primitive for "eventually this many rows",
+    // matching every other List assertion in this suite.
+    await expect(page.locator('[data-testid="price-change-list-table-container"] table tbody tr')).toHaveCount(expected, { timeout: 20000 })
   })
 
   /** Phase 8-J 11章/13章: plain Navigation Cards (no count) into Arrival/

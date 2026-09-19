@@ -49,6 +49,35 @@ async function logout(page: Page) {
   await expect(page.getByLabel('ユーザー名')).toBeVisible()
 }
 
+/** Freeze Blocker-2 (Test Data Lifecycle, docs/gops-phase1-final-cleanup-report.md):
+ * reuse a prior-run's Manufacturer Channel row instead of unconditionally
+ * creating a new one every run - see manufacturer-channel.spec.ts's own
+ * copy of this helper for the full rationale (duplicated per this project's
+ * existing per-file convention). Uses page.goto (not the Nav menu) for the
+ * fallback Create path, matching this file's own Mobile-viewport-agnostic
+ * convention for reaching /admin/* screens directly. */
+async function ensureManufacturerChannel(page: Page, supplierCode: string, brandCode: string, channel: 'EMAIL' | 'EDI' = 'EMAIL') {
+  const channels = await (await page.request.get('/api/admin/manufacturer-channels')).json()
+  const existing = channels.find((c: { supplierCode: string; brandCode: string | null }) =>
+    c.supplierCode === supplierCode && c.brandCode === brandCode)
+  if (existing) {
+    await page.request.put(`/api/admin/manufacturer-channels/${existing.id}`, {
+      data: { supplierCode, brandCode, channel, active: true },
+    })
+    return
+  }
+  await page.goto('/admin/manufacturer-channels')
+  await page.getByTestId('manufacturer-channel-create-button').click()
+  await page.getByTestId('manufacturer-channel-supplierCode').locator('input').fill(supplierCode)
+  await page.getByTestId('manufacturer-channel-brandCode').locator('input').fill(brandCode)
+  if (channel === 'EDI') {
+    await page.getByTestId('manufacturer-channel-channel').click()
+    await page.getByRole('option', { name: 'EDI' }).click()
+  }
+  await page.getByTestId('manufacturer-channel-save').click()
+  await expect(page.getByTestId('manufacturer-channel-table-container')).toContainText(supplierCode)
+}
+
 async function assertNoHorizontalOverflow(page: Page, label: string) {
   const { scrollWidth, clientWidth } = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
@@ -224,12 +253,7 @@ test.describe('Mobile Scenarios (390x844)', () => {
     await page.getByTestId('approve-dialog-confirm').click()
     await expect(page.getByText('承認しました。')).toBeVisible()
 
-    await page.goto('/admin/manufacturer-channels')
-    await page.getByTestId('manufacturer-channel-create-button').click()
-    await page.getByTestId('manufacturer-channel-supplierCode').locator('input').fill(supplierCode)
-    await page.getByTestId('manufacturer-channel-brandCode').locator('input').fill(brandCode)
-    await page.getByTestId('manufacturer-channel-save').click()
-    await expect(page.getByTestId('manufacturer-channel-table-container')).toContainText(supplierCode)
+    await ensureManufacturerChannel(page, supplierCode, brandCode, 'EMAIL')
 
     await page.goto('/admin/supplier-contacts')
     await page.getByTestId('supplier-contact-create-button').click()

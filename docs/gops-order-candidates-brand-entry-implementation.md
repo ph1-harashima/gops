@@ -66,9 +66,15 @@ URLへ遷移する（`recommendedOnly`/`outOfStockOnly`/`longTermOutOfStockOnly`
 
 ## 5. 全Brand横断導線
 
-「すべての発注候補を表示」ボタンからの`/candidates?recommendedOnly=true`に加え、
-Dashboardの「発注候補」KPIタイルからの同一URLへの導線も無変更で維持されている。
-両者は完全に同じURLに収束するため、実装は重複していない。
+「すべての発注候補を表示」ボタンからの`/candidates?recommendedOnly=true`が
+全Brand横断導線の唯一の入口である。
+
+> **Freeze Blocker-1 訂正（docs/gops-phase1-final-cleanup-report.md参照）**:
+> 本セクション作成時点ではDashboardの「発注候補」KPIタイルも同一URLへ直接
+> 遷移する設計を「無変更維持」としていたが、これは実運用上の導線として
+> 誤りと判断され、Phase1 Freeze直前の修正でBrand一覧（`/candidates`、
+> QueryParameterなし）を経由するよう変更された。KPIタイルは他の「発注候補」
+> 入口（Global Navigation等）と同じBrand-first導線に統一されている。
 
 ## 6. Dashboard Deep Link維持結果
 

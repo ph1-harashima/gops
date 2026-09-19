@@ -26,6 +26,35 @@ async function logout(page: Page) {
   await expect(page.getByLabel('ユーザー名')).toBeVisible()
 }
 
+/** Freeze Blocker-2 (Test Data Lifecycle, docs/gops-phase1-final-cleanup-report.md):
+ * reuse a prior-run's SUP_ALPHA/BR_OUTDOOR Manufacturer Channel row instead
+ * of unconditionally creating a new one every run - see
+ * manufacturer-channel.spec.ts's own copy of this helper for the full
+ * rationale (duplicated per this project's existing per-file convention,
+ * not factored into a shared module). */
+async function ensureManufacturerChannel(page: Page, supplierCode: string, brandCode: string, channel: 'EMAIL' | 'EDI' = 'EMAIL') {
+  const channels = await (await page.request.get('/api/admin/manufacturer-channels')).json()
+  const existing = channels.find((c: { supplierCode: string; brandCode: string | null }) =>
+    c.supplierCode === supplierCode && c.brandCode === brandCode)
+  if (existing) {
+    await page.request.put(`/api/admin/manufacturer-channels/${existing.id}`, {
+      data: { supplierCode, brandCode, channel, active: true },
+    })
+    return
+  }
+  await page.getByTestId('nav-master-maintenance').click()
+  await page.getByTestId('nav-admin-manufacturer-channels').click()
+  await page.getByTestId('manufacturer-channel-create-button').click()
+  await page.getByTestId('manufacturer-channel-supplierCode').locator('input').fill(supplierCode)
+  await page.getByTestId('manufacturer-channel-brandCode').locator('input').fill(brandCode)
+  if (channel === 'EDI') {
+    await page.getByTestId('manufacturer-channel-channel').click()
+    await page.getByRole('option', { name: 'EDI' }).click()
+  }
+  await page.getByTestId('manufacturer-channel-save').click()
+  await expect(page.getByTestId('manufacturer-channel-table-container')).toContainText(supplierCode)
+}
+
 test.describe('Phase 9-E: Real Email Send', () => {
   test('ADMIN sends the Official PO Email to an EMAIL-channel manufacturer', async ({ page }) => {
     // --- Order setup: Candidate -> Draft -> 承認依頼 -> 承認 ---
@@ -52,13 +81,7 @@ test.describe('Phase 9-E: Real Email Send', () => {
     await expect(page.getByText('承認しました。')).toBeVisible()
 
     // --- Manufacturer Channel: EMAIL ---
-    await page.getByTestId('nav-master-maintenance').click()
-    await page.getByTestId('nav-admin-manufacturer-channels').click()
-    await page.getByTestId('manufacturer-channel-create-button').click()
-    await page.getByTestId('manufacturer-channel-supplierCode').locator('input').fill('SUP_ALPHA')
-    await page.getByTestId('manufacturer-channel-brandCode').locator('input').fill('BR_OUTDOOR')
-    await page.getByTestId('manufacturer-channel-save').click()
-    await expect(page.getByTestId('manufacturer-channel-table-container')).toContainText('SUP_ALPHA')
+    await ensureManufacturerChannel(page, 'SUP_ALPHA', 'BR_OUTDOOR', 'EMAIL')
 
     // --- Supplier Contact ---
     await page.goto('/admin/supplier-contacts')

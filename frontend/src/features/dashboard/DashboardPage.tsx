@@ -75,7 +75,15 @@ export function DashboardPage() {
   //   per row, so ?hasAttention=true is a client-side Filter over data the
   //   existing API already sends - no new Attention Filter API (6-D 6章).
   const kpis = [
-    { key: 'candidateCount', label: t('kpi.candidates'), value: data.candidateCount, onClick: () => navigate('/candidates?recommendedOnly=true'), tooltip: undefined as string | undefined },
+    // Freeze Blocker-1: this KPI used to jump straight to the all-Brand
+    // ?recommendedOnly=true flat SKU List, skipping the Brand-first entry
+    // (OrderCandidateBrandListPage) IA Phase 3 already established for
+    // every OTHER 発注候補 entry point (Global Nav, Brand-row "戻る", etc.) -
+    // this was the one remaining inconsistent entry point. The all-Brand
+    // view is still reachable, just one explicit click away via the Brand
+    // List's own "すべての発注候補を表示" button, matching the Freeze
+    // instructions' "通常導線にはしないこと" for the KPI itself.
+    { key: 'candidateCount', label: t('kpi.candidates'), value: data.candidateCount, onClick: () => navigate('/candidates'), tooltip: undefined as string | undefined },
     // Phase 7-G: same provisional Predicate/Tooltip wording as the new
     // 在庫判定 Chip (status:stockJudgementTooltip) so a user who has already
     // seen the Chip's Tooltip on the List/Detail recognizes this KPI refers

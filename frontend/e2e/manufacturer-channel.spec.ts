@@ -24,6 +24,39 @@ async function logout(page: Page) {
   await expect(page.getByLabel('ユーザー名')).toBeVisible()
 }
 
+/** Freeze Blocker-2 (Test Data Lifecycle, docs/gops-phase1-final-cleanup-report.md):
+ * manufacturer_channel has no content-based Test marker, so the safe
+ * "won't grow further" fix is reusing a prior-run row (from a repeated
+ * full-suite run - Demo Reset never wipes Master data) instead of
+ * unconditionally creating a new one every run. Business Rule
+ * (soft-delete-only) is unchanged - this only decides Create-via-UI vs
+ * reuse-via-the-SAME-PUT this file's own cleanup test already uses.
+ * First-ever run (no Fixture exists yet) still exercises the real Create
+ * UI once. */
+async function ensureManufacturerChannel(page: Page, supplierCode: string, brandCode: string, channel: 'EMAIL' | 'EDI' = 'EMAIL') {
+  const channels = await (await page.request.get('/api/admin/manufacturer-channels')).json()
+  const existing = channels.find((c: { supplierCode: string; brandCode: string | null }) =>
+    c.supplierCode === supplierCode && c.brandCode === brandCode)
+  if (existing) {
+    await page.request.put(`/api/admin/manufacturer-channels/${existing.id}`, {
+      data: { supplierCode, brandCode, channel, active: true },
+    })
+    return
+  }
+  await page.getByTestId('nav-master-maintenance').click()
+  await page.getByTestId('nav-admin-manufacturer-channels').click()
+  await expect(page).toHaveURL(/\/admin\/manufacturer-channels/)
+  await page.getByTestId('manufacturer-channel-create-button').click()
+  await page.getByTestId('manufacturer-channel-supplierCode').locator('input').fill(supplierCode)
+  await page.getByTestId('manufacturer-channel-brandCode').locator('input').fill(brandCode)
+  if (channel === 'EDI') {
+    await page.getByTestId('manufacturer-channel-channel').click()
+    await page.getByRole('option', { name: 'EDI' }).click()
+  }
+  await page.getByTestId('manufacturer-channel-save').click()
+  await expect(page.getByTestId('manufacturer-channel-table-container')).toContainText(supplierCode)
+}
+
 test.describe('Phase 9-D: Manufacturer Channel Master', () => {
   test('ADMIN creates a Manufacturer Channel entry and it appears on an APPROVED Order before any Send', async ({ page }) => {
     // Create the Draft first (as OPERATOR), before the Channel Master row
@@ -50,22 +83,13 @@ test.describe('Phase 9-D: Manufacturer Channel Master', () => {
     await page.getByTestId('approve-dialog-confirm').click()
     await expect(page.getByText('承認しました。')).toBeVisible()
 
-    // No Master row for SUP_ALPHA/BR_OUTDOOR yet at this point in a fresh
-    // Demo Reset - unresolved, no Chip.
+    // No ACTIVE Master row for SUP_ALPHA/BR_OUTDOOR at this point - either a
+    // fresh Demo Reset (no row at all) or every prior run's row already
+    // deactivated by this file's own cleanup test - unresolved, no Chip.
     await expect(page.getByTestId('resolved-manufacturer-channel-chip')).toHaveCount(0)
 
-    // Register the Channel via the admin screen.
-    await page.getByTestId('nav-master-maintenance').click()
-    await page.getByTestId('nav-admin-manufacturer-channels').click()
-    await expect(page).toHaveURL(/\/admin\/manufacturer-channels/)
-    await page.getByTestId('manufacturer-channel-create-button').click()
-    await page.getByTestId('manufacturer-channel-supplierCode').locator('input').fill('SUP_ALPHA')
-    await page.getByTestId('manufacturer-channel-brandCode').locator('input').fill('BR_OUTDOOR')
-    // Default channel is already EMAIL - explicit select for clarity/robustness.
-    await page.getByTestId('manufacturer-channel-channel').click()
-    await page.getByRole('option', { name: 'Email' }).click()
-    await page.getByTestId('manufacturer-channel-save').click()
-    await expect(page.getByTestId('manufacturer-channel-table-container')).toContainText('SUP_ALPHA')
+    // Register (or reuse a prior run's Fixture row for) the Channel.
+    await ensureManufacturerChannel(page, 'SUP_ALPHA', 'BR_OUTDOOR', 'EMAIL')
 
     // Back on the Order Detail, the Chip now resolves.
     await page.goto(`/orders/${draftId}`)

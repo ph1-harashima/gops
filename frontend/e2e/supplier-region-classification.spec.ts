@@ -32,6 +32,37 @@ async function logout(page: Page) {
   await expect(page.getByLabel('ユーザー名')).toBeVisible()
 }
 
+/** Freeze Blocker-2 (Test Data Lifecycle, docs/gops-phase1-final-cleanup-report.md):
+ * supplier_region_classification has no content-based Test marker, so the
+ * safe "won't grow further" fix is reusing this file's own prior-run row
+ * (if one exists, from a repeated full-suite run - Demo Reset never wipes
+ * Master data) instead of unconditionally creating a new one every run.
+ * Business Rule (soft-delete-only, active-uniqueness per Supplier/Brand) is
+ * unchanged - this only decides Create-via-UI vs reuse-via-the-SAME-PUT this
+ * file's own Scenario 8 / cleanup test already use. First-ever run (no
+ * Fixture exists yet) still exercises the real Create UI once. */
+async function ensureRegionClassification(page: Page, supplierCode: string, brandCode: string, regionClassification: 'DOMESTIC' | 'OVERSEAS') {
+  const rows = await (await page.request.get('/api/admin/supplier-region-classifications')).json()
+  const existing = rows.find((r: { supplierCode: string; brandCode: string | null }) =>
+    r.supplierCode === supplierCode && r.brandCode === brandCode)
+  if (existing) {
+    await page.request.put(`/api/admin/supplier-region-classifications/${existing.id}`, {
+      data: { supplierCode, brandCode, regionClassification, active: true },
+    })
+    return
+  }
+  await page.getByTestId('nav-master-maintenance').click()
+  await page.getByTestId('nav-admin-supplier-region-classifications').click()
+  await expect(page).toHaveURL(/\/admin\/supplier-region-classifications/)
+  await page.getByTestId('supplier-region-classification-create-button').click()
+  await page.getByTestId('supplier-region-classification-supplierCode').locator('input').fill(supplierCode)
+  await page.getByTestId('supplier-region-classification-brandCode').locator('input').fill(brandCode)
+  await page.getByTestId('supplier-region-classification-regionClassification').click()
+  await page.getByRole('option', { name: regionClassification === 'OVERSEAS' ? '海外' : '国内' }).click()
+  await page.getByTestId('supplier-region-classification-save').click()
+  await expect(page.getByTestId('supplier-region-classification-table-container')).toContainText(supplierCode)
+}
+
 test.describe('Gap Analysis §12: Supplier Region Classification Master', () => {
   test('ADMIN creates a Region Classification entry and it appears as a Chip on Order Detail', async ({ page }) => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
@@ -60,16 +91,7 @@ test.describe('Gap Analysis §12: Supplier Region Classification Master', () => 
     // Demo Reset - unresolved, no Chip.
     await expect(page.getByTestId('resolved-region-classification-chip')).toHaveCount(0)
 
-    await page.getByTestId('nav-master-maintenance').click()
-    await page.getByTestId('nav-admin-supplier-region-classifications').click()
-    await expect(page).toHaveURL(/\/admin\/supplier-region-classifications/)
-    await page.getByTestId('supplier-region-classification-create-button').click()
-    await page.getByTestId('supplier-region-classification-supplierCode').locator('input').fill('SUP_ALPHA')
-    await page.getByTestId('supplier-region-classification-brandCode').locator('input').fill('BR_OUTDOOR')
-    await page.getByTestId('supplier-region-classification-regionClassification').click()
-    await page.getByRole('option', { name: '海外' }).click()
-    await page.getByTestId('supplier-region-classification-save').click()
-    await expect(page.getByTestId('supplier-region-classification-table-container')).toContainText('SUP_ALPHA')
+    await ensureRegionClassification(page, 'SUP_ALPHA', 'BR_OUTDOOR', 'OVERSEAS')
 
     // Back on the Order Detail, the Chip now resolves.
     await page.goto(`/orders/${draftId}`)
