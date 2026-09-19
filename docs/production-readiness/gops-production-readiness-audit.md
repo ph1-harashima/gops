@@ -265,6 +265,21 @@ This is a **process-level, code-based gate** — not a config toggle, not someth
 
 ## 20. Summary Table (per the requested 10-way classification)
 
+This letter scheme originates in the predecessor document (`docs/production-readiness-and-integration-boundary-audit.md` §2) and is repeated here in full so this document is self-contained:
+
+| Letter | Meaning |
+|---|---|
+| A | PRODUCTION READY — deployable as-is |
+| B | PRODUCTION FOUNDATION READY — Demo-complete, needs Production-specific implementation, no Business Rule blocker |
+| C | IMPLEMENTATION READY — can start today, no Customer/Ernest/External answer needed |
+| D | CUSTOMER REVIEW WAIT — needs a Gulliver decision |
+| E | CURRENT OPERATION WAIT — needs Ernest's confirmation of real-world operation |
+| F | EXTERNAL SPEC WAIT — needs a Vendor/external system spec |
+| G | INFRASTRUCTURE WAIT — Hosting/Network undecided |
+| H | SECURITY / CONFIG WAIT — Secret management/Production credentials not yet provisioned |
+| I | BLOCKED — cannot safely proceed at all right now |
+| J | NOT REQUIRED — out of Portal's scope, or existing Legacy operation is sufficient as-is |
+
 | Area | Classification |
 |---|---|
 | Portal DB Migration | B (Production Foundation Ready) |
@@ -278,7 +293,7 @@ This is a **process-level, code-based gate** — not a config toggle, not someth
 | Hosting / Network | G (Infrastructure Wait) — not even researched yet, not just undecided |
 | Secrets management | H (Security/Config Wait) |
 | Authentication (SSO/MFA/User CRUD) | D (Customer Decision) |
-| CI/CD, Release Procedure, Rollback | G / J — largely not attempted yet |
+| CI/CD, Release Procedure, Rollback | G (Infrastructure Wait) — largely not attempted yet |
 | Master Data (Supplier/Brand identity) | B — Legacy READ ONLY source already correct |
 | Master Data (Contact/Channel/Region/Short Code/Template) | C (mechanism complete) — real data entry is an Operations task pending Customer Decision on values |
 
