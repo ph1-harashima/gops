@@ -27,6 +27,10 @@ import Chip from '@mui/material/Chip'
 import MenuItem from '@mui/material/MenuItem'
 import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { useTheme } from '@mui/material/styles'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 
@@ -173,6 +177,17 @@ export function OrderHistoryDetailPage() {
   const orderId = Number(id)
   const navigate = useNavigate()
   const location = useLocation()
+  const theme = useTheme()
+  // Mobile Responsive Audit (最重要 - Approval happens on THIS screen once
+  // status is PENDING_APPROVAL): the 12-column SKU line table is the
+  // densest table in the app - a Horizontal-Scroll Table (MUI TableContainer's
+  // default) would technically avoid page overflow but forces sideways
+  // scrolling to compare Recommended Qty against Current Stock/Sales/Lead
+  // Time, defeating "judge what you're approving on a phone". A Card per
+  // SKU (all fields stacked, none hidden) replaces it below `md`; the
+  // Approve/Return/Edit action bar becomes sticky so it can never scroll
+  // off-screen while reviewing a long line list.
+  const isCardLayout = useMediaQuery(theme.breakpoints.down('md'))
   // Phase 6-C (docs/production-ux-workflow-redesign.md 2章/5章): 発注詳細 is
   // the shared landing point after both Demo Send and Supplier Response
   // Confirm now (neither auto-opens the next screen anymore), so it shows
@@ -668,6 +683,48 @@ export function OrderHistoryDetailPage() {
         </Paper>
       )}
 
+      {isCardLayout ? (
+        <Stack spacing={1.5} data-testid="order-detail-line-cards">
+          {detail.details.map((line) => (
+            <Card key={line.sku} variant="outlined">
+              <CardContent sx={{ '&:last-child': { pb: 2 } }}>
+                <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', rowGap: 0.5 }}>
+                  <Button
+                    size="small"
+                    variant="text"
+                    sx={{ p: 0, minWidth: 0, textTransform: 'none', fontWeight: 600 }}
+                    onClick={() => navigate(withReturnTo(`/items/${encodeURIComponent(line.sku)}`, ownPath))}
+                    data-testid={`sku-detail-link-${line.sku}`}
+                  >
+                    {line.sku}
+                  </Button>
+                  <AttentionChips attentions={line.attentions} acknowledgeable />
+                </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{line.itemName}</Typography>
+                <Divider sx={{ mb: 1 }} />
+                <Stack spacing={0.75}>
+                  {[
+                    { label: t('detailTable.recommendedQty'), value: line.recommendedQty },
+                    { label: t('detailTable.orderedQty'), value: line.orderedQty },
+                    { label: t('detailTable.confirmedQty'), value: line.confirmedQty ?? t('notAvailable') },
+                    { label: t('detailTable.requestedDelivery'), value: line.requestedDelivery ?? t('notAvailable') },
+                    { label: t('detailTable.confirmedDelivery'), value: line.confirmedDelivery ?? t('notAvailable') },
+                    { label: t('detailTable.currentStock'), value: line.currentStock ?? t('notAvailable') },
+                    { label: t('detailTable.monthlySales'), value: line.monthlySales ?? t('notAvailable') },
+                    { label: t('detailTable.leadTime'), value: line.leadTime ?? t('notAvailable') },
+                    { label: t('detailTable.openArrival'), value: line.openArrival ?? t('notAvailable') },
+                  ].map((row) => (
+                    <Stack key={row.label} direction="row" sx={{ justifyContent: 'space-between' }}>
+                      <Typography variant="body2" color="text.secondary">{row.label}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>{row.value}</Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
+      ) : (
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
@@ -730,6 +787,7 @@ export function OrderHistoryDetailPage() {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
 
       {primaryAction && (
         <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
@@ -749,7 +807,27 @@ export function OrderHistoryDetailPage() {
           are @PreAuthorize("hasRole('ADMIN')")) - this is UX convenience,
           not the access control (17章). */}
       {detail.status === 'PENDING_APPROVAL' && isAdmin && (
-        <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+        // Mobile Responsive Audit 最重要: sticky so Approve/Return stay
+        // reachable without hunting for them after scrolling through a long
+        // SKU line list - never fixed-px, just `position: sticky` against
+        // this screen's own scrolling ancestor (the same Box in App.tsx that
+        // already hosts every routed page's scroll region).
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{
+            mt: 2,
+            ...(isCardLayout && {
+              position: 'sticky',
+              bottom: 0,
+              py: 1.5,
+              bgcolor: 'background.paper',
+              borderTop: 1,
+              borderColor: 'divider',
+              zIndex: 1,
+            }),
+          }}
+        >
           <Button
             variant="outlined"
             onClick={() => navigate(withReturnTo(`/orders/drafts/${detail.id}`, returnTo))}
@@ -1889,6 +1967,7 @@ export function OrderHistoryDetailPage() {
           forms (like the Master Maintenance dialogs) - not touched. */}
       <Dialog
         open={approveDialogOpen}
+        fullScreen={isCardLayout}
         onClose={(_event, reason) => {
           if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
           setApproveDialogOpen(false)
@@ -1915,6 +1994,7 @@ export function OrderHistoryDetailPage() {
 
       <Dialog
         open={returnDialogOpen}
+        fullScreen={isCardLayout}
         onClose={(_event, reason) => {
           if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
           setReturnDialogOpen(false)
@@ -1980,6 +2060,7 @@ export function OrderHistoryDetailPage() {
           Action (never automatic), mirroring the G-SYS連携準備 dialog above. */}
       <Dialog
         open={reissueDialogOpen}
+        fullScreen={isCardLayout}
         onClose={(_event, reason) => {
           if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
           setReissueDialogOpen(false)
@@ -2010,6 +2091,7 @@ export function OrderHistoryDetailPage() {
           なぜ), so this is a Reason-input Dialog rather than a plain confirm. */}
       <Dialog
         open={cancelDialogOpen}
+        fullScreen={isCardLayout}
         onClose={(_event, reason) => {
           if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
           setCancelDialogOpen(false)
@@ -2057,6 +2139,7 @@ export function OrderHistoryDetailPage() {
         return (
           <Dialog
             open={sendConfirmDialogOpen}
+            fullScreen={isCardLayout}
             onClose={(_event, reason) => {
               if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
               setSendConfirmDialogOpen(false)

@@ -61,7 +61,7 @@ export function SupplierSettingsLayout() {
   }
 
   return (
-    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Button
         startIcon={<ArrowBackIcon />}
         size="small"
@@ -80,7 +80,18 @@ export function SupplierSettingsLayout() {
         {t('supplierMaster:contextSupplierCode', { code: data.supplierCode })}
       </Typography>
 
-      <Tabs value={activeTab} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
+      {/* Mobile Responsive Audit §26 (priority): the 5 Tabs would otherwise
+          wrap/overflow at 375-430px - `variant="scrollable"` is MUI's own
+          built-in Mobile Tab treatment (swipeable + scroll arrows), no
+          custom Select/Menu swap needed, and it's a no-op at Desktop widths
+          where all 5 Tabs already fit. */}
+      <Tabs
+        value={activeTab}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
+        sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
+      >
         {TABS.map((tab) => (
           <Tab
             key={tab}

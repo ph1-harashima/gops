@@ -6,6 +6,7 @@ import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
+import IconButton from '@mui/material/IconButton'
 import Chip from '@mui/material/Chip'
 import Stack from '@mui/material/Stack'
 import Divider from '@mui/material/Divider'
@@ -14,8 +15,15 @@ import Box from '@mui/material/Box'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import ListSubheader from '@mui/material/ListSubheader'
+import Drawer from '@mui/material/Drawer'
+import List from '@mui/material/List'
+import ListItemButton from '@mui/material/ListItemButton'
+import ListItemText from '@mui/material/ListItemText'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { useTheme } from '@mui/material/styles'
 import PersonIcon from '@mui/icons-material/Person'
 import LogoutIcon from '@mui/icons-material/Logout'
+import MenuIcon from '@mui/icons-material/Menu'
 
 import { LanguageSwitcher } from '../shared/components/LanguageSwitcher'
 
@@ -77,6 +85,40 @@ export function App() {
 
   const roleLabel = user ? t(`drafts:roleLabel.${user.role}`, { defaultValue: user.role }) : ''
 
+  // Mobile Responsive Audit (docs/gops-admin-mobile-responsive-audit.md):
+  // an empirical Playwright overflow scan across 375/390/430/768 found the
+  // SAME horizontal overflow (scrollWidth=602) on every single route at
+  // 375/390/430 and none at 768 - the shared AppBar's Nav Stack (7 Buttons +
+  // Master Maintenance Menu + User Area + Language Switcher, all inline in
+  // one Toolbar row) is the sole cause, not per-page content. `md` (900px)
+  // is used as the Mobile/Desktop split since it cleanly covers all four
+  // required viewports (768 still counts as Mobile here) while leaving the
+  // Desktop layout above it completely untouched.
+  const theme = useTheme()
+  const isMobileNav = useMediaQuery(theme.breakpoints.down('md'))
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const closeMobileNav = () => setMobileNavOpen(false)
+
+  const mobilePageTitle = !user
+    ? t('appName')
+    : location.pathname === '/'
+      ? t('navDashboard')
+      : location.pathname === '/candidates'
+        ? t('navCandidates')
+        : isHistorySection
+          ? t('navHistory')
+          : location.pathname.startsWith('/price-changes')
+            ? t('navPriceChanges')
+            : location.pathname.startsWith('/arrivals')
+              ? t('navArrivals')
+              : location.pathname.startsWith('/warehouse-stock')
+                ? t('navWarehouseStock')
+                : location.pathname.startsWith('/stock-sales')
+                  ? t('navStockSales')
+                  : isMasterMaintenanceSection
+                    ? t('navMasterMaintenance')
+                    : t('appName')
+
   return (
     // Phase 7-F Header/List UX Audit: the whole App shell is a fixed-height
     // flex column now (AppBar/banner as non-scrolling flex items, routed
@@ -91,15 +133,32 @@ export function App() {
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppBar position="static" color="default" elevation={1}>
         <Toolbar variant="dense">
-          <Typography variant="h6" component="div" sx={{ mr: 1 }}>
-            {t('appName')}
+          {isMobileNav && user && (
+            <IconButton
+              size="small"
+              edge="start"
+              sx={{ mr: 1 }}
+              onClick={() => setMobileNavOpen(true)}
+              data-testid="mobile-nav-open-button"
+              aria-label={t('navMasterMaintenance')}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+          <Typography variant="h6" component="div" sx={{ mr: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {isMobileNav && user ? mobilePageTitle : t('appName')}
           </Typography>
           {/* Implementation instructions Step 5 10章: a small, unobtrusive
               "デモ環境" badge on the common Header, distinct from (and less
-              prominent than) the larger contextual banner below. */}
-          <Chip size="small" variant="outlined" color="warning" label={t('demoEnvironmentBadge')} data-testid="demo-environment-badge" />
+              prominent than) the larger contextual banner below. Hidden on
+              Mobile to leave room for the Page Title + Language Switcher
+              without wrapping the Toolbar to a second row (it's still
+              reachable inside the Drawer, which also shows it). */}
+          {!isMobileNav && (
+            <Chip size="small" variant="outlined" color="warning" label={t('demoEnvironmentBadge')} data-testid="demo-environment-badge" />
+          )}
           <Box sx={{ flexGrow: 1 }} />
-          {user && (
+          {user && !isMobileNav && (
             <>
               {/* Phase 7-F Header UX Audit: Navigation Area - business/admin
                   menu links only. Deliberately separated (Divider below)
@@ -337,6 +396,101 @@ export function App() {
           </Box>
         </Toolbar>
       </AppBar>
+      {/* Mobile Responsive Audit: Hamburger + Drawer Navigation, reusing the
+          same react-router Links/Routes/data as the Desktop Nav above - no
+          separate Mobile Navigation Framework, no duplicated Business Logic.
+          Only rendered below `md`; the Desktop AppBar Nav (Stack/Menu) stays
+          exactly as it was for `md` and above. */}
+      {user && (
+        <Drawer anchor="left" open={isMobileNav && mobileNavOpen} onClose={closeMobileNav} data-testid="mobile-nav-drawer">
+          <Box sx={{ width: 280 }} role="presentation">
+            <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h6" component="div">{t('appName')}</Typography>
+              <Chip size="small" variant="outlined" color="warning" label={t('demoEnvironmentBadge')} />
+            </Box>
+            <Divider />
+            <List>
+              <ListItemButton component={Link} to="/" selected={location.pathname === '/'} onClick={closeMobileNav} data-testid="mobile-nav-dashboard">
+                <ListItemText primary={t('navDashboard')} />
+              </ListItemButton>
+              <ListItemButton component={Link} to="/candidates" selected={location.pathname === '/candidates'} onClick={closeMobileNav} data-testid="mobile-nav-candidates">
+                <ListItemText primary={t('navCandidates')} />
+              </ListItemButton>
+              <ListItemButton component={Link} to="/orders/history" selected={isHistorySection} onClick={closeMobileNav} data-testid="mobile-nav-history">
+                <ListItemText primary={t('navHistory')} />
+              </ListItemButton>
+              <ListItemButton component={Link} to="/price-changes" selected={location.pathname.startsWith('/price-changes')} onClick={closeMobileNav} data-testid="mobile-nav-price-changes">
+                <ListItemText primary={t('navPriceChanges')} />
+              </ListItemButton>
+              <ListItemButton component={Link} to="/arrivals" selected={location.pathname.startsWith('/arrivals')} onClick={closeMobileNav} data-testid="mobile-nav-arrivals">
+                <ListItemText primary={t('navArrivals')} />
+              </ListItemButton>
+              <ListItemButton component={Link} to="/warehouse-stock" selected={location.pathname.startsWith('/warehouse-stock')} onClick={closeMobileNav} data-testid="mobile-nav-warehouse-stock">
+                <ListItemText primary={t('navWarehouseStock')} />
+              </ListItemButton>
+              <ListItemButton component={Link} to="/stock-sales" selected={location.pathname.startsWith('/stock-sales')} onClick={closeMobileNav} data-testid="mobile-nav-stock-sales">
+                <ListItemText primary={t('navStockSales')} />
+              </ListItemButton>
+            </List>
+            {isAdmin && (
+              <>
+                <Divider />
+                <List subheader={<ListSubheader data-testid="mobile-master-menu-supplier-settings-header">{t('navMasterMaintenanceSupplierSettings')}</ListSubheader>}>
+                  <ListItemButton component={Link} to="/master/suppliers" selected={location.pathname.startsWith('/master/suppliers')} onClick={closeMobileNav} data-testid="mobile-nav-admin-suppliers">
+                    <ListItemText primary={t('navAdminSuppliers')} />
+                  </ListItemButton>
+                  <ListItemButton component={Link} to="/admin/supplier-contacts" selected={location.pathname === '/admin/supplier-contacts'} onClick={closeMobileNav} data-testid="mobile-nav-admin-supplier-contacts">
+                    <ListItemText primary={t('navAdminSupplierContacts')} />
+                  </ListItemButton>
+                  <ListItemButton component={Link} to="/admin/manufacturer-channels" selected={location.pathname === '/admin/manufacturer-channels'} onClick={closeMobileNav} data-testid="mobile-nav-admin-manufacturer-channels">
+                    <ListItemText primary={t('navAdminManufacturerChannels')} />
+                  </ListItemButton>
+                  <ListItemButton component={Link} to="/admin/supplier-region-classifications" selected={location.pathname === '/admin/supplier-region-classifications'} onClick={closeMobileNav} data-testid="mobile-nav-admin-supplier-region-classifications">
+                    <ListItemText primary={t('navAdminSupplierRegionClassifications')} />
+                  </ListItemButton>
+                  <ListItemButton component={Link} to="/admin/official-po-short-codes" selected={location.pathname === '/admin/official-po-short-codes'} onClick={closeMobileNav} data-testid="mobile-nav-admin-official-po-short-codes">
+                    <ListItemText primary={t('navAdminOfficialPoShortCodes')} />
+                  </ListItemButton>
+                </List>
+                <List subheader={<ListSubheader data-testid="mobile-master-menu-global-settings-header">{t('navMasterMaintenanceGlobalSettings')}</ListSubheader>}>
+                  <ListItemButton component={Link} to="/admin/mail-templates" selected={location.pathname === '/admin/mail-templates'} onClick={closeMobileNav} data-testid="mobile-nav-admin-mail-templates">
+                    <ListItemText primary={t('navAdminMailTemplates')} />
+                  </ListItemButton>
+                  <ListItemButton component={Link} to="/admin/mail-settings" selected={location.pathname === '/admin/mail-settings'} onClick={closeMobileNav} data-testid="mobile-nav-admin-mail-settings">
+                    <ListItemText primary={t('navAdminMailSettings')} />
+                  </ListItemButton>
+                </List>
+              </>
+            )}
+            <Divider />
+            <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1 }} data-testid="mobile-nav-user-area">
+              <PersonIcon fontSize="small" color="action" />
+              <Stack spacing={0.25} sx={{ flexGrow: 1, lineHeight: 1.1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.2 }}>{user.displayName}</Typography>
+                <Chip
+                  size="small"
+                  variant="filled"
+                  color={isAdmin ? 'secondary' : 'default'}
+                  label={roleLabel}
+                  sx={{ height: 18, fontSize: '0.7rem', '& .MuiChip-label': { px: 0.75 }, alignSelf: 'flex-start' }}
+                />
+              </Stack>
+            </Box>
+            <Box sx={{ px: 2, pb: 2 }}>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="small"
+                onClick={() => { closeMobileNav(); void logout() }}
+                startIcon={<LogoutIcon fontSize="small" />}
+                data-testid="mobile-nav-logout"
+              >
+                {t('logout')}
+              </Button>
+            </Box>
+          </Box>
+        </Drawer>
+      )}
       <Alert severity="warning" square sx={{ borderRadius: 0 }}>
         {t('demoEnvironmentBanner')}
       </Alert>

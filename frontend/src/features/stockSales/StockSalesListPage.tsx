@@ -183,7 +183,7 @@ export function StockSalesListPage() {
   ].filter((c): c is { key: string; label: string; onDelete: () => void } => c !== null)
 
   return (
-    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 1 }}>
         <Typography variant="h5" component="h1" gutterBottom sx={{ mb: 0 }}>
           {t('listTitle')}
@@ -290,7 +290,7 @@ export function StockSalesListPage() {
       {!isLoading && !isError && data && data.content.length > 0 && (
         <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="stock-sales-table-container">
-            <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
+            <Table size="small" stickyHeader sx={{ minWidth: 650, '& .MuiTableCell-root': { whiteSpace: 'nowrap' }, '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
               <TableHead>
                 <TableRow>
                   <TableCell>{t('table.sku')}</TableCell>

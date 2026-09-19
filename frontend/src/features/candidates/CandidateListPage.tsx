@@ -210,7 +210,7 @@ export function CandidateListPage() {
     // intentional scroll region - MUI's own documented pattern for
     // `stickyHeader` - while everything above it (title/filters/Filter
     // Chips/alerts) stays on-screen, never scrolling out of view.
-    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Order Candidates Brand Entry (docs/gops-order-candidates-brand-entry-implementation.md
           §5): this screen is only ever reached via a Query Parameter now
           (CandidatesEntryPage routes the bare /candidates to the Brand List
@@ -388,7 +388,7 @@ export function CandidateListPage() {
                 reproduction (underlying row text visibly showed through the
                 sticky header) - forced opaque explicitly rather than relying
                 on the default. */}
-            <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
+            <Table size="small" stickyHeader sx={{ minWidth: 650, '& .MuiTableCell-root': { whiteSpace: 'nowrap' }, '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
               <TableHead>
                 <TableRow>
                   <TableCell padding="checkbox">{t('candidates:table.select')}</TableCell>

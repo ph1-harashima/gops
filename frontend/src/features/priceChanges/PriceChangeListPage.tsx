@@ -105,7 +105,7 @@ export function PriceChangeListPage() {
   }
 
   return (
-    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Typography variant="h5" component="h1" gutterBottom>
         {t('priceChanges:listTitle')}
       </Typography>
@@ -177,7 +177,7 @@ export function PriceChangeListPage() {
       {!isLoading && !isError && data && data.length > 0 && (
         <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="price-change-list-table-container">
-            <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
+            <Table size="small" stickyHeader sx={{ minWidth: 650, '& .MuiTableCell-root': { whiteSpace: 'nowrap' }, '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
               <TableHead>
                 <TableRow>
                   <TableCell>{t('priceChanges:table.id')}</TableCell>

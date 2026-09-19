@@ -57,7 +57,7 @@ export function PriceChangeDetailPage() {
   }
 
   return (
-    <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 3 }, height: '100%', overflow: 'auto' }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 2 }}>
         <Typography variant="h5" component="h1">
           {t('priceChanges:detailTitle')} #{data.id}

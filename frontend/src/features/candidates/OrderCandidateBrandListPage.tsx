@@ -13,6 +13,11 @@ import Stack from '@mui/material/Stack'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
+import Divider from '@mui/material/Divider'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { useTheme } from '@mui/material/styles'
 
 import { useDashboard } from '../dashboard/api'
 
@@ -33,6 +38,13 @@ export function OrderCandidateBrandListPage() {
   const { t } = useTranslation(['candidates', 'common'])
   const navigate = useNavigate()
   const { data, isLoading, isError, refetch } = useDashboard()
+  const theme = useTheme()
+  // Mobile Responsive Audit UX-01/UX-03: the Desktop 7-column KPI Table is
+  // too dense to read at a glance below `sm` (600px) - a Brand Card (name +
+  // labeled, stacked KPI rows) replaces it there. Same data, same Buttons,
+  // same testids/URLs as the Desktop Table below - purely a presentation
+  // swap, no new API/Business Logic.
+  const isCardLayout = useMediaQuery(theme.breakpoints.down('sm'))
 
   if (isLoading) {
     return (
@@ -54,8 +66,8 @@ export function OrderCandidateBrandListPage() {
   }
 
   return (
-    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 1 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center', mb: 1, flexWrap: 'wrap', rowGap: 1 }}>
         <Typography variant="h5" component="h1" gutterBottom sx={{ mb: 0 }}>
           {t('candidates:brandList.title')}
         </Typography>
@@ -75,8 +87,46 @@ export function OrderCandidateBrandListPage() {
         {t('candidates:brandList.subtitle')}
       </Typography>
 
+      {isCardLayout ? (
+        <Box sx={{ flex: 1, overflow: 'auto' }} data-testid="order-candidate-brand-list-table-container">
+          <Stack spacing={1.5}>
+            {data.brands.map((b) => (
+              <Card key={b.brandCode} variant="outlined" data-testid={`order-candidate-brand-row-${b.brandCode}`}>
+                <CardContent sx={{ '&:last-child': { pb: 2 } }}>
+                  <Button
+                    size="small"
+                    onClick={() => navigate(`/candidates?brandCode=${b.brandCode}`)}
+                    data-testid={`order-candidate-brand-link-${b.brandCode}`}
+                    sx={{ fontWeight: 600, fontSize: '1rem', px: 0, mb: 1 }}
+                  >
+                    {b.brandName}
+                  </Button>
+                  <Divider sx={{ mb: 1 }} />
+                  <Stack spacing={0.75}>
+                    {[
+                      { label: t('candidates:brandList.table.candidates'), value: b.candidateCount, to: `/candidates?brandCode=${b.brandCode}&recommendedOnly=true` },
+                      { label: t('candidates:brandList.table.outOfStock'), value: b.outOfStockCount, to: `/candidates?brandCode=${b.brandCode}&outOfStockOnly=true` },
+                      { label: t('candidates:brandList.table.longTermOutOfStock'), value: b.longTermOutOfStockCount, to: `/candidates?brandCode=${b.brandCode}&longTermOutOfStockOnly=true` },
+                      { label: t('candidates:brandList.table.draft'), value: b.draftCount, to: `/orders/history?brandCode=${b.brandCode}&status=DRAFT` },
+                      { label: t('candidates:brandList.table.awaitingSupplier'), value: b.awaitingSupplierCount, to: `/orders/history?brandCode=${b.brandCode}&status=AWAITING_SUPPLIER` },
+                      { label: t('candidates:brandList.table.attention'), value: b.attentionCount, to: `/orders/history?brandCode=${b.brandCode}&hasAttention=true` },
+                    ].map((row) => (
+                      <Stack key={row.label} direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">{row.label}</Typography>
+                        <Button size="small" onClick={() => navigate(row.to)} sx={{ minWidth: 48 }}>
+                          {row.value}
+                        </Button>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+        </Box>
+      ) : (
       <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="order-candidate-brand-list-table-container">
-        <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
+        <Table size="small" stickyHeader sx={{ minWidth: 650, '& .MuiTableCell-root': { whiteSpace: 'nowrap' }, '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
           <TableHead>
             <TableRow>
               <TableCell>{t('candidates:brandList.table.brand')}</TableCell>
@@ -138,6 +188,7 @@ export function OrderCandidateBrandListPage() {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
     </Box>
   )
 }

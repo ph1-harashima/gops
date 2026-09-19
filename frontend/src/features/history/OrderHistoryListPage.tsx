@@ -164,7 +164,7 @@ export function OrderHistoryListPage() {
     // intentional bounded height (flex:1/overflow:auto below) to actually
     // be the scrolling ancestor `stickyHeader` sticks within; its default
     // `overflow-x: auto` alone claims that role without ever scrolling.
-    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Typography variant="h5" component="h1" gutterBottom>
         {t('listTitle')}
       </Typography>
@@ -281,7 +281,7 @@ export function OrderHistoryListPage() {
             {t('resultCount', { count: data.totalElements })}
           </Typography>
           <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="order-history-table-container">
-            <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
+            <Table size="small" stickyHeader sx={{ minWidth: 650, '& .MuiTableCell-root': { whiteSpace: 'nowrap' }, '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
               <TableHead>
                 <TableRow>
                   <TableCell>{t('table.poNo')}</TableCell>

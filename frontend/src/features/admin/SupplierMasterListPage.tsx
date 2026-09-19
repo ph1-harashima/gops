@@ -63,7 +63,7 @@ export function SupplierMasterListPage() {
   }
 
   return (
-    <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Typography variant="h5" component="h1" gutterBottom>
         {t('supplierMaster:listTitle')}
       </Typography>
@@ -72,7 +72,7 @@ export function SupplierMasterListPage() {
       </Typography>
 
       <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="supplier-master-list-table-container">
-        <Table size="small" stickyHeader sx={{ '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
+        <Table size="small" stickyHeader sx={{ minWidth: 650, '& .MuiTableCell-root': { whiteSpace: 'nowrap' }, '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
           <TableHead>
             <TableRow>
               <TableCell>{t('supplierMaster:table.supplierCode')}</TableCell>
