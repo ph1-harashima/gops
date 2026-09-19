@@ -210,6 +210,70 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
     await expect(page).toHaveURL(/\/orders\/history\?brandCode=.+&hasAttention=true/)
   })
 
+  /**
+   * G-OPS Brand -> Order Candidates 業務導線監査: the Requirement's own
+   * primary flow (`G-SYS_Online-Ordering_Prototype_Requirements.md` 10章
+   * 「Brandを選択すると、発注候補SKU一覧へ遷移する」) is plain Brand Name
+   * selection - no additional Filter (`recommendedOnly` etc.) attached -
+   * showing every one of that Brand's Candidate SKUs. The existing "Brand
+   * row Deep Links" test above only ever clicks the Candidates COUNT cell
+   * (which deliberately carries `recommendedOnly=true`), so this literal
+   * Requirement flow had no dedicated coverage. Also confirms the Brand
+   * Filter survives a SKU Detail round trip AND a Draft creation round
+   * trip (Navigation Context / Phase 6-A returnTo, Phase 8-M), and that the
+   * KPI's own all-Brand entry point (Section E: 全候補一覧) is untouched by
+   * any of this.
+   */
+  test('Scenario 1-5: Dashboard Brand Name click -> Brand-only Candidate List, Context survives SKU Detail / Draft Back, all-Brand KPI entry unaffected', async ({ page }) => {
+    await login(page)
+    const brandNameCell = page.locator('table tbody tr').first().locator('td').first().getByRole('button')
+    const brandName = (await brandNameCell.textContent())?.trim()
+
+    // Scenario 1/2: plain Brand Name click -> /candidates?brandCode=X ONLY
+    // (no recommendedOnly/outOfStockOnly riding along) -> every visible row
+    // belongs to that exact Brand.
+    await brandNameCell.click()
+    await expect(page).toHaveURL(/\/candidates\?brandCode=[^&]+$/)
+    const brandFilteredListUrl = page.url()
+
+    await expect(page.getByTestId('filter-chip-brandCode')).toContainText(brandName ?? '')
+    await expect(page.getByLabel('ブランド')).toHaveText(brandName ?? '')
+
+    await expect(page.getByText(/件の発注候補|発注候補が見つかりませんでした/)).toBeVisible()
+    const brandColumnCells = page.locator('table tbody tr td:nth-child(4)')
+    const rowCount = await brandColumnCells.count()
+    for (let i = 0; i < rowCount; i++) {
+      await expect(brandColumnCells.nth(i)).toHaveText(brandName ?? '')
+    }
+
+    // Scenario 3: SKU Detail -> Back preserves the Brand-only Filter.
+    const firstSkuButton = page.locator('table tbody tr').first().locator('td').nth(1).getByRole('button')
+    await firstSkuButton.click()
+    await expect(page).toHaveURL(/\/items\/.+returnTo=.*brandCode/)
+    await page.getByRole('button', { name: '発注候補一覧へ戻る' }).click()
+    await expect(page).toHaveURL(brandFilteredListUrl)
+    await expect(page.getByTestId('filter-chip-brandCode')).toContainText(brandName ?? '')
+
+    // Scenario 4: Draft creation -> Back preserves the Brand-only Filter
+    // (returnTo carries brandCode "as far as possible", per the
+    // Requirement's own "可能な範囲でBrand Context維持").
+    const firstCheckbox = page.locator('table tbody tr').first().locator('input[type="checkbox"]')
+    await firstCheckbox.check()
+    await page.getByTestId('create-draft-button').click()
+    await expect(page).toHaveURL(/\/orders\/drafts\/\d+\?returnTo=.*brandCode/)
+    await page.getByRole('button', { name: '発注候補一覧へ戻る' }).click()
+    await expect(page).toHaveURL(brandFilteredListUrl)
+    await expect(page.getByTestId('filter-chip-brandCode')).toContainText(brandName ?? '')
+
+    // Scenario 5: the Dashboard's own all-Brand KPI entry (発注候補 tile)
+    // still reaches the FULL, unfiltered-by-Brand Candidate List - Brand
+    // selection was never made mandatory.
+    await page.goto('/')
+    await kpiTile(page, '発注候補').click()
+    await expect(page).toHaveURL(/\/candidates\?recommendedOnly=true$/)
+    await expect(page.getByTestId('filter-chip-brandCode')).toHaveCount(0)
+  })
+
   test('Browser Back/Forward preserves the Dashboard Deep Link Filter', async ({ page }) => {
     await login(page)
     await kpiTile(page, 'メーカー回答待ち').click()
@@ -229,7 +293,14 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
 
     await kpiTile(page, '価格変更（下書き）').click()
     await expect(page).toHaveURL(/\/price-changes\?status=DRAFT/)
-    await page.waitForLoadState('networkidle')
+    // `networkidle` can resolve before a large (100+ row, and growing every
+    // time this Demo DB accumulates more Drafts across repeated full-suite
+    // runs) result finishes rendering - wait for the "読み込み中" spinner
+    // itself to clear. A generous explicit timeout: under a long shard run
+    // the runner itself is under load, and MUI Table rendering 100+ rows can
+    // take several seconds longer than this suite's other (much smaller)
+    // Lists ever need.
+    await expect(page.getByText('読み込み中...')).toHaveCount(0, { timeout: 20000 })
 
     const rowCount = await page.locator('[data-testid="price-change-list-table-container"] table tbody tr').count()
     expect(rowCount).toBe(expected)
