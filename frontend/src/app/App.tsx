@@ -31,6 +31,7 @@ import { ManufacturerChannelPage } from '../features/admin/ManufacturerChannelPa
 import { MailTemplatePage } from '../features/admin/MailTemplatePage'
 import { PortalMailSettingsPage } from '../features/admin/PortalMailSettingsPage'
 import { SupplierRegionClassificationPage } from '../features/admin/SupplierRegionClassificationPage'
+import { OfficialPoShortCodePage } from '../features/admin/OfficialPoShortCodePage'
 import { PriceChangeListPage } from '../features/priceChanges/PriceChangeListPage'
 import { PriceChangeEditPage } from '../features/priceChanges/PriceChangeEditPage'
 import { PriceChangeDetailPage } from '../features/priceChanges/PriceChangeDetailPage'
@@ -67,6 +68,7 @@ export function App() {
     location.pathname === '/admin/supplier-contacts' || location.pathname === '/admin/mail-templates'
     || location.pathname === '/admin/manufacturer-channels' || location.pathname === '/admin/mail-settings'
     || location.pathname === '/admin/supplier-region-classifications'
+    || location.pathname === '/admin/official-po-short-codes'
   const [masterMenuAnchor, setMasterMenuAnchor] = useState<HTMLElement | null>(null)
 
   const roleLabel = user ? t(`drafts:roleLabel.${user.role}`, { defaultValue: user.role }) : ''
@@ -249,6 +251,15 @@ export function App() {
                       >
                         {t('navAdminSupplierRegionClassifications')}
                       </MenuItem>
+                      <MenuItem
+                        component={Link}
+                        to="/admin/official-po-short-codes"
+                        selected={location.pathname === '/admin/official-po-short-codes'}
+                        onClick={() => setMasterMenuAnchor(null)}
+                        data-testid="nav-admin-official-po-short-codes"
+                      >
+                        {t('navAdminOfficialPoShortCodes')}
+                      </MenuItem>
                     </Menu>
                   </>
                 )}
@@ -342,6 +353,7 @@ export function App() {
             <Route path="/admin/mail-templates" element={<MailTemplatePage />} />
             <Route path="/admin/mail-settings" element={<PortalMailSettingsPage />} />
             <Route path="/admin/supplier-region-classifications" element={<SupplierRegionClassificationPage />} />
+            <Route path="/admin/official-po-short-codes" element={<OfficialPoShortCodePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}

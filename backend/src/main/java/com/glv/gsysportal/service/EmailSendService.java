@@ -48,6 +48,7 @@ public class EmailSendService {
     private final ManufacturerChannelResolutionService channelResolutionService;
     private final MailPreviewService mailPreviewService;
     private final OfficialPoExcelGenerationService excelGenerationService;
+    private final OfficialPoPdfGenerationService pdfGenerationService;
     private final EmailSenderPort emailSenderPort;
     private final IdempotencyService idempotencyService;
     private final PortalUserRepository portalUserRepository;
@@ -59,6 +60,7 @@ public class EmailSendService {
                              ManufacturerChannelResolutionService channelResolutionService,
                              MailPreviewService mailPreviewService,
                              OfficialPoExcelGenerationService excelGenerationService,
+                             OfficialPoPdfGenerationService pdfGenerationService,
                              EmailSenderPort emailSenderPort,
                              IdempotencyService idempotencyService,
                              PortalUserRepository portalUserRepository) {
@@ -69,6 +71,7 @@ public class EmailSendService {
         this.channelResolutionService = channelResolutionService;
         this.mailPreviewService = mailPreviewService;
         this.excelGenerationService = excelGenerationService;
+        this.pdfGenerationService = pdfGenerationService;
         this.emailSenderPort = emailSenderPort;
         this.idempotencyService = idempotencyService;
         this.portalUserRepository = portalUserRepository;
@@ -177,7 +180,12 @@ public class EmailSendService {
         OfficialPoIntegrationRequest integrationRequest = integrationRequestRepository
                 .findByPortalOrderIdAndRevisionNo(orderId, revisionNo)
                 .orElseThrow(() -> new EmailAttachmentNotReadyException(orderId));
-        if (integrationRequest.getGeneratedFileKey() == null) {
+        // BR-01 (docs/gulliver-20260917-confirmed-business-rules.md):
+        // Manufacturer Send always attaches BOTH the Official PO Excel and
+        // PDF - Excel is the source Document, PDF is the same content as an
+        // unmodifiable 発注書, so a Send may never go out with only one of
+        // the two ready.
+        if (integrationRequest.getGeneratedFileKey() == null || integrationRequest.getPdfFileKey() == null) {
             throw new EmailAttachmentNotReadyException(orderId);
         }
 
@@ -220,12 +228,13 @@ public class EmailSendService {
             auditEventRepository.save(overrideEvent);
         }
 
-        byte[] attachmentBytes = excelGenerationService.load(integrationRequest.getGeneratedFileKey());
-        String attachmentFileName = (integrationRequest.getOfficialPoNo() == null
-                ? "official-po" : integrationRequest.getOfficialPoNo()) + ".xlsx";
+        String poNo = integrationRequest.getOfficialPoNo() == null ? "official-po" : integrationRequest.getOfficialPoNo();
+        byte[] excelBytes = excelGenerationService.load(integrationRequest.getGeneratedFileKey());
+        byte[] pdfBytes = pdfGenerationService.load(integrationRequest.getPdfFileKey());
         EmailEnvelope envelope = new EmailEnvelope(
                 preview.from(), actualTo, actualCc, preview.subject(), preview.body(),
-                attachmentFileName, attachmentBytes);
+                List.of(new EmailEnvelope.Attachment(poNo + ".xlsx", excelBytes),
+                        new EmailEnvelope.Attachment(poNo + ".pdf", pdfBytes)));
 
         try {
             emailSenderPort.send(envelope);

@@ -28,6 +28,7 @@ import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { Toast } from '../../shared/components/Toast'
 import { resolveBackTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { useAuth } from '../auth/AuthContext'
+import { useFeatureFlags } from '../../shared/api/featureFlags'
 import { ROLE_ADMIN } from '../../shared/types/auth'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
 
@@ -81,6 +82,12 @@ export function PoPreviewPage() {
   const returnMutation = useReturnToDraft(draftId)
   const demoSendMutation = useDemoSend(draftId)
   const ediSendMutation = useEdiSend(draftId)
+  // BR-06 (docs/gulliver-20260917-confirmed-business-rules.md): Demo Send is
+  // a Local/Demo/Test-only Test Helper Flow - defaults to visible (true)
+  // while the flag is still loading, matching this environment's own
+  // default (app.demo-features.enabled=true for local/demo/test).
+  const { data: featureFlags } = useFeatureFlags()
+  const demoSendEnabled = featureFlags?.demoSendEnabled ?? true
   const [demoSendDialogOpen, setDemoSendDialogOpen] = useState(false)
   const [ediSendDialogOpen, setEdiSendDialogOpen] = useState(false)
 
@@ -329,7 +336,7 @@ export function PoPreviewPage() {
             preserves the pre-Phase-9-D fallback (edi-workflow-foundation.spec.ts
             Scenario G/H's own explicit "both visible" assumption for an
             unconfigured Supplier) rather than guessing which one applies. */}
-        {preview.status === 'APPROVED' && preview.resolvedManufacturerChannel !== 'EDI' && (
+        {preview.status === 'APPROVED' && preview.resolvedManufacturerChannel !== 'EDI' && demoSendEnabled && (
           <Button
             variant="contained"
             color="primary"

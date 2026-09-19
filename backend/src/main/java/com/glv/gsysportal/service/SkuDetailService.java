@@ -24,11 +24,14 @@ public class SkuDetailService {
 
     private final LegacyStockReadRepository legacyStockReadRepository;
     private final LegacyPriceReadRepository legacyPriceReadRepository;
+    private final RecommendedQtyCalculator recommendedQtyCalculator;
 
     public SkuDetailService(LegacyStockReadRepository legacyStockReadRepository,
-                             LegacyPriceReadRepository legacyPriceReadRepository) {
+                             LegacyPriceReadRepository legacyPriceReadRepository,
+                             RecommendedQtyCalculator recommendedQtyCalculator) {
         this.legacyStockReadRepository = legacyStockReadRepository;
         this.legacyPriceReadRepository = legacyPriceReadRepository;
+        this.recommendedQtyCalculator = recommendedQtyCalculator;
     }
 
     public SkuDetailResponse getDetail(String sku) {
@@ -37,7 +40,7 @@ public class SkuDetailService {
             throw new SkuNotFoundException(Set.of(sku));
         }
         LegacyStockRow row = rows.get(0);
-        Integer calc4 = RecommendedQtyCalculator.calc4(row);
+        Integer calc4 = recommendedQtyCalculator.calc4(row);
 
         List<SkuPoHistoryLine> history = legacyStockReadRepository.findPoHistoryBySku(sku).stream()
                 .map(SkuDetailService::toHistoryLine)

@@ -1,0 +1,10 @@
+# BR-06 (docs/gulliver-20260917-confirmed-business-rules.md): Production
+# profile override for Demo Send visibility. This file is never actually
+# loaded in this environment - com.glv.gsysportal.safety.SafetyGuardEnvironmentPostProcessor
+# refuses to start SpringApplication.run() under any profile but
+# local/demo/test (see that class's own Javadoc) - it exists purely so a
+# real Production deploy hides Demo Send with zero code changes, via
+# Spring Boot's own standard application-{profile}.yml convention.
+app:
+  demo-features:
+    enabled: false

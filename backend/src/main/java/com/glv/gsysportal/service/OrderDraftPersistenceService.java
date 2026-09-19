@@ -39,13 +39,16 @@ public class OrderDraftPersistenceService {
     private final PortalOrderRepository portalOrderRepository;
     private final AuditEventRepository auditEventRepository;
     private final DraftNoGenerator draftNoGenerator;
+    private final RecommendedQtyCalculator recommendedQtyCalculator;
 
     public OrderDraftPersistenceService(PortalOrderRepository portalOrderRepository,
                                          AuditEventRepository auditEventRepository,
-                                         DraftNoGenerator draftNoGenerator) {
+                                         DraftNoGenerator draftNoGenerator,
+                                         RecommendedQtyCalculator recommendedQtyCalculator) {
         this.portalOrderRepository = portalOrderRepository;
         this.auditEventRepository = auditEventRepository;
         this.draftNoGenerator = draftNoGenerator;
+        this.recommendedQtyCalculator = recommendedQtyCalculator;
     }
 
     @Transactional(transactionManager = "prototypeTransactionManager")
@@ -76,7 +79,7 @@ public class OrderDraftPersistenceService {
         int totalQty = 0;
         BigDecimal totalAmount = BigDecimal.ZERO;
         for (LegacyStockRow row : legacyRows) {
-            Integer recommendedQty = RecommendedQtyCalculator.calc4(row);
+            Integer recommendedQty = recommendedQtyCalculator.calc4(row);
             int recommendedQtyValue = recommendedQty == null ? 0 : recommendedQty;
 
             PortalOrderDetail detail = new PortalOrderDetail();

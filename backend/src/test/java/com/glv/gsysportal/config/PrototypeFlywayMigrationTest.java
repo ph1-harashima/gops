@@ -93,7 +93,17 @@ class PrototypeFlywayMigrationTest {
         // derived from Legacy (no such field exists there, re-confirmed
         // READ ONLY this Phase) and never consulted by recommendedQty's
         // calculation - display only.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28"), versions);
+        // V29 (BR-08): official_po_short_code (new, Portal-only, ADMIN-set
+        // Supplier/Brand 3-char abbreviation Master) + official_po_sequence
+        // (new, per-Supplier x Brand atomic counter) - Official PO No.
+        // auto-numbering foundation.
+        // V30 (BR-08): Demo/Test fixture seed for official_po_short_code
+        // (SUP_ALPHA/BETA/GAMMA, BR_OUTDOOR/HOME/KITCHEN) - data-only.
+        // V31 (BR-03): Cancel Approval Workflow -
+        // official_po_integration_request.cancel_requested_by/
+        // cancel_requested_at/cancel_reason + ck_audit_event_type extended
+        // with OFFICIAL_PO_CANCEL_REQUESTED/OFFICIAL_PO_CANCEL_NOTIFIED.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31"), versions);
     }
 
     @Test
@@ -105,7 +115,7 @@ class PrototypeFlywayMigrationTest {
                 "supplier_response", "supplier_response_detail", "order_attention",
                 "portal_order_revision", "portal_order_revision_detail", "follow_up_case", "legacy_po_baseline",
                 "price_change_set", "price_change_set_detail", "idempotent_operation",
-                "manufacturer_channel", "order_email")) {
+                "manufacturer_channel", "order_email", "official_po_short_code", "official_po_sequence")) {
             assertTrue(tables.contains(expected), "Expected table missing: " + expected + ", got: " + tables);
         }
     }

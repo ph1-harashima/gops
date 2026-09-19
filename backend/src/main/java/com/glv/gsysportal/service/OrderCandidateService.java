@@ -28,18 +28,21 @@ public class OrderCandidateService {
     public static final String DATA_SOURCE_CODE = "DEMO_LEGACY";
 
     private final LegacyStockReadRepository legacyStockReadRepository;
+    private final RecommendedQtyCalculator recommendedQtyCalculator;
 
-    public OrderCandidateService(LegacyStockReadRepository legacyStockReadRepository) {
+    public OrderCandidateService(LegacyStockReadRepository legacyStockReadRepository,
+                                  RecommendedQtyCalculator recommendedQtyCalculator) {
         this.legacyStockReadRepository = legacyStockReadRepository;
+        this.recommendedQtyCalculator = recommendedQtyCalculator;
     }
 
     public List<OrderCandidateResponse> findOrderCandidates(String brandCode, String supplierCode, String keyword) {
         List<LegacyStockRow> rows = legacyStockReadRepository.findOrderCandidates(brandCode, supplierCode, keyword);
-        return rows.stream().map(OrderCandidateService::toResponse).toList();
+        return rows.stream().map(this::toResponse).toList();
     }
 
-    static OrderCandidateResponse toResponse(LegacyStockRow row) {
-        Integer calc4 = RecommendedQtyCalculator.calc4(row);
+    OrderCandidateResponse toResponse(LegacyStockRow row) {
+        Integer calc4 = recommendedQtyCalculator.calc4(row);
         return new OrderCandidateResponse(
                 row.itemCd(),
                 row.itemName(),
@@ -57,7 +60,8 @@ public class OrderCandidateService {
                 row.itemStatus(),
                 row.unitPrice(),
                 row.currency(),
-                DATA_SOURCE_CODE
+                DATA_SOURCE_CODE,
+                recommendedQtyCalculator.resolveRegion(row)
         );
     }
 

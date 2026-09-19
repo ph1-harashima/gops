@@ -62,15 +62,19 @@ class EmailSendServiceIntegrationTest {
     @Autowired
     private AuditEventRepository auditEventRepository;
 
-    private PortalOrder readyOrderWithExcelGenerated(String poNo) {
+    private PortalOrder readyOrderWithExcelGenerated() {
         OrderDraftResponse draft = orderDraftService.createDraft(
                 new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), OPERATOR);
         statusTransitionService.submitForApproval(draft.id(), OPERATOR, false);
         PortalOrder order = statusTransitionService.approve(draft.id(), ADMIN);
+        // BR-08: Official PO No. is auto-numbered by requestIntegration itself now -
+        // no manual value to pass in here anymore.
         integrationService.requestIntegration(order.getId(), ADMIN);
         integrationService.confirmOfficialPoNumber(order.getId(),
-                new ConfirmOfficialPoNumberRequest(poNo, "WK36", "2026-09-05", null, null, null), ADMIN);
+                new ConfirmOfficialPoNumberRequest("WK36", "2026-09-05", null, null, null), ADMIN);
         integrationService.generateExcel(order.getId(), ADMIN);
+        // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
+        integrationService.generatePdf(order.getId(), ADMIN);
         return order;
     }
 
@@ -85,7 +89,7 @@ class EmailSendServiceIntegrationTest {
 
     @Test
     void sendRequiresEmailChannel() {
-        PortalOrder order = readyOrderWithExcelGenerated("EMAIL-TEST-1");
+        PortalOrder order = readyOrderWithExcelGenerated();
         channelService.create(new ManufacturerChannelRequest("SUP_ALPHA", "BR_OUTDOOR", ManufacturerChannel.CHANNEL_EDI, true), ADMIN);
 
         assertThrows(EmailChannelNotApplicableException.class, () -> emailSendService.send(order.getId(), ADMIN));
@@ -93,7 +97,7 @@ class EmailSendServiceIntegrationTest {
 
     @Test
     void sendRequiresUnblockedPreview() {
-        PortalOrder order = readyOrderWithExcelGenerated("EMAIL-TEST-2");
+        PortalOrder order = readyOrderWithExcelGenerated();
         channelService.create(new ManufacturerChannelRequest("SUP_ALPHA", "BR_OUTDOOR", ManufacturerChannel.CHANNEL_EMAIL, true), ADMIN);
         // No SupplierContact/MailTemplate configured - Preview stays BLOCKED.
 
@@ -108,7 +112,7 @@ class EmailSendServiceIntegrationTest {
         PortalOrder order = statusTransitionService.approve(draft.id(), ADMIN);
         integrationService.requestIntegration(order.getId(), ADMIN);
         integrationService.confirmOfficialPoNumber(order.getId(),
-                new ConfirmOfficialPoNumberRequest("EMAIL-TEST-3", "WK36", "2026-09-05", null, null, null), ADMIN);
+                new ConfirmOfficialPoNumberRequest("WK36", "2026-09-05", null, null, null), ADMIN);
         // Excel never generated.
         configureEmailChannelContactAndTemplate();
 
@@ -117,14 +121,16 @@ class EmailSendServiceIntegrationTest {
 
     @Test
     void sendSucceedsAndRecordsAudit() {
-        PortalOrder order = readyOrderWithExcelGenerated("EMAIL-TEST-4");
+        PortalOrder order = readyOrderWithExcelGenerated();
         configureEmailChannelContactAndTemplate();
 
         OrderEmailResponse response = emailSendService.send(order.getId(), ADMIN);
 
         assertEquals("SENT", response.status());
         assertEquals(List.of("taro@example.com"), response.to());
-        assertEquals("PO EMAIL-TEST-4", response.subject());
+        // BR-08: Official PO No. is now auto-numbered - assert against
+        // whatever value was actually assigned, not a hardcoded string.
+        assertEquals("PO " + order.getOfficialPoNo(), response.subject());
         // Display Name統一 (audit finding: "送信済みです (admin01 - ...)" showed
         // the raw Login ID) - same idiom as AuditEventView.performedByDisplayName.
         assertEquals(ADMIN, response.sentBy());
@@ -136,7 +142,7 @@ class EmailSendServiceIntegrationTest {
 
     @Test
     void doubleSendIsIdempotent_noDoubleAudit() {
-        PortalOrder order = readyOrderWithExcelGenerated("EMAIL-TEST-5");
+        PortalOrder order = readyOrderWithExcelGenerated();
         configureEmailChannelContactAndTemplate();
 
         emailSendService.send(order.getId(), ADMIN);
@@ -150,7 +156,7 @@ class EmailSendServiceIntegrationTest {
 
     @Test
     void getStatusBeforeAnySendReturnsNotSent() {
-        PortalOrder order = readyOrderWithExcelGenerated("EMAIL-TEST-6");
+        PortalOrder order = readyOrderWithExcelGenerated();
 
         OrderEmailResponse status = emailSendService.getStatus(order.getId());
 
@@ -162,7 +168,7 @@ class EmailSendServiceIntegrationTest {
 
     @Test
     void sendWithoutOverride_masterAndActualAddressesAreIdentical_overrideFlagFalse() {
-        PortalOrder order = readyOrderWithExcelGenerated("EMAIL-OVERRIDE-1");
+        PortalOrder order = readyOrderWithExcelGenerated();
         configureEmailChannelContactAndTemplate();
 
         OrderEmailResponse response = emailSendService.send(order.getId(), ADMIN, null, null);
@@ -176,7 +182,7 @@ class EmailSendServiceIntegrationTest {
 
     @Test
     void sendWithToOverride_actualSentDiffersFromMaster_masterStillRecorded() {
-        PortalOrder order = readyOrderWithExcelGenerated("EMAIL-OVERRIDE-2");
+        PortalOrder order = readyOrderWithExcelGenerated();
         configureEmailChannelContactAndTemplate();
 
         OrderEmailResponse response = emailSendService.send(order.getId(), ADMIN,
@@ -196,7 +202,7 @@ class EmailSendServiceIntegrationTest {
 
     @Test
     void overrideNeverWritesToTheSupplierContactMaster() {
-        PortalOrder order = readyOrderWithExcelGenerated("EMAIL-OVERRIDE-3");
+        PortalOrder order = readyOrderWithExcelGenerated();
         configureEmailChannelContactAndTemplate();
 
         emailSendService.send(order.getId(), ADMIN, List.of("override-only-this-send@example.com"), null);

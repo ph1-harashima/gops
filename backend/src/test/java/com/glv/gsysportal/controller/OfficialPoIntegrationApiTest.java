@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -115,31 +116,39 @@ class OfficialPoIntegrationApiTest {
 
     @Test
     @WithUserDetails("purchase01")
-    void fullRequestFlowShowsPendingStatusAndUnassignedPoNo() throws Exception {
+    void fullRequestFlowShowsPendingStatusAndAutoAssignedPoNo() throws Exception {
         Long id = createApprovedOrder("OD-TENT-001");
 
         mockMvc.perform(get("/api/orders/" + id + "/official-po"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("NOT_REQUESTED"));
 
+        // BR-08 (docs/gulliver-20260917-confirmed-business-rules.md): the
+        // Official PO No. is auto-numbered as soon as G-SYS連携準備 runs -
+        // no separate "未設定" state exists anymore for a brand-new Order.
         mockMvc.perform(post("/api/orders/" + id + "/official-po/request").with(asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.officialPoNo").doesNotExist())
+                .andExpect(jsonPath("$.officialPoNo").value(matchesPattern("^[A-Z]{3}[A-Z]{3}\\d{3}$")))
                 .andExpect(jsonPath("$.revisionNo").value(1))
                 .andExpect(jsonPath("$.preflight.result").value("PASS"));
 
         mockMvc.perform(get("/api/orders/" + id + "/official-po"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.officialPoNo").doesNotExist());
+                .andExpect(jsonPath("$.officialPoNo").value(matchesPattern("^[A-Z]{3}[A-Z]{3}\\d{3}$")));
 
         // Scenario B: double Request does not create a second row - same
-        // Revision, same shape, still 200 (not a Conflict).
+        // Revision, same shape, still 200 (not a Conflict), and the Official
+        // PO No. must not be re-numbered on the repeat call.
+        String firstPoNo = objectMapper.readTree(mockMvc.perform(get("/api/orders/" + id + "/official-po"))
+                        .andReturn().getResponse().getContentAsString())
+                .get("officialPoNo").asText();
         mockMvc.perform(post("/api/orders/" + id + "/official-po/request").with(asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.revisionNo").value(1));
+                .andExpect(jsonPath("$.revisionNo").value(1))
+                .andExpect(jsonPath("$.officialPoNo").value(firstPoNo));
     }
 
     @Test

@@ -199,13 +199,20 @@ class LegacyPoConcurrencyServiceIntegrationTest {
         // against an actual Revision 2, not a simulated one.
         PortalOrder order = createApprovedOrder("OD-TENT-001");
         integrationService.requestIntegration(order.getId(), ADMIN); // targets Revision 1
+        // BR-08: the Integration Request's own Official PO No. is now
+        // auto-numbered by requestIntegration itself - this test still needs
+        // portal_order.official_po_no linked to the Legacy Concurrency
+        // fixture row specifically, via the same test-only helper the other
+        // Scenarios in this file already use (the two are independent
+        // concepts, confirmed in the Revision Consistency Audit).
+        linkToOfficialPo(order, "PO-CONC-01");
         // isReissueRequired (and therefore reissue() below) requires the
         // current Document to have actually been issued (GENERATED or
-        // later) - confirm the PO No. and generate the Excel so Revision 1
-        // reaches that state, matching OfficialPoReissueIntegrationTest's
+        // later) - confirm the delivery details and generate the Excel so
+        // Revision 1 reaches that state, matching OfficialPoReissueIntegrationTest's
         // own fullReissueCycle_... precondition.
         integrationService.confirmOfficialPoNumber(order.getId(),
-                new ConfirmOfficialPoNumberRequest("PO-CONC-01", "WK36", "2026-09-05", null, null, null), ADMIN);
+                new ConfirmOfficialPoNumberRequest("WK36", "2026-09-05", null, null, null), ADMIN);
         integrationService.generateExcel(order.getId(), ADMIN);
         concurrencyService.captureBaseline(order.getId(), ADMIN); // Revision 1 Baseline
 

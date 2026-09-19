@@ -87,17 +87,19 @@ test.describe('Phase 9-E: Real Email Send', () => {
     await page.getByTestId('official-po-request-button').click()
     await page.getByTestId('official-po-request-dialog-confirm').click()
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
-    await expect(page.getByTestId('next-action-hint')).toContainText('正式PO番号を確定')
-
-    await page.getByTestId('official-po-number-input').locator('input').fill(`E2E-EMAIL-${draftId}`)
-    await page.getByTestId('official-po-number-confirm-button').click()
-    await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
-    await expect(page.getByTestId('at-a-glance-official-po-no')).toHaveText(`E2E-EMAIL-${draftId}`)
+    // BR-08 (docs/gulliver-20260917-confirmed-business-rules.md): the
+    // Official PO No. is auto-numbered immediately - no manual input/confirm
+    // step exists anymore.
+    const poNo = await page.getByTestId('at-a-glance-official-po-no').innerText()
+    expect(poNo).toMatch(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     await expect(page.getByTestId('next-action-hint')).toContainText('Excelを生成')
 
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
-    // Email Send only ever requires the Excel (never a completed Import
+    // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
+    await page.getByTestId('official-po-pdf-generate-button').click()
+    await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
+    // Email Send only ever requires the Excel/PDF (never a completed Import
     // Folder Handoff) and is prioritized ahead of that step in the hint.
     await expect(page.getByTestId('next-action-hint')).toContainText('メーカーへメールを送信')
 
@@ -108,6 +110,8 @@ test.describe('Phase 9-E: Real Email Send', () => {
 
     await expect(page.getByTestId('email-send-section')).toBeVisible()
     await page.getByTestId('email-send-button').click()
+    // BR-04: Send now requires final confirmation via a Dialog.
+    await page.getByTestId('email-send-confirm-dialog-confirm').click()
     await expect(page.getByText('メールを送信しました。')).toBeVisible()
     await expect(page.getByTestId('email-sent-note')).toBeVisible()
 
@@ -158,10 +162,12 @@ test.describe('Phase 9-E: Real Email Send', () => {
     await page.getByTestId('approve-dialog-confirm').click()
     await page.getByTestId('official-po-request-button').click()
     await page.getByTestId('official-po-request-dialog-confirm').click()
-    await page.getByTestId('official-po-number-input').locator('input').fill(`E2E-OVERRIDE-${draftId}`)
-    await page.getByTestId('official-po-number-confirm-button').click()
+    // BR-08: Official PO No. is auto-numbered immediately - no manual input.
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+    // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
+    await page.getByTestId('official-po-pdf-generate-button').click()
+    await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
 
     await page.getByTestId('mail-preview-button').click()
     await expect(page.getByTestId('mail-preview-result')).toBeVisible()
@@ -178,6 +184,11 @@ test.describe('Phase 9-E: Real Email Send', () => {
     await expect(page.getByText('自動選択された宛先です。')).toHaveCount(0)
     await expect(page.getByText('今回の送信のみ、この宛先に変更されています。')).toBeVisible()
     await page.getByTestId('email-send-button').click()
+    // BR-04 (docs/gulliver-20260917-confirmed-business-rules.md) Case A: the
+    // Override here is still the SAME Domain as the Master Contact
+    // (example.com) - no Warning.
+    await expect(page.getByTestId('email-domain-mismatch-warning')).toHaveCount(0)
+    await page.getByTestId('email-send-confirm-dialog-confirm').click()
     await expect(page.getByText('メールを送信しました。')).toBeVisible()
 
     // The Send actually used the Override, and the record makes clear it
@@ -189,6 +200,75 @@ test.describe('Phase 9-E: Real Email Send', () => {
     await page.goto('/admin/supplier-contacts')
     await expect(page.getByTestId('supplier-contact-table-container')).toContainText('taro@example.com')
     await expect(page.getByTestId('supplier-contact-table-container')).not.toContainText(overrideAddress)
+  })
+
+  /**
+   * BR-04 Cases B/C/D/E: a To or CC Override resolving to a Domain the
+   * Master Contact never registered shows a Warning (never a block) at the
+   * final send-time confirmation; confirming it still sends normally, and
+   * the Master Contact itself remains untouched either way. Reuses the
+   * SUP_ALPHA/BR_OUTDOOR EMAIL Channel/Contact/Template the first test in
+   * this file already registered.
+   */
+  test('ADMIN overrides To/CC with a different Domain - Warning shown but never blocks Send', async ({ page }) => {
+    await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
+    await page.getByTestId('nav-candidates').click()
+    await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
+    await page.getByTestId(`candidate-checkbox-${SKU}`).locator('input').check()
+    await page.getByTestId('create-draft-button').click()
+    await expect(page).toHaveURL(/\/orders\/drafts\/(\d+)/)
+    const draftId = page.url().match(/\/orders\/drafts\/(\d+)/)?.[1]
+    expect(draftId).toBeTruthy()
+    // The Save button only enables once the field is actually dirty - read
+    // the current (Recommended Qty-seeded) value first and pick something
+    // different from it, rather than a hardcoded value that might
+    // coincidentally already match the default.
+    const qtyInput = page.getByTestId(`order-qty-input-${SKU}`).locator('input')
+    const currentQty = Number(await qtyInput.inputValue())
+    await qtyInput.fill(String(currentQty === 3 ? 5 : 3))
+    await page.getByTestId('save-draft-button').click()
+    await expect(page.getByText('保存しました。')).toBeVisible()
+    await page.getByTestId('submit-for-approval-button').click()
+    await page.getByTestId('submit-for-approval-dialog-confirm').click()
+    await logout(page)
+
+    await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
+    await page.goto(`/orders/${draftId}`)
+    await page.getByTestId('order-detail-approve-button').click()
+    await page.getByTestId('approve-dialog-confirm').click()
+    await page.getByTestId('official-po-request-button').click()
+    await page.getByTestId('official-po-request-dialog-confirm').click()
+    await page.getByTestId('official-po-generate-button').click()
+    await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+    await page.getByTestId('official-po-pdf-generate-button').click()
+    await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
+
+    await page.getByTestId('mail-preview-button').click()
+    await expect(page.getByTestId('mail-preview-result')).toBeVisible()
+
+    // Case B: To overridden to a different Domain than the Master
+    // (example.com) Contact.
+    const differentDomainTo = 'buyer@maker-different-domain.example'
+    await page.getByTestId('mail-send-to-input').locator('input').fill(differentDomainTo)
+    // Case C: CC also set to a different Domain.
+    const differentDomainCc = 'cc-different-domain@another-example.example'
+    await page.getByTestId('mail-send-cc-input').locator('input').fill(differentDomainCc)
+
+    await page.getByTestId('email-send-button').click()
+    await expect(page.getByTestId('email-domain-mismatch-warning')).toBeVisible()
+    await expect(page.getByTestId('email-domain-mismatch-warning')).toContainText(differentDomainTo)
+    await expect(page.getByTestId('email-domain-mismatch-warning')).toContainText(differentDomainCc)
+
+    // Case D: the Warning never blocks Send - confirming still sends.
+    await page.getByTestId('email-send-confirm-dialog-confirm').click()
+    await expect(page.getByText('メールを送信しました。')).toBeVisible()
+    await expect(page.getByTestId('email-recipient-override-note')).toBeVisible()
+
+    // Case E: Master Data itself is still completely untouched by the
+    // Override, regardless of the Domain Warning having fired.
+    await page.goto('/admin/supplier-contacts')
+    await expect(page.getByTestId('supplier-contact-table-container')).toContainText('taro@example.com')
+    await expect(page.getByTestId('supplier-contact-table-container')).not.toContainText(differentDomainTo)
   })
 
   test('EDI-channel manufacturer never shows the Email Send section', async ({ page }) => {

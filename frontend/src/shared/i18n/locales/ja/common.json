@@ -18,6 +18,7 @@
   "navAdminManufacturerChannels": "メーカー通信方法",
   "navAdminMailSettings": "メール送信設定（Default CC）",
   "navAdminSupplierRegionClassifications": "国内／海外区分",
+  "navAdminOfficialPoShortCodes": "Official PO略称コード",
   "demoEnvironmentBadge": "デモ環境",
   "searchLabel": "検索（メーカーコード・ブランドコード等）",
   "showInactiveLabel": "無効な項目も表示",

@@ -12,6 +12,7 @@ import com.glv.gsysportal.dto.response.OfficialPoRevisionHistoryEntry;
 import com.glv.gsysportal.dto.response.OrderDraftResponse;
 import com.glv.gsysportal.exception.IntegrationRequestRequiredException;
 import com.glv.gsysportal.exception.OfficialPoReissueNotRequiredException;
+import com.glv.gsysportal.exception.OrderNotApprovedException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,12 +60,14 @@ class OfficialPoReissueIntegrationTest {
         return statusTransitionService.approve(orderId, ADMIN);
     }
 
-    private PortalOrder issueOfficialPo(Long orderId, String poNo) {
+    /** BR-08: the Official PO No. is auto-numbered by requestIntegration
+     * itself now - returns whatever value was actually assigned. */
+    private String issueOfficialPo(Long orderId) {
         integrationService.requestIntegration(orderId, ADMIN);
         integrationService.confirmOfficialPoNumber(orderId,
-                new ConfirmOfficialPoNumberRequest(poNo, "WK36", "2026-09-05", null, null, null), ADMIN);
+                new ConfirmOfficialPoNumberRequest("WK36", "2026-09-05", null, null, null), ADMIN);
         integrationService.generateExcel(orderId, ADMIN);
-        return null;
+        return integrationService.getIntegration(orderId).officialPoNo();
     }
 
     @Test
@@ -90,7 +93,7 @@ class OfficialPoReissueIntegrationTest {
     void reissueThrowsWhenIssuedButNoCorrectionHappenedSince() {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), OPERATOR);
         PortalOrder order = approveViaWorkflow(draft.id());
-        issueOfficialPo(order.getId(), "PO-REISSUE-A-" + draft.id());
+        issueOfficialPo(order.getId());
 
         // Excel was generated (issued), but no ORDER_REVISION_CREATED
         // correction event exists yet - reissue must refuse.
@@ -98,12 +101,55 @@ class OfficialPoReissueIntegrationTest {
                 () -> integrationService.reissue(order.getId(), ADMIN));
     }
 
+    /** BR-02 (docs/gulliver-20260917-confirmed-business-rules.md): "変更 →
+     * 再承認 → Reissue → 再送" is the required order - a correction alone
+     * (Order still DRAFT/PENDING_APPROVAL, not yet re-approved) must never
+     * let Reissue create Revision 2. This is enforced structurally: the only
+     * way to change Ordered Qty after issuance is
+     * {@code OrderRevisionService.createCorrection} (SUPPLIER_CONFIRMED ->
+     * DRAFT), and {@code reissue()} itself requires {@code order.status ==
+     * APPROVED} - the sole path back to APPROVED is submitForApproval ->
+     * ADMIN approve, so re-approval can never be skipped. */
+    @Test
+    void reissueIsRefusedBeforeReapproval_evenAfterAGenuineCorrection() {
+        OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), OPERATOR);
+        PortalOrder order = approveViaWorkflow(draft.id());
+        issueOfficialPo(order.getId());
+
+        PortalOrder sent = statusTransitionService.demoSend(order.getId(), ADMIN);
+        Long detailId = supplierResponseService.getSupplierResponse(sent.getId()).details().get(0).detailId();
+        supplierResponseService.saveSupplierResponse(sent.getId(),
+                new SaveSupplierResponseRequest(null, null, List.of(new SaveSupplierResponseRequest.LineUpdate(detailId, 2, null, null, null))),
+                ADMIN);
+        supplierResponseService.confirmSupplierResponse(sent.getId(), ADMIN);
+        orderRevisionService.createCorrection(sent.getId(),
+                new CreateRevisionRequest("Supplier can only supply 2", true), ADMIN);
+        // Order is now back in DRAFT - the correction happened, but there
+        // has been NO re-approval yet.
+
+        assertThrows(OrderNotApprovedException.class,
+                () -> integrationService.reissue(sent.getId(), ADMIN),
+                "Reissue must be refused until the corrected Order is re-approved (submit-for-approval + ADMIN approve)");
+
+        // Submitting for approval alone (PENDING_APPROVAL, still not
+        // APPROVED) must also not be enough.
+        statusTransitionService.submitForApproval(sent.getId(), OPERATOR, false);
+        assertThrows(OrderNotApprovedException.class,
+                () -> integrationService.reissue(sent.getId(), ADMIN),
+                "Reissue must be refused while only PENDING_APPROVAL - ADMIN approval itself must have happened");
+
+        // Only after the ADMIN's explicit approval does Reissue become
+        // possible at all.
+        PortalOrder reapproved = statusTransitionService.approve(sent.getId(), ADMIN);
+        OfficialPoIntegrationResponse reissued = integrationService.reissue(reapproved.getId(), ADMIN);
+        assertEquals(2, reissued.revisionNo());
+    }
+
     @Test
     void fullReissueCycle_oldSupersededNewActiveRevisionHistoryComplete() {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), OPERATOR);
         PortalOrder order = approveViaWorkflow(draft.id());
-        String poNo = "PO-REISSUE-B-" + draft.id();
-        issueOfficialPo(order.getId(), poNo);
+        String poNo = issueOfficialPo(order.getId());
         integrationService.placeToImportFolder(order.getId(), ADMIN); // reach SUBMITTED
 
         OfficialPoIntegrationResponse beforeCorrection = integrationService.getIntegration(order.getId());
@@ -132,6 +178,9 @@ class OfficialPoReissueIntegrationTest {
         assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_ACTIVE, reissued.lifecycleStatus());
         assertEquals("PENDING", reissued.status());
         assertFalse(reissued.reissueRequired(), "the new ACTIVE Document has not been issued yet");
+        // BR-08 Scenario 7: Reissue advances the Revision, never the
+        // Official PO No. itself - ABCXYZ001/Revision 002, never ABCXYZ002.
+        assertEquals(poNo, reissued.officialPoNo(), "Reissue must carry the SAME Official PO No. forward, never re-number it");
 
         List<OfficialPoRevisionHistoryEntry> history = integrationService.getRevisionHistory(reapproved.getId());
         assertEquals(2, history.size());
@@ -140,6 +189,7 @@ class OfficialPoReissueIntegrationTest {
         assertEquals(poNo, history.get(0).officialPoNo(), "old Revision's PO No. is preserved, never deleted");
         assertEquals(2, history.get(1).revisionNo());
         assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_ACTIVE, history.get(1).lifecycleStatus());
+        assertEquals(poNo, history.get(1).officialPoNo(), "BR-08: the new Revision's own Official PO No. must be identical to Revision 1's");
 
         assertTrue(auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(reapproved.getId()).stream()
                 .anyMatch(e -> AuditEvent.OFFICIAL_PO_REISSUED.equals(e.getEventType())));

@@ -84,13 +84,17 @@ class OfficialPoIntegrationServiceIntegrationTest {
     }
 
     @Test
-    void requestOnApprovedOrderCreatesPendingRequestWithNullOfficialPoNo() {
+    void requestOnApprovedOrderCreatesPendingRequestWithAutoAssignedOfficialPoNo() {
         PortalOrder order = createApprovedOrder();
 
         OfficialPoIntegrationResponse response = integrationService.requestIntegration(order.getId(), ADMIN);
 
         assertEquals("PENDING", response.status());
-        assertNull(response.officialPoNo(), "7-C2A 7章's Gate: no auto-numbering this Phase");
+        // BR-08 (docs/gulliver-20260917-confirmed-business-rules.md):
+        // superseded 7-C2A 7章's original "no auto-numbering this Phase" Gate -
+        // the Official PO No. is now auto-numbered immediately.
+        assertNotNull(response.officialPoNo());
+        assertTrue(response.officialPoNo().matches("^[A-Z]{3}[A-Z]{3}\\d{3}$"));
         assertEquals(1, response.revisionNo());
         assertEquals(ADMIN, response.requestedBy());
         assertNotNull(response.preflight());

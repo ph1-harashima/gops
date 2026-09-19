@@ -1,0 +1,39 @@
+{
+  "title": "Official PO Short Code Management",
+  "subtitle": "Registers the 3-character Supplier/Brand abbreviation used for Official PO No. auto-numbering (BR-08). This records the value Gulliver has already decided - G-OPS never generates one itself.",
+  "createButton": "Create New",
+  "editButton": "Edit",
+  "table": {
+    "codeType": "Type",
+    "businessCode": "Code",
+    "shortCode": "Short Code",
+    "active": "Status"
+  },
+  "statusActive": "Active",
+  "statusInactive": "Inactive",
+  "dialogTitleCreate": "Create Short Code",
+  "dialogTitleEdit": "Edit Short Code",
+  "field": {
+    "codeType": "Type",
+    "businessCode": "Code",
+    "businessCodeHelp": "Enter an existing Supplier Code or Brand Code.",
+    "shortCode": "Short Code (3 characters)",
+    "shortCodeHelp": "Enter the 3-character abbreviation Gulliver has decided, exactly as given.",
+    "active": "Active"
+  },
+  "codeType": {
+    "SUPPLIER": "Supplier",
+    "BRAND": "Brand"
+  },
+  "save": "Save",
+  "cancel": "Cancel",
+  "empty": "No Short Codes registered yet.",
+  "error": {
+    "INVALID_OFFICIAL_PO_SHORT_CODE": "Type must be Supplier or Brand, and Short Code must be exactly 3 characters.",
+    "SUPPLIER_CODE_NOT_FOUND": "Code was not found as a Supplier in G-SYS.",
+    "BRAND_CODE_NOT_FOUND": "Code was not found as a Brand in G-SYS.",
+    "DUPLICATE_OFFICIAL_PO_SHORT_CODE": "An active Short Code already exists for this Type/Code.",
+    "FORBIDDEN": "You do not have permission to perform this action.",
+    "GENERIC": "The operation failed."
+  }
+}

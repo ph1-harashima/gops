@@ -427,9 +427,15 @@ export function CandidateListPage() {
                     <TableCell align="right">{row.monthlySales ?? t('candidates:notAvailable')}</TableCell>
                     <TableCell align="right">{row.leadTime ?? t('candidates:notAvailable')}</TableCell>
                     <TableCell align="right">
-                      <Typography component="span" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                        {row.recommendedQty ?? t('candidates:notAvailable')}
-                      </Typography>
+                      {row.recommendedQty == null && row.regionClassification === 'DOMESTIC' ? (
+                        <Typography component="span" variant="caption" color="text.secondary" data-testid={`recommended-qty-domestic-pending-${row.sku}`}>
+                          {t('candidates:recommendedQtyDomesticPending')}
+                        </Typography>
+                      ) : (
+                        <Typography component="span" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                          {row.recommendedQty ?? t('candidates:notAvailable')}
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <ItemStatusChip status={row.itemStatus} />

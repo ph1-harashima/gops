@@ -379,6 +379,28 @@ public class GlobalExceptionHandler {
         return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_NUMBER_REQUIRED");
     }
 
+    // --- BR-08: Official PO Auto-Numbering (docs/gulliver-20260917-confirmed-business-rules.md) ---
+
+    @ExceptionHandler(InvalidOfficialPoShortCodeException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidOfficialPoShortCode(InvalidOfficialPoShortCodeException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.BAD_REQUEST, "INVALID_OFFICIAL_PO_SHORT_CODE");
+    }
+
+    @ExceptionHandler(DuplicateOfficialPoShortCodeException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateOfficialPoShortCode(DuplicateOfficialPoShortCodeException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "DUPLICATE_OFFICIAL_PO_SHORT_CODE");
+    }
+
+    @ExceptionHandler(OfficialPoShortCodeNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoShortCodeNotFound(OfficialPoShortCodeNotFoundException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.NOT_FOUND, "OFFICIAL_PO_SHORT_CODE_NOT_FOUND");
+    }
+
+    @ExceptionHandler(OfficialPoShortCodeNotConfiguredException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoShortCodeNotConfigured(OfficialPoShortCodeNotConfiguredException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_SHORT_CODE_NOT_CONFIGURED");
+    }
+
     @ExceptionHandler(OfficialPoPreflightBlockedException.class)
     public ResponseEntity<Map<String, Object>> handleOfficialPoPreflightBlocked(OfficialPoPreflightBlockedException ex, HttpServletRequest request) {
         return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_PREFLIGHT_BLOCKED");
@@ -413,6 +435,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OfficialPoCancelNotAllowedException.class)
     public ResponseEntity<Map<String, Object>> handleOfficialPoCancelNotAllowed(OfficialPoCancelNotAllowedException ex, HttpServletRequest request) {
         return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_CANCEL_NOT_ALLOWED");
+    }
+
+    @ExceptionHandler(OfficialPoCancelApprovalNotAllowedException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoCancelApprovalNotAllowed(OfficialPoCancelApprovalNotAllowedException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_CANCEL_APPROVAL_NOT_ALLOWED");
     }
 
     // --- Phase 9-B: Import Folder Integration (Production PO Workflow) ---

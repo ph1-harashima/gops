@@ -13,11 +13,10 @@ import com.glv.gsysportal.dto.response.OfficialPoIntegrationResponse;
 import com.glv.gsysportal.dto.response.OfficialPoPreflightIssue;
 import com.glv.gsysportal.dto.response.OfficialPoPreflightResult;
 import com.glv.gsysportal.exception.DraftNotFoundException;
-import com.glv.gsysportal.exception.DuplicateOfficialPoNumberException;
 import com.glv.gsysportal.exception.IntegrationRequestRequiredException;
 import com.glv.gsysportal.exception.InvalidIntegrationIntentException;
-import com.glv.gsysportal.exception.InvalidOfficialPoNumberException;
 import com.glv.gsysportal.exception.OfficialPoAlreadySubmittedException;
+import com.glv.gsysportal.exception.OfficialPoCancelApprovalNotAllowedException;
 import com.glv.gsysportal.exception.OfficialPoCancelNotAllowedException;
 import com.glv.gsysportal.exception.OfficialPoCancelReasonRequiredException;
 import com.glv.gsysportal.exception.OfficialPoExcelNotGeneratedException;
@@ -42,7 +41,6 @@ import com.glv.gsysportal.service.excel.OfficialPoFileNaming;
 import com.glv.gsysportal.service.excel.OfficialPoPdfDownload;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderAdapter;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderWriteException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,12 +61,6 @@ import java.util.Optional;
 @Service
 public class OfficialPoIntegrationService {
 
-    /** Excel-contract "no more than 30 characters" is the ONLY confirmed
-     * length rule (Legacy Const.LEN_TR_PO_PO_NO) - see
-     * {@code InvalidOfficialPoNumberException}'s Javadoc for why nothing
-     * stricter is enforced here. */
-    static final int MAX_OFFICIAL_PO_NO_LENGTH = 30;
-
     /** Phase 9-B: {@link IdempotencyService} operation type for Import
      * Folder placement - Idempotency key is {@code orderId + "-" + officialPoNo
      * + "-" + revisionNo} (unique per actual hand-off attempt target). */
@@ -86,6 +78,8 @@ public class OfficialPoIntegrationService {
     private final ObjectMapper objectMapper;
     private final PortalUserRepository portalUserRepository;
     private final OrderEmailRepository orderEmailRepository;
+    private final OfficialPoNumberGenerator officialPoNumberGenerator;
+    private final OfficialPoCancelNotificationService cancelNotificationService;
 
     public OfficialPoIntegrationService(PortalOrderRepository portalOrderRepository,
                                          OfficialPoIntegrationRequestRepository integrationRequestRepository,
@@ -98,7 +92,9 @@ public class OfficialPoIntegrationService {
                                          LegacyPoConcurrencyReadRepository legacyReadRepository,
                                          ObjectMapper objectMapper,
                                          PortalUserRepository portalUserRepository,
-                                         OrderEmailRepository orderEmailRepository) {
+                                         OrderEmailRepository orderEmailRepository,
+                                         OfficialPoNumberGenerator officialPoNumberGenerator,
+                                         OfficialPoCancelNotificationService cancelNotificationService) {
         this.portalOrderRepository = portalOrderRepository;
         this.integrationRequestRepository = integrationRequestRepository;
         this.auditEventRepository = auditEventRepository;
@@ -111,6 +107,8 @@ public class OfficialPoIntegrationService {
         this.objectMapper = objectMapper;
         this.portalUserRepository = portalUserRepository;
         this.orderEmailRepository = orderEmailRepository;
+        this.officialPoNumberGenerator = officialPoNumberGenerator;
+        this.cancelNotificationService = cancelNotificationService;
     }
 
     /**
@@ -155,6 +153,26 @@ public class OfficialPoIntegrationService {
                     r.setRequestedAt(now);
                     r.setCreatedAt(now);
                     r.setUpdatedAt(now);
+                    // BR-07/BR-08 (docs/gulliver-20260917-confirmed-business-rules.md):
+                    // the Official PO No. is auto-numbered exactly once per
+                    // Order and never re-numbered on Reissue - carry forward
+                    // the prior Revision's own number (if this Order already
+                    // has one) instead of generating a fresh one every time a
+                    // new Revision's Request row is created.
+                    Optional<OfficialPoIntegrationRequest> previous = integrationRequestRepository
+                            .findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId);
+                    if (previous.isPresent()) {
+                        // Carrying forward, not (re)assigning - portal_order.official_po_no
+                        // was already set the first time and is intentionally
+                        // left untouched here (Legacy Concurrency Compare's
+                        // own linkage target, a related but independent
+                        // concept - Acceptance Fix C-5).
+                        r.setOfficialPoNo(previous.get().getOfficialPoNo());
+                    } else {
+                        String officialPoNo = officialPoNumberGenerator.generate(order.getSupplierCode(), order.getBrandCode());
+                        r.setOfficialPoNo(officialPoNo);
+                        order.setOfficialPoNo(officialPoNo);
+                    }
                     return r;
                 });
 
@@ -225,19 +243,17 @@ public class OfficialPoIntegrationService {
     }
 
     /**
-     * Gap Analysis C-4 (docs/gulliver-20260917-phase1-gap-analysis.md 9章):
-     * "Cancel" - ADMIN cancels the current ACTIVE Official PO Document as a
-     * G-OPS-internal Workflow state (Legacy's own正式Cancel Rule is
-     * unconfirmed, so this NEVER writes to Legacy in any way - the Document
-     * simply becomes CANCELLED in Portal). Reason is mandatory (Audit Trail:
-     * 誰が・いつ・何を・なぜ). Only the current ACTIVE Document can be
-     * cancelled - a SUPERSEDED or already-CANCELLED Document is a terminal
-     * historical record (same "never re-transition a terminal state" rule
-     * {@link OfficialPoIntegrationRequest#markCancelled} itself enforces,
-     * translated here into a proper 409 instead of a raw IllegalStateException).
+     * BR-03 (docs/gulliver-20260917-confirmed-business-rules.md) step 1:
+     * "Cancel Request" - reason is mandatory (Audit Trail: 誰が・いつ・
+     * 何を・なぜ). Only the current ACTIVE Document can have a Cancel
+     * requested against it - a SUPERSEDED/CANCEL_REQUESTED/CANCELLED
+     * Document is not a valid target (same "never re-transition a terminal-
+     * or-pending state" rule {@link OfficialPoIntegrationRequest#markCancelRequested}
+     * itself enforces, translated here into a proper 409). This step alone
+     * NEVER reaches CANCELLED - {@link #approveCancel} (ADMIN) is required.
      */
     @Transactional(transactionManager = "prototypeTransactionManager")
-    public OfficialPoIntegrationResponse cancel(Long orderId, String reason, String performedBy) {
+    public OfficialPoIntegrationResponse requestCancel(Long orderId, String reason, String performedBy) {
         if (reason == null || reason.isBlank()) {
             throw new OfficialPoCancelReasonRequiredException();
         }
@@ -249,13 +265,51 @@ public class OfficialPoIntegrationService {
 
         OffsetDateTime now = OffsetDateTime.now();
         String trimmedReason = reason.trim();
-        current.markCancelled(trimmedReason, performedBy, now);
+        current.markCancelRequested(trimmedReason, performedBy, now);
         OfficialPoIntegrationRequest saved = integrationRequestRepository.save(current);
 
-        AuditEvent cancelEvent = new AuditEvent(orderId, null, AuditEvent.OFFICIAL_PO_CANCELLED,
+        AuditEvent requestEvent = new AuditEvent(orderId, null, AuditEvent.OFFICIAL_PO_CANCEL_REQUESTED,
                 null, null, null, performedBy, now);
-        cancelEvent.setNote(trimmedReason);
-        auditEventRepository.save(cancelEvent);
+        requestEvent.setNote(trimmedReason);
+        auditEventRepository.save(requestEvent);
+        return toResponse(saved);
+    }
+
+    /**
+     * BR-03 step 2: ADMIN approves a pending Cancel Request - only THEN does
+     * the Document actually become CANCELLED. Attempts "メーカーへ取消連絡"
+     * (best-effort, Local/Demo/Test Simulation only via the same
+     * {@code EmailSenderPort} every other Manufacturer communication uses -
+     * never Production SMTP) and records the outcome either way; a missing
+     * Manufacturer Contact never blocks the Cancel Approval itself from
+     * completing (BR-03 does not make the notice a hard precondition).
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public OfficialPoIntegrationResponse approveCancel(Long orderId, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        OfficialPoIntegrationRequest current = resolveCurrentRequest(order);
+        if (!OfficialPoIntegrationRequest.LIFECYCLE_CANCEL_REQUESTED.equals(current.getLifecycleStatus())) {
+            throw new OfficialPoCancelApprovalNotAllowedException(orderId, current.getLifecycleStatus());
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        String reason = current.getCancelReason();
+        OfficialPoCancelNotificationService.NotificationResult notification =
+                cancelNotificationService.notify(order, current, reason, performedBy);
+
+        current.markCancelled(performedBy, now);
+        OfficialPoIntegrationRequest saved = integrationRequestRepository.save(current);
+
+        AuditEvent cancelledEvent = new AuditEvent(orderId, null, AuditEvent.OFFICIAL_PO_CANCELLED,
+                null, null, null, performedBy, now);
+        cancelledEvent.setNote(reason);
+        auditEventRepository.save(cancelledEvent);
+
+        AuditEvent notifyEvent = new AuditEvent(orderId, null, AuditEvent.OFFICIAL_PO_CANCEL_NOTIFIED,
+                null, null, notification.sent() ? "SENT" : "SKIPPED", performedBy, now);
+        notifyEvent.setNote(notification.sent() ? "Notified: " + notification.recipient() : notification.note());
+        auditEventRepository.save(notifyEvent);
+
         return toResponse(saved);
     }
 
@@ -395,15 +449,14 @@ public class OfficialPoIntegrationService {
     }
 
     /**
-     * "PO番号入力/確定UI" (Production PO Workflow §A/Phase 9-A). Requires an
-     * existing Integration Request (PO No. belongs to a specific revision's
-     * hand-off attempt, same precondition as {@link #setIntegrationIntent}),
-     * and that it has not yet been SUBMITTED to the Legacy Import Folder
-     * (locked thereafter). Only length is validated - no ID Code/separator
-     * structure (Working Assumption: G-SYS has no confirmed Business Rule
-     * beyond the 30-character maximum, so Portal must not invent one).
-     * {@link AuditEvent#OFFICIAL_PO_NUMBER_CONFIRMED} is written only when
-     * the number itself actually changes.
+     * "配送/決済条件確定UI" (Production PO Workflow §A/Phase 9-A, updated for
+     * BR-08). Requires an existing Integration Request (these fields belong
+     * to a specific revision's hand-off attempt, same precondition as
+     * {@link #setIntegrationIntent}), and that it has not yet been SUBMITTED
+     * to the Legacy Import Folder (locked thereafter). The Official PO No.
+     * itself is never touched here anymore - BR-08 auto-numbers it once, at
+     * Integration Request creation time ({@link #requestIntegration}), and
+     * it must never be re-numbered by a later call.
      */
     @Transactional(transactionManager = "prototypeTransactionManager")
     public OfficialPoIntegrationResponse confirmOfficialPoNumber(Long orderId, ConfirmOfficialPoNumberRequest body, String performedBy) {
@@ -411,34 +464,16 @@ public class OfficialPoIntegrationService {
         OfficialPoIntegrationRequest request = resolveCurrentRequest(order);
         requireEditable(request, orderId);
 
-        String officialPoNo = body.officialPoNo() == null ? null : body.officialPoNo().trim();
-        if (officialPoNo == null || officialPoNo.isEmpty() || officialPoNo.length() > MAX_OFFICIAL_PO_NO_LENGTH) {
-            throw new InvalidOfficialPoNumberException(officialPoNo);
-        }
-
-        String previousPoNo = request.getOfficialPoNo();
         OffsetDateTime now = OffsetDateTime.now();
 
-        request.setOfficialPoNo(officialPoNo);
         request.setDeliveryWeek(body.deliveryWeek());
         request.setDeliveryDate(body.deliveryDate());
         request.setShipVia(body.shipVia());
         request.setShipTerm(body.shipTerm());
         request.setPaymentTerm(body.paymentTerm());
         request.setUpdatedAt(now);
-        order.setOfficialPoNo(officialPoNo);
 
-        OfficialPoIntegrationRequest saved;
-        try {
-            saved = integrationRequestRepository.saveAndFlush(request);
-        } catch (DataIntegrityViolationException e) {
-            throw new DuplicateOfficialPoNumberException(officialPoNo);
-        }
-
-        if (!officialPoNo.equals(previousPoNo)) {
-            auditEventRepository.save(new AuditEvent(orderId, null,
-                    AuditEvent.OFFICIAL_PO_NUMBER_CONFIRMED, "officialPoNo", previousPoNo, officialPoNo, performedBy, now));
-        }
+        OfficialPoIntegrationRequest saved = integrationRequestRepository.save(request);
         return toResponse(saved);
     }
 

@@ -66,8 +66,10 @@ public class SmtpEmailSenderAdapter implements EmailSenderPort {
             }
             helper.setSubject(envelope.subject());
             helper.setText(envelope.body());
-            if (envelope.attachmentBytes() != null && envelope.attachmentFileName() != null) {
-                helper.addAttachment(envelope.attachmentFileName(), new ByteArrayResource(envelope.attachmentBytes()));
+            for (EmailEnvelope.Attachment attachment : envelope.attachments()) {
+                if (attachment.bytes() != null && attachment.fileName() != null) {
+                    helper.addAttachment(attachment.fileName(), new ByteArrayResource(attachment.bytes()));
+                }
             }
             sender.send(message);
         } catch (MessagingException | MailException e) {

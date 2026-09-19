@@ -29,6 +29,7 @@
   "empty": "No order candidates were found.",
   "resultCount": "{{count}} order candidates",
   "notAvailable": "—",
+  "recommendedQtyDomesticPending": "Rule pending",
   "createDraft": "Create Draft from {{count}} selected",
   "createDraftMixedSupplier": "A Draft cannot mix multiple manufacturers. Please select SKUs from a single manufacturer only.",
   "createDraftFailed": "Failed to create the Draft ({{code}})."

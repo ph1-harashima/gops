@@ -61,15 +61,17 @@ class EmailSendStatusConsistencyIntegrationTest {
     @Autowired
     private ManufacturerChannelService channelService;
 
-    private PortalOrder approvedOrderWithExcelGenerated(String poNo) {
+    private PortalOrder approvedOrderWithExcelGenerated() {
         OrderDraftResponse draft = orderDraftService.createDraft(
                 new CreateDraftRequest(List.of(SKU), null, null, null), OPERATOR);
         statusTransitionService.submitForApproval(draft.id(), OPERATOR, false);
         PortalOrder order = statusTransitionService.approve(draft.id(), ADMIN);
         integrationService.requestIntegration(order.getId(), ADMIN);
         integrationService.confirmOfficialPoNumber(order.getId(),
-                new ConfirmOfficialPoNumberRequest(poNo, "WK36", "2026-09-05", null, null, null), ADMIN);
+                new ConfirmOfficialPoNumberRequest("WK36", "2026-09-05", null, null, null), ADMIN);
         integrationService.generateExcel(order.getId(), ADMIN);
+        // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
+        integrationService.generatePdf(order.getId(), ADMIN);
         return order;
     }
 
@@ -84,7 +86,7 @@ class EmailSendStatusConsistencyIntegrationTest {
 
     @Test
     void scenarioA_demoSendThenManufacturerSend_reportsSent() {
-        PortalOrder order = approvedOrderWithExcelGenerated("SEQ-A");
+        PortalOrder order = approvedOrderWithExcelGenerated();
         configureEmailChannelContactAndTemplate();
 
         statusTransitionService.demoSend(order.getId(), ADMIN);
@@ -96,7 +98,7 @@ class EmailSendStatusConsistencyIntegrationTest {
 
     @Test
     void scenarioB_manufacturerSendThenDemoSend_staysSentAfterwards() {
-        PortalOrder order = approvedOrderWithExcelGenerated("SEQ-B");
+        PortalOrder order = approvedOrderWithExcelGenerated();
         configureEmailChannelContactAndTemplate();
 
         OrderEmailResponse sent = emailSendService.send(order.getId(), ADMIN);
@@ -119,7 +121,7 @@ class EmailSendStatusConsistencyIntegrationTest {
 
     @Test
     void scenarioC_manufacturerSendOnly_reportsSent() {
-        PortalOrder order = approvedOrderWithExcelGenerated("SEQ-C");
+        PortalOrder order = approvedOrderWithExcelGenerated();
         configureEmailChannelContactAndTemplate();
 
         emailSendService.send(order.getId(), ADMIN);
@@ -129,7 +131,7 @@ class EmailSendStatusConsistencyIntegrationTest {
 
     @Test
     void scenarioD_demoSendOnly_reportsNotSent() {
-        PortalOrder order = approvedOrderWithExcelGenerated("SEQ-D");
+        PortalOrder order = approvedOrderWithExcelGenerated();
         configureEmailChannelContactAndTemplate();
 
         statusTransitionService.demoSend(order.getId(), ADMIN);

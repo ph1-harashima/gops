@@ -29,6 +29,7 @@
   "empty": "発注候補が見つかりませんでした。",
   "resultCount": "{{count}}件の発注候補",
   "notAvailable": "—",
+  "recommendedQtyDomesticPending": "設定準備中",
   "createDraft": "選択した{{count}}件でドラフト作成",
   "createDraftMixedSupplier": "複数のメーカーが混在しているため、ドラフトを作成できません。同一メーカーのSKUのみ選択してください。",
   "createDraftFailed": "ドラフトの作成に失敗しました（{{code}}）。"

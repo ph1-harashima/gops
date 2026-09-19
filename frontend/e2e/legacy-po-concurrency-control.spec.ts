@@ -192,9 +192,8 @@ test.describe('Phase 7-C6: Excel / Legacy Concurrency Control Foundation', () =>
 
     // Revision 1 must actually be issued (GENERATED) before it can later be
     // Reissued - same precondition Scenario K in official-po-integration.spec.ts
-    // relies on.
-    await page.getByTestId('official-po-number-input').locator('input').fill(`E2E-CONC-${orderId}`)
-    await page.getByTestId('official-po-number-confirm-button').click()
+    // relies on. BR-08: Official PO No. is auto-numbered by prepareIntegration
+    // itself now - no manual input.
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
 

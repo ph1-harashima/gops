@@ -149,7 +149,7 @@ class MailPreviewServiceIntegrationTest {
         assertEquals(ADMIN, integration.requestedBy());
         assertTrue(integration.requestedByDisplayName() != null && !integration.requestedByDisplayName().equals(ADMIN));
         officialPoIntegrationService.confirmOfficialPoNumber(order.getId(),
-                new ConfirmOfficialPoNumberRequest("TSUP-TBR-02", null, null, null, null, null), ADMIN);
+                new ConfirmOfficialPoNumberRequest(null, null, null, null, null), ADMIN);
 
         MailPreviewResponse beforeGenerate = mailPreviewService.preview(order.getId(), ADMIN);
         assertFalse(beforeGenerate.attachment().generated());

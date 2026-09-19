@@ -154,33 +154,68 @@ class OfficialPoIntegrationRequestTest {
         assertEquals(now, r.getLifecycleChangedAt());
     }
 
+    // --- BR-03 (docs/gulliver-20260917-confirmed-business-rules.md):
+    // Cancel is now a two-step Workflow - ACTIVE -> CANCEL_REQUESTED ->
+    // CANCELLED, never a direct ACTIVE -> CANCELLED shortcut. ---
+
     @Test
-    void markCancelledRecordsReasonAndActor() {
+    void markCancelRequestedRecordsReasonAndRequester() {
         OfficialPoIntegrationRequest r = pending();
         OffsetDateTime now = OffsetDateTime.now();
-        r.markCancelled("Order cancelled by customer", "admin-tester", now);
+        r.markCancelRequested("Order cancelled by customer", "operator-tester", now);
 
-        assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_CANCELLED, r.getLifecycleStatus());
+        assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_CANCEL_REQUESTED, r.getLifecycleStatus());
         assertEquals("Order cancelled by customer", r.getLifecycleReason());
+        assertEquals("operator-tester", r.getLifecycleChangedBy());
+        assertEquals("operator-tester", r.getCancelRequestedBy());
+        assertEquals(now, r.getCancelRequestedAt());
     }
 
     @Test
-    void supersededDocumentCannotBeSupersededOrCancelledAgain() {
+    void markCancelledRequiresAPendingCancelRequestFirst() {
+        OfficialPoIntegrationRequest r = pending();
+        OffsetDateTime now = OffsetDateTime.now();
+
+        assertThrows(IllegalStateException.class, () -> r.markCancelled("admin-tester", now),
+                "Cancel Approval must never be reachable directly from ACTIVE");
+    }
+
+    @Test
+    void markCancelledRecordsApproverDistinctlyFromRequester() {
+        OfficialPoIntegrationRequest r = pending();
+        OffsetDateTime requestedAt = OffsetDateTime.now();
+        r.markCancelRequested("Order cancelled by customer", "operator-tester", requestedAt);
+
+        OffsetDateTime approvedAt = requestedAt.plusMinutes(5);
+        r.markCancelled("admin-tester", approvedAt);
+
+        assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_CANCELLED, r.getLifecycleStatus());
+        assertEquals("Order cancelled by customer", r.getLifecycleReason(), "the original Request reason carries through to CANCELLED");
+        assertEquals("admin-tester", r.getLifecycleChangedBy(), "lifecycleChangedBy now reflects the APPROVER");
+        assertEquals(approvedAt, r.getLifecycleChangedAt());
+        assertEquals("operator-tester", r.getCancelRequestedBy(), "the original Requester remains distinctly attributable");
+        assertEquals(requestedAt, r.getCancelRequestedAt());
+    }
+
+    @Test
+    void supersededDocumentCannotBeSupersededOrHaveCancelRequested() {
         OfficialPoIntegrationRequest r = pending();
         OffsetDateTime now = OffsetDateTime.now();
         r.markSuperseded("first", "admin-tester", now);
 
         assertThrows(IllegalStateException.class, () -> r.markSuperseded("second", "admin-tester", now));
-        assertThrows(IllegalStateException.class, () -> r.markCancelled("cancel after supersede", "admin-tester", now));
+        assertThrows(IllegalStateException.class, () -> r.markCancelRequested("cancel after supersede", "admin-tester", now));
     }
 
     @Test
-    void cancelledDocumentCannotBeSupersededOrCancelledAgain() {
+    void cancelledDocumentCannotBeSupersededOrHaveCancelRequestedAgain() {
         OfficialPoIntegrationRequest r = pending();
         OffsetDateTime now = OffsetDateTime.now();
-        r.markCancelled("first", "admin-tester", now);
+        r.markCancelRequested("first", "operator-tester", now);
+        r.markCancelled("admin-tester", now);
 
-        assertThrows(IllegalStateException.class, () -> r.markCancelled("second", "admin-tester", now));
+        assertThrows(IllegalStateException.class, () -> r.markCancelRequested("second", "operator-tester", now));
+        assertThrows(IllegalStateException.class, () -> r.markCancelled("admin-tester", now));
         assertThrows(IllegalStateException.class, () -> r.markSuperseded("supersede after cancel", "admin-tester", now));
     }
 }

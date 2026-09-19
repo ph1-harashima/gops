@@ -127,11 +127,8 @@ test.describe('Gap Analysis Implementation Instruction Scenario 1: full continuo
     await page.getByTestId('official-po-request-dialog-confirm').click()
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
 
-    const poNo = `E2E-INTEGRATION-${draftId}`
-    await page.getByTestId('official-po-number-input').locator('input').fill(poNo)
-    await page.getByTestId('official-po-number-confirm-button').click()
-    await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
-
+    // BR-08 (docs/gulliver-20260917-confirmed-business-rules.md): Official
+    // PO No. is auto-numbered immediately - no manual input/confirm step.
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
 
@@ -160,6 +157,8 @@ test.describe('Gap Analysis Implementation Instruction Scenario 1: full continuo
 
     await expect(page.getByTestId('email-send-section')).toBeVisible()
     await page.getByTestId('email-send-button').click()
+    // BR-04: Send now requires final confirmation via a Dialog.
+    await page.getByTestId('email-send-confirm-dialog-confirm').click()
     await expect(page.getByText('メールを送信しました。')).toBeVisible()
     await expect(page.getByTestId('email-sent-note')).toBeVisible()
 

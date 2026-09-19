@@ -1,0 +1,39 @@
+{
+  "title": "Official PO略称コード管理",
+  "subtitle": "Official PO番号自動採番（BR-08）に使用するSupplier/Brandの3文字略称を登録します。この略称はGulliver社が決定した値をそのまま登録するものであり、G-OPSが自動生成することはありません。",
+  "createButton": "新規作成",
+  "editButton": "編集",
+  "table": {
+    "codeType": "種別",
+    "businessCode": "コード",
+    "shortCode": "略称",
+    "active": "状態"
+  },
+  "statusActive": "有効",
+  "statusInactive": "無効",
+  "dialogTitleCreate": "略称コードを新規作成",
+  "dialogTitleEdit": "略称コードを編集",
+  "field": {
+    "codeType": "種別",
+    "businessCode": "コード",
+    "businessCodeHelp": "既存のSupplierコード または Brandコードを入力してください。",
+    "shortCode": "略称（3文字）",
+    "shortCodeHelp": "Gulliver社が決定した3文字の略称をそのまま入力してください。",
+    "active": "有効"
+  },
+  "codeType": {
+    "SUPPLIER": "Supplier",
+    "BRAND": "Brand"
+  },
+  "save": "保存",
+  "cancel": "キャンセル",
+  "empty": "登録されている略称コードがありません。",
+  "error": {
+    "INVALID_OFFICIAL_PO_SHORT_CODE": "種別はSupplier/Brandのいずれか、略称は3文字で入力してください。",
+    "SUPPLIER_CODE_NOT_FOUND": "コードがG-SYS上のSupplierとして見つかりません。",
+    "BRAND_CODE_NOT_FOUND": "コードがG-SYS上のBrandとして見つかりません。",
+    "DUPLICATE_OFFICIAL_PO_SHORT_CODE": "同一種別・コードの有効な略称が既に存在します。",
+    "FORBIDDEN": "この操作を行う権限がありません。",
+    "GENERIC": "処理に失敗しました。"
+  }
+}

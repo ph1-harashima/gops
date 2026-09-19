@@ -179,6 +179,11 @@ public class OfficialPoIntegrationRequest {
     // Status axis above. ---
     public static final String LIFECYCLE_ACTIVE = "ACTIVE";
     public static final String LIFECYCLE_SUPERSEDED = "SUPERSEDED";
+    /** BR-03 (docs/gulliver-20260917-confirmed-business-rules.md): Cancel is
+     * a two-step Workflow, not a direct state change - ACTIVE ->
+     * CANCEL_REQUESTED (reason required) -> CANCELLED (ADMIN approval
+     * required). */
+    public static final String LIFECYCLE_CANCEL_REQUESTED = "CANCEL_REQUESTED";
     public static final String LIFECYCLE_CANCELLED = "CANCELLED";
 
     @Column(name = "lifecycle_status", nullable = false, length = 20)
@@ -192,6 +197,21 @@ public class OfficialPoIntegrationRequest {
 
     @Column(name = "lifecycle_changed_at")
     private OffsetDateTime lifecycleChangedAt;
+
+    /** BR-03: who requested the Cancel and when - kept distinct from
+     * {@link #lifecycleChangedBy}/{@link #lifecycleChangedAt} (which, once
+     * CANCELLED, reflect the ADMIN who APPROVED it) so both actors of the
+     * two-step Workflow remain individually attributable, matching BR-03's
+     * explicit "誰がCancel Requestし、誰がApproveしたか" requirement (the
+     * full narrative also lives in AuditEvent regardless). */
+    @Column(name = "cancel_requested_by", length = 50)
+    private String cancelRequestedBy;
+
+    @Column(name = "cancel_requested_at")
+    private OffsetDateTime cancelRequestedAt;
+
+    @Column(name = "cancel_reason")
+    private String cancelReason;
 
     /** C-2: this Revision's Request has been replaced by a newer one
      * (Reissue). Reachable only from ACTIVE - a SUPERSEDED or CANCELLED
@@ -207,15 +227,43 @@ public class OfficialPoIntegrationRequest {
         this.updatedAt = now;
     }
 
-    /** C-4: ADMIN explicitly cancels this Document (reason required at the
-     * Service layer). Reachable only from ACTIVE - matches markSuperseded's
-     * own "terminal states never transition again" rule. */
-    public void markCancelled(String reason, String performedBy, OffsetDateTime now) {
+    /** BR-03: step 1 of the two-step Cancel Workflow - reason required at
+     * the Service layer. Reachable only from ACTIVE - matches
+     * markSuperseded's own "terminal states never transition again" rule
+     * (a CANCEL_REQUESTED Document is itself a Gate on Reissue/further
+     * requests, enforced at the Service layer). */
+    public void markCancelRequested(String reason, String performedBy, OffsetDateTime now) {
         if (!LIFECYCLE_ACTIVE.equals(lifecycleStatus)) {
-            throw new IllegalStateException("Cannot cancel from lifecycle status " + lifecycleStatus);
+            throw new IllegalStateException("Cannot request Cancel from lifecycle status " + lifecycleStatus);
+        }
+        this.lifecycleStatus = LIFECYCLE_CANCEL_REQUESTED;
+        // lifecycleReason/lifecycleChangedBy/lifecycleChangedAt always
+        // reflect "why/who/when for the CURRENT lifecycle status", the same
+        // invariant markSuperseded/markCancelled already follow - the
+        // dedicated cancelRequestedBy/cancelRequestedAt/cancelReason columns
+        // additionally preserve the Requester's own identity distinctly,
+        // since lifecycleChangedBy/At get overwritten by the APPROVER's
+        // identity once markCancelled below actually runs.
+        this.lifecycleReason = reason;
+        this.lifecycleChangedBy = performedBy;
+        this.lifecycleChangedAt = now;
+        this.cancelReason = reason;
+        this.cancelRequestedBy = performedBy;
+        this.cancelRequestedAt = now;
+        this.updatedAt = now;
+    }
+
+    /** BR-03: step 2 - ADMIN approves a pending Cancel Request. Reachable
+     * only from CANCEL_REQUESTED (never directly from ACTIVE - Cancel is
+     * never a single-step action anymore). {@link #lifecycleReason} is
+     * copied from the original Request's own reason (BR-03's reason is
+     * captured once, at Request time, not re-entered at Approval time). */
+    public void markCancelled(String performedBy, OffsetDateTime now) {
+        if (!LIFECYCLE_CANCEL_REQUESTED.equals(lifecycleStatus)) {
+            throw new IllegalStateException("Cannot approve Cancel from lifecycle status " + lifecycleStatus);
         }
         this.lifecycleStatus = LIFECYCLE_CANCELLED;
-        this.lifecycleReason = reason;
+        this.lifecycleReason = this.cancelReason;
         this.lifecycleChangedBy = performedBy;
         this.lifecycleChangedAt = now;
         this.updatedAt = now;

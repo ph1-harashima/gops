@@ -92,13 +92,14 @@ class OfficialPoRevisionConsistencyIntegrationTest {
                 "PO {{poNo}}", "Dear {{contactName}}, PO No: {{poNo}}", "OFFICIAL_PO_EXCEL", true), ADMIN);
     }
 
-    /** Drives Revision 1 to GENERATED (PO No. confirmed, Excel generated) -
-     * the shared precondition every Scenario below starts from. */
-    private PortalOrder issueRevision1(String poNo) {
+    /** Drives Revision 1 to GENERATED (Official PO No. auto-numbered by
+     * requestIntegration itself - BR-08 - Excel generated) - the shared
+     * precondition every Scenario below starts from. */
+    private PortalOrder issueRevision1() {
         PortalOrder order = createApprovedOrder();
         integrationService.requestIntegration(order.getId(), ADMIN);
         integrationService.confirmOfficialPoNumber(order.getId(),
-                new ConfirmOfficialPoNumberRequest(poNo, "WK36", "2026-09-05", null, null, null), ADMIN);
+                new ConfirmOfficialPoNumberRequest("WK36", "2026-09-05", null, null, null), ADMIN);
         integrationService.generateExcel(order.getId(), ADMIN);
         return order;
     }
@@ -125,16 +126,17 @@ class OfficialPoRevisionConsistencyIntegrationTest {
 
     @Test
     void scenarioA_demoSendThenDownloads_bothStayOnRevision1() {
-        PortalOrder order = issueRevision1("SEQ-A-001");
+        PortalOrder order = issueRevision1();
+        String poNo = order.getOfficialPoNo();
         integrationService.generatePdf(order.getId(), ADMIN);
 
         statusTransitionService.demoSend(order.getId(), ADMIN);
 
         OfficialPoExcelDownload excel = integrationService.downloadExcel(order.getId());
         OfficialPoPdfDownload pdf = integrationService.downloadPdf(order.getId());
-        assertTrue(excel.fileName().contains("SEQ-A-001") && excel.fileName().endsWith("_001.xlsx"),
+        assertTrue(excel.fileName().contains(poNo) && excel.fileName().endsWith("_001.xlsx"),
                 "Excel Download must stay on Revision 1: " + excel.fileName());
-        assertTrue(pdf.fileName().contains("SEQ-A-001") && pdf.fileName().endsWith("_001.pdf"),
+        assertTrue(pdf.fileName().contains(poNo) && pdf.fileName().endsWith("_001.pdf"),
                 "PDF Download must stay on Revision 1: " + pdf.fileName());
     }
 
@@ -142,7 +144,7 @@ class OfficialPoRevisionConsistencyIntegrationTest {
 
     @Test
     void scenarioB_manufacturerSendThenDownloads_staysOnRevision1() {
-        PortalOrder order = issueRevision1("SEQ-B-001");
+        PortalOrder order = issueRevision1();
         integrationService.generatePdf(order.getId(), ADMIN);
         configureEmailChannelContactAndTemplate();
 
@@ -167,16 +169,17 @@ class OfficialPoRevisionConsistencyIntegrationTest {
 
     @Test
     void scenarioC_reissue_eachRevisionKeepsItsOwnArtifact() {
-        PortalOrder order = issueRevision1("SEQ-C-001");
+        PortalOrder order = issueRevision1();
+        String poNo = order.getOfficialPoNo();
         integrationService.generatePdf(order.getId(), ADMIN);
         OfficialPoIntegrationRequest rev1Before = integrationRequestRepository
                 .findByPortalOrderIdAndRevisionNo(order.getId(), 1).orElseThrow();
         String rev1ExcelKey = rev1Before.getGeneratedFileKey();
         String rev1PdfKey = rev1Before.getPdfFileKey();
 
+        // BR-08: reissue() already carries the SAME Official PO No. forward
+        // onto the new Revision - there is no number left to (re)confirm.
         PortalOrder reapproved = correctAndReissue(order.getId());
-        integrationService.confirmOfficialPoNumber(reapproved.getId(),
-                new ConfirmOfficialPoNumberRequest("SEQ-C-002", "WK37", "2026-09-12", null, null, null), ADMIN);
         integrationService.generateExcel(reapproved.getId(), ADMIN);
         integrationService.generatePdf(reapproved.getId(), ADMIN);
 
@@ -187,8 +190,8 @@ class OfficialPoRevisionConsistencyIntegrationTest {
         // returns Revision 2's own Artifact, distinct from Revision 1's.
         OfficialPoExcelDownload latestExcel = integrationService.downloadExcel(reapproved.getId());
         OfficialPoPdfDownload latestPdf = integrationService.downloadPdf(reapproved.getId());
-        assertTrue(latestExcel.fileName().contains("SEQ-C-002") && latestExcel.fileName().endsWith("_002.xlsx"));
-        assertTrue(latestPdf.fileName().contains("SEQ-C-002") && latestPdf.fileName().endsWith("_002.pdf"));
+        assertTrue(latestExcel.fileName().contains(poNo) && latestExcel.fileName().endsWith("_002.xlsx"));
+        assertTrue(latestPdf.fileName().contains(poNo) && latestPdf.fileName().endsWith("_002.pdf"));
 
         // Revision 1's OWN row (and Artifact reference) is untouched by the
         // Reissue - it is exactly what it was before, at the model level
@@ -196,14 +199,15 @@ class OfficialPoRevisionConsistencyIntegrationTest {
         // silently re-pointed at the new one).
         OfficialPoIntegrationRequest rev1After = integrationRequestRepository
                 .findByPortalOrderIdAndRevisionNo(order.getId(), 1).orElseThrow();
-        assertEquals("SEQ-C-001", rev1After.getOfficialPoNo());
+        assertEquals(poNo, rev1After.getOfficialPoNo());
         assertEquals(rev1ExcelKey, rev1After.getGeneratedFileKey());
         assertEquals(rev1PdfKey, rev1After.getPdfFileKey());
         assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_SUPERSEDED, rev1After.getLifecycleStatus());
 
         OfficialPoIntegrationRequest rev2 = integrationRequestRepository
                 .findByPortalOrderIdAndRevisionNo(reapproved.getId(), 2).orElseThrow();
-        assertEquals("SEQ-C-002", rev2.getOfficialPoNo());
+        // BR-08 Scenario 7: Revision advances, Official PO No. does not.
+        assertEquals(poNo, rev2.getOfficialPoNo(), "Reissue must carry forward the SAME Official PO No.");
         assertNotEquals(rev1ExcelKey, rev2.getGeneratedFileKey());
         assertNotEquals(rev1PdfKey, rev2.getPdfFileKey());
         assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_ACTIVE, rev2.getLifecycleStatus());
@@ -213,13 +217,15 @@ class OfficialPoRevisionConsistencyIntegrationTest {
 
     @Test
     void scenarioD_manufacturerSendAfterReissue_targetsTheNewActiveRevision() {
-        PortalOrder order = issueRevision1("SEQ-D-001");
+        PortalOrder order = issueRevision1();
         configureEmailChannelContactAndTemplate();
 
+        // BR-08: reissue() already carries the Official PO No. forward -
+        // nothing left to (re)confirm before generating the new Excel.
         PortalOrder reapproved = correctAndReissue(order.getId());
-        integrationService.confirmOfficialPoNumber(reapproved.getId(),
-                new ConfirmOfficialPoNumberRequest("SEQ-D-002", "WK37", "2026-09-12", null, null, null), ADMIN);
         integrationService.generateExcel(reapproved.getId(), ADMIN);
+        // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
+        integrationService.generatePdf(reapproved.getId(), ADMIN);
 
         OrderEmailResponse sent = emailSendService.send(reapproved.getId(), ADMIN);
 
@@ -231,7 +237,7 @@ class OfficialPoRevisionConsistencyIntegrationTest {
 
     @Test
     void scenarioE_demoSendBeforeReissue_revisionNeverOverAdvancesPast2() {
-        PortalOrder order = issueRevision1("SEQ-E-001");
+        PortalOrder order = issueRevision1();
         // demoSend already happens inside correctAndReissue - captured here
         // explicitly to name the Scenario precisely: a Demo Send occurred
         // before the correction/Reissue cycle, and must not cause the
@@ -250,13 +256,15 @@ class OfficialPoRevisionConsistencyIntegrationTest {
 
     @Test
     void scenarioF_cancelRevision2_bothRevisionsKeepCorrectStateAndHistory() {
-        PortalOrder order = issueRevision1("SEQ-F-001");
+        PortalOrder order = issueRevision1();
+        String poNo = order.getOfficialPoNo();
+        // BR-08: reissue() already carries the Official PO No. forward -
+        // nothing left to (re)confirm before generating the new Excel.
         PortalOrder reapproved = correctAndReissue(order.getId());
-        integrationService.confirmOfficialPoNumber(reapproved.getId(),
-                new ConfirmOfficialPoNumberRequest("SEQ-F-002", "WK37", "2026-09-12", null, null, null), ADMIN);
         integrationService.generateExcel(reapproved.getId(), ADMIN);
 
-        integrationService.cancel(reapproved.getId(), "Order cancelled by customer", ADMIN);
+        integrationService.requestCancel(reapproved.getId(), "Order cancelled by customer", ADMIN);
+        integrationService.approveCancel(reapproved.getId(), ADMIN);
 
         List<OfficialPoRevisionHistoryEntry> history = integrationService.getRevisionHistory(reapproved.getId());
         assertEquals(2, history.size());
@@ -265,14 +273,14 @@ class OfficialPoRevisionConsistencyIntegrationTest {
         assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_SUPERSEDED, rev1Entry.lifecycleStatus(),
                 "Revision 1 keeps its own SUPERSEDED state - Cancel on Revision 2 must not touch it");
         assertEquals(OfficialPoIntegrationRequest.LIFECYCLE_CANCELLED, rev2Entry.lifecycleStatus());
-        assertEquals("SEQ-F-001", rev1Entry.officialPoNo());
-        assertEquals("SEQ-F-002", rev2Entry.officialPoNo());
+        assertEquals(poNo, rev1Entry.officialPoNo());
+        assertEquals(poNo, rev2Entry.officialPoNo(), "BR-08: Reissue never changes the Official PO No., even across Cancel");
         assertTrue(rev2Entry.excelGenerated());
 
-        // A CANCELLED Document is terminal - cancelling it again must be
+        // A CANCELLED Document is terminal - requesting Cancel again must be
         // rejected, and Revision 1 (already SUPERSEDED, also terminal) was
         // never a valid Cancel target to begin with.
         assertThrows(OfficialPoCancelNotAllowedException.class,
-                () -> integrationService.cancel(reapproved.getId(), "second attempt", ADMIN));
+                () -> integrationService.requestCancel(reapproved.getId(), "second attempt", ADMIN));
     }
 }

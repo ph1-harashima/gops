@@ -1,0 +1,137 @@
+package com.glv.gsysportal.service;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * BR-08 (docs/gulliver-20260917-confirmed-business-rules.md): Official PO
+ * No. auto-numbering - the actual sequence/Concurrency Control behavior,
+ * exercised directly against {@link OfficialPoSequenceService}/
+ * {@link OfficialPoNumberGenerator} rather than through a full Order
+ * lifecycle (the composition rule itself is covered separately by the pure
+ * Mockito unit test {@link OfficialPoNumberGeneratorTest}; the "wired into a
+ * real Order" case is covered by
+ * {@code OfficialPoNumberAndExcelGenerationIntegrationTest.requestIntegrationAutoNumbersImmediately}
+ * and Reissue's own PO-No-preservation case by
+ * {@code OfficialPoReissueIntegrationTest.fullReissueCycle_...}).
+ *
+ * <p>Uses the Demo/Test fixture Short Codes seeded by V30
+ * (SUP_ALPHA=ALP/SUP_BETA=BET/SUP_GAMMA=GAM, BR_OUTDOOR=OUT/BR_HOME=HOM/
+ * BR_KITCHEN=KIT) - these are real, already-registered Master rows, so no
+ * per-test Short Code setup is needed.
+ */
+@SpringBootTest
+@ActiveProfiles("test")
+class OfficialPoAutoNumberingIntegrationTest {
+
+    @Autowired
+    private OfficialPoSequenceService sequenceService;
+    @Autowired
+    private OfficialPoNumberGenerator numberGenerator;
+
+    /** BR-08: the format is always exactly
+     * {SupplierShortCode 3 chars}{BrandShortCode 3 chars}{3-digit sequence}. */
+    @Test
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    void generateProducesTheExactBR08Format() {
+        String poNo = numberGenerator.generate("SUP_ALPHA", "BR_OUTDOOR");
+
+        assertTrue(poNo.matches("^[A-Z]{3}[A-Z]{3}\\d{3}$"), "unexpected format: " + poNo);
+        assertTrue(poNo.startsWith("ALPOUT"), "must use the registered Short Codes verbatim: " + poNo);
+    }
+
+    /** BR-08 §8/Scenario 5: repeated allocations for the SAME Supplier x
+     * Brand pair strictly increment by 1, one at a time - never repeat a
+     * value within this sequential run. */
+    @Test
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    void sequenceIncrementsByOneForTheSameSupplierBrandPair() {
+        int first = sequenceService.nextSequence("SUP_ALPHA", "BR_OUTDOOR");
+        int second = sequenceService.nextSequence("SUP_ALPHA", "BR_OUTDOOR");
+        int third = sequenceService.nextSequence("SUP_ALPHA", "BR_OUTDOOR");
+
+        assertEquals(first + 1, second);
+        assertEquals(second + 1, third);
+    }
+
+    /** BR-08 Scenario 6: ABC x XYZ's sequence and ABC x DEF's sequence are
+     * completely independent counters - allocating for one pair must never
+     * consume or perturb the other pair's counter. */
+    @Test
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    void sequenceIsIndependentPerSupplierBrandPair() {
+        int alphaOutdoorBefore = sequenceService.nextSequence("SUP_ALPHA", "BR_OUTDOOR");
+        int alphaHomeBefore = sequenceService.nextSequence("SUP_ALPHA", "BR_HOME");
+
+        int alphaOutdoorAfter = sequenceService.nextSequence("SUP_ALPHA", "BR_OUTDOOR");
+        int alphaHomeAfter = sequenceService.nextSequence("SUP_ALPHA", "BR_HOME");
+        int betaOutdoorAfter = sequenceService.nextSequence("SUP_BETA", "BR_OUTDOOR");
+
+        assertEquals(alphaOutdoorBefore + 1, alphaOutdoorAfter, "SUP_ALPHA x BR_OUTDOOR's own counter must be untouched by the other pairs' calls");
+        assertEquals(alphaHomeBefore + 1, alphaHomeAfter, "SUP_ALPHA x BR_HOME's own counter must be untouched by the other pairs' calls");
+        assertTrue(betaOutdoorAfter >= 1, "SUP_BETA x BR_OUTDOOR is its own independent counter, starting from whatever it already was");
+    }
+
+    /** BR-08 §8/Scenario 5: "同一Supplier×Brandについて複数Userが同時に
+     * Official POを作成しても、同じSequence Numberが発行されない" - 16 threads
+     * race to allocate for the exact SAME (SUP_GAMMA, BR_KITCHEN) pair at
+     * (as close as possible to) the same instant; every returned value must
+     * be distinct, proving the atomic {@code INSERT ... ON CONFLICT DO
+     * UPDATE ... RETURNING} (never a bare "read current value, add 1, write
+     * back" race). Runs outside the class's (non-existent, deliberately)
+     * ambient transaction - propagation NOT_SUPPORTED per thread, mirroring
+     * {@code IdempotencyServiceTest}'s own concurrency idiom, so each thread
+     * genuinely opens its own DB transaction rather than sharing one
+     * EntityManager/connection across threads. */
+    @Test
+    @Transactional(transactionManager = "prototypeTransactionManager", propagation = Propagation.NOT_SUPPORTED)
+    void concurrentAllocationsForTheSameSupplierBrandPairNeverCollide() throws Exception {
+        int threadCount = 16;
+        ExecutorService pool = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch ready = new CountDownLatch(threadCount);
+        CountDownLatch go = new CountDownLatch(1);
+        List<Integer> results = new CopyOnWriteArrayList<>();
+        List<Future<?>> futures = new ArrayList<>();
+        try {
+            for (int i = 0; i < threadCount; i++) {
+                futures.add(pool.submit(() -> {
+                    ready.countDown();
+                    try {
+                        go.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    results.add(sequenceService.nextSequence("SUP_GAMMA", "BR_KITCHEN"));
+                }));
+            }
+            ready.await(5, TimeUnit.SECONDS);
+            go.countDown();
+            for (Future<?> f : futures) {
+                f.get(10, TimeUnit.SECONDS);
+            }
+        } finally {
+            pool.shutdown();
+        }
+
+        assertEquals(threadCount, results.size());
+        assertEquals(threadCount, Set.copyOf(results).size(),
+                "every concurrently-allocated sequence value must be distinct - no duplicate PO Sequence Number");
+    }
+}

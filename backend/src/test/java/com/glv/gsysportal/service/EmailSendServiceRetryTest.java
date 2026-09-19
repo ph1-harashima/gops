@@ -57,6 +57,7 @@ class EmailSendServiceRetryTest {
         r.setRevisionNo(1);
         r.setOfficialPoNo("SUPA-OUTD-TEST");
         r.setGeneratedFileKey("some-file-key.xlsx");
+        r.setPdfFileKey("some-file-key.pdf");
         return r;
     }
 
@@ -74,6 +75,7 @@ class EmailSendServiceRetryTest {
         ManufacturerChannelResolutionService channelResolutionService = mock(ManufacturerChannelResolutionService.class);
         MailPreviewService mailPreviewService = mock(MailPreviewService.class);
         OfficialPoExcelGenerationService excelGenerationService = mock(OfficialPoExcelGenerationService.class);
+        OfficialPoPdfGenerationService pdfGenerationService = mock(OfficialPoPdfGenerationService.class);
         EmailSenderPort emailSenderPort = mock(EmailSenderPort.class);
         IdempotencyService idempotencyService = mock(IdempotencyService.class);
         PortalUserRepository portalUserRepository = mock(PortalUserRepository.class);
@@ -86,6 +88,7 @@ class EmailSendServiceRetryTest {
                 .thenReturn(Optional.of(generatedRequest()));
         when(orderEmailRepository.findByPortalOrderIdAndRevisionNo(ORDER_ID, 1)).thenReturn(Optional.empty());
         when(excelGenerationService.load("some-file-key.xlsx")).thenReturn(new byte[]{1, 2, 3});
+        when(pdfGenerationService.load("some-file-key.pdf")).thenReturn(new byte[]{4, 5, 6});
 
         IdempotentOperation op = new IdempotentOperation("EMAIL_SEND", ORDER_ID.toString(), ORDER_ID + "-1", OffsetDateTime.now());
         op.setId(999L);
@@ -99,13 +102,61 @@ class EmailSendServiceRetryTest {
 
         EmailSendService service = new EmailSendService(portalOrderRepository, orderEmailRepository,
                 integrationRequestRepository, auditEventRepository, channelResolutionService, mailPreviewService,
-                excelGenerationService, emailSenderPort, idempotencyService, portalUserRepository);
+                excelGenerationService, pdfGenerationService, emailSenderPort, idempotencyService, portalUserRepository);
 
         OrderEmailResponse response = service.send(ORDER_ID, ADMIN);
 
         assertEquals("FAILED", response.status());
         verify(idempotencyService).markFailed(eq(999L), anyString());
         verify(auditEventRepository).save(argThat(e -> "EMAIL_SEND_FAILED".equals(e.getEventType())));
+    }
+
+    /** BR-01 (docs/gulliver-20260917-confirmed-business-rules.md): a
+     * Manufacturer Send always attaches BOTH the Official PO Excel and PDF -
+     * captures the actual {@link EmailEnvelope} passed to the Port and
+     * checks both files are present, never just the Excel alone. */
+    @Test
+    void sendAttachesBothExcelAndPdf() {
+        PortalOrderRepository portalOrderRepository = mock(PortalOrderRepository.class);
+        OrderEmailRepository orderEmailRepository = mock(OrderEmailRepository.class);
+        OfficialPoIntegrationRequestRepository integrationRequestRepository = mock(OfficialPoIntegrationRequestRepository.class);
+        AuditEventRepository auditEventRepository = mock(AuditEventRepository.class);
+        ManufacturerChannelResolutionService channelResolutionService = mock(ManufacturerChannelResolutionService.class);
+        MailPreviewService mailPreviewService = mock(MailPreviewService.class);
+        OfficialPoExcelGenerationService excelGenerationService = mock(OfficialPoExcelGenerationService.class);
+        OfficialPoPdfGenerationService pdfGenerationService = mock(OfficialPoPdfGenerationService.class);
+        EmailSenderPort emailSenderPort = mock(EmailSenderPort.class);
+        IdempotencyService idempotencyService = mock(IdempotencyService.class);
+        PortalUserRepository portalUserRepository = mock(PortalUserRepository.class);
+
+        PortalOrder order = order();
+        when(portalOrderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(channelResolutionService.resolve("SUP_ALPHA", "BR_OUTDOOR")).thenReturn("EMAIL");
+        when(mailPreviewService.preview(eq(ORDER_ID), anyString())).thenReturn(unblockedPreview());
+        when(integrationRequestRepository.findByPortalOrderIdAndRevisionNo(ORDER_ID, 1))
+                .thenReturn(Optional.of(generatedRequest()));
+        when(orderEmailRepository.findByPortalOrderIdAndRevisionNo(ORDER_ID, 1)).thenReturn(Optional.empty());
+        when(excelGenerationService.load("some-file-key.xlsx")).thenReturn(new byte[]{1, 2, 3});
+        when(pdfGenerationService.load("some-file-key.pdf")).thenReturn(new byte[]{4, 5, 6});
+        when(orderEmailRepository.save(any(OrderEmail.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        IdempotentOperation op = new IdempotentOperation("EMAIL_SEND", ORDER_ID.toString(), ORDER_ID + "-1", OffsetDateTime.now());
+        op.setId(998L);
+        when(idempotencyService.claim(eq("EMAIL_SEND"), eq(ORDER_ID.toString()), eq(ORDER_ID + "-1")))
+                .thenReturn(new IdempotencyService.IdempotencyClaim(op, true));
+
+        EmailSendService service = new EmailSendService(portalOrderRepository, orderEmailRepository,
+                integrationRequestRepository, auditEventRepository, channelResolutionService, mailPreviewService,
+                excelGenerationService, pdfGenerationService, emailSenderPort, idempotencyService, portalUserRepository);
+
+        OrderEmailResponse response = service.send(ORDER_ID, ADMIN);
+
+        assertEquals("SENT", response.status());
+        org.mockito.ArgumentCaptor<EmailEnvelope> captor = org.mockito.ArgumentCaptor.forClass(EmailEnvelope.class);
+        verify(emailSenderPort).send(captor.capture());
+        List<String> attachmentNames = captor.getValue().attachments().stream().map(EmailEnvelope.Attachment::fileName).toList();
+        assertEquals(2, attachmentNames.size(), "must attach exactly Excel + PDF, never just one");
+        assertEquals(List.of("SUPA-OUTD-TEST.xlsx", "SUPA-OUTD-TEST.pdf"), attachmentNames);
     }
 
     // Local helper - avoids pulling in a full ArgumentMatcher import just for

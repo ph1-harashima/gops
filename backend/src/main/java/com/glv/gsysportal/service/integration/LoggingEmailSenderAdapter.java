@@ -22,8 +22,11 @@ public class LoggingEmailSenderAdapter implements EmailSenderPort {
 
     @Override
     public void send(EmailEnvelope envelope) {
-        log.info("[LoggingEmailSenderAdapter] Would send Email - from={} to={} cc={} subject={} attachment={} ({} bytes)",
-                envelope.from(), envelope.to(), envelope.cc(), envelope.subject(),
-                envelope.attachmentFileName(), envelope.attachmentBytes() == null ? 0 : envelope.attachmentBytes().length);
+        String attachmentSummary = envelope.attachments().isEmpty() ? "(none)"
+                : envelope.attachments().stream()
+                        .map(a -> a.fileName() + " (" + (a.bytes() == null ? 0 : a.bytes().length) + " bytes)")
+                        .reduce((a, b) -> a + ", " + b).orElse("(none)");
+        log.info("[LoggingEmailSenderAdapter] Would send Email - from={} to={} cc={} subject={} attachments={}",
+                envelope.from(), envelope.to(), envelope.cc(), envelope.subject(), attachmentSummary);
     }
 }

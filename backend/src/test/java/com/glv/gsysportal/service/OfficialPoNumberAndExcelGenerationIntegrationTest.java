@@ -6,12 +6,9 @@ import com.glv.gsysportal.dto.request.ConfirmOfficialPoNumberRequest;
 import com.glv.gsysportal.dto.request.CreateDraftRequest;
 import com.glv.gsysportal.dto.response.OfficialPoIntegrationResponse;
 import com.glv.gsysportal.dto.response.OrderDraftResponse;
-import com.glv.gsysportal.exception.DuplicateOfficialPoNumberException;
 import com.glv.gsysportal.exception.IntegrationRequestRequiredException;
-import com.glv.gsysportal.exception.InvalidOfficialPoNumberException;
 import com.glv.gsysportal.exception.OfficialPoAlreadySubmittedException;
 import com.glv.gsysportal.exception.OfficialPoExcelNotGeneratedException;
-import com.glv.gsysportal.exception.OfficialPoNumberRequiredException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -33,10 +30,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Phase 9-A: PO Number confirm + Excel generation, wired to real Order data
- * for the first time (7-C2A only ever exercised {@link
- * com.glv.gsysportal.service.excel.OfficialPoExcelGenerator} from a Contract
- * Test with synthetic input). Same whole-test-method rollback convention as
+ * Phase 9-A / BR-08 (docs/gulliver-20260917-confirmed-business-rules.md):
+ * Excel/PDF generation, wired to real Order data (7-C2A only ever exercised
+ * {@link com.glv.gsysportal.service.excel.OfficialPoExcelGenerator} from a
+ * Contract Test with synthetic input). The Official PO No. itself is now
+ * always auto-numbered by {@link #approvedOrderWithRequest} (via
+ * {@code requestIntegration} -> {@link OfficialPoNumberGenerator}) - the
+ * manual-entry validation this class originally tested (blank/over-long
+ * rejection, duplicate-across-Orders rejection, ID-structure non-enforcement)
+ * no longer has a reachable code path under BR-08 and was removed; the
+ * auto-numbering behavior itself (format, per-Supplier x Brand sequence,
+ * Concurrency Control) is covered by {@link OfficialPoAutoNumberingIntegrationTest}
+ * instead. Same whole-test-method rollback convention as
  * {@link OfficialPoIntegrationServiceIntegrationTest}.
  */
 @SpringBootTest
@@ -47,7 +52,6 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
     private static final String SKU_TENT_1 = "OD-TENT-001"; // SUP_ALPHA/BR_OUTDOOR
     private static final String OPERATOR = "tester01";
     private static final String ADMIN = "admin-tester";
-    private static final String VALID_PO_NO = "SUPA-OUTD-99-TEST0001";
 
     @Autowired
     private OrderDraftService orderDraftService;
@@ -57,18 +61,22 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
     private OfficialPoIntegrationService integrationService;
     @Autowired
     private AuditEventRepository auditEventRepository;
+    @Autowired
+    private com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository integrationRequestRepository;
 
     private PortalOrder approvedOrderWithRequest() {
         OrderDraftResponse draft = orderDraftService.createDraft(
                 new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), OPERATOR);
         statusTransitionService.submitForApproval(draft.id(), OPERATOR, false);
         PortalOrder order = statusTransitionService.approve(draft.id(), ADMIN);
+        // BR-08: this already auto-numbers the Official PO No. - no manual
+        // entry step exists anymore.
         integrationService.requestIntegration(order.getId(), ADMIN);
         return order;
     }
 
-    private ConfirmOfficialPoNumberRequest validRequest(String poNo) {
-        return new ConfirmOfficialPoNumberRequest(poNo, "WK36", "2026-09-05", "AIR", "FOB", "NET30");
+    private static ConfirmOfficialPoNumberRequest deliveryDetails() {
+        return new ConfirmOfficialPoNumberRequest("WK36", "2026-09-05", "AIR", "FOB", "NET30");
     }
 
     @Test
@@ -79,82 +87,34 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
         statusTransitionService.approve(draft.id(), ADMIN); // approved, but no "G-SYS連携準備" yet
 
         assertThrows(IntegrationRequestRequiredException.class,
-                () -> integrationService.confirmOfficialPoNumber(draft.id(), validRequest(VALID_PO_NO), ADMIN));
+                () -> integrationService.confirmOfficialPoNumber(draft.id(), deliveryDetails(), ADMIN));
     }
 
     @Test
-    void confirmRejectsBlankAndOverLongNumbers() {
+    void requestIntegrationAutoNumbersImmediately() {
         PortalOrder order = approvedOrderWithRequest();
 
-        assertThrows(InvalidOfficialPoNumberException.class,
-                () -> integrationService.confirmOfficialPoNumber(order.getId(), validRequest(""), ADMIN));
-        assertThrows(InvalidOfficialPoNumberException.class,
-                () -> integrationService.confirmOfficialPoNumber(order.getId(), validRequest("  "), ADMIN));
-        assertThrows(InvalidOfficialPoNumberException.class,
-                () -> integrationService.confirmOfficialPoNumber(order.getId(), validRequest("X".repeat(31)), ADMIN));
+        assertTrue(order.getOfficialPoNo() != null && !order.getOfficialPoNo().isBlank(),
+                "BR-08: Official PO No. must already be assigned as soon as G-SYS連携準備 runs");
     }
 
     @Test
-    void confirmAcceptsUpTo30CharsAndPersistsOnBothOrderAndRequest() {
+    void confirmDeliveryDetailsNeverChangesTheAutoNumberedPoNo() {
         PortalOrder order = approvedOrderWithRequest();
-        String poNo = "X".repeat(30);
+        String assignedPoNo = order.getOfficialPoNo();
 
-        OfficialPoIntegrationResponse response = integrationService.confirmOfficialPoNumber(order.getId(), validRequest(poNo), ADMIN);
+        OfficialPoIntegrationResponse response = integrationService.confirmOfficialPoNumber(order.getId(), deliveryDetails(), ADMIN);
 
-        assertEquals(poNo, response.officialPoNo());
+        assertEquals(assignedPoNo, response.officialPoNo(), "confirming delivery details must never re-number the Official PO No.");
         assertEquals("WK36", response.deliveryWeek());
         assertEquals("PENDING", response.status());
     }
 
     @Test
-    void confirmDoesNotEnforceIdCodeOrSeparatorStructure() {
-        // Working Assumption: no ID Code / separator Business Rule - any
-        // <=30 char non-blank string is accepted (design doc §6's "Source
-        // does not confirm a structure beyond the 30-char maximum").
-        PortalOrder order = approvedOrderWithRequest();
-
-        OfficialPoIntegrationResponse response = integrationService.confirmOfficialPoNumber(
-                order.getId(), validRequest("no-structure-at-all"), ADMIN);
-
-        assertEquals("no-structure-at-all", response.officialPoNo());
-    }
-
-    @Test
-    void confirmRejectsDuplicateAcrossOrders() {
-        PortalOrder order1 = approvedOrderWithRequest();
-        integrationService.confirmOfficialPoNumber(order1.getId(), validRequest(VALID_PO_NO), ADMIN);
-
-        PortalOrder order2 = approvedOrderWithRequest();
-        assertThrows(DuplicateOfficialPoNumberException.class,
-                () -> integrationService.confirmOfficialPoNumber(order2.getId(), validRequest(VALID_PO_NO), ADMIN));
-    }
-
-    @Test
-    void confirmWritesAuditOnlyWhenNumberActuallyChanges() {
-        PortalOrder order = approvedOrderWithRequest();
-
-        integrationService.confirmOfficialPoNumber(order.getId(), validRequest(VALID_PO_NO), ADMIN);
-        integrationService.confirmOfficialPoNumber(order.getId(), validRequest(VALID_PO_NO), ADMIN); // same value again
-        integrationService.confirmOfficialPoNumber(order.getId(), validRequest(VALID_PO_NO + "-B"), ADMIN); // changed
-
-        List<AuditEvent> trail = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(order.getId());
-        long confirmedCount = trail.stream()
-                .filter(e -> AuditEvent.OFFICIAL_PO_NUMBER_CONFIRMED.equals(e.getEventType())).count();
-        assertEquals(2, confirmedCount, "one row per actual value change, not per call");
-    }
-
-    @Test
-    void generateRequiresOfficialPoNumberFirst() {
-        PortalOrder order = approvedOrderWithRequest();
-
-        assertThrows(OfficialPoNumberRequiredException.class,
-                () -> integrationService.generateExcel(order.getId(), ADMIN));
-    }
-
-    @Test
     void generateProducesRealExcelMatchingOrderData() throws IOException {
         PortalOrder order = approvedOrderWithRequest();
-        integrationService.confirmOfficialPoNumber(order.getId(), validRequest(VALID_PO_NO), ADMIN);
+        String poNo = order.getOfficialPoNo();
+        integrationService.confirmOfficialPoNumber(order.getId(), deliveryDetails(), ADMIN);
 
         OfficialPoIntegrationResponse response = integrationService.generateExcel(order.getId(), ADMIN);
 
@@ -164,7 +124,7 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
         byte[] bytes = integrationService.downloadExcel(order.getId()).bytes();
         try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
             Sheet sheet = wb.getSheetAt(0);
-            assertEquals(VALID_PO_NO, cellString(sheet, 3, 9), "PO No. cell");
+            assertEquals(poNo, cellString(sheet, 3, 9), "PO No. cell");
             assertEquals(SKU_TENT_1, cellString(sheet, 17, 2), "first Item Code cell");
         }
 
@@ -175,7 +135,7 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
     @Test
     void generateIsIdempotent_secondCallReturnsSameStateWithoutRegenerating() {
         PortalOrder order = approvedOrderWithRequest();
-        integrationService.confirmOfficialPoNumber(order.getId(), validRequest(VALID_PO_NO), ADMIN);
+        integrationService.confirmOfficialPoNumber(order.getId(), deliveryDetails(), ADMIN);
 
         OfficialPoIntegrationResponse first = integrationService.generateExcel(order.getId(), ADMIN);
         OfficialPoIntegrationResponse second = integrationService.generateExcel(order.getId(), ADMIN);
@@ -189,9 +149,9 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
     }
 
     @Test
-    void confirmIsLockedOnceSubmitted() {
+    void confirmDeliveryDetailsIsLockedOnceSubmitted() {
         PortalOrder order = approvedOrderWithRequest();
-        integrationService.confirmOfficialPoNumber(order.getId(), validRequest(VALID_PO_NO), ADMIN);
+        integrationService.confirmOfficialPoNumber(order.getId(), deliveryDetails(), ADMIN);
         integrationService.generateExcel(order.getId(), ADMIN);
 
         // Simulate a completed Phase 9-B hand-off directly on the entity
@@ -201,7 +161,8 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
         integrationRequestRepository.saveAndFlush(request);
 
         assertThrows(OfficialPoAlreadySubmittedException.class,
-                () -> integrationService.confirmOfficialPoNumber(order.getId(), validRequest(VALID_PO_NO + "-X"), ADMIN));
+                () -> integrationService.confirmOfficialPoNumber(order.getId(),
+                        new ConfirmOfficialPoNumberRequest("WK40", "2026-10-01", "AIR", "FOB", "NET30"), ADMIN));
     }
 
     @Test
@@ -225,7 +186,8 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
     @Test
     void generatePdfProducesRealPdfMatchingOrderData() throws IOException {
         PortalOrder order = approvedOrderWithRequest();
-        integrationService.confirmOfficialPoNumber(order.getId(), validRequest(VALID_PO_NO), ADMIN);
+        String poNo = order.getOfficialPoNo();
+        integrationService.confirmOfficialPoNumber(order.getId(), deliveryDetails(), ADMIN);
 
         OfficialPoIntegrationResponse response = integrationService.generatePdf(order.getId(), ADMIN);
 
@@ -239,7 +201,7 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
         try (org.apache.pdfbox.pdmodel.PDDocument pdf = org.apache.pdfbox.pdmodel.PDDocument.load(
                 new ByteArrayInputStream(download.bytes()))) {
             String text = new org.apache.pdfbox.text.PDFTextStripper().getText(pdf);
-            assertTrue(text.contains(VALID_PO_NO));
+            assertTrue(text.contains(poNo));
             assertTrue(text.contains(SKU_TENT_1));
         }
         assertTrue(download.fileName().startsWith("OfficialPO_"));
@@ -247,14 +209,6 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
 
         List<AuditEvent> trail = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(order.getId());
         assertTrue(trail.stream().anyMatch(e -> AuditEvent.OFFICIAL_PO_PDF_GENERATED.equals(e.getEventType())));
-    }
-
-    @Test
-    void generatePdfRequiresConfirmedPoNumber() {
-        PortalOrder order = approvedOrderWithRequest();
-
-        assertThrows(OfficialPoNumberRequiredException.class,
-                () -> integrationService.generatePdf(order.getId(), ADMIN));
     }
 
     @Test
@@ -268,7 +222,8 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
     @Test
     void pdfAndExcelAgreeOnQuantityAndPoInfo_sameBusinessDataSource() throws IOException {
         PortalOrder order = approvedOrderWithRequest();
-        integrationService.confirmOfficialPoNumber(order.getId(), validRequest(VALID_PO_NO), ADMIN);
+        String poNo = order.getOfficialPoNo();
+        integrationService.confirmOfficialPoNumber(order.getId(), deliveryDetails(), ADMIN);
         integrationService.generateExcel(order.getId(), ADMIN);
         integrationService.generatePdf(order.getId(), ADMIN);
 
@@ -287,9 +242,6 @@ class OfficialPoNumberAndExcelGenerationIntegrationTest {
 
         assertEquals(SKU_TENT_1, excelSku);
         assertTrue(pdfText.contains(excelSku), "Excel and PDF must show the SAME SKU - one Business Data Source");
-        assertTrue(pdfText.contains(VALID_PO_NO));
+        assertTrue(pdfText.contains(poNo));
     }
-
-    @Autowired
-    private com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository integrationRequestRepository;
 }

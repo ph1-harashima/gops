@@ -18,6 +18,11 @@ export interface OrderCandidate {
   unitPrice: number | null
   currency: string | null
   dataSource: string
+  // BR-09 (docs/gulliver-20260917-confirmed-business-rules.md): DOMESTIC /
+  // OVERSEAS / null (unclassified) - lets the UI show "設定準備中"
+  // specifically for a DOMESTIC Supplier whose recommendedQty is null,
+  // rather than the generic "not available" fallback.
+  regionClassification: 'DOMESTIC' | 'OVERSEAS' | null
 }
 
 export interface OrderCandidateFilter {

@@ -68,14 +68,18 @@ class OfficialPoImportFolderPlacementIntegrationTest {
         return Paths.get(importFolderBaseDir, profile, "upload");
     }
 
-    private PortalOrder readyForPlacement(String poNo) {
+    private PortalOrder readyForPlacement() {
         OrderDraftResponse draft = orderDraftService.createDraft(
                 new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), OPERATOR);
         statusTransitionService.submitForApproval(draft.id(), OPERATOR, false);
         PortalOrder order = statusTransitionService.approve(draft.id(), ADMIN);
+        // BR-08: Official PO No. is auto-numbered by requestIntegration
+        // itself now - each call gets its own unique value from the real
+        // per-Supplier x Brand sequence, so no test-provided suffix is
+        // needed to keep this class's Orders distinguishable anymore.
         integrationService.requestIntegration(order.getId(), ADMIN);
         integrationService.confirmOfficialPoNumber(order.getId(),
-                new ConfirmOfficialPoNumberRequest(poNo, "WK36", "2026-09-05", null, null, null), ADMIN);
+                new ConfirmOfficialPoNumberRequest("WK36", "2026-09-05", null, null, null), ADMIN);
         integrationService.generateExcel(order.getId(), ADMIN);
         return order;
     }
@@ -110,13 +114,12 @@ class OfficialPoImportFolderPlacementIntegrationTest {
 
     @Test
     void placeWritesExactlyOneFileAndMarksSubmitted() throws IOException {
-        String poNo = "PLACE-TEST-" + nextSuffix();
-        PortalOrder order = readyForPlacement(poNo);
+        PortalOrder order = readyForPlacement();
 
         OfficialPoIntegrationResponse response = integrationService.placeToImportFolder(order.getId(), ADMIN);
 
         assertEquals("SUBMITTED", response.status());
-        assertEquals(1, countUploadedFilesFor(poNo));
+        assertEquals(1, countUploadedFilesFor(order.getOfficialPoNo()));
 
         List<AuditEvent> trail = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(order.getId());
         assertTrue(trail.stream().anyMatch(e -> AuditEvent.OFFICIAL_PO_FILE_PLACED.equals(e.getEventType())));
@@ -124,14 +127,13 @@ class OfficialPoImportFolderPlacementIntegrationTest {
 
     @Test
     void doublePlaceIsIdempotent_writesOnlyOneFile() throws IOException {
-        String poNo = "PLACE-TEST2-" + nextSuffix();
-        PortalOrder order = readyForPlacement(poNo);
+        PortalOrder order = readyForPlacement();
 
         integrationService.placeToImportFolder(order.getId(), ADMIN);
         OfficialPoIntegrationResponse second = integrationService.placeToImportFolder(order.getId(), ADMIN);
 
         assertEquals("SUBMITTED", second.status());
-        assertEquals(1, countUploadedFilesFor(poNo), "double-click must not write a second File");
+        assertEquals(1, countUploadedFilesFor(order.getOfficialPoNo()), "double-click must not write a second File");
 
         long placedAuditCount = auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(order.getId()).stream()
                 .filter(e -> AuditEvent.OFFICIAL_PO_FILE_PLACED.equals(e.getEventType())).count();
@@ -140,23 +142,13 @@ class OfficialPoImportFolderPlacementIntegrationTest {
 
     @Test
     void idempotencyClaimIsPersisted() {
-        String poNo = "PLACE-TEST3-" + nextSuffix();
-        PortalOrder order = readyForPlacement(poNo);
+        PortalOrder order = readyForPlacement();
 
         integrationService.placeToImportFolder(order.getId(), ADMIN);
 
-        String key = order.getId() + "-" + poNo + "-1";
+        String key = order.getId() + "-" + order.getOfficialPoNo() + "-1";
         assertTrue(idempotentOperationRepository
                 .findByOperationTypeAndIdempotencyKey("OFFICIAL_PO_FILE_PLACEMENT", key)
                 .isPresent());
-    }
-
-    // Keeps generated PO Numbers unique across this class's tests without a
-    // real sequence - the exact value doesn't matter, only that it's stable
-    // within a single test method's own calls.
-    private static int counter = 0;
-
-    private static synchronized int nextSuffix() {
-        return ++counter;
     }
 }

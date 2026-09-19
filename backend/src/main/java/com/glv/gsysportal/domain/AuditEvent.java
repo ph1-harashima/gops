@@ -203,10 +203,20 @@ public class AuditEvent {
      * SUPERSEDED in the same operation - the explicit, ADMIN-confirmed
      * "reissue" action (never automatic - C-3). */
     public static final String OFFICIAL_PO_REISSUED = "OFFICIAL_PO_REISSUED";
-    /** C-4: an Official PO Integration Request's lifecycle explicitly set to
-     * CANCELLED by ADMIN (reason required, {@link #note}). Never triggered by
-     * Legacy or by any automatic condition. */
+    /** C-4/BR-03: an Official PO Integration Request's lifecycle explicitly
+     * set to CANCELLED by ADMIN APPROVAL (step 2 of BR-03's two-step
+     * Workflow - reason itself was captured at Request time, {@link #note}).
+     * Never triggered by Legacy or by any automatic condition. */
     public static final String OFFICIAL_PO_CANCELLED = "OFFICIAL_PO_CANCELLED";
+    /** BR-03 step 1: a Cancel Request was raised (reason required,
+     * {@link #note}) - the Document moves to CANCEL_REQUESTED, not yet
+     * CANCELLED, pending ADMIN approval. */
+    public static final String OFFICIAL_PO_CANCEL_REQUESTED = "OFFICIAL_PO_CANCEL_REQUESTED";
+    /** BR-03: the "メーカーへ取消連絡" step's outcome (sent or skipped/failed,
+     * {@link #note}) - recorded regardless of outcome, since a missing
+     * Manufacturer Contact must never silently block the Cancel Approval
+     * itself. */
+    public static final String OFFICIAL_PO_CANCEL_NOTIFIED = "OFFICIAL_PO_CANCEL_NOTIFIED";
     /** C-5: an actual Email Send whose To/CC differed from the Master-resolved
      * (Supplier Contact) addresses for at least one recipient - {@link #note}
      * holds a human-readable summary of Master vs. actually-sent addresses

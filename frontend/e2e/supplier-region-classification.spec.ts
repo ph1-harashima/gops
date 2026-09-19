@@ -1,9 +1,16 @@
 import { test, expect, type Page } from '@playwright/test'
 
 /**
- * Gap Analysis §12 (Domestic/Overseas Foundation): Supplier Region
+ * Gap Analysis §12 (Domestic/Overseas Foundation) + BR-09
+ * (docs/gulliver-20260917-confirmed-business-rules.md): Supplier Region
  * Classification Master admin screen + the resolved Chip it feeds into
- * Order Detail. Display only - never consulted by Recommended Qty.
+ * Order Detail. BR-09 additionally makes this the Strategy dispatch key
+ * for Recommended Qty (Overseas keeps the Legacy formula; Domestic has no
+ * confirmed calculation Rule yet and must never silently borrow the
+ * Overseas one) - Scenario 8 below classifies-verifies-reverts within a
+ * single self-contained test (never leaving SUP_ALPHA/BR_OUTDOOR
+ * DOMESTIC-classified for any other test in this large suite to
+ * accidentally observe).
  */
 
 const OPERATOR_USERNAME = 'purchase01'
@@ -77,6 +84,56 @@ test.describe('Gap Analysis §12: Supplier Region Classification Master', () => 
     expect(body.errorCode).toBe('FORBIDDEN')
 
     await expect(page.getByTestId('nav-master-maintenance')).toHaveCount(0)
+  })
+
+  /**
+   * BR-09 Scenario 8: a DOMESTIC-classified Supplier's Candidate List row
+   * must show "設定準備中" (Rule pending) instead of a fabricated
+   * Recommended Qty - never silently applying the Overseas formula.
+   * Self-contained: classifies SUP_ALPHA/BR_OUTDOOR as DOMESTIC, verifies,
+   * then immediately reverts (deactivates) within this same test, so no
+   * other test in this suite can ever observe SUP_ALPHA/BR_OUTDOOR as
+   * DOMESTIC-classified.
+   */
+  test('Scenario 8: DOMESTIC Supplier shows "設定準備中" instead of a fabricated Recommended Qty', async ({ page }) => {
+    await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
+
+    // The first test in this file already created an ACTIVE OVERSEAS row
+    // for SUP_ALPHA/BR_OUTDOOR (the active-uniqueness constraint means this
+    // Scenario must flip that SAME row, not create a second active one for
+    // the same Supplier/Brand key).
+    const rows = await (await page.request.get('/api/admin/supplier-region-classifications')).json()
+    const existing = rows.find((r: { supplierCode: string; brandCode: string | null; active: boolean }) =>
+      r.supplierCode === 'SUP_ALPHA' && r.brandCode === 'BR_OUTDOOR' && r.active)
+    expect(existing).toBeTruthy()
+
+    await page.request.put(`/api/admin/supplier-region-classifications/${existing.id}`, {
+      data: { supplierCode: 'SUP_ALPHA', brandCode: 'BR_OUTDOOR', regionClassification: 'DOMESTIC', active: true },
+    })
+
+    try {
+      // Candidate List now shows "設定準備中" for OD-TENT-001 - never a
+      // number silently computed via the Overseas formula.
+      await page.getByTestId('nav-candidates').click()
+      await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
+      await expect(page.getByTestId(`recommended-qty-domestic-pending-${SKU}`)).toBeVisible()
+      await expect(page.getByTestId(`recommended-qty-domestic-pending-${SKU}`)).toHaveText('設定準備中')
+    } finally {
+      // Revert immediately, within this same test, back to OVERSEAS (never
+      // deactivated here) - the file's own final cleanup test still expects
+      // to find and deactivate this exact row afterward.
+      await page.request.put(`/api/admin/supplier-region-classifications/${existing.id}`, {
+        data: { supplierCode: 'SUP_ALPHA', brandCode: 'BR_OUTDOOR', regionClassification: 'OVERSEAS', active: true },
+      })
+    }
+
+    // Reverted - OD-TENT-001 is back to a real, numeric Recommended Qty.
+    // Reload: the Candidate List query was already mounted/cached from
+    // earlier in this same test, so a same-route re-navigation alone would
+    // not necessarily refetch it.
+    await page.reload()
+    await expect(page.getByTestId(`candidate-row-${SKU}`)).toBeVisible()
+    await expect(page.getByTestId(`recommended-qty-domestic-pending-${SKU}`)).toHaveCount(0)
   })
 
   // Runs last in this file - deactivates the SUP_ALPHA/BR_OUTDOOR row the

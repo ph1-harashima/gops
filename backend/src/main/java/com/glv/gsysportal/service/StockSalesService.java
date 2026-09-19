@@ -25,9 +25,12 @@ public class StockSalesService {
     static final int DEFAULT_PAGE_SIZE = 20;
 
     private final LegacyStockReadRepository legacyStockReadRepository;
+    private final RecommendedQtyCalculator recommendedQtyCalculator;
 
-    public StockSalesService(LegacyStockReadRepository legacyStockReadRepository) {
+    public StockSalesService(LegacyStockReadRepository legacyStockReadRepository,
+                              RecommendedQtyCalculator recommendedQtyCalculator) {
         this.legacyStockReadRepository = legacyStockReadRepository;
+        this.recommendedQtyCalculator = recommendedQtyCalculator;
     }
 
     public PageResponse<StockSalesSummaryResponse> list(String skuKeyword, String brandCode, String supplierCode,
@@ -42,7 +45,7 @@ public class StockSalesService {
 
         long total = legacyStockReadRepository.countStockSalesList(filter);
         List<StockSalesSummaryResponse> content = legacyStockReadRepository.findStockSalesList(filter, clampedSize, offset).stream()
-                .map(StockSalesService::toSummary)
+                .map(this::toSummary)
                 .toList();
         return PageResponse.of(content, clampedPage, clampedSize, total);
     }
@@ -57,8 +60,8 @@ public class StockSalesService {
         return toSummary(rows.get(0));
     }
 
-    private static StockSalesSummaryResponse toSummary(LegacyStockRow row) {
-        Integer recommendedQty = RecommendedQtyCalculator.calc4(row);
+    private StockSalesSummaryResponse toSummary(LegacyStockRow row) {
+        Integer recommendedQty = recommendedQtyCalculator.calc4(row);
         return new StockSalesSummaryResponse(
                 row.itemCd(), row.itemName(), row.brandCd(), row.brandName(),
                 row.supplierCd(), row.supplierName(),

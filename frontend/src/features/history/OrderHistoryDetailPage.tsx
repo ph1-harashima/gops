@@ -36,7 +36,7 @@ import {
   useConfirmOfficialPoNumber, useGenerateOfficialPoExcel, downloadOfficialPoExcel,
   usePlaceOfficialPoToImportFolder, useConfirmOfficialPoImport,
   useGenerateOfficialPoPdf, downloadOfficialPoPdf,
-  useReissueOfficialPo, useOfficialPoRevisionHistory, useCancelOfficialPo,
+  useReissueOfficialPo, useOfficialPoRevisionHistory, useRequestCancelOfficialPo, useApproveCancelOfficialPo,
 } from './officialPoIntegrationApi'
 import { useLegacyPoConcurrency, useCaptureLegacyPoBaseline } from './legacyPoConcurrencyApi'
 import { useMailPreview } from './mailPreviewApi'
@@ -92,6 +92,23 @@ function splitAddressInput(value: string): string[] {
   return value.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
 }
 
+/** BR-04 (docs/gulliver-20260917-confirmed-business-rules.md): domain-only
+ * comparison for the "異なるDomainのメールアドレスが含まれる" Warning - case
+ * insensitive, never a full-address comparison (the local part legitimately
+ * differs address to address). */
+function domainOf(email: string): string {
+  const at = email.lastIndexOf('@')
+  return at === -1 ? email.toLowerCase() : email.slice(at + 1).toLowerCase()
+}
+
+/** Addresses (from `actual`) whose Domain does not match ANY of the
+ * Master-resolved Domains - never blocks sending (BR-04: "異Domainだから
+ * 送信禁止にはしません"), only flags for the final-confirmation Warning. */
+function addressesWithUnknownDomain(actual: string[], master: string[]): string[] {
+  const masterDomains = new Set(master.map(domainOf))
+  return actual.filter((a) => !masterDomains.has(domainOf(a)))
+}
+
 function errorCodeOf(error: unknown): string | null {
   if (axios.isAxiosError<ApiErrorBody>(error)) {
     return error.response?.data?.errorCode ?? null
@@ -119,7 +136,10 @@ function computeNextActionHintKey(
     return 'retryPlacement'
   }
   if (integration.status === 'PENDING') {
-    return integration.officialPoNo ? 'generateExcel' : 'confirmPoNumber'
+    // BR-08: the Official PO No. is auto-numbered as soon as G-SYS連携準備
+    // creates the Integration Request - there is no longer a distinct
+    // "confirm the number" step to hint at.
+    return 'generateExcel'
   }
 
   // From GENERATED onward the Excel exists, so Email Send becomes
@@ -198,7 +218,8 @@ export function OrderHistoryDetailPage() {
   const generateExcelMutation = useGenerateOfficialPoExcel(orderId)
   const generatePdfMutation = useGenerateOfficialPoPdf(orderId)
   const reissueMutation = useReissueOfficialPo(orderId)
-  const cancelMutation = useCancelOfficialPo(orderId)
+  const cancelMutation = useRequestCancelOfficialPo(orderId)
+  const approveCancelMutation = useApproveCancelOfficialPo(orderId)
   const { data: revisionHistory } = useOfficialPoRevisionHistory(orderId)
   const placeMutation = usePlaceOfficialPoToImportFolder(orderId)
   const confirmImportMutation = useConfirmOfficialPoImport(orderId)
@@ -216,6 +237,10 @@ export function OrderHistoryDetailPage() {
   const [ccOverrideInput, setCcOverrideInput] = useState('')
   const [toManuallyEdited, setToManuallyEdited] = useState(false)
   const [ccManuallyEdited, setCcManuallyEdited] = useState(false)
+  // BR-04 (docs/gulliver-20260917-confirmed-business-rules.md): a final
+  // send-time confirmation is mandatory - Send no longer fires directly off
+  // the button click, it only opens this Dialog.
+  const [sendConfirmDialogOpen, setSendConfirmDialogOpen] = useState(false)
   const [recipientFormSeeded, setRecipientFormSeeded] = useState(false)
   const { data: emailStatus } = useEmailStatus(orderId)
   const sendEmailMutation = useSendEmail(orderId)
@@ -234,7 +259,6 @@ export function OrderHistoryDetailPage() {
   // Phase 9-A: PO Number confirm form - seeded once from the Integration
   // Request the first time it loads (a staff-entered form, not a live
   // server-value display like the rest of this READ ONLY page).
-  const [poNoInput, setPoNoInput] = useState('')
   const [deliveryWeekInput, setDeliveryWeekInput] = useState('')
   const [deliveryDateInput, setDeliveryDateInput] = useState('')
   const [shipViaInput, setShipViaInput] = useState('')
@@ -269,6 +293,17 @@ export function OrderHistoryDetailPage() {
     })
   }
 
+  function handleApproveCancel() {
+    approveCancelMutation.mutate()
+  }
+
+  function handleConfirmSendEmail() {
+    sendEmailMutation.mutate({
+      to: toManuallyEdited ? splitAddressInput(toOverrideInput) : undefined,
+      cc: ccManuallyEdited ? splitAddressInput(ccOverrideInput) : undefined,
+    }, { onSuccess: () => setSendConfirmDialogOpen(false) })
+  }
+
   function handleCaptureBaseline() {
     captureBaselineMutation.mutate()
   }
@@ -279,7 +314,6 @@ export function OrderHistoryDetailPage() {
   // through typing.
   useEffect(() => {
     if (integration && !poNoFormSeeded && integration.status !== 'NOT_REQUESTED') {
-      setPoNoInput(integration.officialPoNo ?? '')
       setDeliveryWeekInput(integration.deliveryWeek ?? '')
       setDeliveryDateInput(integration.deliveryDate ?? '')
       setShipViaInput(integration.shipVia ?? '')
@@ -302,7 +336,6 @@ export function OrderHistoryDetailPage() {
 
   function handleConfirmPoNumber() {
     confirmPoNumberMutation.mutate({
-      officialPoNo: poNoInput.trim(),
       deliveryWeek: deliveryWeekInput.trim() || null,
       deliveryDate: deliveryDateInput.trim() || null,
       shipVia: shipViaInput.trim() || null,
@@ -883,16 +916,6 @@ export function OrderHistoryDetailPage() {
                     )}
                     <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', rowGap: 2 }}>
                       <TextField
-                        label={t('officialPoIntegration.officialPoNoLabel')}
-                        value={poNoInput}
-                        onChange={(e) => setPoNoInput(e.target.value)}
-                        disabled={locked}
-                        slotProps={{ htmlInput: { maxLength: 30 } }}
-                        helperText={t('officialPoIntegration.officialPoNoHelperText')}
-                        data-testid="official-po-number-input"
-                        size="small"
-                      />
-                      <TextField
                         label={t('officialPoIntegration.deliveryWeekLabel')}
                         value={deliveryWeekInput}
                         onChange={(e) => setDeliveryWeekInput(e.target.value)}
@@ -939,7 +962,7 @@ export function OrderHistoryDetailPage() {
                         <Button
                           variant="outlined"
                           onClick={handleConfirmPoNumber}
-                          disabled={confirmPoNumberMutation.isPending || poNoInput.trim().length === 0}
+                          disabled={confirmPoNumberMutation.isPending}
                           data-testid="official-po-number-confirm-button"
                         >
                           {confirmPoNumberMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.confirmButton')}
@@ -1261,7 +1284,7 @@ export function OrderHistoryDetailPage() {
           <Toast
             open={cancelMutation.isSuccess}
             severity="success"
-            message={t('officialPoIntegration.cancelSuccess')}
+            message={t('officialPoIntegration.cancelRequestSuccess')}
             onClose={() => cancelMutation.reset()}
           />
           <Toast
@@ -1274,6 +1297,23 @@ export function OrderHistoryDetailPage() {
               t('errorGeneric')
             }
             onClose={() => cancelMutation.reset()}
+          />
+          <Toast
+            open={approveCancelMutation.isSuccess}
+            severity="success"
+            message={t('officialPoIntegration.cancelApproveSuccess')}
+            onClose={() => approveCancelMutation.reset()}
+          />
+          <Toast
+            open={approveCancelMutation.isError}
+            severity="error"
+            testId="official-po-cancel-approve-error"
+            message={
+              errorCodeOf(approveCancelMutation.error) === 'OFFICIAL_PO_CANCEL_APPROVAL_NOT_ALLOWED' ? t('officialPoIntegration.errorCancelApprovalNotAllowed') :
+              errorCodeOf(approveCancelMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+              t('errorGeneric')
+            }
+            onClose={() => approveCancelMutation.reset()}
           />
 
           {isAdmin && (
@@ -1296,7 +1336,25 @@ export function OrderHistoryDetailPage() {
               >
                 {t('officialPoIntegration.cancelButton')}
               </Button>
+              {/* BR-03 step 2: only enabled once a Cancel Request is
+                  actually pending - never a direct ACTIVE -> CANCELLED
+                  shortcut. */}
+              <Button
+                variant="contained"
+                color="error"
+                onClick={handleApproveCancel}
+                disabled={integration?.lifecycleStatus !== 'CANCEL_REQUESTED' || approveCancelMutation.isPending}
+                data-testid="official-po-cancel-approve-button"
+              >
+                {approveCancelMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.cancelApproveButton')}
+              </Button>
             </Stack>
+          )}
+
+          {integration?.lifecycleStatus === 'CANCEL_REQUESTED' && (
+            <Alert severity="warning" sx={{ mb: 2 }} data-testid="official-po-cancel-requested-note">
+              {t('officialPoIntegration.cancelRequestedNote')}{integration.lifecycleReason ? `: ${integration.lifecycleReason}` : ''}
+            </Alert>
           )}
 
           {integration?.lifecycleStatus === 'CANCELLED' && (
@@ -1508,10 +1566,7 @@ export function OrderHistoryDetailPage() {
               {emailStatus?.status !== 'SENT' && (
                 <Button
                   variant="contained"
-                  onClick={() => sendEmailMutation.mutate({
-                    to: toManuallyEdited ? splitAddressInput(toOverrideInput) : undefined,
-                    cc: ccManuallyEdited ? splitAddressInput(ccOverrideInput) : undefined,
-                  })}
+                  onClick={() => setSendConfirmDialogOpen(true)}
                   disabled={sendEmailMutation.isPending}
                   data-testid="email-send-button"
                 >
@@ -1989,6 +2044,53 @@ export function OrderHistoryDetailPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* BR-04 (docs/gulliver-20260917-confirmed-business-rules.md): a final
+          send-time confirmation is mandatory before any Manufacturer Send,
+          and a Domain Warning (never a block) is shown when a To/CC address
+          resolves to a Domain the Master Contact never registered. */}
+      {mailPreviewMutation.data && (() => {
+        const finalTo = toManuallyEdited ? splitAddressInput(toOverrideInput) : mailPreviewMutation.data.to
+        const finalCc = ccManuallyEdited ? splitAddressInput(ccOverrideInput) : mailPreviewMutation.data.cc
+        const unknownDomainAddresses = addressesWithUnknownDomain(
+          [...finalTo, ...finalCc], [...mailPreviewMutation.data.to, ...mailPreviewMutation.data.cc])
+        return (
+          <Dialog
+            open={sendConfirmDialogOpen}
+            onClose={(_event, reason) => {
+              if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+              setSendConfirmDialogOpen(false)
+            }}
+            data-testid="email-send-confirm-dialog"
+          >
+            <DialogTitle>{t('mailPreview.sendConfirmDialogTitle')}</DialogTitle>
+            <DialogContent>
+              <Stack spacing={1} sx={{ mt: 1 }}>
+                <Typography variant="body2">{t('mailPreview.to')}: {finalTo.join(', ') || '—'}</Typography>
+                <Typography variant="body2">{t('mailPreview.cc')}: {finalCc.join(', ') || '—'}</Typography>
+                {unknownDomainAddresses.length > 0 && (
+                  <Alert severity="warning" data-testid="email-domain-mismatch-warning">
+                    {t('mailPreview.domainMismatchWarning', { addresses: unknownDomainAddresses.join(', ') })}
+                  </Alert>
+                )}
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setSendConfirmDialogOpen(false)} disabled={sendEmailMutation.isPending}>
+                {t('mailPreview.sendConfirmDialogCancel')}
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleConfirmSendEmail}
+                disabled={sendEmailMutation.isPending}
+                data-testid="email-send-confirm-dialog-confirm"
+              >
+                {sendEmailMutation.isPending ? <CircularProgress size={20} /> : t('mailPreview.sendConfirmDialogConfirm')}
+              </Button>
+            </DialogActions>
+          </Dialog>
+        )
+      })()}
 
       <Dialog open={followUpDialogOpen} onClose={() => setFollowUpDialogOpen(false)}>
         <DialogTitle>{t('followUp.createDialogTitle')}</DialogTitle>

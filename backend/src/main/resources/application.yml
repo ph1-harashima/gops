@@ -77,6 +77,16 @@ app:
     # a real path.
     import-folder:
       base-dir: ./data/official-po-import
+  # BR-06 (docs/gulliver-20260917-confirmed-business-rules.md): Demo Send is
+  # a Local/Demo/Test-only Test Helper Flow, never a Production Business
+  # Function - true here (and in every profile SafetyGuardEnvironmentPostProcessor
+  # actually allows to start). A real Production deploy overrides this to
+  # false via its own application-production.yml (same Spring profile-specific
+  # override convention every other environment-dependent value in this file
+  # already relies on) - reusing the existing profile mechanism rather than
+  # inventing a second environment-detection scheme.
+  demo-features:
+    enabled: true
 
 server:
   port: 8080

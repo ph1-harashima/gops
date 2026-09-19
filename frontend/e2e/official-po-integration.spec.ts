@@ -71,7 +71,7 @@ async function submitAndApprove(page: Page, draftId: string): Promise<void> {
 }
 
 test.describe('Phase 7-C2A: Official PO Integration Foundation', () => {
-  test('Scenario A: ADMIN prepares G-SYS Integration on an APPROVED Order - Request created, Preflight shown, PO No. unassigned', async ({ page }) => {
+  test('Scenario A: ADMIN prepares G-SYS Integration on an APPROVED Order - Request created, Preflight shown, PO No. auto-numbered (BR-08)', async ({ page }) => {
     const draftId = await createOrderableDraft(page)
     await submitAndApprove(page, draftId)
     // Still logged in as ADMIN from submitAndApprove.
@@ -83,8 +83,10 @@ test.describe('Phase 7-C2A: Official PO Integration Foundation', () => {
     await page.getByTestId('official-po-request-dialog-confirm').click()
 
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
-    await expect(page.getByTestId('official-po-no')).toHaveText('正式PO番号未設定')
-    await expect(page.getByTestId('official-po-no-unassigned-note')).toBeVisible()
+    // BR-08 (docs/gulliver-20260917-confirmed-business-rules.md): auto-numbered
+    // immediately - no "unassigned" state exists anymore once a Request exists.
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
+    await expect(page.getByTestId('official-po-no-unassigned-note')).toHaveCount(0)
     await expect(page.getByTestId('preflight-result')).toBeVisible()
     // Acceptance Fix (B-1): the live-state Chip now reads "問題なし" (natural
     // Japanese) instead of the raw internal Code "PASS". Scoped to the
@@ -172,8 +174,9 @@ test.describe('Phase 7-C2A: Official PO Integration Foundation', () => {
     // This Scenario's Browser-observable proxy: after a full Request +
     // repeat-Request flow, the Integration Status must still be exactly
     // PENDING (never SUBMITTED/CONFIRMED - those values have no Controller
-    // path that can produce them this Phase) and the Official PO No. must
-    // still be unassigned.
+    // path that can produce them this Phase). BR-08: the Official PO No.
+    // itself is now auto-numbered (G-OPS-only, never a Legacy write) rather
+    // than staying unassigned.
     const draftId = await createOrderableDraft(page)
     await submitAndApprove(page, draftId)
 
@@ -187,7 +190,7 @@ test.describe('Phase 7-C2A: Official PO Integration Foundation', () => {
     // scoped to the dedicated status label element, same disambiguation
     // idiom as Scenario A's own "PASS" collision above.
     await expect(page.getByTestId('official-po-status-label')).toHaveText('準備中') // statusLabel.PENDING
-    await expect(page.getByTestId('official-po-no')).toHaveText('正式PO番号未設定')
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     await expect(page.getByText('G-SYSへ投入済み')).toHaveCount(0) // statusLabel.SUBMITTED
     await expect(page.getByText('G-SYS登録確認済み')).toHaveCount(0) // statusLabel.CONFIRMED
   })
@@ -203,12 +206,15 @@ test.describe('Phase 9-A: Official PO Number / Excel Generation', () => {
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
 
     await expect(page.getByTestId('official-po-number-form')).toBeVisible()
-    const poNo = `E2E-TEST-${draftId}`
-    await page.getByTestId('official-po-number-input').locator('input').fill(poNo)
+    // BR-08 (docs/gulliver-20260917-confirmed-business-rules.md): the
+    // Official PO No. itself is already auto-numbered at this point - only
+    // the delivery/shipping/payment details remain to (optionally) confirm.
+    const poNo = await page.getByTestId('official-po-no').innerText()
+    expect(poNo).toMatch(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     await page.getByTestId('official-po-delivery-week-input').locator('input').fill('WK40')
     await page.getByTestId('official-po-delivery-date-input').locator('input').fill('2026-10-01')
     await page.getByTestId('official-po-number-confirm-button').click()
-    await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
+    await expect(page.getByText('配送・決済条件を確定しました。')).toBeVisible()
     await expect(page.getByTestId('official-po-no')).toHaveText(poNo)
 
     await page.getByTestId('official-po-generate-button').click()
@@ -230,7 +236,7 @@ test.describe('Phase 9-A: Official PO Number / Excel Generation', () => {
     await expect(page.getByTestId('official-po-pdf-download-button')).toHaveText('PDFをダウンロード')
   })
 
-  test('Scenario G: Excel generation is blocked until a PO No. is confirmed', async ({ page }) => {
+  test('Scenario G: Excel generation is available immediately - BR-08 auto-numbers the PO No. at Request time', async ({ page }) => {
     const draftId = await createOrderableDraft(page)
     await submitAndApprove(page, draftId)
 
@@ -238,10 +244,10 @@ test.describe('Phase 9-A: Official PO Number / Excel Generation', () => {
     await page.getByTestId('official-po-request-dialog-confirm').click()
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
 
-    // No PO No. confirmed yet - the Generate button stays disabled (the
-    // over-length rejection path itself is covered at the Backend,
-    // OfficialPoNumberAndExcelGenerationIntegrationTest).
-    await expect(page.getByTestId('official-po-generate-button')).toBeDisabled()
+    // BR-08 (docs/gulliver-20260917-confirmed-business-rules.md): the
+    // Official PO No. is already auto-numbered at this point - there is no
+    // longer a "PO No. not yet confirmed" state that could block Generate.
+    await expect(page.getByTestId('official-po-generate-button')).toBeEnabled()
   })
 
   /** Gap Analysis C-1 (docs/gulliver-20260917-phase1-gap-analysis.md 7章):
@@ -254,13 +260,9 @@ test.describe('Phase 9-A: Official PO Number / Excel Generation', () => {
     await page.getByTestId('official-po-request-button').click()
     await page.getByTestId('official-po-request-dialog-confirm').click()
 
-    // PDF Generate stays disabled until PO No. is confirmed - same Gate as Excel.
-    await expect(page.getByTestId('official-po-pdf-generate-button')).toBeDisabled()
-
-    const poNo = `E2E-PDF-${draftId}`
-    await page.getByTestId('official-po-number-input').locator('input').fill(poNo)
-    await page.getByTestId('official-po-number-confirm-button').click()
-    await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
+    // BR-08: the Official PO No. is already auto-numbered at Request time -
+    // PDF Generate is available immediately, same as Excel Generate.
+    await expect(page.getByTestId('official-po-pdf-generate-button')).toBeEnabled()
 
     await page.getByTestId('official-po-pdf-generate-button').click()
     await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
@@ -283,11 +285,11 @@ test.describe('Phase 9-B: Import Folder Integration', () => {
     await page.getByTestId('official-po-request-dialog-confirm').click()
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
 
-    await page.getByTestId('official-po-number-input').locator('input').fill(`E2E-PLACE-${draftId}`)
+    // BR-08: Official PO No. is auto-numbered immediately - no manual input.
     await page.getByTestId('official-po-delivery-week-input').locator('input').fill('WK40')
     await page.getByTestId('official-po-delivery-date-input').locator('input').fill('2026-10-01')
     await page.getByTestId('official-po-number-confirm-button').click()
-    await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
+    await expect(page.getByText('配送・決済条件を確定しました。')).toBeVisible()
 
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
@@ -317,14 +319,10 @@ test.describe('Phase 9-C: G-SYS Import Confirmation', () => {
     await page.getByTestId('official-po-request-dialog-confirm').click()
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
 
-    // A PO No. that provably does not (and never will) exist in the Legacy
-    // Demo MySQL Fixture set - no real Import Batch runs in this
-    // environment, so SUBMITTED never naturally becomes CONFIRMED here
-    // regardless of the value used; this just makes the intent explicit.
-    await page.getByTestId('official-po-number-input').locator('input').fill(`E2E-CONFIRM-${draftId}`)
-    await page.getByTestId('official-po-number-confirm-button').click()
-    await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
-
+    // The auto-numbered PO No. (BR-08) provably does not (and never will)
+    // exist in the Legacy Demo MySQL Fixture set either - no real Import
+    // Batch runs in this environment, so SUBMITTED never naturally becomes
+    // CONFIRMED here regardless of the value.
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
 
@@ -353,12 +351,13 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     const draftId = await createOrderableDraft(page)
     await submitAndApprove(page, draftId)
 
-    // Issue the Official PO for Revision 1.
+    // Issue the Official PO for Revision 1. BR-08: Official PO No. is
+    // auto-numbered immediately - no manual input.
     await page.getByTestId('official-po-request-button').click()
     await page.getByTestId('official-po-request-dialog-confirm').click()
-    const poNo = `E2E-REISSUE-${draftId}`
-    await page.getByTestId('official-po-number-input').locator('input').fill(poNo)
-    await page.getByTestId('official-po-number-confirm-button').click()
+    await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
+    const poNo = await page.getByTestId('official-po-no').innerText()
+    expect(poNo).toMatch(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
 
@@ -423,9 +422,14 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     await expect(row1).toContainText(poNo)
     const row2 = page.getByTestId('revision-history-row-2')
     await expect(row2).toContainText('有効')
-    // New Revision starts back at 準備中 (PENDING) - a fresh PO No. must be
-    // confirmed again, matching the existing "correct-and-restart" workflow.
-    // Scoped to the "at a glance" panel specifically (not
+    // BR-08 Scenario 7 (docs/gulliver-20260917-confirmed-business-rules.md):
+    // Reissue advances the Revision, never the Official PO No. itself -
+    // Revision 2 carries forward the exact SAME number as Revision 1.
+    await expect(row2).toContainText(poNo)
+    await expect(page.getByTestId('official-po-no')).toHaveText(poNo)
+    // New Revision starts back at 準備中 (PENDING) - Excel/PDF must be
+    // (re)generated again for it, matching the existing "correct-and-restart"
+    // workflow. Scoped to the "at a glance" panel specifically (not
     // official-po-integration-section, which also now contains the
     // Revision History table's own PENDING status cell for this same new row).
     await expect(page.getByTestId('at-a-glance-panel').getByText('準備中')).toBeVisible()
@@ -445,9 +449,10 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
 
     await page.getByTestId('official-po-request-button').click()
     await page.getByTestId('official-po-request-dialog-confirm').click()
-    const poNo1 = `E2E-REV-CONSIST-${draftId}`
-    await page.getByTestId('official-po-number-input').locator('input').fill(poNo1)
-    await page.getByTestId('official-po-number-confirm-button').click()
+    await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
+    // BR-08: Official PO No. is auto-numbered immediately - no manual input.
+    const poNo = await page.getByTestId('official-po-no').innerText()
+    expect(poNo).toMatch(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
 
@@ -480,13 +485,14 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     await page.getByTestId('official-po-reissue-dialog-confirm').click()
     await expect(page.getByText('正式POを再発行しました。')).toBeVisible()
 
-    // Revision 2 is now ACTIVE/PENDING - confirm its own PO No. and Excel.
-    const poNo2 = `E2E-REV-CONSIST-2-${draftId}`
-    await page.getByTestId('official-po-number-input').locator('input').fill(poNo2)
-    await page.getByTestId('official-po-number-confirm-button').click()
-    await expect(page.getByText('正式PO番号を確定しました。')).toBeVisible()
+    // Revision 2 is now ACTIVE/PENDING - BR-08 Scenario 7: it carries
+    // forward the exact SAME Official PO No. as Revision 1, never a new one.
+    await expect(page.getByTestId('official-po-no')).toHaveText(poNo)
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+    // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
+    await page.getByTestId('official-po-pdf-generate-button').click()
+    await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
 
     // Manufacturer Channel/Contact/Template for SUP_ALPHA/BR_OUTDOOR.
     await page.getByTestId('nav-master-maintenance').click()
@@ -516,13 +522,17 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     await page.getByTestId('mail-template-save').click()
     await expect(page.getByTestId('mail-template-table-container')).toContainText('Revision Consistency Template')
 
-    // Manufacturer Send - must resolve to Revision 2 (the poNo2 Excel), not
-    // Revision 1's stale attachment.
+    // Manufacturer Send - must resolve to Revision 2's own Excel/PDF, not
+    // Revision 1's stale attachment (BR-08: same PO No. either way, so this
+    // Scenario also proves 001/002 are never conflated purely by Revision,
+    // not by a distinguishing PO No. string).
     await page.goto(`/orders/${draftId}`)
     await page.getByTestId('mail-preview-button').click()
     await expect(page.getByTestId('mail-preview-result')).toBeVisible()
-    await expect(page.getByText(`PO ${poNo2}`)).toBeVisible()
+    await expect(page.getByText(`PO ${poNo}`)).toBeVisible()
     await page.getByTestId('email-send-button').click()
+    // BR-04: Send now requires final confirmation via a Dialog.
+    await page.getByTestId('email-send-confirm-dialog-confirm').click()
     await expect(page.getByText('メールを送信しました。')).toBeVisible()
 
     // Revision History: Revision 2 shows 送信済み, Revision 1 never does -
@@ -561,40 +571,57 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
 })
 
 /**
- * Gap Analysis C-4 (docs/gulliver-20260917-phase1-gap-analysis.md 9章,
- * Scenario 3 of the instruction's End-to-End Scenario list): Official PO
- * issued -> Cancel -> reason required -> CANCELLED -> no automatic Legacy
- * write -> Audit Trail.
+ * BR-03 (docs/gulliver-20260917-confirmed-business-rules.md, Scenario 3 of
+ * the instruction's End-to-End Scenario list): Official PO issued -> Cancel
+ * Request (reason required) -> ADMIN Approval (-> best-effort メーカーへ
+ * 取消連絡) -> CANCELLED -> no automatic Legacy write -> Audit Trail records
+ * Requester and Approver distinctly.
  */
-test.describe('Gap Analysis C-4: Official PO Cancel', () => {
-  test('Scenario L: ADMIN cancels the Official PO with a mandatory reason, no automatic Legacy write', async ({ page }) => {
+test.describe('BR-03: Official PO Cancel Approval Workflow', () => {
+  test('Scenario L: ADMIN requests Cancel with a mandatory reason, then approves it - no automatic Legacy write', async ({ page }) => {
     const draftId = await createOrderableDraft(page)
     await submitAndApprove(page, draftId)
 
     await page.getByTestId('official-po-request-button').click()
     await page.getByTestId('official-po-request-dialog-confirm').click()
-    const poNo = `E2E-CANCEL-${draftId}`
-    await page.getByTestId('official-po-number-input').locator('input').fill(poNo)
-    await page.getByTestId('official-po-number-confirm-button').click()
+    await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
+    // BR-08: Official PO No. is auto-numbered immediately - no manual input.
+    const poNo = await page.getByTestId('official-po-no').innerText()
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
 
-    // Reason required: the Confirm button stays disabled until something is typed.
+    // Step 1: Cancel Request - reason required: the Confirm button stays
+    // disabled until something is typed.
     await page.getByTestId('official-po-cancel-button').click()
     await expect(page.getByTestId('official-po-cancel-dialog-confirm')).toBeDisabled()
     await page.getByTestId('official-po-cancel-reason-input').locator('textarea').first().fill('顧客都合によりOrderをキャンセル')
     await expect(page.getByTestId('official-po-cancel-dialog-confirm')).toBeEnabled()
     await page.getByTestId('official-po-cancel-dialog-confirm').click()
-    await expect(page.getByText('正式POをキャンセルしました。')).toBeVisible()
+    await expect(page.getByText('正式POのキャンセルを申請しました。')).toBeVisible()
+
+    // A Cancel Request alone must never reach CANCELLED yet.
+    await expect(page.getByTestId('official-po-cancel-requested-note')).toBeVisible()
+    await expect(page.getByTestId('official-po-cancel-requested-note')).toContainText('顧客都合によりOrderをキャンセル')
+    await expect(page.getByTestId('official-po-cancelled-note')).toHaveCount(0)
+    await expect(page.getByTestId('official-po-status-label')).toHaveText('Excel生成済み')
+    // Cancel Request button is now disabled (already pending); Approve
+    // becomes the only enabled Action for this Workflow.
+    await expect(page.getByTestId('official-po-cancel-button')).toBeDisabled()
+    await expect(page.getByTestId('official-po-cancel-approve-button')).toBeEnabled()
+
+    // Step 2: ADMIN Approval - only now does it actually become CANCELLED.
+    await page.getByTestId('official-po-cancel-approve-button').click()
+    await expect(page.getByText('正式POのキャンセルを承認しました。')).toBeVisible()
 
     await expect(page.getByTestId('official-po-cancelled-note')).toBeVisible()
     await expect(page.getByTestId('official-po-cancelled-note')).toContainText('顧客都合によりOrderをキャンセル')
     // The Integration Status axis (Excel/Import Folder progress) is left
     // untouched by Cancel - it still reads GENERATED, never silently reset.
     await expect(page.getByTestId('official-po-status-label')).toHaveText('Excel生成済み')
-    // Cancel Button itself is now disabled - a terminal state, matching the
-    // Backend's own "never re-cancel" rule.
+    // Both Actions are now disabled - a terminal state, matching the
+    // Backend's own "never re-cancel/re-approve" rule.
     await expect(page.getByTestId('official-po-cancel-button')).toBeDisabled()
+    await expect(page.getByTestId('official-po-cancel-approve-button')).toBeDisabled()
     await expect(page.getByTestId('official-po-reissue-button')).toBeDisabled()
 
     const historyRow = page.getByTestId('revision-history-row-1')
@@ -602,11 +629,14 @@ test.describe('Gap Analysis C-4: Official PO Cancel', () => {
     await expect(historyRow).toContainText(poNo)
 
     // No automatic Legacy write of any kind is possible from this Action -
-    // Cancel only ever calls markCancelled()/saves the Portal DB row
-    // (Backend Fact, OfficialPoIntegrationService.cancel's own Javadoc);
-    // this Scenario's Browser-observable proxy is that the page never enters
-    // an error state and Integration Status/PO No. remain exactly as they
-    // were set by the Portal-only Actions above.
+    // Cancel Request/Approval only ever call markCancelRequested()/
+    // markCancelled() and save the Portal DB row (Backend Fact,
+    // OfficialPoIntegrationService's own Javadoc), and "メーカーへ取消連絡"
+    // only ever goes through the same Local/Demo/Test Simulation Adapter
+    // every other Manufacturer communication uses; this Scenario's
+    // Browser-observable proxy is that the page never enters an error state
+    // and Integration Status/PO No. remain exactly as they were set by the
+    // Portal-only Actions above.
     await expect(page.getByTestId('official-po-no')).toHaveText(poNo)
   })
 })

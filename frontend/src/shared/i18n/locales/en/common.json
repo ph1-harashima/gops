@@ -18,6 +18,7 @@
   "navAdminManufacturerChannels": "Manufacturer Channels",
   "navAdminMailSettings": "Mail Settings (Default CC)",
   "navAdminSupplierRegionClassifications": "Domestic / Overseas Classification",
+  "navAdminOfficialPoShortCodes": "Official PO Short Codes",
   "demoEnvironmentBadge": "Demo Environment",
   "searchLabel": "Search (Supplier Code, Brand Code, etc.)",
   "showInactiveLabel": "Show inactive entries",

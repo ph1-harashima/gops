@@ -161,12 +161,22 @@ public class OfficialPoIntegrationController {
         return integrationService.getRevisionHistory(id);
     }
 
-    /** Gap Analysis C-4 (docs/gulliver-20260917-phase1-gap-analysis.md 9章):
-     * "Official POをCancel" - ADMIN only, reason required. G-OPS-internal
-     * Workflow state only - never writes to Legacy in any way. */
+    /** BR-03 (docs/gulliver-20260917-confirmed-business-rules.md) step 1:
+     * "Cancel Request" - ADMIN only, reason required. Does NOT itself reach
+     * CANCELLED - see {@link #approveCancel}. G-OPS-internal Workflow state
+     * only - never writes to Legacy in any way. */
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/api/orders/{id}/official-po/cancel")
-    public OfficialPoIntegrationResponse cancel(@PathVariable Long id, @RequestBody CancelOfficialPoRequest body) {
-        return integrationService.cancel(id, body.reason(), currentUserProvider.currentUsername());
+    public OfficialPoIntegrationResponse requestCancel(@PathVariable Long id, @RequestBody CancelOfficialPoRequest body) {
+        return integrationService.requestCancel(id, body.reason(), currentUserProvider.currentUsername());
+    }
+
+    /** BR-03 step 2: ADMIN approves a pending Cancel Request - only this
+     * Action actually reaches CANCELLED, after attempting the "メーカーへ
+     * 取消連絡" notice (Local/Demo/Test Simulation only). */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/orders/{id}/official-po/cancel/approve")
+    public OfficialPoIntegrationResponse approveCancel(@PathVariable Long id) {
+        return integrationService.approveCancel(id, currentUserProvider.currentUsername());
     }
 }

@@ -25,6 +25,13 @@ public record OrderCandidateResponse(
         String itemStatus,
         BigDecimal unitPrice,
         String currency,
-        String dataSource
+        String dataSource,
+        /** BR-09 (docs/gulliver-20260917-confirmed-business-rules.md):
+         * DOMESTIC/OVERSEAS/null(unclassified) - lets the Frontend show
+         * "国内向け推奨数量計算ルールは設定準備中" specifically for a
+         * DOMESTIC Supplier whose {@code recommendedQty} came back null,
+         * rather than conflating that with any other null-Recommended-Qty
+         * reason. */
+        String regionClassification
 ) {
 }
