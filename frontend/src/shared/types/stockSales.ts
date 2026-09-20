@@ -14,6 +14,8 @@
 // (different granularity). Never merge or compare against Warehouse Stock
 // values (13章) - Navigation to /warehouse-stock is fine, a Business Join
 // is not.
+import type { RestockSource } from './restockExpectation'
+
 export interface StockSalesSummary {
   sku: string
   itemName: string | null
@@ -29,4 +31,7 @@ export interface StockSalesSummary {
   leadTime: string | null
   itemStatus: string | null
   updatedAt: string | null
+  // Post-Freeze Business Refinement (re-audit doc §10-5).
+  restockSource: RestockSource
+  restockDate: string | null
 }

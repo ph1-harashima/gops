@@ -11,4 +11,8 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
     /** Phase 8-B: Price Change's own aggregate-root Audit query, mirroring
      * {@link #findByPortalOrderIdOrderByPerformedAtAsc} exactly. */
     List<AuditEvent> findByPriceChangeSetIdOrderByPerformedAtAsc(Long priceChangeSetId);
+
+    /** Post-Freeze Business Refinement: SKU Expected Restock's own
+     * aggregate-root Audit query, same shape as the two above. */
+    List<AuditEvent> findBySkuCodeOrderByPerformedAtAsc(String skuCode);
 }

@@ -1,11 +1,13 @@
 package com.glv.gsysportal.service;
 
 import com.glv.gsysportal.dto.response.OrderCandidateResponse;
+import com.glv.gsysportal.dto.response.SkuRestockExpectationResponse;
 import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository;
 import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Order Candidate List - Legacy Read only, no Prototype DB writes.
@@ -29,19 +31,27 @@ public class OrderCandidateService {
 
     private final LegacyStockReadRepository legacyStockReadRepository;
     private final RecommendedQtyCalculator recommendedQtyCalculator;
+    private final SkuRestockExpectationService restockExpectationService;
 
     public OrderCandidateService(LegacyStockReadRepository legacyStockReadRepository,
-                                  RecommendedQtyCalculator recommendedQtyCalculator) {
+                                  RecommendedQtyCalculator recommendedQtyCalculator,
+                                  SkuRestockExpectationService restockExpectationService) {
         this.legacyStockReadRepository = legacyStockReadRepository;
         this.recommendedQtyCalculator = recommendedQtyCalculator;
+        this.restockExpectationService = restockExpectationService;
     }
 
     public List<OrderCandidateResponse> findOrderCandidates(String brandCode, String supplierCode, String keyword) {
         List<LegacyStockRow> rows = legacyStockReadRepository.findOrderCandidates(brandCode, supplierCode, keyword);
-        return rows.stream().map(this::toResponse).toList();
+        // Post-Freeze Business Refinement: one bulk restock-expectation
+        // lookup for the whole List, not one per row (same "no N+1"
+        // discipline the rest of this List already follows).
+        Map<String, SkuRestockExpectationResponse> restockBySku =
+                restockExpectationService.getBulk(rows.stream().map(LegacyStockRow::itemCd).toList());
+        return rows.stream().map(row -> toResponse(row, restockBySku.get(row.itemCd()))).toList();
     }
 
-    OrderCandidateResponse toResponse(LegacyStockRow row) {
+    OrderCandidateResponse toResponse(LegacyStockRow row, SkuRestockExpectationResponse restock) {
         Integer calc4 = recommendedQtyCalculator.calc4(row);
         return new OrderCandidateResponse(
                 row.itemCd(),
@@ -61,7 +71,9 @@ public class OrderCandidateService {
                 row.unitPrice(),
                 row.currency(),
                 DATA_SOURCE_CODE,
-                recommendedQtyCalculator.resolveRegion(row)
+                recommendedQtyCalculator.resolveRegion(row),
+                restock == null ? SkuRestockExpectationResponse.SOURCE_NONE : restock.source(),
+                restock == null ? null : restock.date()
         );
     }
 

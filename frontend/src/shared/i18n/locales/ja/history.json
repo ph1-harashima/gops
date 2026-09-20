@@ -55,6 +55,7 @@
     "monthlySales": "当月販売実績",
     "leadTime": "リードタイム",
     "openArrival": "入荷予定",
+    "restock": "入荷/再入荷予定",
     "viewSkuDetail": "SKU詳細を見る"
   },
   "notAvailable": "—",
@@ -174,8 +175,6 @@
     "confirmButton": "確定",
     "confirmSuccess": "配送・決済条件を確定しました。",
     "numberLockedNote": "既にG-SYSへ投入済みのため、PO番号・Excel項目は変更できません。",
-    "errorInvalidNumber": "正式PO番号は1〜30文字で入力してください。",
-    "errorDuplicateNumber": "この正式PO番号は既に別の発注で使用されています。",
     "errorAlreadySubmitted": "既にG-SYSへ投入済みのため、この操作は行えません。",
     "excelSectionTitle": "正式PO Excel",
     "pdfSectionTitle": "正式PO PDF（G-OPS標準フォーマット）",

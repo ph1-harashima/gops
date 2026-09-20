@@ -1,6 +1,7 @@
 package com.glv.gsysportal.dto.response;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * Order Candidate List row.
@@ -32,6 +33,11 @@ public record OrderCandidateResponse(
          * DOMESTIC Supplier whose {@code recommendedQty} came back null,
          * rather than conflating that with any other null-Recommended-Qty
          * reason. */
-        String regionClassification
+        String regionClassification,
+        /** Post-Freeze Business Refinement (re-audit doc §8/§11): the
+         * merged Display-Priority result - {@code SkuRestockExpectationResponse.SOURCE_*}
+         * (LEGACY_EXPECTED_ARRIVAL/PORTAL_MANUAL/PORTAL_MANUAL_UNKNOWN/NONE). */
+        String restockSource,
+        LocalDate restockDate
 ) {
 }

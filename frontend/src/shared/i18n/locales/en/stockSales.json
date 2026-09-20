@@ -24,7 +24,8 @@
     "currentMonthSalesQty": "Current Month Sales Qty",
     "openPoQty": "Open PO Qty",
     "openArrivalQty": "Open Arrival Qty",
-    "updatedAt": "G-SYS Data Updated At"
+    "updatedAt": "G-SYS Data Updated At",
+    "restock": "Arrival / Restock"
   },
   "field": {
     "currentStock": "Current Stock",
@@ -32,7 +33,8 @@
     "openPoQty": "Open PO Qty",
     "openArrivalQty": "Open Arrival Qty",
     "recommendedQty": "Recommended Order Qty",
-    "updatedAt": "G-SYS Data Updated At"
+    "updatedAt": "G-SYS Data Updated At",
+    "restock": "Arrival / Restock"
   },
   "tooltip": {
     "currentMonthSalesQty": "Cumulative shipment quantity for the current month (from Tempostar order data). Not a daily figure or a sales trend."

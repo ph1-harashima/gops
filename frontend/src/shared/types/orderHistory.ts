@@ -1,6 +1,7 @@
 // Mirrors backend com.glv.gsysportal.dto.response.OrderHistorySummaryResponse
 // / OrderHistoryDetailResponse / OrderHistoryDetailLineView / AuditEventView.
 import type { AttentionSummary } from './attention'
+import type { RestockSource } from './restockExpectation'
 
 export interface OrderHistorySummary {
   id: number
@@ -41,6 +42,9 @@ export interface OrderHistoryDetailLine {
   monthlySales: number | null
   leadTime: string | null
   openArrival: number | null
+  // Post-Freeze Business Refinement (re-audit doc §10-4).
+  restockSource: RestockSource
+  restockDate: string | null
 }
 
 export interface OrderHistoryDetail {

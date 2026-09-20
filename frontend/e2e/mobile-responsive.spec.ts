@@ -176,11 +176,17 @@ test.describe('Mobile Scenarios (390x844)', () => {
     await assertNoHorizontalOverflow(page, 'Order History (Mobile)')
     await page.getByTestId('order-history-filter-brand').locator('input').fill('BR_HOME')
     await page.getByTestId('order-history-filter-brand').locator('input').blur()
-    await expect(page.locator('tbody tr').first()).toBeVisible()
-    await page.locator('tbody tr').first().click()
+    // Post-Freeze Business Refinement: Card layout (not the Desktop
+    // 12-column Table) below `sm` (600px), same isCardLayout idiom as
+    // Order Candidates Brand List - no `tbody tr` exists on Mobile anymore.
+    const firstCard = page.locator('[data-testid^="order-history-row-"]').first()
+    await expect(firstCard).toBeVisible()
+    await firstCard.click()
     await expect(page).toHaveURL(/\/orders\/\d+/)
     await assertNoHorizontalOverflow(page, 'Order Detail from Order History (Mobile)')
-    // Portal管理番号 vs 正式PO番号 must both still be readable on Mobile.
+    // Portal管理番号 vs 正式PO番号 must both still be readable on Mobile -
+    // the restructured 3-row Mobile Header keeps this Chip visible.
+    await expect(page.getByTestId('order-detail-header-mobile')).toBeVisible()
     await expect(page.getByText('Portal管理番号')).toBeVisible()
   })
 

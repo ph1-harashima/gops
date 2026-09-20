@@ -26,6 +26,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import { useStockSalesDetail, useStockSalesList } from './api'
 import type { StockSalesListFilter } from './api'
 import { isSafeInternalPath, listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
+import { RestockLabel } from '../../shared/components/RestockLabel'
 
 const FILTER_PARAMS = ['skuKeyword', 'brandCode', 'supplierCode', 'minStock', 'maxStock', 'minSales', 'maxSales'] as const
 const DEFAULT_PAGE_SIZE = 20
@@ -75,6 +76,12 @@ function StockSalesDrawer({ sku, onClose, listPath }: { sku: string | null; onCl
               </Typography>
               <Typography variant="body2">{t('field.openPoQty')}: <strong>{qty(data.openPoQty)}</strong></Typography>
               <Typography variant="body2">{t('field.openArrivalQty')}: <strong>{qty(data.openArrivalQty)}</strong></Typography>
+              {data.restockSource !== 'NONE' && (
+                <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                  <Typography variant="body2">{t('field.restock')}:</Typography>
+                  <RestockLabel source={data.restockSource} date={data.restockDate} variant="caption" />
+                </Stack>
+              )}
               <Typography variant="body2" color="text.secondary">{t('field.recommendedQty')}（{t('referenceValue')}）: {qty(data.recommendedQty)}</Typography>
               <Typography variant="body2" color="text.secondary">
                 {t('field.updatedAt')}: {data.updatedAt ? new Date(data.updatedAt).toLocaleString('ja-JP') : '—'}
@@ -307,6 +314,12 @@ export function StockSalesListPage() {
                   <TableCell align="right">{t('table.openPoQty')}</TableCell>
                   <TableCell align="right">{t('table.openArrivalQty')}</TableCell>
                   <TableCell>{t('table.updatedAt')}</TableCell>
+                  {/* Post-Freeze Business Refinement (re-audit doc §10-5):
+                      appended after the pre-existing columns, same "append,
+                      never insert" convention as Order History Detail's own
+                      Restock column, to keep this table's existing E2E cell
+                      indices stable. */}
+                  <TableCell>{t('table.restock')}</TableCell>
                   <TableCell />
                 </TableRow>
               </TableHead>
@@ -322,6 +335,7 @@ export function StockSalesListPage() {
                     <TableCell align="right">{qty(row.openPoQty)}</TableCell>
                     <TableCell align="right">{qty(row.openArrivalQty)}</TableCell>
                     <TableCell>{row.updatedAt ? new Date(row.updatedAt).toLocaleString('ja-JP') : '—'}</TableCell>
+                    <TableCell><RestockLabel source={row.restockSource} date={row.restockDate} variant="caption" /></TableCell>
                     <TableCell>
                       <Button size="small" onClick={() => setDrawerSku(row.sku)} data-testid={`stock-sales-detail-button-${row.sku}`}>
                         {t('viewDetail')}

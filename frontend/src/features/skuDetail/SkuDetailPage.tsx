@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
@@ -13,13 +14,150 @@ import Stack from '@mui/material/Stack'
 import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
+import TextField from '@mui/material/TextField'
+import Checkbox from '@mui/material/Checkbox'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Divider from '@mui/material/Divider'
 
-import { useSkuDetail } from './api'
+import axios from 'axios'
+
+import { useSkuDetail, useRestockExpectation, useUpdateRestockExpectation } from './api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
 import { StockJudgementChip } from '../../shared/components/StockJudgementChip'
+import { RestockLabel } from '../../shared/components/RestockLabel'
 import { computeStockJudgement } from '../../shared/domain/stockJudgement'
 import { resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
+import { Toast } from '../../shared/components/Toast'
+import type { ApiErrorBody } from '../../shared/types/orderDraft'
+
+function restockErrorCodeOf(error: unknown): string | null {
+  if (axios.isAxiosError<ApiErrorBody>(error)) {
+    return error.response?.data?.errorCode ?? null
+  }
+  return null
+}
+
+/**
+ * Post-Freeze Business Refinement (re-audit doc §9/§10-3) - the SKU Detail
+ * Edit form for Type C Manual Expected Restock. Deliberately never shows
+ * the words "Legacy"/"Portal"/"TR_ARR" - only the ja/en business terms
+ * (入荷予定日 vs 再入荷予定日 vs 再入荷予定：未定) RestockLabel already uses
+ * everywhere else, so an Approver/Operator reads one consistent vocabulary
+ * regardless of which screen they're on.
+ *
+ * Prefills from `manualDate`/`manualUnknown` (the raw Manual record), never
+ * from the merged `date`/`source` - those reflect Legacy once an open
+ * Arrival exists, and prefilling from them would silently overwrite the
+ * real Manual value with Legacy's own date on the next Save.
+ */
+function RestockExpectationEditSection({ sku }: { sku: string }) {
+  const { t } = useTranslation('restockExpectation')
+  const { data, isLoading } = useRestockExpectation(sku)
+  const updateMutation = useUpdateRestockExpectation(sku)
+
+  const [dateInput, setDateInput] = useState('')
+  const [unknownInput, setUnknownInput] = useState(false)
+  const [memoInput, setMemoInput] = useState('')
+
+  // Re-sync local form state whenever a fresh fetch/save lands - never on
+  // every render, so mid-edit keystrokes aren't clobbered by a background
+  // refetch.
+  useEffect(() => {
+    if (!data) return
+    setDateInput(data.manualDate ?? '')
+    setUnknownInput(data.manualUnknown)
+    setMemoInput(data.manualMemo ?? '')
+  }, [data])
+
+  if (isLoading || !data) {
+    return null
+  }
+
+  function handleSave() {
+    updateMutation.mutate({
+      expectedRestockDate: unknownInput ? null : (dateInput || null),
+      unknown: unknownInput,
+      memo: memoInput || null,
+    })
+  }
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, flex: 1, minWidth: 260 }} data-testid="sku-restock-section">
+      <Typography variant="subtitle1" gutterBottom>{t('editSectionTitle')}</Typography>
+      <Stack spacing={0.5} sx={{ mb: 1.5 }}>
+        {data.source === 'NONE' ? (
+          <Typography variant="body2" color="text.secondary">{t('noneDisplay')}</Typography>
+        ) : (
+          <RestockLabel source={data.source} date={data.date} />
+        )}
+        {data.source === 'LEGACY_EXPECTED_ARRIVAL' && (
+          <Alert severity="info" sx={{ mt: 0.5 }} data-testid="restock-legacy-readonly-note">
+            {t('legacyReadOnlyNote')}
+          </Alert>
+        )}
+      </Stack>
+      <Divider sx={{ mb: 1.5 }} />
+      <Stack spacing={1.5}>
+        <TextField
+          label={t('dateLabel')}
+          type="date"
+          size="small"
+          value={dateInput}
+          disabled={unknownInput}
+          onChange={(e) => setDateInput(e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          data-testid="sku-restock-date-input"
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={unknownInput}
+              onChange={(e) => {
+                setUnknownInput(e.target.checked)
+                if (e.target.checked) setDateInput('')
+              }}
+              data-testid="sku-restock-unknown-checkbox"
+            />
+          }
+          label={t('unknownCheckboxLabel')}
+        />
+        <TextField
+          label={t('memoLabel')}
+          size="small"
+          multiline
+          minRows={2}
+          value={memoInput}
+          onChange={(e) => setMemoInput(e.target.value)}
+          data-testid="sku-restock-memo-input"
+        />
+        {data.manualUpdatedBy && (
+          <Typography variant="caption" color="text.secondary">
+            {t('updatedByLabel')}: {data.manualUpdatedBy} ({t('updatedAtLabel')}: {data.manualUpdatedAt ? new Date(data.manualUpdatedAt).toLocaleString('ja-JP') : '—'})
+          </Typography>
+        )}
+        <Box>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={handleSave}
+            disabled={updateMutation.isPending}
+            data-testid="sku-restock-save-button"
+          >
+            {t('saveButton')}
+          </Button>
+        </Box>
+      </Stack>
+      <Toast open={updateMutation.isSuccess} severity="success" message={t('saveSuccess')} onClose={() => updateMutation.reset()} />
+      <Toast
+        open={updateMutation.isError}
+        severity="error"
+        message={restockErrorCodeOf(updateMutation.error) === 'INVALID_SKU_EXPECTED_RESTOCK' ? t('errorInvalid') : t('errorGeneric')}
+        onClose={() => updateMutation.reset()}
+      />
+    </Paper>
+  )
+}
 
 /** Phase 8-J 9章/10章: rate is a plain fraction (e.g. 0.3521) as returned by
  * MarginCalculator.profitRateSell - displayed as a percentage here, no
@@ -152,6 +290,8 @@ export function SkuDetailPage() {
             </Stack>
           </Stack>
         </Paper>
+
+        <RestockExpectationEditSection sku={data.sku} />
 
         <Paper variant="outlined" sx={{ p: 2, flex: 1, minWidth: 260 }}>
           <Typography variant="subtitle1" gutterBottom>{t('section.ordering')}</Typography>

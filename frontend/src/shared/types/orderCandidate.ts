@@ -1,6 +1,8 @@
 // Mirrors backend com.glv.gsysportal.dto.response.OrderCandidateResponse.
 // Internal codes only (itemStatus, dataSource) - no Japanese text from the API
 // (Requirements MD 30.12). Japanese labels are resolved via i18n on the client.
+import type { RestockSource } from './restockExpectation'
+
 export interface OrderCandidate {
   sku: string
   itemName: string
@@ -23,6 +25,9 @@ export interface OrderCandidate {
   // specifically for a DOMESTIC Supplier whose recommendedQty is null,
   // rather than the generic "not available" fallback.
   regionClassification: 'DOMESTIC' | 'OVERSEAS' | null
+  // Post-Freeze Business Refinement (re-audit doc §8/§11).
+  restockSource: RestockSource
+  restockDate: string | null
 }
 
 export interface OrderCandidateFilter {

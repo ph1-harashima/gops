@@ -175,7 +175,9 @@ test.describe('Phase 1 Final Cleanup: Order History Number Model', () => {
 
     await page.setViewportSize(MOBILE_VIEWPORT)
     await openHistoryFilteredBy(page, officialPoNo)
-    const row = page.locator('tbody tr').first()
+    // Post-Freeze Business Refinement: Card layout (not the Desktop Table)
+    // below `sm` (600px) - no `tbody tr` exists on Mobile anymore.
+    const row = page.locator('[data-testid^="order-history-row-"]').first()
     await expect(row).toBeVisible()
     await expect(row.getByTestId('order-history-management-no')).toBeVisible()
     await expect(row.getByTestId('order-history-official-po-no')).toHaveText(officialPoNo)

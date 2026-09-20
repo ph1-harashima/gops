@@ -1,0 +1,17 @@
+{
+  "legacyDisplay": "{{date}} 入荷予定",
+  "manualDisplay": "{{date}} 再入荷予定",
+  "unknownDisplay": "再入荷予定：未定",
+  "noneDisplay": "—",
+  "editSectionTitle": "再入荷予定",
+  "legacyReadOnlyNote": "入荷予定日はG-SYSの入荷情報から自動的に表示されています。この欄では編集できません。",
+  "dateLabel": "再入荷予定日",
+  "unknownCheckboxLabel": "未定",
+  "memoLabel": "メモ",
+  "saveButton": "保存",
+  "saveSuccess": "再入荷予定を更新しました。",
+  "updatedByLabel": "更新者",
+  "updatedAtLabel": "更新日時",
+  "errorGeneric": "処理に失敗しました。",
+  "errorInvalid": "日付を指定する場合は「未定」のチェックを外してください。"
+}

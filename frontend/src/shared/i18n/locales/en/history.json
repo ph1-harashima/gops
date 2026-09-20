@@ -55,6 +55,7 @@
     "monthlySales": "Sales Qty (this month)",
     "leadTime": "Lead Time",
     "openArrival": "Arrival (expected)",
+    "restock": "Arrival / Restock",
     "viewSkuDetail": "View SKU Detail"
   },
   "notAvailable": "—",
@@ -163,8 +164,6 @@
     "confirmButton": "Confirm",
     "confirmSuccess": "Delivery/Payment terms confirmed.",
     "numberLockedNote": "Already submitted to G-SYS - the PO No. and Excel details can no longer be changed.",
-    "errorInvalidNumber": "Official PO No. must be 1-30 characters.",
-    "errorDuplicateNumber": "This Official PO No. is already used by another order.",
     "errorAlreadySubmitted": "Already submitted to G-SYS - this can no longer be changed.",
     "excelSectionTitle": "Official PO Excel",
     "pdfSectionTitle": "Official PO PDF (G-OPS Standard Format)",

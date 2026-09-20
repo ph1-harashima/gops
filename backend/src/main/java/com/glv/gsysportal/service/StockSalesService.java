@@ -1,6 +1,7 @@
 package com.glv.gsysportal.service;
 
 import com.glv.gsysportal.dto.response.PageResponse;
+import com.glv.gsysportal.dto.response.SkuRestockExpectationResponse;
 import com.glv.gsysportal.dto.response.StockSalesSummaryResponse;
 import com.glv.gsysportal.exception.SkuNotFoundException;
 import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository;
@@ -9,6 +10,7 @@ import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -26,11 +28,14 @@ public class StockSalesService {
 
     private final LegacyStockReadRepository legacyStockReadRepository;
     private final RecommendedQtyCalculator recommendedQtyCalculator;
+    private final SkuRestockExpectationService restockExpectationService;
 
     public StockSalesService(LegacyStockReadRepository legacyStockReadRepository,
-                              RecommendedQtyCalculator recommendedQtyCalculator) {
+                              RecommendedQtyCalculator recommendedQtyCalculator,
+                              SkuRestockExpectationService restockExpectationService) {
         this.legacyStockReadRepository = legacyStockReadRepository;
         this.recommendedQtyCalculator = recommendedQtyCalculator;
+        this.restockExpectationService = restockExpectationService;
     }
 
     public PageResponse<StockSalesSummaryResponse> list(String skuKeyword, String brandCode, String supplierCode,
@@ -44,8 +49,14 @@ public class StockSalesService {
         int offset = clampedPage * clampedSize;
 
         long total = legacyStockReadRepository.countStockSalesList(filter);
-        List<StockSalesSummaryResponse> content = legacyStockReadRepository.findStockSalesList(filter, clampedSize, offset).stream()
-                .map(this::toSummary)
+        List<LegacyStockRow> rows = legacyStockReadRepository.findStockSalesList(filter, clampedSize, offset);
+        // Post-Freeze Business Refinement: one bulk lookup for the current
+        // page only (this List is already Backend-paginated - never a
+        // fetch-all), same no-N+1 pattern as Candidate List/Order History.
+        Map<String, SkuRestockExpectationResponse> restockBySku =
+                restockExpectationService.getBulk(rows.stream().map(LegacyStockRow::itemCd).toList());
+        List<StockSalesSummaryResponse> content = rows.stream()
+                .map(row -> toSummary(row, restockBySku.get(row.itemCd())))
                 .toList();
         return PageResponse.of(content, clampedPage, clampedSize, total);
     }
@@ -57,16 +68,18 @@ public class StockSalesService {
         if (rows.isEmpty()) {
             throw new SkuNotFoundException(Set.of(sku));
         }
-        return toSummary(rows.get(0));
+        return toSummary(rows.get(0), restockExpectationService.get(sku));
     }
 
-    private StockSalesSummaryResponse toSummary(LegacyStockRow row) {
+    private StockSalesSummaryResponse toSummary(LegacyStockRow row, SkuRestockExpectationResponse restock) {
         Integer recommendedQty = recommendedQtyCalculator.calc4(row);
         return new StockSalesSummaryResponse(
                 row.itemCd(), row.itemName(), row.brandCd(), row.brandName(),
                 row.supplierCd(), row.supplierName(),
                 row.currentStock(), row.monthlySales(), row.openPo(), row.openArrival(),
-                recommendedQty, row.leadTime(), row.itemStatus(), row.updateDatetime());
+                recommendedQty, row.leadTime(), row.itemStatus(), row.updateDatetime(),
+                restock == null ? SkuRestockExpectationResponse.SOURCE_NONE : restock.source(),
+                restock == null ? null : restock.date());
     }
 
     private static int clampSize(Integer size) {

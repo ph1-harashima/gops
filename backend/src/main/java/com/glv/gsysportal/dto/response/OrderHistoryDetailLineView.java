@@ -29,6 +29,12 @@ public record OrderHistoryDetailLineView(
         Integer currentStock,
         Integer monthlySales,
         String leadTime,
-        Integer openArrival
+        Integer openArrival,
+        /** Post-Freeze Business Refinement (re-audit doc §10-4): lets the
+         * Approver see "欠品だがいつ入るのか" without leaving the Approval
+         * screen. Same merged Display-Priority value as Candidate List/SKU
+         * Detail - {@code SkuRestockExpectationResponse.SOURCE_*}. */
+        String restockSource,
+        LocalDate restockDate
 ) {
 }

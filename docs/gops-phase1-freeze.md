@@ -131,6 +131,16 @@ Everything in §11, plus any new Business Capability beyond §3 - all Phase 2+ /
 
 After this Freeze, no new Phase1 Feature is added except to address a P0/P1 Production Readiness issue. Any new Feature Request goes to Phase2 / Backlog.
 
+## 16. Post-Freeze Business Refinement (Implementation 1)
+
+This is **not** a Freeze failure or a reopening of Phase1 scope - it is a small, explicitly-scoped Business Refinement round requested after the 9/17 Business Requirements Re-Audit (`docs/gops-20260917-business-requirements-re-audit.md`), addressing 3 concrete gaps the Re-Audit identified. Full detail, evidence, and test results: `docs/gops-post-freeze-business-refinement-implementation.md`. Summary:
+
+- **Mobile Approval UX**: fixed the Order Detail header (title/back-link/status-chip overflow at 375-430px) and added a Mobile Card layout to the Order History / Approval Waiting List (previously the raw Desktop Table below `sm`). No Workflow/Permission change.
+- **BR-08 Cleanup**: confirmed the manual PO number input UI was already functionally retired (BR-08's auto-numbering fully replaced it); removed the 2 remaining dead frontend error-handling branches referencing it.
+- **Stockout / Restock Date**: added a Portal-only "再入荷予定" (Manual Expected Restock, editable, with an explicit "未定" state) alongside the pre-existing "入荷予定" (Legacy Expected Arrival, READ ONLY, from `TR_ARR`) - Legacy always wins display priority, Manual data is never overwritten, surfaced on Candidate List / SKU Detail (with edit) / Approval Detail / Stock-Sales.
+
+Same absolute constraints as every prior round applied and were re-verified: 0 Legacy Source changes, 0 Legacy DB writes, 0 Production/UAT connection, 0 Production deploy, 0 SafetyGuard changes, no Supplier/Brand Data Model change, no Domestic Recommended Qty Formula change.
+
 ## 22. Git (Final Commit)
 
 **Final Commit**: `71ad25d1433e2e23e64df3348759e4424c015df2` (Freeze Blocker Final Fix round; the preceding round's Final Commit was `2816ce35fd607c16c2d6dc6def66649ae809cf78` - see `docs/gops-phase1-final-cleanup-report.md` §7 for this round's change list, §1-6 for the preceding round)

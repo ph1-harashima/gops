@@ -495,6 +495,13 @@ public class GlobalExceptionHandler {
         return error(request, HttpStatus.CONFLICT, "EDI_COMPLETION_NOT_APPLICABLE");
     }
 
+    // --- Post-Freeze Business Refinement: SKU Expected Restock (Type C) ---
+
+    @ExceptionHandler(InvalidSkuExpectedRestockException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidSkuExpectedRestock(InvalidSkuExpectedRestockException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.BAD_REQUEST, "INVALID_SKU_EXPECTED_RESTOCK");
+    }
+
     // --- Phase 9-E: Real Email Send (Production PO Workflow) ---
 
     @ExceptionHandler(EmailChannelNotApplicableException.class)

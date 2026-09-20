@@ -226,6 +226,14 @@ public class AuditEvent {
      * event, not only in the OrderEmail table). */
     public static final String EMAIL_RECIPIENT_OVERRIDE_USED = "EMAIL_RECIPIENT_OVERRIDE_USED";
 
+    /** Post-Freeze Business Refinement: written whenever a SKU's Manual
+     * Expected Restock record (Type C - see the re-audit doc §5-11) is
+     * created or edited. old_value/new_value hold a compact human-readable
+     * summary of the whole record (date/未定/memo together), not just one
+     * field, since these fields are always edited as one unit via the same
+     * Save action. */
+    public static final String SKU_EXPECTED_RESTOCK_CHANGED = "SKU_EXPECTED_RESTOCK_CHANGED";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -246,6 +254,15 @@ public class AuditEvent {
      * both aggregate roots and has no reason to fork. */
     @Column(name = "price_change_set_id")
     private Long priceChangeSetId;
+
+    /** Post-Freeze Business Refinement: the third aggregate-root reference,
+     * for {@code SKU_EXPECTED_RESTOCK_CHANGED} events - exactly one of
+     * {@link #portalOrderId}/{@link #priceChangeSetId}/this is ever set
+     * (DB-enforced by {@code ck_audit_event_aggregate_root}, V32 migration).
+     * Not a FK (no local {@code sku} table exists - SKU is a Legacy-sourced
+     * code), unlike the other two aggregate-root columns. */
+    @Column(name = "sku_code", length = 50)
+    private String skuCode;
 
     /** Widened 30->50 in V9 (Phase 7-C2A) - OFFICIAL_PO_INTEGRATION_REQUESTED
      * is 33 characters, past the original 30-char limit. */
@@ -291,6 +308,23 @@ public class AuditEvent {
                                                 String performedBy, OffsetDateTime performedAt) {
         AuditEvent event = new AuditEvent();
         event.priceChangeSetId = priceChangeSetId;
+        event.eventType = eventType;
+        event.fieldName = fieldName;
+        event.oldValue = oldValue;
+        event.newValue = newValue;
+        event.performedBy = performedBy;
+        event.performedAt = performedAt;
+        return event;
+    }
+
+    /** SKU-scoped counterpart to {@link #forPriceChangeSet} - same reasoning
+     * (a static factory, not a third overload, to avoid an ambiguous erased
+     * signature). */
+    public static AuditEvent forSku(String skuCode, String eventType,
+                                     String fieldName, String oldValue, String newValue,
+                                     String performedBy, OffsetDateTime performedAt) {
+        AuditEvent event = new AuditEvent();
+        event.skuCode = skuCode;
         event.eventType = eventType;
         event.fieldName = fieldName;
         event.oldValue = oldValue;

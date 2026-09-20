@@ -21,6 +21,11 @@ import Tooltip from '@mui/material/Tooltip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
+import Divider from '@mui/material/Divider'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { useTheme } from '@mui/material/styles'
 
 import { useOrderHistory } from './api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
@@ -62,6 +67,13 @@ function AttentionTypeBadges({ types }: { types: string[] }) {
 export function OrderHistoryListPage() {
   const { t } = useTranslation(['history', 'common', 'status'])
   const navigate = useNavigate()
+  const theme = useTheme()
+  // Post-Freeze Business Refinement (re-audit doc §3.2/§4.1): the承認待ち
+  // Order List was still the raw Desktop Table below `sm` (600px) -
+  // horizontal-scrolling a 12-column dense table on a phone is unusable for
+  // an Approver deciding what to open next. Same `isCardLayout` idiom as
+  // OrderCandidateBrandListPage; the Desktop Table itself is unchanged.
+  const isCardLayout = useMediaQuery(theme.breakpoints.down('sm'))
   // Phase 6-A (docs/production-ux-workflow-redesign.md 6.2章): same
   // URL-as-single-source-of-truth fix as Candidate List - Dashboard's
   // ?brandCode=...&status=... deep-link (Step 5 3章) is read live from
@@ -165,7 +177,18 @@ export function OrderHistoryListPage() {
     // intentional bounded height (flex:1/overflow:auto below) to actually
     // be the scrolling ancestor `stickyHeader` sticks within; its default
     // `overflow-x: auto` alone claims that role without ever scrolling.
-    <Box sx={{ p: { xs: 1.5, sm: 3 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    // Post-Freeze Business Refinement fix: the Desktop branch below keeps
+    // its `height: '100%'` + nested `flex:1/overflow:auto` regions so the
+    // Table's sticky header has a bounded scrolling ancestor to stick
+    // within (Phase 7-F). The Mobile Card branch has no sticky header to
+    // support, and this Filter Stack alone is taller than a 375-430px
+    // phone's viewport - forcing the same bounded-region pattern there
+    // squeezed the Card list to a literal 0px, unreachable by scroll (the
+    // whole point of Card layout is a normally-scrolling page). So Mobile
+    // drops the height clamp entirely and lets the shared App shell's own
+    // page-level scroll (App.tsx's `<Box sx={{flex:1,overflow:'auto'}}>`)
+    // handle it, exactly like every non-List page already does.
+    <Box sx={{ p: { xs: 1.5, sm: 3 }, ...(isCardLayout ? {} : { height: '100%', display: 'flex', flexDirection: 'column' }) }}>
       <Typography variant="h5" component="h1" gutterBottom>
         {t('listTitle')}
       </Typography>
@@ -277,10 +300,59 @@ export function OrderHistoryListPage() {
       )}
 
       {!isLoading && !isError && data && data.content.length > 0 && (
-        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={isCardLayout ? {} : { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {t('resultCount', { count: data.totalElements })}
           </Typography>
+          {isCardLayout ? (
+            <Box data-testid="order-history-table-container">
+              <Stack spacing={1.5} data-testid="order-history-cards">
+                {data.content.map((row) => (
+                  <Card
+                    key={row.id}
+                    variant="outlined"
+                    data-testid={`order-history-row-${row.id}`}
+                    onClick={() => navigate(withReturnTo(`/orders/${row.id}`, listPath))}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <CardContent sx={{ '&:last-child': { pb: 2 } }}>
+                      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', rowGap: 0.5, mb: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, wordBreak: 'break-all' }} data-testid="order-history-management-no">
+                          {row.prototypePoNo ?? row.draftNo}
+                        </Typography>
+                        <OrderStatusChip status={row.status} />
+                      </Stack>
+                      <Divider sx={{ mb: 1 }} />
+                      <Stack spacing={0.75}>
+                        {[
+                          { label: t('table.officialPoNo'), value: row.officialPoNo ?? t('officialPoIntegration.officialPoNoUnassigned'), testId: 'order-history-official-po-no' },
+                          { label: t('officialPoIntegration.revisionLabel'), value: row.revisionNo ?? '—', testId: 'order-history-revision' },
+                          { label: t('table.supplier'), value: row.supplierName ?? row.supplierCode },
+                          { label: t('table.brand'), value: row.brandName ?? row.brandCode },
+                          { label: t('table.orderDate'), value: row.orderDate ?? '—' },
+                          { label: t('table.skuCount'), value: row.skuCount },
+                          { label: t('table.totalOrderedQty'), value: row.totalOrderedQty },
+                          { label: t('table.totalAmount'), value: `¥${row.totalAmount.toLocaleString()}` },
+                          { label: t('table.updatedAt'), value: new Date(row.updatedAt).toLocaleString('ja-JP') },
+                        ].map((r) => (
+                          <Stack key={r.label} direction="row" sx={{ justifyContent: 'space-between' }}>
+                            <Typography variant="body2" color="text.secondary">{r.label}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 500, textAlign: 'right' }} data-testid={r.testId}>{r.value}</Typography>
+                          </Stack>
+                        ))}
+                        {row.activeAttentionTypes.length > 0 && (
+                          <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+                            <Typography variant="body2" color="text.secondary">{t('table.attention')}</Typography>
+                            <AttentionTypeBadges types={row.activeAttentionTypes} />
+                          </Stack>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Stack>
+            </Box>
+          ) : (
           <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="order-history-table-container">
             <Table size="small" stickyHeader sx={{ minWidth: 650, '& .MuiTableCell-root': { whiteSpace: 'nowrap' }, '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
               <TableHead>
@@ -339,6 +411,7 @@ export function OrderHistoryListPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          )}
           <TablePagination
             component="div"
             count={data.totalElements}

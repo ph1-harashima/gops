@@ -22,6 +22,7 @@ import jaStockSales from './locales/ja/stockSales.json'
 import jaMailSettings from './locales/ja/mailSettings.json'
 import jaOfficialPoShortCode from './locales/ja/officialPoShortCode.json'
 import jaSupplierMaster from './locales/ja/supplierMaster.json'
+import jaRestockExpectation from './locales/ja/restockExpectation.json'
 import enCommon from './locales/en/common.json'
 import enStatus from './locales/en/status.json'
 import enAuth from './locales/en/auth.json'
@@ -43,6 +44,7 @@ import enStockSales from './locales/en/stockSales.json'
 import enMailSettings from './locales/en/mailSettings.json'
 import enOfficialPoShortCode from './locales/en/officialPoShortCode.json'
 import enSupplierMaster from './locales/en/supplierMaster.json'
+import enRestockExpectation from './locales/en/restockExpectation.json'
 
 // G-OPS i18n完成 #3: Language Switcher実装に伴い、UI言語の永続化キー。
 // Mail Template側の`language`フィールド(DB値、メーカー/Supplierごとの
@@ -98,6 +100,7 @@ void i18n.use(initReactI18next).init({
       mailSettings: jaMailSettings,
       officialPoShortCode: jaOfficialPoShortCode,
       supplierMaster: jaSupplierMaster,
+      restockExpectation: jaRestockExpectation,
     },
     en: {
       common: enCommon,
@@ -121,6 +124,7 @@ void i18n.use(initReactI18next).init({
       mailSettings: enMailSettings,
       officialPoShortCode: enOfficialPoShortCode,
       supplierMaster: enSupplierMaster,
+      restockExpectation: enRestockExpectation,
     },
   },
   interpolation: {

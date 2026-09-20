@@ -1,6 +1,7 @@
 package com.glv.gsysportal.repository.legacy;
 
 import com.glv.gsysportal.repository.legacy.row.LegacyArrivalHeaderRow;
+import com.glv.gsysportal.repository.legacy.row.LegacyExpectedArrivalRow;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -12,6 +13,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,15 +38,33 @@ public class ArrivalReadRepository {
 
     private static final String LIST_QUERY_RESOURCE = "legacy/ArrivalListQuery.sql";
     private static final String LIST_COUNT_QUERY_RESOURCE = "legacy/ArrivalListCountQuery.sql";
+    private static final String EXPECTED_BY_SKU_QUERY_RESOURCE = "legacy/ArrivalExpectedBySkuQuery.sql";
 
     private final NamedParameterJdbcTemplate legacyJdbc;
     private final String listSql;
     private final String listCountSql;
+    private final String expectedBySkuSql;
 
     public ArrivalReadRepository(NamedParameterJdbcTemplate legacyNamedParameterJdbcTemplate) {
         this.legacyJdbc = legacyNamedParameterJdbcTemplate;
         this.listSql = loadSql(LIST_QUERY_RESOURCE);
         this.listCountSql = loadSql(LIST_COUNT_QUERY_RESOURCE);
+        this.expectedBySkuSql = loadSql(EXPECTED_BY_SKU_QUERY_RESOURCE);
+    }
+
+    /** Post-Freeze Business Refinement (Type A "Legacy Expected Arrival",
+     * re-audit doc §6/§8) - bulk per-SKU lookup for List screens (Candidate
+     * List/Stock-Sales), one query for the whole page rather than one per
+     * row. Empty input short-circuits without a query (an empty SQL IN (...)
+     * would be invalid). */
+    @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
+    public List<LegacyExpectedArrivalRow> findExpectedArrivalBySkus(Collection<String> skuCodes) {
+        if (skuCodes == null || skuCodes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("skuCodes", skuCodes);
+        return legacyJdbc.query(expectedBySkuSql, params, (rs, rowNum) ->
+                new LegacyExpectedArrivalRow(rs.getString("item_cd"), rs.getObject("expected_arrival_date", LocalDate.class)));
     }
 
     /** Arrival List (Phase 8-G 5章) - Backend-paginated, Backend-filtered. */

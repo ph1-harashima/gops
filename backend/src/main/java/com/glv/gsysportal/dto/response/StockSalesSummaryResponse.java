@@ -1,5 +1,6 @@
 package com.glv.gsysportal.dto.response;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -45,5 +46,9 @@ public record StockSalesSummaryResponse(
         Integer recommendedQty,
         String leadTime,
         String itemStatus,
-        LocalDateTime updatedAt) {
+        LocalDateTime updatedAt,
+        /** Post-Freeze Business Refinement (re-audit doc §10-5): same merged
+         * Display-Priority value as Candidate List/Order History Detail. */
+        String restockSource,
+        LocalDate restockDate) {
 }

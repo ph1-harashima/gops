@@ -54,6 +54,7 @@ import { useApprove, useReturnForCorrection } from '../drafts/poPreviewApi'
 import { useOrderRevisions, useResponseHistory } from '../supplierResponse/api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
+import { RestockLabel } from '../../shared/components/RestockLabel'
 import { Toast } from '../../shared/components/Toast'
 import { resolveReturnTo, withBackTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { useAuth } from '../auth/AuthContext'
@@ -188,6 +189,12 @@ export function OrderHistoryDetailPage() {
   // Approve/Return/Edit action bar becomes sticky so it can never scroll
   // off-screen while reviewing a long line list.
   const isCardLayout = useMediaQuery(theme.breakpoints.down('md'))
+  // Post-Freeze Business Refinement (re-audit doc §3.2/§4.1): the header
+  // (back link / title+number / status chip) overflowed at 375-430px - a
+  // narrower break than isCardLayout's `md` above, since the header itself
+  // stays fine on tablet widths and only needs restructuring on true phone
+  // widths.
+  const isMobileHeader = useMediaQuery(theme.breakpoints.down('sm'))
   // Phase 6-C (docs/production-ux-workflow-redesign.md 2章/5章): 発注詳細 is
   // the shared landing point after both Demo Send and Supplier Response
   // Confirm now (neither auto-opens the next screen anymore), so it shows
@@ -491,58 +498,95 @@ export function OrderHistoryDetailPage() {
   // Button is missing/disabled for them).
   const nextActionHintKey = isAdmin ? computeNextActionHintKey(detail, integration, emailStatus) : null
 
+  // Acceptance Fix C-5: the header number (Prototype PO No., e.g.
+  // PO-DEMO-...) and the G-SYS正式PO連携 section's "正式PO番号" are two
+  // intentionally distinct identifiers (PrototypePoNoGenerator's own
+  // Javadoc: "unmistakably distinct from Legacy PO Number... never intended
+  // to resemble Legacy's own format") - this Chip makes that explicit at the
+  // one place a user is most likely to mistake the header number for the
+  // real PO No.
+  const portalPoNoChip = (
+    <Tooltip title={t('portalPoNoCaptionTooltip')}>
+      <Chip size="small" variant="outlined" label={t('portalPoNoCaption')} data-testid="portal-po-no-caption" />
+    </Tooltip>
+  )
+  // Phase 7-H (EDI発注Workflow Foundation): shown here, not on PO Preview
+  // (unreachable once past APPROVED - PoPreviewService's own pre-existing
+  // Status Gate) - Order Detail is the one screen reachable for every
+  // Status, Send included.
+  const communicationChannelChip = detail.communicationChannel ? (
+    <Chip size="small" variant="outlined" label={t(`communicationChannel.${detail.communicationChannel}`)} data-testid="communication-channel-chip" />
+  ) : null
+  // Phase 9-D: "what SHOULD happen" per the Manufacturer Channel Master,
+  // shown only before any Send has recorded "what actually happened"
+  // (communicationChannelChip above) - avoids showing two possibly-
+  // conflicting Channel Chips side by side once a real Send has already
+  // occurred.
+  const resolvedManufacturerChannelChip = !detail.communicationChannel && detail.resolvedManufacturerChannel ? (
+    <Chip
+      size="small"
+      variant="outlined"
+      color="info"
+      label={t(`officialPoIntegration.resolvedChannelChip.${detail.resolvedManufacturerChannel}`)}
+      data-testid="resolved-manufacturer-channel-chip"
+    />
+  ) : null
+  // Gap Analysis §12 (Domestic/Overseas Foundation): display-only Chip
+  // resolved from the new Portal-only Supplier Region Classification
+  // Master - never consulted by Recommended Qty, purely informational.
+  const resolvedRegionClassificationChip = detail.resolvedRegionClassification ? (
+    <Chip
+      size="small"
+      variant="outlined"
+      label={t(`supplierRegionClassification:regionClassification.${detail.resolvedRegionClassification}`)}
+      data-testid="resolved-region-classification-chip"
+    />
+  ) : null
+  const attentionChips = <AttentionChips attentions={detail.orderAttentions} acknowledgeable />
+
   return (
     <Box sx={{ p: 3 }}>
-      <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
-        <Button onClick={() => navigate(backTarget)}>{t('backToList')}</Button>
-        <Typography variant="h5" component="h1">
-          {t('detailTitle')} - {detail.prototypePoNo ?? detail.draftNo}
-        </Typography>
-        {/* Acceptance Fix C-5: the header number (Prototype PO No., e.g.
-            PO-DEMO-...) and the G-SYS正式PO連携 section's "正式PO番号" are two
-            intentionally distinct identifiers (PrototypePoNoGenerator's own
-            Javadoc: "unmistakably distinct from Legacy PO Number... never
-            intended to resemble Legacy's own format") - this Chip makes that
-            explicit at the one place a user is most likely to mistake the
-            header number for the real PO No. */}
-        <Tooltip title={t('portalPoNoCaptionTooltip')}>
-          <Chip size="small" variant="outlined" label={t('portalPoNoCaption')} data-testid="portal-po-no-caption" />
-        </Tooltip>
-        <OrderStatusChip status={detail.status} />
-        {/* Phase 7-H (EDI発注Workflow Foundation): shown here, not on PO
-            Preview (unreachable once past APPROVED - PoPreviewService's own
-            pre-existing Status Gate) - Order Detail is the one screen
-            reachable for every Status, Send included. */}
-        {detail.communicationChannel && (
-          <Chip size="small" variant="outlined" label={t(`communicationChannel.${detail.communicationChannel}`)} data-testid="communication-channel-chip" />
-        )}
-        {/* Phase 9-D: "what SHOULD happen" per the Manufacturer Channel
-            Master, shown only before any Send has recorded "what actually
-            happened" (communicationChannel above) - avoids showing two
-            possibly-conflicting Channel Chips side by side once a real Send
-            has already occurred. */}
-        {!detail.communicationChannel && detail.resolvedManufacturerChannel && (
-          <Chip
-            size="small"
-            variant="outlined"
-            color="info"
-            label={t(`officialPoIntegration.resolvedChannelChip.${detail.resolvedManufacturerChannel}`)}
-            data-testid="resolved-manufacturer-channel-chip"
-          />
-        )}
-        {/* Gap Analysis §12 (Domestic/Overseas Foundation): display-only Chip
-            resolved from the new Portal-only Supplier Region Classification
-            Master - never consulted by Recommended Qty, purely informational. */}
-        {detail.resolvedRegionClassification && (
-          <Chip
-            size="small"
-            variant="outlined"
-            label={t(`supplierRegionClassification:regionClassification.${detail.resolvedRegionClassification}`)}
-            data-testid="resolved-region-classification-chip"
-          />
-        )}
-        <AttentionChips attentions={detail.orderAttentions} acknowledgeable />
-      </Stack>
+      {isMobileHeader ? (
+        // Post-Freeze Business Refinement (re-audit doc §3.2/§4.1): a
+        // 3-row stack (back link / static title / number+status) instead
+        // of the desktop's single wrapping row, which overflowed at
+        // 375-430px because the title's embedded PO number and the Status
+        // chip had nowhere to wrap to without clipping.
+        <Stack spacing={1} sx={{ mb: 2 }} data-testid="order-detail-header-mobile">
+          <Box>
+            <Button size="small" sx={{ pl: 0 }} onClick={() => navigate(backTarget)}>{t('backToList')}</Button>
+          </Box>
+          <Typography variant="h5" component="h1">{t('detailTitle')}</Typography>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
+            {portalPoNoChip}
+            <Typography variant="body2" sx={{ fontWeight: 600, wordBreak: 'break-all' }}>
+              {detail.prototypePoNo ?? detail.draftNo}
+            </Typography>
+            <OrderStatusChip status={detail.status} />
+          </Stack>
+          {(communicationChannelChip || resolvedManufacturerChannelChip || resolvedRegionClassificationChip || detail.orderAttentions.length > 0) && (
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+              {communicationChannelChip}
+              {resolvedManufacturerChannelChip}
+              {resolvedRegionClassificationChip}
+              {attentionChips}
+            </Stack>
+          )}
+        </Stack>
+      ) : (
+        <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
+          <Button onClick={() => navigate(backTarget)}>{t('backToList')}</Button>
+          <Typography variant="h5" component="h1">
+            {t('detailTitle')} - {detail.prototypePoNo ?? detail.draftNo}
+          </Typography>
+          {portalPoNoChip}
+          <OrderStatusChip status={detail.status} />
+          {communicationChannelChip}
+          {resolvedManufacturerChannelChip}
+          {resolvedRegionClassificationChip}
+          {attentionChips}
+        </Stack>
+      )}
 
       {/* Phase 9-G: "at a glance" strip - composes state the Sections below
           already carry (never a second source of truth), so ADMIN can see
@@ -713,6 +757,15 @@ export function OrderHistoryDetailPage() {
                     { label: t('detailTable.monthlySales'), value: line.monthlySales ?? t('notAvailable') },
                     { label: t('detailTable.leadTime'), value: line.leadTime ?? t('notAvailable') },
                     { label: t('detailTable.openArrival'), value: line.openArrival ?? t('notAvailable') },
+                    // Post-Freeze Business Refinement (re-audit doc §10-4):
+                    // rendered as its own row (not squeezed next to
+                    // openArrival) since RestockLabel already carries its
+                    // own ja/en phrasing - a redundant label here would
+                    // double up the wording.
+                    ...(line.restockSource !== 'NONE' ? [{
+                      label: '',
+                      value: <RestockLabel source={line.restockSource} date={line.restockDate} variant="caption" />,
+                    }] : []),
                   ].map((row) => (
                     <Stack key={row.label} direction="row" sx={{ justifyContent: 'space-between' }}>
                       <Typography variant="body2" color="text.secondary">{row.label}</Typography>
@@ -749,6 +802,12 @@ export function OrderHistoryDetailPage() {
               <TableCell align="right">{t('detailTable.monthlySales')}</TableCell>
               <TableCell>{t('detailTable.leadTime')}</TableCell>
               <TableCell align="right">{t('detailTable.openArrival')}</TableCell>
+              {/* Post-Freeze Business Refinement (docs/gops-20260917-business-
+                  requirements-re-audit.md §10-4): appended after openArrival,
+                  same "append, never insert" rule as the Gap Analysis B-1
+                  columns above, to keep this table's existing E2E cell
+                  indices stable. */}
+              <TableCell>{t('detailTable.restock')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -782,6 +841,7 @@ export function OrderHistoryDetailPage() {
                 <TableCell align="right">{line.monthlySales ?? t('notAvailable')}</TableCell>
                 <TableCell>{line.leadTime ?? t('notAvailable')}</TableCell>
                 <TableCell align="right">{line.openArrival ?? t('notAvailable')}</TableCell>
+                <TableCell><RestockLabel source={line.restockSource} date={line.restockDate} variant="caption" /></TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -969,13 +1029,18 @@ export function OrderHistoryDetailPage() {
                 message={t('officialPoIntegration.confirmSuccess')}
                 onClose={() => confirmPoNumberMutation.reset()}
               />
+              {/* Post-Freeze Business Refinement (BR-08 cleanup): removed the
+                  INVALID_OFFICIAL_PO_NUMBER/DUPLICATE_OFFICIAL_PO_NUMBER
+                  branches this Toast used to have - dead code, since
+                  ConfirmOfficialPoNumberRequest (Backend) has carried no
+                  officialPoNo field since Phase 9-A/BR-08 (auto-numbering at
+                  Request time) and can no longer return either error code.
+                  This form only ever confirms delivery/payment terms now. */}
               <Toast
                 open={confirmPoNumberMutation.isError}
                 severity="error"
                 testId="official-po-number-confirm-error"
                 message={
-                  errorCodeOf(confirmPoNumberMutation.error) === 'INVALID_OFFICIAL_PO_NUMBER' ? t('officialPoIntegration.errorInvalidNumber') :
-                  errorCodeOf(confirmPoNumberMutation.error) === 'DUPLICATE_OFFICIAL_PO_NUMBER' ? t('officialPoIntegration.errorDuplicateNumber') :
                   errorCodeOf(confirmPoNumberMutation.error) === 'OFFICIAL_PO_ALREADY_SUBMITTED' ? t('officialPoIntegration.errorAlreadySubmitted') :
                   errorCodeOf(confirmPoNumberMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
                   t('errorGeneric')

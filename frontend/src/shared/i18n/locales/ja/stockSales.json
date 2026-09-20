@@ -24,7 +24,8 @@
     "currentMonthSalesQty": "当月販売数量",
     "openPoQty": "発注残",
     "openArrivalQty": "入荷予定数",
-    "updatedAt": "G-SYSデータ更新日時"
+    "updatedAt": "G-SYSデータ更新日時",
+    "restock": "入荷/再入荷予定"
   },
   "field": {
     "currentStock": "現在庫",
@@ -32,7 +33,8 @@
     "openPoQty": "発注残",
     "openArrivalQty": "入荷予定数",
     "recommendedQty": "推奨発注数",
-    "updatedAt": "G-SYSデータ更新日時"
+    "updatedAt": "G-SYSデータ更新日時",
+    "restock": "入荷/再入荷予定"
   },
   "tooltip": {
     "currentMonthSalesQty": "当月分の累計出荷数量です（Tempostar受注データ由来）。日次の販売数や過去の販売傾向を示すものではありません。"

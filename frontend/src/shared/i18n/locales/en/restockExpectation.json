@@ -1,0 +1,17 @@
+{
+  "legacyDisplay": "Expected {{date}}",
+  "manualDisplay": "Expected restock {{date}}",
+  "unknownDisplay": "Restock: Unknown",
+  "noneDisplay": "—",
+  "editSectionTitle": "Expected Restock",
+  "legacyReadOnlyNote": "The Expected Arrival Date is shown automatically from G-SYS Arrival data. It cannot be edited here.",
+  "dateLabel": "Expected Restock Date",
+  "unknownCheckboxLabel": "Unknown",
+  "memoLabel": "Memo",
+  "saveButton": "Save",
+  "saveSuccess": "Expected restock updated.",
+  "updatedByLabel": "Updated By",
+  "updatedAtLabel": "Updated At",
+  "errorGeneric": "Failed to process the request.",
+  "errorInvalid": "Uncheck \"Unknown\" if you want to specify a date."
+}

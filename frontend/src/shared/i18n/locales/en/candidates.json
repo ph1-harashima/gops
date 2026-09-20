@@ -24,6 +24,7 @@
     "recommendedQty": "Recommended Qty",
     "itemStatus": "Item Status",
     "stockJudgement": "Stock Judgement (Provisional)",
+    "restock": "Arrival / Restock",
     "unitPrice": "Unit Price"
   },
   "empty": "No order candidates were found.",

@@ -13,6 +13,7 @@ import com.glv.gsysportal.dto.response.OrderHistoryDetailLineView;
 import com.glv.gsysportal.dto.response.OrderHistoryDetailResponse;
 import com.glv.gsysportal.dto.response.OrderHistorySummaryResponse;
 import com.glv.gsysportal.dto.response.PageResponse;
+import com.glv.gsysportal.dto.response.SkuRestockExpectationResponse;
 import com.glv.gsysportal.domain.PortalUser;
 import com.glv.gsysportal.exception.DraftNotFoundException;
 import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository;
@@ -67,6 +68,7 @@ public class OrderHistoryService {
     private final LegacyStockReadRepository legacyStockReadRepository;
     private final SupplierRegionClassificationResolutionService regionClassificationResolutionService;
     private final OfficialPoIntegrationRequestRepository officialPoIntegrationRequestRepository;
+    private final SkuRestockExpectationService restockExpectationService;
 
     public OrderHistoryService(PortalOrderRepository portalOrderRepository,
                                 SupplierResponseRepository supplierResponseRepository,
@@ -76,7 +78,8 @@ public class OrderHistoryService {
                                 ManufacturerChannelResolutionService channelResolutionService,
                                 LegacyStockReadRepository legacyStockReadRepository,
                                 SupplierRegionClassificationResolutionService regionClassificationResolutionService,
-                                OfficialPoIntegrationRequestRepository officialPoIntegrationRequestRepository) {
+                                OfficialPoIntegrationRequestRepository officialPoIntegrationRequestRepository,
+                                SkuRestockExpectationService restockExpectationService) {
         this.portalOrderRepository = portalOrderRepository;
         this.supplierResponseRepository = supplierResponseRepository;
         this.orderAttentionRepository = orderAttentionRepository;
@@ -86,6 +89,7 @@ public class OrderHistoryService {
         this.legacyStockReadRepository = legacyStockReadRepository;
         this.regionClassificationResolutionService = regionClassificationResolutionService;
         this.officialPoIntegrationRequestRepository = officialPoIntegrationRequestRepository;
+        this.restockExpectationService = restockExpectationService;
     }
 
     /**
@@ -253,10 +257,13 @@ public class OrderHistoryService {
         Map<String, LegacyStockRow> stockBySku = skus.isEmpty() ? Map.of()
                 : legacyStockReadRepository.findBySkus(skus).stream()
                         .collect(Collectors.toMap(LegacyStockRow::itemCd, r -> r, (a, b) -> a));
+        // Post-Freeze Business Refinement (re-audit doc §10-4): same bulk,
+        // no-N+1 lookup pattern as stockBySku above.
+        Map<String, SkuRestockExpectationResponse> restockBySku = restockExpectationService.getBulk(skus);
 
         List<OrderHistoryDetailLineView> lines = order.getDetails().stream()
                 .filter(d -> !d.isRemoved())
-                .map(d -> toLineView(order, d, confirmedByDetailId.get(d.getId()), active, stockBySku.get(d.getSku())))
+                .map(d -> toLineView(order, d, confirmedByDetailId.get(d.getId()), active, stockBySku.get(d.getSku()), restockBySku.get(d.getSku())))
                 .toList();
 
         List<AttentionSummary> orderAttentions = active.stream()
@@ -338,7 +345,7 @@ public class OrderHistoryService {
 
     private static OrderHistoryDetailLineView toLineView(PortalOrder order, PortalOrderDetail detail,
                                                            SupplierResponseDetail response, List<OrderAttention> active,
-                                                           LegacyStockRow stock) {
+                                                           LegacyStockRow stock, SkuRestockExpectationResponse restock) {
         List<AttentionSummary> attentions = active.stream()
                 .filter(a -> detail.getId().equals(a.getPortalOrderDetailId()))
                 .map(a -> new AttentionSummary(a.getId(), a.getAttentionType()))
@@ -352,7 +359,9 @@ public class OrderHistoryService {
                 stock == null ? null : stock.currentStock(),
                 stock == null ? null : stock.monthlySales(),
                 stock == null ? null : stock.leadTime(),
-                stock == null ? null : stock.openArrival()
+                stock == null ? null : stock.openArrival(),
+                restock == null ? SkuRestockExpectationResponse.SOURCE_NONE : restock.source(),
+                restock == null ? null : restock.date()
         );
     }
 }

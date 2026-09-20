@@ -26,6 +26,7 @@ import { useCreateDraft } from '../drafts/api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
 import { StockJudgementChip } from '../../shared/components/StockJudgementChip'
+import { RestockLabel } from '../../shared/components/RestockLabel'
 import { Toast } from '../../shared/components/Toast'
 import { computeStockJudgement } from '../../shared/domain/stockJudgement'
 import { listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
@@ -404,6 +405,7 @@ export function CandidateListPage() {
                   <TableCell align="right">{t('candidates:table.recommendedQty')}</TableCell>
                   <TableCell>{t('candidates:table.itemStatus')}</TableCell>
                   <TableCell>{t('candidates:table.stockJudgement')}</TableCell>
+                  <TableCell>{t('candidates:table.restock')}</TableCell>
                   <TableCell align="right">{t('candidates:table.unitPrice')}</TableCell>
                 </TableRow>
               </TableHead>
@@ -455,6 +457,9 @@ export function CandidateListPage() {
                     </TableCell>
                     <TableCell>
                       <StockJudgementChip judgement={computeStockJudgement(row.currentStock, row.openPo)} />
+                    </TableCell>
+                    <TableCell>
+                      <RestockLabel source={row.restockSource} date={row.restockDate} />
                     </TableCell>
                     <TableCell align="right">
                       {row.unitPrice != null ? `¥${row.unitPrice.toLocaleString()}` : t('candidates:notAvailable')}
