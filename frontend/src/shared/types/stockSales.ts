@@ -14,7 +14,7 @@
 // (different granularity). Never merge or compare against Warehouse Stock
 // values (13章) - Navigation to /warehouse-stock is fine, a Business Join
 // is not.
-import type { RestockSource } from './restockExpectation'
+import type { ContactMethod, RestockSource, StockoutStatus } from './restockExpectation'
 
 export interface StockSalesSummary {
   sku: string
@@ -34,4 +34,10 @@ export interface StockSalesSummary {
   // Post-Freeze Business Refinement (re-audit doc §10-5).
   restockSource: RestockSource
   restockDate: string | null
+  // Post-Freeze Business Refinement 2
+  // (docs/gops-manufacturer-stockout-information-management.md §18).
+  stockoutStatus: StockoutStatus | null
+  informationReceivedDate: string | null
+  contactMethod: ContactMethod | null
+  restockHasConflict: boolean
 }

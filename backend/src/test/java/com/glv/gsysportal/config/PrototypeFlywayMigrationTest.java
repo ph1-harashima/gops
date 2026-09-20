@@ -107,7 +107,12 @@ class PrototypeFlywayMigrationTest {
         // sku_expected_restock (new, Portal-only, SKU-keyed) - Type C Manual
         // Expected Restock Date; ck_audit_event_aggregate_root/
         // ck_audit_event_type extended for sku_code/SKU_EXPECTED_RESTOCK_CHANGED.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32"), versions);
+        // V33 (Post-Freeze Business Refinement 2, Manufacturer Stockout
+        // Information Management): sku_expected_restock extended with
+        // stockout_status/shortage_qty/information_received_date/
+        // contact_method; new sku_manufacturer_stockout_history table
+        // (Business-facing timeline, separate from audit_event).
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33"), versions);
     }
 
     @Test
@@ -120,7 +125,7 @@ class PrototypeFlywayMigrationTest {
                 "portal_order_revision", "portal_order_revision_detail", "follow_up_case", "legacy_po_baseline",
                 "price_change_set", "price_change_set_detail", "idempotent_operation",
                 "manufacturer_channel", "order_email", "official_po_short_code", "official_po_sequence",
-                "sku_expected_restock")) {
+                "sku_expected_restock", "sku_manufacturer_stockout_history")) {
             assertTrue(tables.contains(expected), "Expected table missing: " + expected + ", got: " + tables);
         }
     }

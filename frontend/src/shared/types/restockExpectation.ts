@@ -9,6 +9,15 @@ export type RestockSource =
   | 'PORTAL_MANUAL_UNKNOWN'
   | 'NONE'
 
+// Post-Freeze Business Refinement 2
+// (docs/gops-manufacturer-stockout-information-management.md §4) - what the
+// Manufacturer has told us, independent of Legacy's own System Information
+// (§3). null means "not yet classified" (Implementation 1 record, or a
+// record that never set a status).
+export type StockoutStatus = 'STOCKOUT' | 'LONG_TERM_STOCKOUT' | 'RESOLVED'
+
+export type ContactMethod = 'PHONE' | 'EMAIL' | 'ORDER_RESPONSE' | 'OTHER'
+
 export interface RestockExpectation {
   skuCode: string
   source: RestockSource
@@ -23,10 +32,42 @@ export interface RestockExpectation {
   // silently overwrite the real Manual value with Legacy's date.
   manualDate: string | null
   manualUnknown: boolean
+  // Post-Freeze Business Refinement 2 - Manufacturer Stockout Information,
+  // always populated regardless of `source`/`date` above (§3: System
+  // Information and Manufacturer Information are distinct data sources,
+  // never merged into one). `legacyDate` is `date`'s raw Legacy-only
+  // counterpart (explicit, since `date` reflects the merge). `hasConflict`
+  // is true only when Legacy has an incoming Arrival AND the Manufacturer
+  // is still telling us STOCKOUT/LONG_TERM_STOCKOUT (§23) - screens must
+  // show both values, never silently pick one.
+  legacyDate: string | null
+  stockoutStatus: StockoutStatus | null
+  shortageQty: number | null
+  informationReceivedDate: string | null
+  contactMethod: ContactMethod | null
+  hasConflict: boolean
 }
 
 export interface RestockExpectationInput {
   expectedRestockDate: string | null
   unknown: boolean
   memo: string | null
+  stockoutStatus: StockoutStatus | null
+  shortageQty: number | null
+  informationReceivedDate: string | null
+  contactMethod: ContactMethod | null
+}
+
+// Post-Freeze Business Refinement 2 §11/§21 - one Business-facing History
+// entry (always a full snapshot, never a diff).
+export interface RestockExpectationHistoryEntry {
+  stockoutStatus: StockoutStatus | null
+  expectedRestockDate: string | null
+  unknown: boolean
+  shortageQty: number | null
+  informationReceivedDate: string | null
+  contactMethod: ContactMethod | null
+  memo: string | null
+  recordedBy: string
+  recordedAt: string
 }

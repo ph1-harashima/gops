@@ -28,7 +28,15 @@
     "confirmedDelivery": "Confirmed Delivery",
     "responseNote": "Response Note",
     "supplyStatus": "Supply Status",
-    "attention": "Attention"
+    "attention": "Attention",
+    "stockout": "Stockout Info",
+    "registerStockoutButton": "Register as Stockout"
+  },
+  "registerStockout": {
+    "title": "Register as Stockout ({{sku}})",
+    "differenceHint": "Ordered Qty {{orderedQty}}, Confirmed Qty {{confirmedQty}}",
+    "cancel": "Cancel",
+    "confirm": "Register"
   },
   "unanswered": "Not Answered",
   "summary": {

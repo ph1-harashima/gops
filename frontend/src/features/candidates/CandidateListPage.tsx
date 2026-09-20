@@ -27,6 +27,9 @@ import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
 import { StockJudgementChip } from '../../shared/components/StockJudgementChip'
 import { RestockLabel } from '../../shared/components/RestockLabel'
+import { StockoutStatusChip } from '../../shared/components/StockoutStatusChip'
+import { ManufacturerConfirmationCaption } from '../../shared/components/ManufacturerConfirmationCaption'
+import { RestockConflictWarning } from '../../shared/components/RestockConflictWarning'
 import { Toast } from '../../shared/components/Toast'
 import { computeStockJudgement } from '../../shared/domain/stockJudgement'
 import { listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
@@ -459,7 +462,14 @@ export function CandidateListPage() {
                       <StockJudgementChip judgement={computeStockJudgement(row.currentStock, row.openPo)} />
                     </TableCell>
                     <TableCell>
-                      <RestockLabel source={row.restockSource} date={row.restockDate} />
+                      <Stack spacing={0.25}>
+                        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                          <StockoutStatusChip status={row.stockoutStatus} />
+                          <RestockLabel source={row.restockSource} date={row.restockDate} variant="caption" />
+                          {row.restockHasConflict && <RestockConflictWarning />}
+                        </Stack>
+                        <ManufacturerConfirmationCaption informationReceivedDate={row.informationReceivedDate} contactMethod={row.contactMethod} />
+                      </Stack>
                     </TableCell>
                     <TableCell align="right">
                       {row.unitPrice != null ? `¥${row.unitPrice.toLocaleString()}` : t('candidates:notAvailable')}

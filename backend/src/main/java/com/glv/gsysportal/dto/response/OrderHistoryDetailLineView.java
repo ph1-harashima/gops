@@ -35,6 +35,15 @@ public record OrderHistoryDetailLineView(
          * screen. Same merged Display-Priority value as Candidate List/SKU
          * Detail - {@code SkuRestockExpectationResponse.SOURCE_*}. */
         String restockSource,
-        LocalDate restockDate
+        LocalDate restockDate,
+        /** Post-Freeze Business Refinement 2
+         * (docs/gops-manufacturer-stockout-information-management.md §16) -
+         * lets the Approver see the Manufacturer's own account (not just
+         * Legacy's ETA) without leaving Approval. */
+        String stockoutStatus,
+        Integer shortageQty,
+        LocalDate informationReceivedDate,
+        String contactMethod,
+        boolean restockHasConflict
 ) {
 }

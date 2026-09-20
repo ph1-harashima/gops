@@ -179,3 +179,7 @@ New E2E spec: `frontend/e2e/post-freeze-business-refinement.spec.ts` (6 tests, a
 - Supplier/Brand Data Model changes: **0**
 - Official PO Short Code Master redesign: **0**
 - Domestic Recommended Qty Formula changes: **0**
+
+## 11. Follow-on: Post-Freeze Business Refinement 2
+
+This Implementation's `sku_expected_restock` foundation (§5) was extended, not replaced, by **Implementation 2 - Manufacturer Stockout Information Management** (`docs/gops-manufacturer-stockout-information-management.md`), which broadens "再入荷予定" into a full Stockout Status/Shortage Qty/Contact Method/History model reflecting how Gulliver's actual Manufacturer communication works (phone/email/Order response, at unpredictable timing). This round's own API/data model/screens described above remain backward compatible - see that document for the full change list.

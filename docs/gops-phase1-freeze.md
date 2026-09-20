@@ -141,6 +141,17 @@ This is **not** a Freeze failure or a reopening of Phase1 scope - it is a small,
 
 Same absolute constraints as every prior round applied and were re-verified: 0 Legacy Source changes, 0 Legacy DB writes, 0 Production/UAT connection, 0 Production deploy, 0 SafetyGuard changes, no Supplier/Brand Data Model change, no Domestic Recommended Qty Formula change.
 
+## 17. Post-Freeze Business Refinement 2 (Manufacturer Stockout Information Management)
+
+Extends Implementation 1's §16 "再入荷予定" foundation into full Manufacturer Stockout Information Management - Stockout Status/Shortage Qty/Information Received Date/Contact Method/Business History, reflecting the real Gulliver process (Manufacturer stockout information arrives via phone/email/Order response at unpredictable timing, not just a single restock date). Full detail: `docs/gops-manufacturer-stockout-information-management.md`. Summary:
+
+- `sku_expected_restock` (Implementation 1) extended in place (V32 untouched, new `V33` migration) rather than a parallel table; new append-only `sku_manufacturer_stockout_history` table for a Business-facing timeline, separate from the unchanged `audit_event` Technical Audit.
+- Legacy Expected Arrival and Manufacturer Stockout Information are now shown **side by side** whenever both exist, with a Conflict marker when they disagree - reconsidered from Implementation 1's strict "Legacy always wins, Manual hidden" rule per this round's explicit requirement that neither may fully hide the other. The API's merged `source`/`date` fields are kept for backward compatibility.
+- New entry point on Supplier Response ("欠品情報として登録", prefilled from the Ordered/Confirmed Qty difference) - a deliberate, separate write, never auto-created from a mere quantity difference.
+- Legacy's own `ITEM_STATUS`/`DISCON` (廃番) concept was audited and confirmed already fully surfaced via the existing `ItemStatusChip` - kept entirely separate from the new Manufacturer Stockout Status, per the explicit instruction not to independently merge them.
+
+Same absolute constraints re-verified: 0 Legacy Source changes, 0 Legacy DB writes, 0 Production/UAT connection, 0 Production deploy, 0 SafetyGuard changes, no Supplier/Brand relationship change, no Official PO Short Code Master redesign, no Domestic Recommended Qty Formula change.
+
 ## 22. Git (Final Commit)
 
-**Final Commit**: `f80ea216d68eda343cd7d39e47d12244e03bf19f` (Post-Freeze Business Refinement / Implementation 1 - see `docs/gops-post-freeze-business-refinement-implementation.md` for this round's full change list). Prior Final Commit: `71ad25d1433e2e23e64df3348759e4424c015df2` (Freeze Blocker Final Fix round; the preceding round's Final Commit was `2816ce35fd607c16c2d6dc6def66649ae809cf78` - see `docs/gops-phase1-final-cleanup-report.md` §7 for that round's change list, §1-6 for the round before it)
+**Final Commit**: see `docs/gops-manufacturer-stockout-information-management.md` for Post-Freeze Business Refinement 2's Final Commit (recorded there once committed). Prior Final Commits: `f80ea216d68eda343cd7d39e47d12244e03bf19f` (Post-Freeze Business Refinement / Implementation 1 - see `docs/gops-post-freeze-business-refinement-implementation.md`), `71ad25d1433e2e23e64df3348759e4424c015df2` (Freeze Blocker Final Fix round; the preceding round's Final Commit was `2816ce35fd607c16c2d6dc6def66649ae809cf78` - see `docs/gops-phase1-final-cleanup-report.md` §7 for that round's change list, §1-6 for the round before it)

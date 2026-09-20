@@ -1,7 +1,7 @@
 // Mirrors backend com.glv.gsysportal.dto.response.OrderCandidateResponse.
 // Internal codes only (itemStatus, dataSource) - no Japanese text from the API
 // (Requirements MD 30.12). Japanese labels are resolved via i18n on the client.
-import type { RestockSource } from './restockExpectation'
+import type { ContactMethod, RestockSource, StockoutStatus } from './restockExpectation'
 
 export interface OrderCandidate {
   sku: string
@@ -28,6 +28,12 @@ export interface OrderCandidate {
   // Post-Freeze Business Refinement (re-audit doc §8/§11).
   restockSource: RestockSource
   restockDate: string | null
+  // Post-Freeze Business Refinement 2
+  // (docs/gops-manufacturer-stockout-information-management.md §15).
+  stockoutStatus: StockoutStatus | null
+  informationReceivedDate: string | null
+  contactMethod: ContactMethod | null
+  restockHasConflict: boolean
 }
 
 export interface OrderCandidateFilter {

@@ -361,7 +361,12 @@ public class OrderHistoryService {
                 stock == null ? null : stock.leadTime(),
                 stock == null ? null : stock.openArrival(),
                 restock == null ? SkuRestockExpectationResponse.SOURCE_NONE : restock.source(),
-                restock == null ? null : restock.date()
+                restock == null ? null : restock.date(),
+                restock == null ? null : restock.stockoutStatus(),
+                restock == null ? null : restock.shortageQty(),
+                restock == null ? null : restock.informationReceivedDate(),
+                restock == null ? null : restock.contactMethod(),
+                restock != null && restock.hasConflict()
         );
     }
 }

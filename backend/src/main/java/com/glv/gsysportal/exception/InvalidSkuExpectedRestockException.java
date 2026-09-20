@@ -8,4 +8,11 @@ public class InvalidSkuExpectedRestockException extends RuntimeException {
     public InvalidSkuExpectedRestockException() {
         super("expectedRestockDate must be null when unknown=true");
     }
+
+    /** Post-Freeze Business Refinement 2: also reused for an invalid
+     * {@code stockoutStatus}/{@code contactMethod} value (neither one of
+     * the fixed enum-like values nor null). */
+    public InvalidSkuExpectedRestockException(String message) {
+        super(message);
+    }
 }

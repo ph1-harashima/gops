@@ -1,7 +1,7 @@
 // Mirrors backend com.glv.gsysportal.dto.response.OrderHistorySummaryResponse
 // / OrderHistoryDetailResponse / OrderHistoryDetailLineView / AuditEventView.
 import type { AttentionSummary } from './attention'
-import type { RestockSource } from './restockExpectation'
+import type { ContactMethod, RestockSource, StockoutStatus } from './restockExpectation'
 
 export interface OrderHistorySummary {
   id: number
@@ -45,6 +45,13 @@ export interface OrderHistoryDetailLine {
   // Post-Freeze Business Refinement (re-audit doc §10-4).
   restockSource: RestockSource
   restockDate: string | null
+  // Post-Freeze Business Refinement 2
+  // (docs/gops-manufacturer-stockout-information-management.md §16).
+  stockoutStatus: StockoutStatus | null
+  shortageQty: number | null
+  informationReceivedDate: string | null
+  contactMethod: ContactMethod | null
+  restockHasConflict: boolean
 }
 
 export interface OrderHistoryDetail {

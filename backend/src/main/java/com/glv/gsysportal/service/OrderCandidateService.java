@@ -73,7 +73,11 @@ public class OrderCandidateService {
                 DATA_SOURCE_CODE,
                 recommendedQtyCalculator.resolveRegion(row),
                 restock == null ? SkuRestockExpectationResponse.SOURCE_NONE : restock.source(),
-                restock == null ? null : restock.date()
+                restock == null ? null : restock.date(),
+                restock == null ? null : restock.stockoutStatus(),
+                restock == null ? null : restock.informationReceivedDate(),
+                restock == null ? null : restock.contactMethod(),
+                restock != null && restock.hasConflict()
         );
     }
 

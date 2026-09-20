@@ -37,6 +37,16 @@ import java.time.OffsetDateTime;
  * <p>Deliberately independent of Supplier/Brand/Official PO Short Code Data
  * Model - keyed on SKU alone, per the explicit instruction not to touch
  * those structures this round pending UAT real-data confirmation.
+ *
+ * <p>Post-Freeze Business Refinement 2
+ * (docs/gops-manufacturer-stockout-information-management.md): broadened
+ * from "just a restock date" into "Manufacturer Stockout Information" -
+ * {@link #stockoutStatus}/{@link #shortageQty}/
+ * {@link #informationReceivedDate}/{@link #contactMethod} added (V33) to
+ * this SAME table/row, since the record is still one-per-SKU
+ * updated-in-place. Every save also appends a
+ * {@link SkuManufacturerStockoutHistory} snapshot - this entity itself
+ * only ever holds the CURRENT state.
  */
 @Entity
 @Table(name = "sku_expected_restock")
@@ -72,4 +82,25 @@ public class SkuExpectedRestock {
 
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
+
+    /** STOCKOUT / LONG_TERM_STOCKOUT / RESOLVED, or null when this record
+     * predates Implementation 2 / was never classified (backward
+     * compatible with Implementation 1 rows that only ever set a date). */
+    @Column(name = "stockout_status", length = 30)
+    private String stockoutStatus;
+
+    /** Nullable and never defaulted to 0 - "confirmed short by some amount"
+     * and "heard it's stockout with no quantity discussed" are different
+     * states (requirements doc §7). */
+    @Column(name = "shortage_qty")
+    private Integer shortageQty;
+
+    /** When the Manufacturer actually communicated this, distinct from
+     * {@link #updatedAt} (when G-OPS was updated) - requirements doc §9. */
+    @Column(name = "information_received_date")
+    private LocalDate informationReceivedDate;
+
+    /** PHONE / EMAIL / ORDER_RESPONSE / OTHER, or null. */
+    @Column(name = "contact_method", length = 20)
+    private String contactMethod;
 }

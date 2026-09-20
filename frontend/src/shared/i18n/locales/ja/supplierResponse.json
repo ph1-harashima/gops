@@ -28,7 +28,15 @@
     "confirmedDelivery": "回答納期",
     "responseNote": "回答理由・メモ",
     "supplyStatus": "供給状況",
-    "attention": "確認事項"
+    "attention": "確認事項",
+    "stockout": "欠品情報",
+    "registerStockoutButton": "欠品情報として登録"
+  },
+  "registerStockout": {
+    "title": "欠品情報として登録（{{sku}}）",
+    "differenceHint": "発注数量 {{orderedQty}} に対し、回答数量 {{confirmedQty}}",
+    "cancel": "キャンセル",
+    "confirm": "登録する"
   },
   "unanswered": "未回答",
   "summary": {

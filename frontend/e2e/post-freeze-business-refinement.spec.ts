@@ -126,7 +126,12 @@ test.describe('Post-Freeze Business Refinement - Stockout / Restock Date', () =>
     await page.goto(`/items/${SKU_WITH_LEGACY_ARRIVAL}`)
     const section = page.getByTestId('sku-restock-section')
     await expect(section).toBeVisible()
-    const sectionLabel = section.getByTestId('restock-label')
+    // Post-Freeze Business Refinement 2 (requirements doc §23): this
+    // section now shows the Legacy line AND a separate Manufacturer line
+    // whenever Manufacturer data also exists (never hiding one with the
+    // other) - target the Legacy-sourced label specifically, rather than
+    // assuming there is only one restock-label element.
+    const sectionLabel = section.locator('[data-testid="restock-label"][data-restock-source="LEGACY_EXPECTED_ARRIVAL"]')
     await expect(sectionLabel).toHaveAttribute('data-restock-source', 'LEGACY_EXPECTED_ARRIVAL')
     // The Legacy READ ONLY note explains why the Edit form below it cannot
     // change what's currently displayed - never "Legacy"/"TR_ARR" wording,
@@ -155,7 +160,7 @@ test.describe('Post-Freeze Business Refinement - Stockout / Restock Date', () =>
     }
     await page.getByTestId('sku-restock-date-input').locator('input').fill(dateStr)
     await page.getByTestId('sku-restock-save-button').click()
-    await expect(page.getByText('再入荷予定を更新しました。')).toBeVisible()
+    await expect(page.getByText('メーカー欠品情報を更新しました。')).toBeVisible()
 
     const sectionLabel = section.getByTestId('restock-label')
     await expect(sectionLabel).toHaveAttribute('data-restock-source', 'PORTAL_MANUAL')
@@ -182,7 +187,7 @@ test.describe('Post-Freeze Business Refinement - Stockout / Restock Date', () =>
     // InvalidSkuExpectedRestockException).
     await expect(page.getByTestId('sku-restock-date-input').locator('input')).toHaveValue('')
     await page.getByTestId('sku-restock-save-button').click()
-    await expect(page.getByText('再入荷予定を更新しました。')).toBeVisible()
+    await expect(page.getByText('メーカー欠品情報を更新しました。')).toBeVisible()
 
     const sectionLabel = section.getByTestId('restock-label')
     await expect(sectionLabel).toHaveAttribute('data-restock-source', 'PORTAL_MANUAL_UNKNOWN')

@@ -21,15 +21,22 @@ import Divider from '@mui/material/Divider'
 
 import axios from 'axios'
 
+import MenuItem from '@mui/material/MenuItem'
+
 import { useSkuDetail, useRestockExpectation, useUpdateRestockExpectation } from './api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
 import { StockJudgementChip } from '../../shared/components/StockJudgementChip'
 import { RestockLabel } from '../../shared/components/RestockLabel'
+import { StockoutStatusChip } from '../../shared/components/StockoutStatusChip'
+import { ManufacturerConfirmationCaption } from '../../shared/components/ManufacturerConfirmationCaption'
+import { RestockConflictWarning } from '../../shared/components/RestockConflictWarning'
+import { ManufacturerStockoutHistoryDialog } from '../../shared/components/ManufacturerStockoutHistoryDialog'
 import { computeStockJudgement } from '../../shared/domain/stockJudgement'
 import { resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { Toast } from '../../shared/components/Toast'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
+import type { ContactMethod, StockoutStatus } from '../../shared/types/restockExpectation'
 
 function restockErrorCodeOf(error: unknown): string | null {
   if (axios.isAxiosError<ApiErrorBody>(error)) {
@@ -59,6 +66,11 @@ function RestockExpectationEditSection({ sku }: { sku: string }) {
   const [dateInput, setDateInput] = useState('')
   const [unknownInput, setUnknownInput] = useState(false)
   const [memoInput, setMemoInput] = useState('')
+  const [statusInput, setStatusInput] = useState<StockoutStatus | ''>('')
+  const [shortageQtyInput, setShortageQtyInput] = useState('')
+  const [receivedDateInput, setReceivedDateInput] = useState('')
+  const [contactMethodInput, setContactMethodInput] = useState<ContactMethod | ''>('')
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   // Re-sync local form state whenever a fresh fetch/save lands - never on
   // every render, so mid-edit keystrokes aren't clobbered by a background
@@ -68,6 +80,10 @@ function RestockExpectationEditSection({ sku }: { sku: string }) {
     setDateInput(data.manualDate ?? '')
     setUnknownInput(data.manualUnknown)
     setMemoInput(data.manualMemo ?? '')
+    setStatusInput(data.stockoutStatus ?? '')
+    setShortageQtyInput(data.shortageQty != null ? String(data.shortageQty) : '')
+    setReceivedDateInput(data.informationReceivedDate ?? '')
+    setContactMethodInput(data.contactMethod ?? '')
   }, [data])
 
   if (isLoading || !data) {
@@ -79,26 +95,69 @@ function RestockExpectationEditSection({ sku }: { sku: string }) {
       expectedRestockDate: unknownInput ? null : (dateInput || null),
       unknown: unknownInput,
       memo: memoInput || null,
+      stockoutStatus: statusInput || null,
+      shortageQty: shortageQtyInput === '' ? null : Number(shortageQtyInput),
+      informationReceivedDate: receivedDateInput || null,
+      contactMethod: contactMethodInput || null,
     })
   }
 
+  // requirements doc §23: Legacy's own value and the Manufacturer's own
+  // account are shown as two SEPARATE lines whenever either exists -
+  // neither is allowed to fully hide the other, with a Warning marker when
+  // they actively disagree (hasConflict).
+  const hasManufacturerRestockInfo = data.manualDate != null || data.manualUnknown
+  const hasNothing = data.legacyDate == null && !hasManufacturerRestockInfo && !data.stockoutStatus
+
   return (
     <Paper variant="outlined" sx={{ p: 2, flex: 1, minWidth: 260 }} data-testid="sku-restock-section">
-      <Typography variant="subtitle1" gutterBottom>{t('editSectionTitle')}</Typography>
+      <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="subtitle1" gutterBottom>{t('editSectionTitle')}</Typography>
+        <Button size="small" onClick={() => setHistoryOpen(true)} data-testid="sku-restock-view-history-button">
+          {t('viewHistoryButton')}
+        </Button>
+      </Stack>
       <Stack spacing={0.5} sx={{ mb: 1.5 }}>
-        {data.source === 'NONE' ? (
-          <Typography variant="body2" color="text.secondary">{t('noneDisplay')}</Typography>
-        ) : (
-          <RestockLabel source={data.source} date={data.date} />
+        {hasNothing && <Typography variant="body2" color="text.secondary">{t('noneDisplay')}</Typography>}
+        {data.legacyDate != null && (
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+            <RestockLabel source="LEGACY_EXPECTED_ARRIVAL" date={data.legacyDate} />
+            {data.hasConflict && <RestockConflictWarning />}
+          </Stack>
         )}
-        {data.source === 'LEGACY_EXPECTED_ARRIVAL' && (
+        {data.legacyDate != null && (
           <Alert severity="info" sx={{ mt: 0.5 }} data-testid="restock-legacy-readonly-note">
             {t('legacyReadOnlyNote')}
           </Alert>
         )}
+        {hasManufacturerRestockInfo && (
+          <RestockLabel source={data.manualUnknown ? 'PORTAL_MANUAL_UNKNOWN' : 'PORTAL_MANUAL'} date={data.manualDate} />
+        )}
+        {data.stockoutStatus && (
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <StockoutStatusChip status={data.stockoutStatus} />
+            {data.shortageQty != null && (
+              <Typography variant="body2" color="text.secondary">{t('shortageQtyLabel')}: {data.shortageQty}</Typography>
+            )}
+          </Stack>
+        )}
+        <ManufacturerConfirmationCaption informationReceivedDate={data.informationReceivedDate} contactMethod={data.contactMethod} />
       </Stack>
       <Divider sx={{ mb: 1.5 }} />
       <Stack spacing={1.5}>
+        <TextField
+          select
+          label={t('stockoutStatusLabel')}
+          size="small"
+          value={statusInput}
+          onChange={(e) => setStatusInput(e.target.value as StockoutStatus | '')}
+          data-testid="sku-restock-status-select"
+        >
+          <MenuItem value="">{t('stockoutStatusNoneOption')}</MenuItem>
+          <MenuItem value="STOCKOUT">{t('stockoutStatus.STOCKOUT')}</MenuItem>
+          <MenuItem value="LONG_TERM_STOCKOUT">{t('stockoutStatus.LONG_TERM_STOCKOUT')}</MenuItem>
+          <MenuItem value="RESOLVED">{t('stockoutStatus.RESOLVED')}</MenuItem>
+        </TextField>
         <TextField
           label={t('dateLabel')}
           type="date"
@@ -122,6 +181,39 @@ function RestockExpectationEditSection({ sku }: { sku: string }) {
           }
           label={t('unknownCheckboxLabel')}
         />
+        <TextField
+          label={t('shortageQtyLabel')}
+          placeholder={t('shortageQtyPlaceholder') ?? undefined}
+          type="number"
+          size="small"
+          value={shortageQtyInput}
+          onChange={(e) => setShortageQtyInput(e.target.value)}
+          slotProps={{ htmlInput: { min: 0 } }}
+          data-testid="sku-restock-shortage-qty-input"
+        />
+        <TextField
+          label={t('informationReceivedDateLabel')}
+          type="date"
+          size="small"
+          value={receivedDateInput}
+          onChange={(e) => setReceivedDateInput(e.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          data-testid="sku-restock-received-date-input"
+        />
+        <TextField
+          select
+          label={t('contactMethodLabel')}
+          size="small"
+          value={contactMethodInput}
+          onChange={(e) => setContactMethodInput(e.target.value as ContactMethod | '')}
+          data-testid="sku-restock-contact-method-select"
+        >
+          <MenuItem value="">{t('contactMethodNoneOption')}</MenuItem>
+          <MenuItem value="PHONE">{t('contactMethod.PHONE')}</MenuItem>
+          <MenuItem value="EMAIL">{t('contactMethod.EMAIL')}</MenuItem>
+          <MenuItem value="ORDER_RESPONSE">{t('contactMethod.ORDER_RESPONSE')}</MenuItem>
+          <MenuItem value="OTHER">{t('contactMethod.OTHER')}</MenuItem>
+        </TextField>
         <TextField
           label={t('memoLabel')}
           size="small"
@@ -155,6 +247,7 @@ function RestockExpectationEditSection({ sku }: { sku: string }) {
         message={restockErrorCodeOf(updateMutation.error) === 'INVALID_SKU_EXPECTED_RESTOCK' ? t('errorInvalid') : t('errorGeneric')}
         onClose={() => updateMutation.reset()}
       />
+      <ManufacturerStockoutHistoryDialog sku={sku} open={historyOpen} onClose={() => setHistoryOpen(false)} />
     </Paper>
   )
 }

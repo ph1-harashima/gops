@@ -50,5 +50,11 @@ public record StockSalesSummaryResponse(
         /** Post-Freeze Business Refinement (re-audit doc §10-5): same merged
          * Display-Priority value as Candidate List/Order History Detail. */
         String restockSource,
-        LocalDate restockDate) {
+        LocalDate restockDate,
+        /** Post-Freeze Business Refinement 2
+         * (docs/gops-manufacturer-stockout-information-management.md §18). */
+        String stockoutStatus,
+        LocalDate informationReceivedDate,
+        String contactMethod,
+        boolean restockHasConflict) {
 }

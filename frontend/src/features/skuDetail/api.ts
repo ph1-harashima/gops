@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../../shared/api/client'
 import type { SkuDetail } from '../../shared/types/skuDetail'
-import type { RestockExpectation, RestockExpectationInput } from '../../shared/types/restockExpectation'
+import type { RestockExpectation, RestockExpectationHistoryEntry, RestockExpectationInput } from '../../shared/types/restockExpectation'
 
 async function fetchSkuDetail(sku: string): Promise<SkuDetail> {
   const { data } = await apiClient.get<SkuDetail>(`/items/${encodeURIComponent(sku)}/ordering-context`)
@@ -44,11 +44,28 @@ export function useUpdateRestockExpectation(sku: string) {
     mutationFn: (input: RestockExpectationInput) => updateRestockExpectation(sku, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['restock-expectation', sku] })
+      void queryClient.invalidateQueries({ queryKey: ['restock-expectation-history', sku] })
       // The Candidate List/Order History/Stock-Sales Lists all embed this
       // same SKU's restock info - invalidate broadly rather than trying to
       // patch every possibly-cached page individually.
       void queryClient.invalidateQueries({ queryKey: ['order-candidates'] })
       void queryClient.invalidateQueries({ queryKey: ['stock-sales'] })
     },
+  })
+}
+
+/** Post-Freeze Business Refinement 2 (requirements doc §11/§21) -
+ * Business-facing timeline, fetched only when the History dialog is
+ * actually opened (enabled gate below), not on every SKU Detail load. */
+async function fetchRestockExpectationHistory(sku: string): Promise<RestockExpectationHistoryEntry[]> {
+  const { data } = await apiClient.get<RestockExpectationHistoryEntry[]>(`/items/${encodeURIComponent(sku)}/restock-expectation/history`)
+  return data
+}
+
+export function useRestockExpectationHistory(sku: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['restock-expectation-history', sku],
+    queryFn: () => fetchRestockExpectationHistory(sku),
+    enabled: Boolean(sku) && enabled,
   })
 }

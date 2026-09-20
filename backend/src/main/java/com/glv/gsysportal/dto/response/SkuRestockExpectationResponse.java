@@ -31,6 +31,25 @@ import java.time.OffsetDateTime;
  * {@code manualUnknown}, an Edit form reading the merged {@code date} while
  * Legacy wins would prefill with Legacy's own date and silently overwrite
  * the real Manual value on the next Save.
+ *
+ * <p>Post-Freeze Business Refinement 2
+ * (docs/gops-manufacturer-stockout-information-management.md §23) -
+ * {@code source}/{@code date} above are kept EXACTLY as before (backward
+ * compatible with every existing caller of this API) and still express the
+ * simple Legacy-wins priority. But the requirements for this round are
+ * explicit that Legacy Expected Arrival and Manufacturer Stockout
+ * Information must never fully hide one another when they actually
+ * disagree - so this response separately and always exposes the raw
+ * Manufacturer Stockout fields ({@code stockoutStatus}/{@code shortageQty}/
+ * {@code informationReceivedDate}/{@code contactMethod}), the raw
+ * {@code legacyDate} (distinct from the merged {@code date}), and a
+ * computed {@code hasConflict} flag - {@code true} only when Legacy has an
+ * open Expected Arrival AND the Manufacturer's own status is still
+ * {@code STOCKOUT}/{@code LONG_TERM_STOCKOUT} (i.e. the Manufacturer is
+ * still telling us it's short even though Legacy shows an incoming
+ * Arrival). Screens updated this round render both values side by side
+ * when {@code hasConflict} is true, rather than relying on the merged
+ * {@code source}/{@code date} alone.
  */
 public record SkuRestockExpectationResponse(
         String skuCode,
@@ -40,10 +59,25 @@ public record SkuRestockExpectationResponse(
         String manualUpdatedBy,
         OffsetDateTime manualUpdatedAt,
         LocalDate manualDate,
-        boolean manualUnknown
+        boolean manualUnknown,
+        LocalDate legacyDate,
+        String stockoutStatus,
+        Integer shortageQty,
+        LocalDate informationReceivedDate,
+        String contactMethod,
+        boolean hasConflict
 ) {
     public static final String SOURCE_LEGACY = "LEGACY_EXPECTED_ARRIVAL";
     public static final String SOURCE_PORTAL_MANUAL = "PORTAL_MANUAL";
     public static final String SOURCE_PORTAL_UNKNOWN = "PORTAL_MANUAL_UNKNOWN";
     public static final String SOURCE_NONE = "NONE";
+
+    public static final String STOCKOUT_STATUS_STOCKOUT = "STOCKOUT";
+    public static final String STOCKOUT_STATUS_LONG_TERM = "LONG_TERM_STOCKOUT";
+    public static final String STOCKOUT_STATUS_RESOLVED = "RESOLVED";
+
+    public static final String CONTACT_METHOD_PHONE = "PHONE";
+    public static final String CONTACT_METHOD_EMAIL = "EMAIL";
+    public static final String CONTACT_METHOD_ORDER_RESPONSE = "ORDER_RESPONSE";
+    public static final String CONTACT_METHOD_OTHER = "OTHER";
 }

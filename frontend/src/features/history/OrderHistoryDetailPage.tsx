@@ -55,6 +55,9 @@ import { useOrderRevisions, useResponseHistory } from '../supplierResponse/api'
 import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
 import { RestockLabel } from '../../shared/components/RestockLabel'
+import { StockoutStatusChip } from '../../shared/components/StockoutStatusChip'
+import { ManufacturerConfirmationCaption } from '../../shared/components/ManufacturerConfirmationCaption'
+import { RestockConflictWarning } from '../../shared/components/RestockConflictWarning'
 import { Toast } from '../../shared/components/Toast'
 import { resolveReturnTo, withBackTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { useAuth } from '../auth/AuthContext'
@@ -762,9 +765,25 @@ export function OrderHistoryDetailPage() {
                     // openArrival) since RestockLabel already carries its
                     // own ja/en phrasing - a redundant label here would
                     // double up the wording.
-                    ...(line.restockSource !== 'NONE' ? [{
+                    //
+                    // Post-Freeze Business Refinement 2 (requirements doc
+                    // §16): the Manufacturer Stockout badge/confirmation
+                    // caption rides along in the SAME row (not full Memo
+                    // text - "情報量過多にならないこと") so the Approver sees
+                    // "欠品だがいつ入るのか、メーカーは何と言っているか" in one
+                    // glance without leaving Approval.
+                    ...(line.restockSource !== 'NONE' || line.stockoutStatus ? [{
                       label: '',
-                      value: <RestockLabel source={line.restockSource} date={line.restockDate} variant="caption" />,
+                      value: (
+                        <Stack spacing={0.25} sx={{ alignItems: 'flex-end' }}>
+                          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                            <StockoutStatusChip status={line.stockoutStatus} />
+                            <RestockLabel source={line.restockSource} date={line.restockDate} variant="caption" />
+                            {line.restockHasConflict && <RestockConflictWarning />}
+                          </Stack>
+                          <ManufacturerConfirmationCaption informationReceivedDate={line.informationReceivedDate} contactMethod={line.contactMethod} />
+                        </Stack>
+                      ),
                     }] : []),
                   ].map((row) => (
                     <Stack key={row.label} direction="row" sx={{ justifyContent: 'space-between' }}>
@@ -841,7 +860,16 @@ export function OrderHistoryDetailPage() {
                 <TableCell align="right">{line.monthlySales ?? t('notAvailable')}</TableCell>
                 <TableCell>{line.leadTime ?? t('notAvailable')}</TableCell>
                 <TableCell align="right">{line.openArrival ?? t('notAvailable')}</TableCell>
-                <TableCell><RestockLabel source={line.restockSource} date={line.restockDate} variant="caption" /></TableCell>
+                <TableCell>
+                  <Stack spacing={0.25}>
+                    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                      <StockoutStatusChip status={line.stockoutStatus} />
+                      <RestockLabel source={line.restockSource} date={line.restockDate} variant="caption" />
+                      {line.restockHasConflict && <RestockConflictWarning />}
+                    </Stack>
+                    <ManufacturerConfirmationCaption informationReceivedDate={line.informationReceivedDate} contactMethod={line.contactMethod} />
+                  </Stack>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

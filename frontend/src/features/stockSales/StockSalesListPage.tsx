@@ -27,6 +27,9 @@ import { useStockSalesDetail, useStockSalesList } from './api'
 import type { StockSalesListFilter } from './api'
 import { isSafeInternalPath, listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { RestockLabel } from '../../shared/components/RestockLabel'
+import { StockoutStatusChip } from '../../shared/components/StockoutStatusChip'
+import { ManufacturerConfirmationCaption } from '../../shared/components/ManufacturerConfirmationCaption'
+import { RestockConflictWarning } from '../../shared/components/RestockConflictWarning'
 
 const FILTER_PARAMS = ['skuKeyword', 'brandCode', 'supplierCode', 'minStock', 'maxStock', 'minSales', 'maxSales'] as const
 const DEFAULT_PAGE_SIZE = 20
@@ -76,10 +79,15 @@ function StockSalesDrawer({ sku, onClose, listPath }: { sku: string | null; onCl
               </Typography>
               <Typography variant="body2">{t('field.openPoQty')}: <strong>{qty(data.openPoQty)}</strong></Typography>
               <Typography variant="body2">{t('field.openArrivalQty')}: <strong>{qty(data.openArrivalQty)}</strong></Typography>
-              {data.restockSource !== 'NONE' && (
-                <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                  <Typography variant="body2">{t('field.restock')}:</Typography>
-                  <RestockLabel source={data.restockSource} date={data.restockDate} variant="caption" />
+              {(data.restockSource !== 'NONE' || data.stockoutStatus) && (
+                <Stack spacing={0.25}>
+                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Typography variant="body2">{t('field.restock')}:</Typography>
+                    <StockoutStatusChip status={data.stockoutStatus} />
+                    <RestockLabel source={data.restockSource} date={data.restockDate} variant="caption" />
+                    {data.restockHasConflict && <RestockConflictWarning />}
+                  </Stack>
+                  <ManufacturerConfirmationCaption informationReceivedDate={data.informationReceivedDate} contactMethod={data.contactMethod} />
                 </Stack>
               )}
               <Typography variant="body2" color="text.secondary">{t('field.recommendedQty')}（{t('referenceValue')}）: {qty(data.recommendedQty)}</Typography>
@@ -335,7 +343,16 @@ export function StockSalesListPage() {
                     <TableCell align="right">{qty(row.openPoQty)}</TableCell>
                     <TableCell align="right">{qty(row.openArrivalQty)}</TableCell>
                     <TableCell>{row.updatedAt ? new Date(row.updatedAt).toLocaleString('ja-JP') : '—'}</TableCell>
-                    <TableCell><RestockLabel source={row.restockSource} date={row.restockDate} variant="caption" /></TableCell>
+                    <TableCell>
+                      <Stack spacing={0.25}>
+                        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                          <StockoutStatusChip status={row.stockoutStatus} />
+                          <RestockLabel source={row.restockSource} date={row.restockDate} variant="caption" />
+                          {row.restockHasConflict && <RestockConflictWarning />}
+                        </Stack>
+                        <ManufacturerConfirmationCaption informationReceivedDate={row.informationReceivedDate} contactMethod={row.contactMethod} />
+                      </Stack>
+                    </TableCell>
                     <TableCell>
                       <Button size="small" onClick={() => setDrawerSku(row.sku)} data-testid={`stock-sales-detail-button-${row.sku}`}>
                         {t('viewDetail')}

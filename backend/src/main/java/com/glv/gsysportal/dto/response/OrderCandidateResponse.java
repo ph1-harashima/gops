@@ -38,6 +38,15 @@ public record OrderCandidateResponse(
          * merged Display-Priority result - {@code SkuRestockExpectationResponse.SOURCE_*}
          * (LEGACY_EXPECTED_ARRIVAL/PORTAL_MANUAL/PORTAL_MANUAL_UNKNOWN/NONE). */
         String restockSource,
-        LocalDate restockDate
+        LocalDate restockDate,
+        /** Post-Freeze Business Refinement 2
+         * (docs/gops-manufacturer-stockout-information-management.md §15) -
+         * Manufacturer Stockout Information, always distinct from the
+         * merged restockSource/restockDate above (System Information vs
+         * Manufacturer Information, requirements doc §3). */
+        String stockoutStatus,
+        LocalDate informationReceivedDate,
+        String contactMethod,
+        boolean restockHasConflict
 ) {
 }

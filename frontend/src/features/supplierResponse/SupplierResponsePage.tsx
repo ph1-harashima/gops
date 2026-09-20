@@ -37,6 +37,8 @@ import { withReturnTo } from '../../shared/navigation/returnTo'
 import { useAuth } from '../auth/AuthContext'
 import { ROLE_ADMIN } from '../../shared/types/auth'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
+import { useUpdateRestockExpectation } from '../skuDetail/api'
+import type { StockoutStatus } from '../../shared/types/restockExpectation'
 
 /** Phase 7-C5 7章: candidate values, official per-value business definition
  * remains [TBD - CUSTOMER REVIEW] (24章). '' (unselected) is rendered
@@ -55,6 +57,162 @@ interface LineEdit {
   confirmedDelivery: string
   responseNote: string
   supplyStatus: string // '' = leave unchanged / not yet selected (never auto-inferred, 7-C5 7章)
+}
+
+/**
+ * Post-Freeze Business Refinement 2 (requirements doc §13/§14) - registers
+ * Manufacturer Stockout Information from a Supplier Response line. A
+ * completely separate write from this page's own Save/Confirm: PUT
+ * /api/items/{sku}/restock-expectation (the same endpoint SKU Detail's own
+ * Edit form uses), never Supplier Response's own API - this SKU-level
+ * record is independent of any specific Order/Revision, and Official PO
+ * Revision/Agreement workflow is entirely unaffected by it (§14). Also
+ * distinct from this page's own pre-existing per-line `supplyStatus`
+ * (candidate values pending customer review, snapshot on THIS Response/
+ * Revision only) - the two are never merged.
+ *
+ * Shortage Qty prefills from Ordered - Confirmed (only when Confirmed is a
+ * real, smaller number - requirements doc §7), but nothing is ever
+ * auto-submitted: the user must open this Dialog, choose a Status, and
+ * explicitly confirm (§13's "自動的に欠品確定Recordを作らない").
+ */
+function RegisterStockoutFromResponseDialog({
+  sku, orderedQty, confirmedQty, open, onClose,
+}: {
+  sku: string
+  orderedQty: number | null
+  confirmedQty: number | null
+  open: boolean
+  onClose: () => void
+}) {
+  const { t } = useTranslation('supplierResponse')
+  const { t: tRestock } = useTranslation('restockExpectation')
+  const updateMutation = useUpdateRestockExpectation(sku)
+
+  const prefillShortage = orderedQty != null && confirmedQty != null && confirmedQty < orderedQty
+    ? orderedQty - confirmedQty
+    : null
+
+  const [statusInput, setStatusInput] = useState<StockoutStatus | ''>('')
+  const [shortageQtyInput, setShortageQtyInput] = useState(prefillShortage != null ? String(prefillShortage) : '')
+  const [dateInput, setDateInput] = useState('')
+  const [unknownInput, setUnknownInput] = useState(false)
+  const [receivedDateInput, setReceivedDateInput] = useState(() => new Date().toISOString().slice(0, 10))
+  const [memoInput, setMemoInput] = useState('')
+
+  function handleRegister() {
+    updateMutation.mutate({
+      expectedRestockDate: unknownInput ? null : (dateInput || null),
+      unknown: unknownInput,
+      memo: memoInput || null,
+      stockoutStatus: statusInput || null,
+      shortageQty: shortageQtyInput === '' ? null : Number(shortageQtyInput),
+      informationReceivedDate: receivedDateInput || null,
+      contactMethod: 'ORDER_RESPONSE',
+    }, { onSuccess: onClose })
+  }
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth data-testid="register-stockout-dialog">
+      <DialogTitle>{t('registerStockout.title', { sku })}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          {orderedQty != null && confirmedQty != null && (
+            <Typography variant="body2" color="text.secondary">
+              {t('registerStockout.differenceHint', { orderedQty, confirmedQty })}
+            </Typography>
+          )}
+          <TextField
+            select
+            required
+            label={tRestock('stockoutStatusLabel')}
+            size="small"
+            value={statusInput}
+            onChange={(e) => setStatusInput(e.target.value as StockoutStatus | '')}
+            data-testid="register-stockout-status-select"
+          >
+            <MenuItem value="">{tRestock('stockoutStatusNoneOption')}</MenuItem>
+            <MenuItem value="STOCKOUT">{tRestock('stockoutStatus.STOCKOUT')}</MenuItem>
+            <MenuItem value="LONG_TERM_STOCKOUT">{tRestock('stockoutStatus.LONG_TERM_STOCKOUT')}</MenuItem>
+          </TextField>
+          <TextField
+            label={tRestock('shortageQtyLabel')}
+            placeholder={tRestock('shortageQtyPlaceholder') ?? undefined}
+            type="number"
+            size="small"
+            value={shortageQtyInput}
+            onChange={(e) => setShortageQtyInput(e.target.value)}
+            slotProps={{ htmlInput: { min: 0 } }}
+            data-testid="register-stockout-shortage-qty-input"
+          />
+          <TextField
+            label={tRestock('dateLabel')}
+            type="date"
+            size="small"
+            value={dateInput}
+            disabled={unknownInput}
+            onChange={(e) => setDateInput(e.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+            data-testid="register-stockout-date-input"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={unknownInput}
+                onChange={(e) => {
+                  setUnknownInput(e.target.checked)
+                  if (e.target.checked) setDateInput('')
+                }}
+                data-testid="register-stockout-unknown-checkbox"
+              />
+            }
+            label={tRestock('unknownCheckboxLabel')}
+          />
+          <TextField
+            label={tRestock('informationReceivedDateLabel')}
+            type="date"
+            size="small"
+            value={receivedDateInput}
+            onChange={(e) => setReceivedDateInput(e.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+            data-testid="register-stockout-received-date-input"
+          />
+          <TextField
+            label={tRestock('contactMethodLabel')}
+            size="small"
+            value={tRestock('contactMethod.ORDER_RESPONSE')}
+            slotProps={{ input: { readOnly: true } }}
+          />
+          <TextField
+            label={tRestock('memoLabel')}
+            size="small"
+            multiline
+            minRows={2}
+            value={memoInput}
+            onChange={(e) => setMemoInput(e.target.value)}
+            data-testid="register-stockout-memo-input"
+          />
+        </Stack>
+        <Toast
+          open={updateMutation.isError}
+          severity="error"
+          message={errorCodeOf(updateMutation.error) === 'INVALID_SKU_EXPECTED_RESTOCK' ? tRestock('errorInvalid') : tRestock('errorGeneric')}
+          onClose={() => updateMutation.reset()}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={updateMutation.isPending}>{t('registerStockout.cancel')}</Button>
+        <Button
+          variant="contained"
+          onClick={handleRegister}
+          disabled={updateMutation.isPending || statusInput === ''}
+          data-testid="register-stockout-confirm-button"
+        >
+          {updateMutation.isPending ? <CircularProgress size={20} /> : t('registerStockout.confirm')}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
 }
 
 export function SupplierResponsePage() {
@@ -96,6 +254,13 @@ export function SupplierResponsePage() {
   const [revisionDialogOpen, setRevisionDialogOpen] = useState(false)
   const [revisionReason, setRevisionReason] = useState('')
   const [applyConfirmedValues, setApplyConfirmedValues] = useState(false)
+  // Post-Freeze Business Refinement 2 (requirements doc §13/§14) - which
+  // SKU's "欠品情報として登録" Dialog is open, or null. A completely
+  // separate write path from this page's own Save/Confirm (PUT
+  // /api/items/{sku}/restock-expectation, not Supplier Response's own API)
+  // - never auto-registered from a quantity difference alone (§13's
+  // explicit "自動的に欠品確定Recordを作らない").
+  const [stockoutDialogSku, setStockoutDialogSku] = useState<string | null>(null)
 
   useEffect(() => {
     if (!response) return
@@ -373,6 +538,11 @@ export function SupplierResponsePage() {
               <TableCell>{t('table.responseNote')}</TableCell>
               <TableCell>{t('table.supplyStatus')}</TableCell>
               <TableCell>{t('table.attention')}</TableCell>
+              {/* Post-Freeze Business Refinement 2 (requirements doc §13):
+                  appended after the pre-existing columns, same "append,
+                  never insert" convention this app already uses elsewhere,
+                  to keep this table's existing E2E cell indices stable. */}
+              <TableCell>{t('table.stockout')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -449,6 +619,16 @@ export function SupplierResponsePage() {
                   </TableCell>
                   <TableCell>
                     <AttentionChips attentions={d.attentions} acknowledgeable />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setStockoutDialogSku(d.sku)}
+                      data-testid={`register-stockout-button-${d.sku}`}
+                    >
+                      {t('table.registerStockoutButton')}
+                    </Button>
                   </TableCell>
                 </TableRow>
               )
@@ -780,6 +960,19 @@ export function SupplierResponsePage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {stockoutDialogSku && (() => {
+        const line = response.details.find((d) => d.sku === stockoutDialogSku)
+        return (
+          <RegisterStockoutFromResponseDialog
+            sku={stockoutDialogSku}
+            orderedQty={line?.orderedQty ?? null}
+            confirmedQty={line?.confirmedQty ?? null}
+            open
+            onClose={() => setStockoutDialogSku(null)}
+          />
+        )
+      })()}
     </Box>
   )
 }
