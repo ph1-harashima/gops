@@ -143,4 +143,4 @@ Same absolute constraints as every prior round applied and were re-verified: 0 L
 
 ## 22. Git (Final Commit)
 
-**Final Commit**: `71ad25d1433e2e23e64df3348759e4424c015df2` (Freeze Blocker Final Fix round; the preceding round's Final Commit was `2816ce35fd607c16c2d6dc6def66649ae809cf78` - see `docs/gops-phase1-final-cleanup-report.md` §7 for this round's change list, §1-6 for the preceding round)
+**Final Commit**: `f80ea216d68eda343cd7d39e47d12244e03bf19f` (Post-Freeze Business Refinement / Implementation 1 - see `docs/gops-post-freeze-business-refinement-implementation.md` for this round's full change list). Prior Final Commit: `71ad25d1433e2e23e64df3348759e4424c015df2` (Freeze Blocker Final Fix round; the preceding round's Final Commit was `2816ce35fd607c16c2d6dc6def66649ae809cf78` - see `docs/gops-phase1-final-cleanup-report.md` §7 for that round's change list, §1-6 for the round before it)
