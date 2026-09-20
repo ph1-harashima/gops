@@ -31,6 +31,11 @@ export interface PoPreview {
   draftId: number
   draftNo: string
   prototypePoNo: string | null
+  // Post-Freeze Visual Walkthrough Findings Fix (Finding #1,
+  // docs/gops-visual-walkthrough-findings-fix.md): 正式PO番号 - null until
+  // assigned. Distinct from prototypePoNo (Portal管理番号) - never conflate
+  // the two on this screen (or anywhere else).
+  officialPoNo: string | null
   supplierCode: string | null
   supplierName: string | null
   brandCode: string | null

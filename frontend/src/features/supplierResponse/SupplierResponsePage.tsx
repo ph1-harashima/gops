@@ -447,9 +447,22 @@ export function SupplierResponsePage() {
 
   const saveErrorCode = saveMutation.isError ? errorCodeOf(saveMutation.error) : null
   const confirmErrorCode = confirmMutation.isError ? errorCodeOf(confirmMutation.error) : null
+  // Post-Freeze Visual Walkthrough Findings Fix (Finding #3,
+  // docs/gops-visual-walkthrough-findings-fix.md): the persistent
+  // "unsavedChangesBanner" Toast below is a fixed-position Snackbar
+  // (bottom-left, never pushes document flow - see Toast.tsx's own
+  // design note) that can visually sit on top of 回答を保存/メーカー回答を確定
+  // when the page is short enough for those buttons to render at the same
+  // screen position the Snackbar occupies - confirmed reproducible at a
+  // standard desktop viewport height. Reserving extra bottom padding only
+  // while that Toast can actually be open keeps the buttons above the
+  // Snackbar's own footprint without touching Toast's shared fixed-position
+  // behavior (relied on elsewhere to avoid the OTHER, previously-fixed
+  // layout-shift bug) or resorting to a z-index override.
+  const reserveBottomForUnsavedChangesToast = isEditable && isDirty
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, pb: reserveBottomForUnsavedChangesToast ? 10 : 3 }}>
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
         <Button onClick={() => navigate(backToOrderDetailTarget)}>{t('backToOrderDetail')}</Button>
         <Typography variant="h5" component="h1">

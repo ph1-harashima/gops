@@ -320,7 +320,7 @@ export function OrderHistoryListPage() {
                         <Typography variant="subtitle2" sx={{ fontWeight: 600, wordBreak: 'break-all' }} data-testid="order-history-management-no">
                           {row.prototypePoNo ?? row.draftNo}
                         </Typography>
-                        <OrderStatusChip status={row.status} />
+                        <OrderStatusChip status={row.status} officialPoLifecycleStatus={row.lifecycleStatus} />
                       </Stack>
                       <Divider sx={{ mb: 1 }} />
                       <Stack spacing={0.75}>
@@ -412,7 +412,7 @@ export function OrderHistoryListPage() {
                     <TableCell align="right">{row.skuCount}</TableCell>
                     <TableCell align="right">{row.totalOrderedQty}</TableCell>
                     <TableCell align="right">¥{row.totalAmount.toLocaleString()}</TableCell>
-                    <TableCell><OrderStatusChip status={row.status} /></TableCell>
+                    <TableCell><OrderStatusChip status={row.status} officialPoLifecycleStatus={row.lifecycleStatus} /></TableCell>
                     <TableCell><AttentionTypeBadges types={row.activeAttentionTypes} /></TableCell>
                     <TableCell>{new Date(row.updatedAt).toLocaleString('ja-JP')}</TableCell>
                   </TableRow>

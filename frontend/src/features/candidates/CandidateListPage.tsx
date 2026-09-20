@@ -20,6 +20,11 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
+import Divider from '@mui/material/Divider'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { useTheme } from '@mui/material/styles'
 
 import { useOrderCandidates } from './api'
 import { useCreateDraft } from '../drafts/api'
@@ -41,6 +46,17 @@ const FILTER_PARAMS = ['brandCode', 'supplierCode', 'keyword'] as const
 export function CandidateListPage() {
   const { t } = useTranslation(['candidates', 'common'])
   const navigate = useNavigate()
+  // Post-Freeze Visual Walkthrough Findings Fix (Finding #6,
+  // docs/gops-visual-walkthrough-findings-fix.md): matches Order History
+  // List's own mobile-card breakpoint ('sm', 600px) - this screen is the
+  // same "list of rows, drill in for detail" shape and should switch to
+  // cards at the same width, for consistency. Previously this list had NO
+  // mobile layout at all - it stayed the Desktop-width Table (12+ columns)
+  // and required horizontal scroll on a phone, including for 在庫判定/
+  // メーカー欠品情報 (the exact columns Scenario 2's own Business Flow
+  // depends on) - Desktop's own Table is completely unchanged below.
+  const theme = useTheme()
+  const isCardLayout = useMediaQuery(theme.breakpoints.down('sm'))
   // Phase 6-A (docs/production-ux-workflow-redesign.md 6.2章): the URL is the
   // single source of truth for Filter state - every change below writes
   // straight back to searchParams (replace: true, so typing/selecting
@@ -382,10 +398,110 @@ export function CandidateListPage() {
       )}
 
       {!isLoading && !isError && visibleData && visibleData.length > 0 && (
-        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={isCardLayout ? {} : { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {t('candidates:resultCount', { count: visibleData.length })}
           </Typography>
+          {isCardLayout ? (
+            // Post-Freeze Visual Walkthrough Findings Fix (Finding #6): a
+            // Card per SKU, mirroring Order History List's own mobile Card
+            // pattern - minimum fields per the fix task's own §8.1: SKU/
+            // 商品名/現在庫/当月販売数/推奨発注数/在庫判定(欠品Status)/入荷予定, plus
+            // the selection Checkbox (bulk "選択したN件でドラフト作成" is
+            // unchanged and must keep working identically from Mobile).
+            // Secondary fields (安全在庫/発注残/リードタイム/単価/商品状態) are kept
+            // but visually de-emphasized (caption-sized, secondary color)
+            // rather than dropped, per "情報過多にならないよう、Secondary情報は
+            // 視覚的に弱める" - nothing the Desktop Table shows is hidden here.
+            <Stack spacing={1.5} data-testid="candidate-list-cards">
+              {visibleData.map((row) => (
+                <Card key={row.sku} variant="outlined" data-testid={`candidate-card-${row.sku}`}>
+                  <CardContent sx={{ '&:last-child': { pb: 2 } }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+                      <Checkbox
+                        checked={selected.has(row.sku)}
+                        onChange={() => toggleSelect(row.sku)}
+                        slotProps={{ input: { 'aria-label': row.sku } as never }}
+                        data-testid={`candidate-checkbox-${row.sku}`}
+                        sx={{ mt: -1, ml: -1.5 }}
+                      />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', rowGap: 0.5 }}>
+                          <Button
+                            size="small"
+                            sx={{ p: 0, minWidth: 0 }}
+                            onClick={() => navigate(withReturnTo(`/items/${encodeURIComponent(row.sku)}`, listPath))}
+                            data-testid={`candidate-card-sku-link-${row.sku}`}
+                          >
+                            {row.sku}
+                          </Button>
+                          <ItemStatusChip status={row.itemStatus} />
+                        </Stack>
+                        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexWrap: 'wrap', mt: 0.25 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, wordBreak: 'break-word' }}>
+                            {row.itemName ?? t('candidates:notAvailable')}
+                          </Typography>
+                          <DataSourceBadge dataSource={row.dataSource} />
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {row.brandName ?? row.brandCode} / {row.supplierName ?? row.supplierCode ?? t('candidates:notAvailable')}
+                        </Typography>
+
+                        <Divider sx={{ my: 1 }} />
+
+                        <Stack spacing={0.75}>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+                            <Typography variant="body2" color="text.secondary">{t('candidates:table.currentStock')}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>{row.currentStock ?? t('candidates:notAvailable')}</Typography>
+                          </Stack>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+                            <Typography variant="body2" color="text.secondary">{t('candidates:table.monthlySales')}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>{row.monthlySales ?? t('candidates:notAvailable')}</Typography>
+                          </Stack>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" color="text.secondary">{t('candidates:table.recommendedQty')}</Typography>
+                            {row.recommendedQty == null && row.regionClassification === 'DOMESTIC' ? (
+                              <Typography component="span" variant="caption" color="text.secondary" data-testid={`recommended-qty-domestic-pending-${row.sku}`}>
+                                {t('candidates:recommendedQtyDomesticPending')}
+                              </Typography>
+                            ) : (
+                              <Typography component="span" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                                {row.recommendedQty ?? t('candidates:notAvailable')}
+                              </Typography>
+                            )}
+                          </Stack>
+                          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" color="text.secondary">{t('candidates:table.stockJudgement')}</Typography>
+                            <StockJudgementChip judgement={computeStockJudgement(row.currentStock, row.openPo)} />
+                          </Stack>
+                          <Stack sx={{ justifyContent: 'space-between' }}>
+                            <Typography variant="body2" color="text.secondary">{t('candidates:table.restock')}</Typography>
+                            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                              <StockoutStatusChip status={row.stockoutStatus} />
+                              <RestockLabel source={row.restockSource} date={row.restockDate} variant="caption" />
+                              {row.restockHasConflict && <RestockConflictWarning />}
+                            </Stack>
+                            <ManufacturerConfirmationCaption informationReceivedDate={row.informationReceivedDate} contactMethod={row.contactMethod} />
+                          </Stack>
+                        </Stack>
+
+                        <Divider sx={{ my: 1 }} />
+
+                        <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', rowGap: 0.25 }}>
+                          <Typography variant="caption" color="text.secondary">{t('candidates:table.safetyStock')}: {row.safetyStock ?? t('candidates:notAvailable')}</Typography>
+                          <Typography variant="caption" color="text.secondary">{t('candidates:table.openPo')}: {row.openPo ?? t('candidates:notAvailable')}</Typography>
+                          <Typography variant="caption" color="text.secondary">{t('candidates:table.leadTime')}: {row.leadTime ?? t('candidates:notAvailable')}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {t('candidates:table.unitPrice')}: {row.unitPrice != null ? `¥${row.unitPrice.toLocaleString()}` : t('candidates:notAvailable')}
+                          </Typography>
+                        </Stack>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          ) : (
           <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="candidate-list-table-container">
             {/* Phase 7-F Header/List UX Audit: MUI's default stickyHeader
                 background was found transparent in this theme via live
@@ -479,6 +595,7 @@ export function CandidateListPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          )}
         </Box>
       )}
     </Box>

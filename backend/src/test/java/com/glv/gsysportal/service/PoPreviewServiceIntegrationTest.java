@@ -1,6 +1,7 @@
 package com.glv.gsysportal.service;
 
 import com.glv.gsysportal.dto.request.CreateDraftRequest;
+import com.glv.gsysportal.dto.response.OfficialPoIntegrationResponse;
 import com.glv.gsysportal.dto.response.OrderDraftResponse;
 import com.glv.gsysportal.dto.response.PoPreviewResponse;
 import com.glv.gsysportal.exception.DraftNotFoundException;
@@ -15,6 +16,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -40,6 +42,8 @@ class PoPreviewServiceIntegrationTest {
     private OrderStatusTransitionService statusTransitionService;
     @Autowired
     private PoPreviewService poPreviewService;
+    @Autowired
+    private OfficialPoIntegrationService officialPoIntegrationService;
 
     private OrderDraftResponse createDraft(String... skus) {
         return orderDraftService.createDraft(new CreateDraftRequest(List.of(skus), null, null, null), "tester01");
@@ -135,5 +139,51 @@ class PoPreviewServiceIntegrationTest {
     @Test
     void previewOnUnknownDraftThrowsNotFound() {
         assertThrows(DraftNotFoundException.class, () -> poPreviewService.preview(-1L));
+    }
+
+    /** Post-Freeze Visual Walkthrough Findings Fix (Finding #1,
+     * docs/gops-visual-walkthrough-findings-fix.md §3): before an Official
+     * PO exists, this screen must show 正式PO番号 as unassigned - never
+     * substitute the Portal管理番号 (prototypePoNo) for it. */
+    @Test
+    void previewOfficialPoNoIsNullBeforeIntegrationRequested() {
+        OrderDraftResponse draft = createDraft(SKU_TENT_1);
+        approveViaWorkflow(draft.id());
+
+        PoPreviewResponse preview = poPreviewService.preview(draft.id());
+
+        assertTrue(preview.prototypePoNo() != null, "Portal管理番号 should already be assigned at APPROVED");
+        assertNull(preview.officialPoNo(), "正式PO番号 must stay unassigned until Official PO integration actually happens");
+    }
+
+    /** Post-Freeze Visual Walkthrough Findings Fix (Finding #1): once an
+     * Official PO No. is assigned, BOTH the DTO's own officialPoNo() field
+     * AND the manufacturer-facing communication body/subject must reference
+     * it - and specifically must NOT reference prototypePoNo (Portal管理番号)
+     * instead. This is the exact regression the Visual Walkthrough found:
+     * the manufacturer-facing preview previously showed the Portal番号 under
+     * a "PO番号" label, one screen away from the real Manufacturer Send Mail
+     * Preview which already showed the correct 正式PO番号 - proving the same
+     * order's "PO番号" resolved to two different values depending which
+     * screen you were on. */
+    @Test
+    void previewAfterOfficialPoAssignedUsesOfficialPoNoNotPortalManagementNoInManufacturerCommunication() {
+        OrderDraftResponse draft = createDraft(SKU_TENT_1);
+        approveViaWorkflow(draft.id());
+        OfficialPoIntegrationResponse integration = officialPoIntegrationService.requestIntegration(draft.id(), "admin-tester");
+        String officialPoNo = integration.officialPoNo();
+        assertTrue(officialPoNo != null && !officialPoNo.isBlank(), "fixture SKU must auto-assign a real Official PO No.");
+
+        PoPreviewResponse preview = poPreviewService.preview(draft.id());
+
+        assertEquals(officialPoNo, preview.officialPoNo());
+        assertNotEquals(preview.prototypePoNo(), preview.officialPoNo(),
+                "Portal管理番号 and 正式PO番号 must never collapse to the same displayed value by coincidence of this fixture");
+        assertTrue(preview.manufacturerCommunication().subject().contains(officialPoNo),
+                "manufacturer-facing subject must reference 正式PO番号");
+        assertTrue(preview.manufacturerCommunication().body().contains(officialPoNo),
+                "manufacturer-facing body must reference 正式PO番号");
+        assertTrue(!preview.manufacturerCommunication().body().contains(preview.prototypePoNo()),
+                "manufacturer-facing body must NOT reference the Portal管理番号 (prototypePoNo) anywhere");
     }
 }

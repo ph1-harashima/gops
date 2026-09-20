@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -331,13 +332,17 @@ public class OrderHistoryService {
         // (via a separate API call) for exactly this reason - History must
         // read the SAME source, not PortalOrder.currentRevisionNo, to avoid
         // showing a false "—" for an Order that already has a Revision.
-        Integer revisionNo = officialPoIntegrationRequestRepository
-                .findFirstByPortalOrderIdOrderByRevisionNoDesc(order.getId())
-                .map(OfficialPoIntegrationRequest::getRevisionNo)
-                .orElse(null);
+        Optional<OfficialPoIntegrationRequest> currentIntegration = officialPoIntegrationRequestRepository
+                .findFirstByPortalOrderIdOrderByRevisionNoDesc(order.getId());
+        Integer revisionNo = currentIntegration.map(OfficialPoIntegrationRequest::getRevisionNo).orElse(null);
+        // Post-Freeze Visual Walkthrough Findings Fix (Finding #4): same
+        // lookup as revisionNo above - see OrderHistorySummaryResponse's own
+        // Javadoc on lifecycleStatus for why this is read separately from
+        // (and never overwrites) order.getStatus().
+        String lifecycleStatus = currentIntegration.map(OfficialPoIntegrationRequest::getLifecycleStatus).orElse(null);
         return new OrderHistorySummaryResponse(
                 order.getId(), order.getDraftNo(), order.getPrototypePoNo(),
-                order.getOfficialPoNo(), revisionNo, order.getOrderDate(),
+                order.getOfficialPoNo(), revisionNo, lifecycleStatus, order.getOrderDate(),
                 order.getSupplierCode(), order.getSupplierNameSnapshot(), order.getBrandCode(), order.getBrandNameSnapshot(),
                 (int) skuCount, order.getTotalQty(), order.getTotalAmount(), order.getStatus(), activeTypes, order.getUpdatedAt()
         );

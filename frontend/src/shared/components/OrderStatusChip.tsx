@@ -17,9 +17,46 @@ const COLOR_BY_STATUS: Record<string, 'default' | 'success' | 'warning' | 'info'
   AGREED: 'success',
 }
 
-export function OrderStatusChip({ status }: { status: string }) {
+/**
+ * Post-Freeze Visual Walkthrough Findings Fix (Finding #4,
+ * docs/gops-visual-walkthrough-findings-fix.md): `officialPoLifecycleStatus`
+ * is the CURRENT (latest-revision) Official PO Integration Request's own
+ * lifecycle axis (ACTIVE/SUPERSEDED/CANCEL_REQUESTED/CANCELLED - entirely
+ * separate from `status`, which is the Order's own Business Workflow Status
+ * and is NEVER changed by a PO cancellation - see PortalOrder/
+ * OfficialPoIntegrationRequest's own Javadoc). Before this fix, every caller
+ * of this Chip only ever passed `status`, so an Order whose Official PO had
+ * been cancelled kept showing "承認済み" as its Primary Status everywhere
+ * (Order Detail top, Order History list) even though the PO itself, and the
+ * Revision History table on the same Order Detail page, already correctly
+ * showed "キャンセル済み" - a real cross-screen status inconsistency
+ * (Visual Walkthrough finding, not a business-logic bug: PortalOrder.status
+ * intentionally stays APPROVED to preserve Reissue eligibility/history -
+ * only the DISPLAYED Primary Status is corrected here).
+ *
+ * When the caller has this value and it is CANCELLED, this Chip overrides
+ * its own label/color to reflect that as the Primary Status, without
+ * altering the underlying `status` value anywhere else (Audit Trail, API,
+ * Reissue eligibility, Dashboard KPI counts, etc. are all unaffected).
+ */
+export function OrderStatusChip({
+  status,
+  officialPoLifecycleStatus,
+}: {
+  status: string
+  officialPoLifecycleStatus?: string | null
+}) {
   const { t } = useTranslation('status')
-  const label = t(`orderStatus.${status}`, { defaultValue: status })
-  const color = COLOR_BY_STATUS[status] ?? 'default'
-  return <Chip size="small" label={label} color={color} variant={color === 'default' ? 'outlined' : 'filled'} />
+  const isCancelled = officialPoLifecycleStatus === 'CANCELLED'
+  const label = isCancelled ? t('cancelledOrderLabel') : t(`orderStatus.${status}`, { defaultValue: status })
+  const color = isCancelled ? 'error' : (COLOR_BY_STATUS[status] ?? 'default')
+  return (
+    <Chip
+      size="small"
+      label={label}
+      color={color}
+      variant={color === 'default' ? 'outlined' : 'filled'}
+      data-testid={isCancelled ? 'order-status-chip-cancelled' : undefined}
+    />
+  )
 }

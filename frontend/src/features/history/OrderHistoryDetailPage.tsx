@@ -134,6 +134,24 @@ function computeNextActionHintKey(
   integration: OfficialPoIntegration | undefined,
   emailStatus: OrderEmail | undefined,
 ): string | null {
+  // Post-Freeze Visual Walkthrough Findings Fix (Finding #2,
+  // docs/gops-visual-walkthrough-findings-fix.md §16 Root Cause): the
+  // Reissue capability itself (isReissueRequired/reissue, backend Business
+  // state machine) was already correct and fully working - the Visual
+  // Walkthrough's real finding was that nothing on THIS screen points a
+  // SUPPLIER_CONFIRMED Order with a confirmed quantity difference toward
+  // the actual next action, "修正版を作成", which lives on the Supplier
+  // Response screen (ADMIN-only, visible only while status is
+  // SUPPLIER_CONFIRMED - confirmSupplierResponse's own onSuccess always
+  // navigates away to here, so a user who doesn't deliberately go back to
+  // Supplier Response never sees that button at all). This hint closes that
+  // gap without touching the Reissue Gate itself - "ボタンをenabledにする
+  // だけの修正は禁止" (fix task §22): the button's own disabled condition is
+  // completely unchanged.
+  if (detail.status === 'SUPPLIER_CONFIRMED'
+      && detail.details.some((line) => line.attentions.some((a) => a.attentionType === 'QUANTITY_CHANGED'))) {
+    return 'createRevisionForQuantityChange'
+  }
   if (detail.status !== 'APPROVED') {
     return null
   }
@@ -565,7 +583,7 @@ export function OrderHistoryDetailPage() {
             <Typography variant="body2" sx={{ fontWeight: 600, wordBreak: 'break-all' }}>
               {detail.prototypePoNo ?? detail.draftNo}
             </Typography>
-            <OrderStatusChip status={detail.status} />
+            <OrderStatusChip status={detail.status} officialPoLifecycleStatus={integration?.lifecycleStatus} />
           </Stack>
           {(communicationChannelChip || resolvedManufacturerChannelChip || resolvedRegionClassificationChip || detail.orderAttentions.length > 0) && (
             <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
@@ -583,7 +601,7 @@ export function OrderHistoryDetailPage() {
             {t('detailTitle')} - {detail.prototypePoNo ?? detail.draftNo}
           </Typography>
           {portalPoNoChip}
-          <OrderStatusChip status={detail.status} />
+          <OrderStatusChip status={detail.status} officialPoLifecycleStatus={integration?.lifecycleStatus} />
           {communicationChannelChip}
           {resolvedManufacturerChannelChip}
           {resolvedRegionClassificationChip}
@@ -895,26 +913,45 @@ export function OrderHistoryDetailPage() {
           are @PreAuthorize("hasRole('ADMIN')")) - this is UX convenience,
           not the access control (17章). */}
       {detail.status === 'PENDING_APPROVAL' && isAdmin && (
-        // Mobile Responsive Audit 最重要: sticky so Approve/Return stay
-        // reachable without hunting for them after scrolling through a long
-        // SKU line list - never fixed-px, just `position: sticky` against
-        // this screen's own scrolling ancestor (the same Box in App.tsx that
-        // already hosts every routed page's scroll region).
+        // Post-Freeze Visual Walkthrough Findings Fix (Finding #5,
+        // docs/gops-visual-walkthrough-findings-fix.md): `position: sticky`
+        // against this screen's own scrolling ancestor (the previous
+        // approach here) was confirmed, via direct DOM/CSSOM inspection in
+        // a real browser (scrolling the ancestor to its max scrollTop still
+        // left this Stack's bounding rect entirely above the viewport,
+        // `top: -130px`), to NEVER actually stick in this layout - not a
+        // one-off Visual Walkthrough misclick, a real reproducible CSS
+        // failure. Switched to `position: fixed` anchored to the true
+        // viewport (not a scrolling ancestor at all, so nothing about that
+        // ancestor's own layout can defeat it), with matching bottom
+        // padding added to the page's own outer Box below so the fixed bar
+        // never covers the last SKU line or the sections beneath it
+        // (問い合わせ/操作履歴) - see approvalActionBarBottomSpacerSx below.
+        // zIndex 1200 stays below MUI's own Dialog (1300) and Snackbar
+        // (1400) defaults, so a confirm Dialog or a Toast is never hidden
+        // behind this bar, and env(safe-area-inset-bottom) keeps it clear
+        // of a phone's own home-indicator area.
         <Stack
           direction="row"
           spacing={2}
-          sx={{
-            mt: 2,
-            ...(isCardLayout && {
-              position: 'sticky',
-              bottom: 0,
-              py: 1.5,
-              bgcolor: 'background.paper',
-              borderTop: 1,
-              borderColor: 'divider',
-              zIndex: 1,
-            }),
-          }}
+          sx={
+            isCardLayout
+              ? {
+                  position: 'fixed',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  m: 0,
+                  px: 2,
+                  py: 1.5,
+                  pb: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+                  bgcolor: 'background.paper',
+                  borderTop: 1,
+                  borderColor: 'divider',
+                  zIndex: 1200,
+                }
+              : { mt: 2 }
+          }
         >
           <Button
             variant="outlined"
@@ -942,6 +979,12 @@ export function OrderHistoryDetailPage() {
             {returnMutation.isPending ? <CircularProgress size={20} /> : t('returnForCorrection')}
           </Button>
         </Stack>
+      )}
+      {/* Reserves room at the bottom of the scrollable page content equal to
+          the fixed action bar's own footprint above, so it never overlaps
+          the SKU list's last row or anything below it. */}
+      {isCardLayout && detail.status === 'PENDING_APPROVAL' && isAdmin && (
+        <Box sx={{ height: 'calc(68px + env(safe-area-inset-bottom, 0px))' }} aria-hidden />
       )}
       {detail.status === 'PENDING_APPROVAL' && !isAdmin && (
         <Alert severity="info" sx={{ mt: 2 }} data-testid="pending-approval-indicator">
@@ -1488,16 +1531,31 @@ export function OrderHistoryDetailPage() {
           />
 
           {isAdmin && (
-            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-              <Button
-                variant="outlined"
-                color="warning"
-                onClick={() => setReissueDialogOpen(true)}
-                disabled={!integration?.reissueRequired || reissueMutation.isPending}
-                data-testid="official-po-reissue-button"
+            <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
+              {/* Post-Freeze Visual Walkthrough Findings Fix (Finding #2,
+                  docs/gops-visual-walkthrough-findings-fix.md §16): the
+                  Reissue Gate itself (disabled={!integration?.reissueRequired})
+                  is completely unchanged - this Tooltip only explains, when
+                  disabled, what actually unlocks it (confirmed Root Cause:
+                  it requires an explicit "修正版を作成" on the Supplier
+                  Response screen since the current PO was issued - not
+                  discoverable from this button alone before this fix). */}
+              <Tooltip
+                title={!integration?.reissueRequired ? t('officialPoIntegration.reissueDisabledHint') : ''}
+                disableHoverListener={Boolean(integration?.reissueRequired)}
               >
-                {t('officialPoIntegration.reissueButton')}
-              </Button>
+                <span>
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    onClick={() => setReissueDialogOpen(true)}
+                    disabled={!integration?.reissueRequired || reissueMutation.isPending}
+                    data-testid="official-po-reissue-button"
+                  >
+                    {t('officialPoIntegration.reissueButton')}
+                  </Button>
+                </span>
+              </Tooltip>
               <Button
                 variant="outlined"
                 color="error"

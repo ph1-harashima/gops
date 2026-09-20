@@ -15,8 +15,9 @@
   "currency": "通貨",
   "remark": "備考",
   "demoModeChip": "デモモード",
-  "prototypePoNo": "PO No.",
-  "prototypePoNoUnassigned": "未採番",
+  "portalManagementNo": "Portal管理番号",
+  "officialPoNo": "正式PO番号",
+  "officialPoNoUnassigned": "未発行",
   "table": {
     "sku": "SKU",
     "itemName": "商品名",

@@ -10,6 +10,7 @@
     "DEMO_LEGACY": "Demo Data (Legacy-compatible)",
     "LEGACY": "Legacy Live Data"
   },
+  "cancelledOrderLabel": "Cancelled",
   "orderStatus": {
     "DRAFT": "Draft",
     "PENDING_APPROVAL": "Pending Approval",

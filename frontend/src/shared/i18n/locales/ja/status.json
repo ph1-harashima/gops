@@ -10,6 +10,7 @@
     "DEMO_LEGACY": "サンプルデータ",
     "LEGACY": "Legacy実データ"
   },
+  "cancelledOrderLabel": "キャンセル済み",
   "orderStatus": {
     "DRAFT": "下書き",
     "PENDING_APPROVAL": "承認待ち",

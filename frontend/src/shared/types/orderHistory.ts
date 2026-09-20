@@ -12,6 +12,12 @@ export interface OrderHistorySummary {
   // actually use. Null until Official PO integration first assigns it.
   officialPoNo: string | null
   revisionNo: number | null
+  // Post-Freeze Visual Walkthrough Findings Fix (Finding #4): current
+  // Official PO Integration Request's lifecycle axis (ACTIVE/SUPERSEDED/
+  // CANCEL_REQUESTED/CANCELLED) - see OrderHistorySummaryResponse's own
+  // Javadoc. Combined with `status` by OrderStatusChip to show the correct
+  // Primary Status without changing `status` itself.
+  lifecycleStatus: string | null
   orderDate: string | null
   supplierCode: string | null
   supplierName: string | null

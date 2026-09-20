@@ -80,11 +80,15 @@ public class PoPreviewService {
         BigDecimal totalAmount = details.stream().map(PoPreviewDetailResponse::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
         PoPreviewSummaryResponse summary = new PoPreviewSummaryResponse(details.size(), totalQty, totalAmount);
 
-        ManufacturerCommunicationResponse communication = communicationFactory.build(order, order.getPrototypePoNo());
+        // Post-Freeze Visual Walkthrough Findings Fix (Finding #1): the
+        // Manufacturer-facing communication must reference the 正式PO番号
+        // (Official PO No.), never the Portal管理番号 - see
+        // DemoManufacturerCommunicationFactory's own Javadoc.
+        ManufacturerCommunicationResponse communication = communicationFactory.build(order, order.getOfficialPoNo());
         String resolvedChannel = channelResolutionService.resolve(order.getSupplierCode(), order.getBrandCode());
 
         return new PoPreviewResponse(
-                order.getId(), order.getDraftNo(), order.getPrototypePoNo(),
+                order.getId(), order.getDraftNo(), order.getPrototypePoNo(), order.getOfficialPoNo(),
                 order.getSupplierCode(), order.getSupplierNameSnapshot(),
                 order.getBrandCode(), order.getBrandNameSnapshot(),
                 order.getOrderDate(), order.getRequestedDelivery(), order.getCurrency(), order.getRemark(),

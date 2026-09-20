@@ -19,10 +19,21 @@ import org.springframework.stereotype.Component;
 @Component
 public class DemoManufacturerCommunicationFactory {
 
-    public ManufacturerCommunicationResponse build(PortalOrder order, String prototypePoNoForDisplay) {
+    /** Post-Freeze Visual Walkthrough Findings Fix (Finding #1,
+     * docs/gops-visual-walkthrough-findings-fix.md): this manufacturer-facing
+     * preview must reference the 正式PO番号 (Official PO No.), never the
+     * Portal管理番号 - a real supplier-facing document/email uses G-SYS's own
+     * PO number, not G-OPS's internal Order identifier (canonical
+     * terminology §3.1/§3.3 of the fix task). Previously this method took
+     * {@code prototypePoNoForDisplay} (the Portal管理番号) and fell back to
+     * draftNo - both wrong for a Manufacturer-facing value. Now takes the
+     * 正式PO番号 directly and shows "未発行" (matching the fix task's own
+     * canonical "正式PO発行前" wording) when it has not been assigned yet,
+     * rather than silently substituting a different number. */
+    public ManufacturerCommunicationResponse build(PortalOrder order, String officialPoNoForDisplay) {
         String to = "demo-supplier+" + order.getSupplierCode().toLowerCase() + "@example.invalid";
         String cc = "demo-purchasing@example.invalid";
-        String poRef = prototypePoNoForDisplay != null ? prototypePoNoForDisplay : order.getDraftNo();
+        String poRef = officialPoNoForDisplay != null ? officialPoNoForDisplay : "未発行";
         String subject = "【デモ】発注書 " + poRef + " - " + order.getSupplierNameSnapshot();
         // Gulliver UI最終仕上げ #3: この画面(旧PO Preview)は正式PO Excel連携
         // (OfficialPoExcelGenerationService/MailPreviewService)とは無関係な、
@@ -33,7 +44,7 @@ public class DemoManufacturerCommunicationFactory {
         // (PDF生成機能を新設したわけではない - 添付ファイルは元々存在しない)。
         String body = "これはG-SYS Online Orderingのデモ環境向け表示です。\n"
                 + "実際のメール送信は行われません。\n\n"
-                + "PO番号: " + poRef + "\n"
+                + "正式PO番号: " + poRef + "\n"
                 + "メーカー: " + order.getSupplierNameSnapshot() + "\n"
                 + "ブランド: " + order.getBrandNameSnapshot() + "\n"
                 + "発注日: " + order.getOrderDate() + "\n"

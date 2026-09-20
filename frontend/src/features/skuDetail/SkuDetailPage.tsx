@@ -18,6 +18,8 @@ import TextField from '@mui/material/TextField'
 import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Divider from '@mui/material/Divider'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { useTheme } from '@mui/material/styles'
 
 import axios from 'axios'
 
@@ -270,6 +272,16 @@ export function SkuDetailPage() {
   const { t } = useTranslation(['skuDetail', 'common', 'status'])
   const { sku } = useParams<{ sku: string }>()
   const navigate = useNavigate()
+  // Post-Freeze Visual Walkthrough Findings Fix (Finding #7,
+  // docs/gops-visual-walkthrough-findings-fix.md): same narrow-phone
+  // breakpoint as Order History Detail's own isMobileHeader (`sm`, 600px) -
+  // the header below restructures at this width so a long 商品名 no longer
+  // wraps across up to 6 lines and pushes Stock/Sales/Stockout content
+  // below the fold (confirmed reproducible: the two header action buttons
+  // previously sat beside the title in the same row, squeezing it into a
+  // ~110px column).
+  const theme = useTheme()
+  const isMobileHeader = useMediaQuery(theme.breakpoints.down('sm'))
   const [searchParams] = useSearchParams()
   // Phase 6-A: Candidate List embeds its own current URL (Filter state
   // included) as ?returnTo=... when linking here - restore that exact List
@@ -316,38 +328,79 @@ export function SkuDetailPage() {
     )
   }
 
+  const arrivalsButton = (
+    // Phase 8-J 6章: this SKU used only as a search condition on the
+    // Arrival List (same officialPoNo-as-search-condition pattern Order
+    // Detail's Fulfillment section already uses to reach
+    // /arrivals?poNumber=...) - never a "this Warehouse Stock/Arrival came
+    // from this SKU" Transaction Trace.
+    // Phase 8-M (Global Navigation Audit, Principle D): DOES thread
+    // returnTo=ownPath now, so Arrival List's conditional Back button can
+    // return to this SKU Detail screen specifically.
+    <Button
+      size="small"
+      variant="outlined"
+      onClick={() => navigate(withReturnTo(`/arrivals?skuKeyword=${encodeURIComponent(data.sku)}`, ownPath))}
+      data-testid="sku-detail-view-arrivals-button"
+    >
+      {t('viewArrivals')}
+    </Button>
+  )
+  const backButton = (
+    // Phase 8-M (Global Navigation Audit, Principle E/§5): Back button
+    // moved to the rightmost position (same convention as every other
+    // Detail screen fixed this Phase - Arrival/PriceChange/Order Detail)
+    // instead of its previous leftmost placement, and Label is now
+    // Context-aware rather than always assuming Candidate List.
+    <Button size="small" onClick={() => navigate(backTarget)} data-testid="back-to-sku-detail-origin">
+      {backLabel}
+    </Button>
+  )
+
   return (
     <Box sx={{ p: 3 }}>
-      <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
-        <Typography variant="h5" component="h1">{data.sku} - {data.itemName}</Typography>
-        <ItemStatusChip status={data.itemStatus} />
-        <DataSourceBadge dataSource={data.dataSource} />
-        <Box sx={{ flexGrow: 1 }} />
-        {/* Phase 8-J 6章: this SKU used only as a search condition on the
-            Arrival List (same officialPoNo-as-search-condition pattern
-            Order Detail's Fulfillment section already uses to reach
-            /arrivals?poNumber=...) - never a "this Warehouse Stock/Arrival
-            came from this SKU" Transaction Trace.
-            Phase 8-M (Global Navigation Audit, Principle D): DOES thread
-            returnTo=ownPath now, so Arrival List's conditional Back button
-            can return to this SKU Detail screen specifically. */}
-        <Button
-          size="small"
-          variant="outlined"
-          onClick={() => navigate(withReturnTo(`/arrivals?skuKeyword=${encodeURIComponent(data.sku)}`, ownPath))}
-          data-testid="sku-detail-view-arrivals-button"
-        >
-          {t('viewArrivals')}
-        </Button>
-        {/* Phase 8-M (Global Navigation Audit, Principle E/§5): Back button
-            moved to the rightmost position (same convention as every other
-            Detail screen fixed this Phase - Arrival/PriceChange/Order
-            Detail) instead of its previous leftmost placement, and Label is
-            now Context-aware rather than always assuming Candidate List. */}
-        <Button size="small" onClick={() => navigate(backTarget)} data-testid="back-to-sku-detail-origin">
-          {backLabel}
-        </Button>
-      </Stack>
+      {isMobileHeader ? (
+        // Post-Freeze Visual Walkthrough Findings Fix (Finding #7): SKU code
+        // on its own small/fixed line, 商品名 clamped to 3 lines (never lost -
+        // the full text is still there, just visually capped instead of
+        // reflowing the whole page around it) rather than sharing a row with
+        // the two action buttons, which is what squeezed it into a ~110px
+        // column before this fix. Action buttons move to their own
+        // full-width wrapping row below, so Stock/Sales/Stockout content
+        // starts sooner on screen.
+        <Stack spacing={1} sx={{ mb: 2 }} data-testid="sku-detail-header-mobile">
+          <Typography variant="body2" color="text.secondary" component="div">{data.sku}</Typography>
+          <Typography
+            variant="h6"
+            component="h1"
+            sx={{
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {data.itemName}
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+            <ItemStatusChip status={data.itemStatus} />
+            <DataSourceBadge dataSource={data.dataSource} />
+          </Stack>
+          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+            {arrivalsButton}
+            {backButton}
+          </Stack>
+        </Stack>
+      ) : (
+        <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
+          <Typography variant="h5" component="h1">{data.sku} - {data.itemName}</Typography>
+          <ItemStatusChip status={data.itemStatus} />
+          <DataSourceBadge dataSource={data.dataSource} />
+          <Box sx={{ flexGrow: 1 }} />
+          {arrivalsButton}
+          {backButton}
+        </Stack>
+      )}
 
       <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
         <Paper variant="outlined" sx={{ p: 2, flex: 1, minWidth: 260 }}>

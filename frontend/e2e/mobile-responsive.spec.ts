@@ -91,7 +91,11 @@ async function createOrderableDraft(page: Page, sku: string, brandCode: string):
   await page.getByTestId('mobile-nav-open-button').click()
   await page.getByTestId('mobile-nav-candidates').click()
   await page.getByTestId(`order-candidate-brand-link-${brandCode}`).click()
-  await expect(page.getByTestId(`candidate-row-${sku}`)).toBeVisible()
+  // Finding #6: below `sm` this screen renders Cards (candidate-card-*),
+  // never the Desktop Table (candidate-row-*) - this describe block always
+  // runs at 390x844, so every candidate lookup in this file targets the
+  // Card testid.
+  await expect(page.getByTestId(`candidate-card-${sku}`)).toBeVisible()
   await page.getByTestId(`candidate-checkbox-${sku}`).locator('input').check()
   await page.getByTestId('create-draft-button').click()
   await expect(page).toHaveURL(/\/orders\/drafts\/\d+(\?.*)?$/)
@@ -100,6 +104,31 @@ async function createOrderableDraft(page: Page, sku: string, brandCode: string):
   await page.getByTestId(`order-qty-input-${sku}`).locator('input').fill('4')
   await page.getByTestId('save-draft-button').click()
   await expect(page.getByText('保存しました。')).toBeVisible()
+  await page.getByTestId('submit-for-approval-button').click()
+  await page.getByTestId('submit-for-approval-dialog-confirm').click()
+  await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))
+  return draftId!
+}
+
+/** Post-Freeze Visual Walkthrough Findings Fix (Finding #5): a single-SKU
+ * Order never actually scrolls, so M1 alone cannot prove the Approval
+ * Action Bar stays reachable "while scrolling a long SKU list" - this
+ * selects every BR_HOME candidate SKU (6 lines, all their Demo fixture
+ * defaults) to create a genuinely long, scrollable Order Detail line-card
+ * list. */
+async function createMultiSkuOrderableDraft(page: Page, skus: string[], brandCode: string): Promise<string> {
+  await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
+  await page.getByTestId('mobile-nav-open-button').click()
+  await page.getByTestId('mobile-nav-candidates').click()
+  await page.getByTestId(`order-candidate-brand-link-${brandCode}`).click()
+  for (const sku of skus) {
+    await expect(page.getByTestId(`candidate-card-${sku}`)).toBeVisible()
+    await page.getByTestId(`candidate-checkbox-${sku}`).locator('input').check()
+  }
+  await page.getByTestId('create-draft-button').click()
+  await expect(page).toHaveURL(/\/orders\/drafts\/\d+(\?.*)?$/)
+  const draftId = page.url().match(/\/orders\/drafts\/(\d+)/)?.[1]
+  expect(draftId).toBeTruthy()
   await page.getByTestId('submit-for-approval-button').click()
   await page.getByTestId('submit-for-approval-dialog-confirm').click()
   await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))
@@ -169,6 +198,49 @@ test.describe('Mobile Scenarios (390x844)', () => {
     await expect(page.getByText('承認しました。')).toBeVisible()
   })
 
+  test('M1b (Finding #5): Approval Sticky Action Bar stays reachable while scrolling a long SKU list', async ({ page }) => {
+    // All 4 SKUs must share one Supplier (MIXED_SUPPLIER_NOT_ALLOWED) - of
+    // BR_HOME's 6 candidate SKUs, HM-MUG-*/HM-TOWEL-* are SUP_GAMMA while
+    // HM-RUG-* is SUP_BETA, so only these 4 combine into a single Draft.
+    const skus = ['HM-MUG-001', 'HM-MUG-002', 'HM-TOWEL-001', 'HM-TOWEL-002']
+    const draftId = await createMultiSkuOrderableDraft(page, skus, 'BR_HOME')
+    await logout(page)
+
+    await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
+    await page.goto(`/orders/${draftId}`)
+    await expect(page.getByTestId('order-detail-line-cards')).toBeVisible()
+    await assertNoHorizontalOverflow(page, 'Order Detail with 6 SKU lines (Mobile Card layout)')
+
+    // Before scrolling, the Action Bar is already reachable (matches M1).
+    await expect(page.getByTestId('order-detail-approve-button')).toBeInViewport()
+
+    // Scroll the last SKU card into view - a long SKU list is exactly the
+    // case `position: sticky` silently failed at (Finding #5's Root Cause:
+    // scrolled fully off-screen, `top: -130px`, at max scroll). Uses
+    // Playwright's own scrollIntoViewIfNeeded (not window.scrollTo), since
+    // the actual scrollable element is a NESTED container, not the
+    // document body - the same nested-scroll-container layout that made
+    // `position: sticky` fail in the first place.
+    const lastSkuLink = page.getByTestId(`sku-detail-link-${skus[skus.length - 1]}`)
+    await lastSkuLink.scrollIntoViewIfNeeded()
+    await page.waitForTimeout(200)
+
+    // The last SKU line card must still be readable...
+    await expect(lastSkuLink).toBeInViewport()
+    // ...and the Approve/修正/差し戻し Action Bar must NOT have scrolled away
+    // with the content - `position: fixed` keeps it pinned regardless of
+    // scroll position.
+    await expect(page.getByTestId('order-detail-approve-button')).toBeInViewport()
+    await expect(page.getByTestId('order-detail-edit-button')).toBeInViewport()
+    await expect(page.getByTestId('order-detail-return-button')).toBeInViewport()
+    await assertNoHorizontalOverflow(page, 'Order Detail scrolled to bottom (Mobile Card layout)')
+
+    await page.getByTestId('order-detail-approve-button').click()
+    await expect(page.getByTestId('approve-dialog-confirm')).toBeVisible()
+    await page.getByTestId('approve-dialog-confirm').click()
+    await expect(page.getByText('承認しました。')).toBeVisible()
+  })
+
   test('M2: Order History -> 検索 -> Order Detail -> PO/Revision確認', async ({ page }) => {
     await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
     await page.getByTestId('mobile-nav-open-button').click()
@@ -214,6 +286,24 @@ test.describe('Mobile Scenarios (390x844)', () => {
 
     await page.getByTestId('official-po-cancel-approve-button').click()
     await expect(page.getByTestId('official-po-cancelled-note')).toBeVisible()
+
+    // Finding #4: the final state's Primary Business Status must read
+    // キャンセル済み at Order Detail top - `status` itself intentionally
+    // stays APPROVED (Reissue eligibility/history preservation), so this
+    // is only correct if the Chip actually consults the PO's own
+    // lifecycleStatus, not just `status`.
+    await expect(page.getByTestId('order-status-chip-cancelled')).toBeVisible()
+    await expect(page.getByTestId('order-status-chip-cancelled')).toHaveText('キャンセル済み')
+
+    // ...and the same Order's row in Order History (Mobile Card layout)
+    // must not still say 承認済み.
+    await page.getByTestId('mobile-nav-open-button').click()
+    await page.getByTestId('mobile-nav-history').click()
+    await page.getByTestId('order-history-filter-brand').locator('input').fill('BR_OUTDOOR')
+    await page.getByTestId('order-history-filter-brand').locator('input').blur()
+    const historyCard = page.getByTestId(`order-history-row-${draftId}`)
+    await expect(historyCard).toBeVisible()
+    await expect(historyCard.getByTestId('order-status-chip-cancelled')).toHaveText('キャンセル済み')
   })
 
   test('M4: Master Maintenance -> Supplier -> 5 Tabs in sequence, Context常時表示', async ({ page }) => {
@@ -244,6 +334,21 @@ test.describe('Mobile Scenarios (390x844)', () => {
     await page.getByTestId('order-candidate-brand-link-BR_KITCHEN').click()
     await expect(page).toHaveURL(/brandCode=BR_KITCHEN/)
     await assertNoHorizontalOverflow(page, 'Candidate List filtered by Brand (Mobile)')
+
+    // Finding #6: below `sm`, the Candidate List uses a Card layout (not the
+    // Desktop Table, which has no `tbody tr` on Mobile at all) - confirm
+    // the required minimum fields are all present on a real card and that
+    // a long list of them still causes no horizontal scroll.
+    await expect(page.getByTestId('candidate-list-cards')).toBeVisible()
+    await expect(page.getByTestId('candidate-list-table-container')).toHaveCount(0)
+    const firstCard = page.locator('[data-testid^="candidate-card-"]').first()
+    await expect(firstCard).toBeVisible()
+    await expect(firstCard.getByText('現在庫')).toBeVisible()
+    await expect(firstCard.getByText('当月販売数')).toBeVisible()
+    await expect(firstCard.getByText('推奨発注数')).toBeVisible()
+    await expect(firstCard.getByText('在庫判定')).toBeVisible()
+    await expect(firstCard.getByText('入荷/再入荷予定')).toBeVisible()
+    await assertNoHorizontalOverflow(page, 'Candidate Card List (Mobile)')
   })
 
   test('M6: メーカーへ送信 -> To/CC -> Domain Warning -> Final Confirmation', async ({ page }) => {
@@ -300,5 +405,76 @@ test.describe('Mobile Scenarios (390x844)', () => {
 
     await page.getByTestId('email-send-confirm-dialog-confirm').click()
     await expect(page.getByText('メールを送信しました。')).toBeVisible()
+  })
+
+  test('M7 (Finding #7): SKU Detail long product name does not consume most of First View', async ({ page }) => {
+    await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
+    await page.goto('/items/KT-BOWL-002')
+    await expect(page.getByTestId('sku-detail-header-mobile')).toBeVisible()
+    await assertNoHorizontalOverflow(page, 'SKU Detail long product name (Mobile)')
+
+    // The full product name must still be present in the DOM (line-clamped
+    // visually, never lost/truncated as text) - the underlying data, not a
+    // shortened label.
+    await expect(page.getByText('ステンレスボウル 5点セット(発注停止)')).toBeVisible()
+
+    // Header height must leave meaningful room for content below it: before
+    // this fix, SKU code + long product name shared a single row with two
+    // Action buttons, squeezing 商品名 into a narrow column and wrapping it
+    // across most of a 844px First View. Line-clamping to 3 lines plus a
+    // dedicated small SKU line caps the header at a small, bounded fraction
+    // of the viewport instead.
+    const headerBox = await page.getByTestId('sku-detail-header-mobile').boundingBox()
+    expect(headerBox).not.toBeNull()
+    expect(headerBox!.height).toBeLessThan(250)
+
+    // Stock/Sales/Stockout info must appear "relatively soon" - visible
+    // without scrolling past the header at all.
+    await expect(page.getByText('在庫情報')).toBeInViewport()
+  })
+
+  test('M8 (Finding #3/G): Supplier Response save button stays reachable despite the unsaved-changes Warning', async ({ page }) => {
+    const sku = 'HM-MUG-001'
+    const draftId = await createOrderableDraft(page, sku, 'BR_HOME')
+    await logout(page)
+
+    await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
+    await page.goto(`/orders/${draftId}`)
+    await page.getByTestId('order-detail-approve-button').click()
+    await page.getByTestId('approve-dialog-confirm').click()
+    await expect(page.getByText('承認しました。')).toBeVisible()
+
+    const goToPreview = page.getByTestId('order-detail-primary-action')
+    await expect(goToPreview).toHaveText('PO プレビューを見る')
+    await goToPreview.click()
+    await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview(\\?.*)?$`))
+    await page.getByTestId('demo-send-button').click()
+    await page.getByTestId('demo-send-dialog-confirm').click()
+    await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))
+
+    const enterSupplierResponse = page.getByTestId('order-detail-primary-action')
+    await expect(enterSupplierResponse).toHaveText('メーカー回答を入力')
+    await enterSupplierResponse.click()
+    await expect(page).toHaveURL(new RegExp(`/orders/${draftId}/supplier-response(\\?.*)?$`))
+
+    // Type into the confirmed Qty field WITHOUT saving yet - this is
+    // exactly the state (isDirty === true) that previously showed the
+    // unsaved-changes Warning directly on top of the Save button.
+    await page.getByTestId(`confirmed-qty-input-${sku}`).locator('input').fill('3')
+    await expect(page.getByTestId('response-unsaved-changes-toast')).toBeVisible()
+    await assertNoHorizontalOverflow(page, 'Supplier Response with unsaved-changes Warning (Mobile)')
+
+    // Finding #3: scroll all the way down - exactly where the fixed-
+    // position Warning Toast used to sit directly on top of the in-flow
+    // Save button - and confirm the Save button is still reachable and
+    // clickable there, not covered by the still-visible Warning.
+    const saveButton = page.getByTestId('save-response-button')
+    await saveButton.scrollIntoViewIfNeeded()
+    await page.mouse.wheel(0, 2000)
+    await expect(page.getByTestId('response-unsaved-changes-toast')).toBeVisible()
+    await expect(saveButton).toBeInViewport()
+    await saveButton.click({ trial: true }) // throws if another element would intercept the click
+    await saveButton.click()
+    await expect(page.getByText('回答を保存しました。')).toBeVisible()
   })
 })

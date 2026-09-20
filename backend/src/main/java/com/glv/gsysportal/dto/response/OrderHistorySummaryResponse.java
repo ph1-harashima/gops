@@ -20,6 +20,18 @@ public record OrderHistorySummaryResponse(
         // substitute draftNo/prototypePoNo for these.
         String officialPoNo,
         Integer revisionNo,
+        // Post-Freeze Visual Walkthrough Findings Fix (Finding #4,
+        // docs/gops-visual-walkthrough-findings-fix.md): the CURRENT
+        // (latest-revision) Official PO Integration Request's own lifecycle
+        // axis (ACTIVE/SUPERSEDED/CANCEL_REQUESTED/CANCELLED, same value the
+        // Order Detail page's Revision History table already reads) - null
+        // until an Official PO integration first exists. status above is
+        // PortalOrder's own Business Workflow Status and is intentionally
+        // NEVER changed by a PO cancellation (Reissue eligibility/history
+        // depend on it staying APPROVED); the Frontend combines both so a
+        // cancelled Order's Primary Status is shown correctly in this List
+        // without altering status itself.
+        String lifecycleStatus,
         LocalDate orderDate,
         String supplierCode,
         String supplierName,

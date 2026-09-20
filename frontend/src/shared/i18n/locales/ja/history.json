@@ -126,7 +126,8 @@
       "retryPlacement": "次にすべきこと: G-SYS連携用ファイルの配置に失敗しました。再試行してください。",
       "confirmImport": "次にすべきこと: G-SYS取込状況を確認してください。",
       "sendEmail": "次にすべきこと: メーカーへメールを送信してください。",
-      "completeEdiInput": "次にすべきこと: EDI入力が完了したら「EDI入力完了にする」を押してください。"
+      "completeEdiInput": "次にすべきこと: EDI入力が完了したら「EDI入力完了にする」を押してください。",
+      "createRevisionForQuantityChange": "次にすべきこと: メーカー回答で数量変更が確認されています。「メーカー回答を確認する」から回答画面を開き、「修正版を作成」で発注内容を確定回答数量に修正してください。修正後、再承認・正式PO再発行が可能になります。"
     }
   },
   "officialPoIntegration": {
@@ -210,6 +211,7 @@
     "errorNotSubmitted": "この発注はまだImport Folderへ配置されていません。",
     "reissueSectionTitle": "正式PO 再発行 / Revision History",
     "reissueButton": "正式POを再発行",
+    "reissueDisabledHint": "再発行は、メーカー回答確定後に「修正版を作成」を行い、修正内容を再承認した場合のみ可能になります。",
     "reissueDialogTitle": "正式POを再発行しますか？",
     "reissueDialogBody": "現在の正式PO（このRevision）は「旧版（再発行済み）」となり、新しいRevisionの正式PO（「準備中」）が作成されます。旧Revisionは削除されず、Revision Historyに残ります。\nこの操作ではG-SYSへの実際の登録・送信は一切行われません。",
     "reissueDialogCancel": "キャンセル",

@@ -15,8 +15,9 @@
   "currency": "Currency",
   "remark": "Remarks",
   "demoModeChip": "Demo Mode",
-  "prototypePoNo": "PO No.",
-  "prototypePoNoUnassigned": "Not Yet Assigned",
+  "portalManagementNo": "Portal Management No.",
+  "officialPoNo": "Official PO No.",
+  "officialPoNoUnassigned": "Not Yet Issued",
   "table": {
     "sku": "SKU",
     "itemName": "Item Name",

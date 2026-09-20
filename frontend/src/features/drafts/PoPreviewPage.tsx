@@ -192,7 +192,14 @@ export function PoPreviewPage() {
       <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
         <Button onClick={() => navigate(backPath)}>{backLabel}</Button>
         <Typography variant="h5" component="h1">
-          {t('title')} - {preview.draftNo}
+          {/* Post-Freeze Visual Walkthrough Findings Fix (Finding #1,
+              docs/gops-visual-walkthrough-findings-fix.md): was always
+              preview.draftNo, the original pre-approval identifier that
+              never updates - showed a stale number once the Order had moved
+              on to its current Portal管理番号 (prototypePoNo), same "prefer
+              the current number, fall back to draftNo" pattern already used
+              by Order Detail's own title. */}
+          {t('title')} - {preview.prototypePoNo ?? preview.draftNo}
         </Typography>
         <OrderStatusChip status={preview.status} />
         <Chip size="small" variant="outlined" color="info" label={t('demoModeChip')} />
@@ -253,8 +260,16 @@ export function PoPreviewPage() {
           <Typography variant="body2">{t('orderDate')}: <strong>{preview.orderDate ?? '—'}</strong></Typography>
           <Typography variant="body2">{t('requestedDelivery')}: <strong>{preview.requestedDelivery ?? '—'}</strong></Typography>
           <Typography variant="body2">{t('currency')}: <strong>{preview.currency ?? '—'}</strong></Typography>
+          {/* Post-Freeze Visual Walkthrough Findings Fix (Finding #1):
+              Portal管理番号 and 正式PO番号 shown as two explicitly-labeled,
+              always-distinct values - was a single "PO No." row that only
+              ever showed prototypePoNo (Portal管理番号), never the real
+              正式PO番号 at all. */}
           <Typography variant="body2">
-            {t('prototypePoNo')}: <strong>{preview.prototypePoNo ?? t('prototypePoNoUnassigned')}</strong>
+            {t('portalManagementNo')}: <strong>{preview.prototypePoNo ?? preview.draftNo}</strong>
+          </Typography>
+          <Typography variant="body2">
+            {t('officialPoNo')}: <strong>{preview.officialPoNo ?? t('officialPoNoUnassigned')}</strong>
           </Typography>
         </Stack>
         {preview.remark && (

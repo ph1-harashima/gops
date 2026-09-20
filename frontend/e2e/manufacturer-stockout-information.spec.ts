@@ -351,9 +351,12 @@ test.describe('Manufacturer Stockout Information - Mobile (390x844)', () => {
   test('Scenario I: Mobile Candidate List shows Stockout status/restock/confirmation date without overflow', async ({ page }) => {
     await login(page, OPERATOR_USERNAME, OPERATOR_PASSWORD)
     await page.goto(`/candidates?brandCode=${BRAND_OUTDOOR}&recommendedOnly=false`)
-    await expect(page.getByTestId(`candidate-row-${SKU_WITH_LEGACY_ARRIVAL}`)).toBeVisible()
+    // Post-Freeze Visual Walkthrough Findings Fix (Finding #6): below `sm`
+    // this screen renders Cards (candidate-card-*), never the Desktop Table
+    // (candidate-row-*).
+    await expect(page.getByTestId(`candidate-card-${SKU_WITH_LEGACY_ARRIVAL}`)).toBeVisible()
     await assertNoHorizontalOverflow(page, 'Candidate List (Mobile) with Manufacturer Stockout info')
-    const row = page.getByTestId(`candidate-row-${SKU_WITH_LEGACY_ARRIVAL}`)
+    const row = page.getByTestId(`candidate-card-${SKU_WITH_LEGACY_ARRIVAL}`)
     await expect(row.getByTestId('stockout-status-chip')).toBeVisible()
   })
 })

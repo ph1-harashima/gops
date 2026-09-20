@@ -115,7 +115,8 @@
       "retryPlacement": "Next step: placing the G-SYS hand-off file failed - retry.",
       "confirmImport": "Next step: check the G-SYS import status.",
       "sendEmail": "Next step: send the Email to the manufacturer.",
-      "completeEdiInput": "Next step: once EDI input is complete, mark it complete."
+      "completeEdiInput": "Next step: once EDI input is complete, mark it complete.",
+      "createRevisionForQuantityChange": "Next step: the manufacturer's response confirmed a quantity change. Open \"View Supplier Response\" and use \"Create Revision\" to update the order to the confirmed quantity. Once revised, re-approval and Official PO reissue become available."
     }
   },
   "officialPoIntegration": {
@@ -199,6 +200,7 @@
     "errorNotSubmitted": "This Order has not been placed into the Import Folder yet.",
     "reissueSectionTitle": "Official PO Reissue / Revision History",
     "reissueButton": "Reissue Official PO",
+    "reissueDisabledHint": "Reissue becomes available only after \"Create Revision\" is used (once the manufacturer's response is confirmed) and the revised order is re-approved.",
     "reissueDialogTitle": "Reissue the Official PO?",
     "reissueDialogBody": "The current Official PO (this Revision) will become SUPERSEDED, and a new Revision's Official PO (PENDING) will be created. The old Revision is never deleted - it stays in the Revision History.\nThis action never actually registers or sends anything to G-SYS.",
     "reissueDialogCancel": "Cancel",

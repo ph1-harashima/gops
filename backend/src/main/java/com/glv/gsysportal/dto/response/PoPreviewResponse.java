@@ -15,6 +15,16 @@ public record PoPreviewResponse(
         Long draftId,
         String draftNo,
         String prototypePoNo,
+        // Post-Freeze Visual Walkthrough Findings Fix (Finding #1,
+        // docs/gops-visual-walkthrough-findings-fix.md): 正式PO番号 (Official
+        // PO No.) - null until an Official PO integration first assigns one
+        // ("未発行" is the Frontend's own display fallback, matching every
+        // other screen's canonical terminology - see status.json's
+        // officialPoIntegration.officialPoNoUnassigned key). Added so this
+        // screen can show the same distinct Portal管理番号/正式PO番号 pair
+        // every other screen already does, instead of only ever having
+        // prototypePoNo (Portal管理番号) available.
+        String officialPoNo,
         String supplierCode,
         String supplierName,
         String brandCode,
