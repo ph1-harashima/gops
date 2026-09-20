@@ -177,7 +177,7 @@ Both runs executed back-to-back against the same Playwright suite (225 test defi
 
 ## 31-32. Document / Commit
 
-This document: `docs/gops-post-freeze-e2e-stability-audit.md`. Commit ID: see the Final Report / `docs/gops-phase1-freeze.md` §18.
+This document: `docs/gops-post-freeze-e2e-stability-audit.md`. Commit ID: `f6a9d069dd02f8d9550234fc9d7626a8a8e95e2b`.
 
 ## 33. Remaining Technical Debt
 
