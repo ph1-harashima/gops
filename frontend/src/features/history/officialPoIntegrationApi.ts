@@ -29,8 +29,20 @@ export function useRequestOfficialPoIntegration(orderId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => requestIntegration(orderId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+    onSuccess: (data) => {
+      // Post-Freeze Technical Stability Audit (docs/gops-post-freeze-e2e-stability-audit.md):
+      // every mutation below returns the SAME full OfficialPoIntegration
+      // shape the ['official-po-integration', orderId] query itself holds -
+      // seed the cache with it directly (setQueryData) rather than relying
+      // solely on invalidateQueries' own background refetch. Without this,
+      // there is a real (if usually brief) window between this mutation
+      // resolving - and its success Toast becoming visible - and the
+      // refetch actually landing, during which `official-po-no` still
+      // reads the PRE-request value. That window widens under load (a
+      // long-lived Portal DB with more Orders/Revisions/Audit rows makes
+      // the refetch itself slower), which is exactly what surfaced this as
+      // an intermittent Full E2E Suite failure rather than an isolated one.
+      queryClient.setQueryData(['official-po-integration', orderId], data)
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
       // Cache Consistency Fix: creates this Order's first Revision History
       // row (same field set - officialPoNo/integrationStatus/lifecycleStatus -
@@ -61,8 +73,9 @@ export function useConfirmOfficialPoNumber(orderId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: ConfirmOfficialPoNumberInput) => confirmOfficialPoNumber(orderId, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+    onSuccess: (data) => {
+      // See useRequestOfficialPoIntegration's comment (stability audit).
+      queryClient.setQueryData(['official-po-integration', orderId], data)
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
       // Cache Consistency Fix: Revision History's own officialPoNo column.
       void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
@@ -82,8 +95,9 @@ export function useGenerateOfficialPoExcel(orderId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => generateOfficialPoExcel(orderId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+    onSuccess: (data) => {
+      // See useRequestOfficialPoIntegration's comment (stability audit).
+      queryClient.setQueryData(['official-po-integration', orderId], data)
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
       // Cache Consistency Fix: Revision History's own excelGenerated/
       // integrationStatus columns.
@@ -104,8 +118,9 @@ export function usePlaceOfficialPoToImportFolder(orderId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => placeOfficialPoToImportFolder(orderId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+    onSuccess: (data) => {
+      // See useRequestOfficialPoIntegration's comment (stability audit).
+      queryClient.setQueryData(['official-po-integration', orderId], data)
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
       // Cache Consistency Fix: Revision History's own integrationStatus column.
       void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
@@ -177,8 +192,9 @@ export function useGenerateOfficialPoPdf(orderId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => generateOfficialPoPdf(orderId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+    onSuccess: (data) => {
+      // See useRequestOfficialPoIntegration's comment (stability audit).
+      queryClient.setQueryData(['official-po-integration', orderId], data)
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
       // Cache Consistency Fix: Revision History's own pdfGenerated column.
       void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
@@ -202,8 +218,9 @@ export function useReissueOfficialPo(orderId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => reissueOfficialPo(orderId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+    onSuccess: (data) => {
+      // See useRequestOfficialPoIntegration's comment (stability audit).
+      queryClient.setQueryData(['official-po-integration', orderId], data)
       void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
       // Cache Consistency Fix: Reissue moves which Revision is "current" for
@@ -228,8 +245,9 @@ export function useRequestCancelOfficialPo(orderId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (reason: string) => requestCancelOfficialPo(orderId, reason),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+    onSuccess: (data) => {
+      // See useRequestOfficialPoIntegration's comment (stability audit).
+      queryClient.setQueryData(['official-po-integration', orderId], data)
       void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
     },
@@ -248,8 +266,9 @@ export function useApproveCancelOfficialPo(orderId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => approveCancelOfficialPo(orderId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['official-po-integration', orderId] })
+    onSuccess: (data) => {
+      // See useRequestOfficialPoIntegration's comment (stability audit).
+      queryClient.setQueryData(['official-po-integration', orderId], data)
       void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
       void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
     },

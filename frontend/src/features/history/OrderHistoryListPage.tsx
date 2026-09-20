@@ -389,6 +389,15 @@ export function OrderHistoryListPage() {
                     hover
                     sx={{ cursor: 'pointer' }}
                     onClick={() => navigate(withReturnTo(`/orders/${row.id}`, listPath))}
+                    // Post-Freeze Technical Stability Audit
+                    // (docs/gops-post-freeze-e2e-stability-audit.md): mirrors
+                    // the Mobile Card's own row.id testid (Post-Freeze
+                    // Business Refinement 1) - the Desktop row previously had
+                    // no stable per-row hook, forcing tests to locate "their"
+                    // row by table position (`tbody tr` .first()/.nth()),
+                    // which silently breaks once other Orders accumulate
+                    // ahead of it under a long-lived/Full-Suite/UAT dataset.
+                    data-testid={`order-history-row-${row.id}`}
                   >
                     <TableCell data-testid="order-history-management-no">{row.prototypePoNo ?? row.draftNo}</TableCell>
                     <TableCell data-testid="order-history-official-po-no">

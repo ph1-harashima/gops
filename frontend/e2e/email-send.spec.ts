@@ -114,8 +114,11 @@ test.describe('Phase 9-E: Real Email Send', () => {
     // BR-08 (docs/gulliver-20260917-confirmed-business-rules.md): the
     // Official PO No. is auto-numbered immediately - no manual input/confirm
     // step exists anymore.
-    const poNo = await page.getByTestId('at-a-glance-official-po-no').innerText()
-    expect(poNo).toMatch(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
+    // Post-Freeze Technical Stability Audit
+    // (docs/gops-post-freeze-e2e-stability-audit.md): auto-retrying
+    // assertion, not a raw .innerText() read immediately after the Toast -
+    // see the identical fix/comment in official-po-integration.spec.ts.
+    await expect(page.getByTestId('at-a-glance-official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     await expect(page.getByTestId('next-action-hint')).toContainText('Excelを生成')
 
     await page.getByTestId('official-po-generate-button').click()

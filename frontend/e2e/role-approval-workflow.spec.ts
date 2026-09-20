@@ -114,7 +114,13 @@ test.describe('Phase 7-C1: Role / Approval Workflow', () => {
     await pendingApprovalTile.click()
     await expect(page).toHaveURL(/\/orders\/history\?status=PENDING_APPROVAL/)
 
-    await page.locator('table tbody tr').first().click()
+    // Post-Freeze Technical Stability Audit
+    // (docs/gops-post-freeze-e2e-stability-audit.md): locate THIS test's own
+    // row by its Portal Management No. (draftId), never by table position -
+    // "first row" silently stops being this test's own Order once other
+    // PENDING_APPROVAL Orders accumulate ahead of it under a long-lived/
+    // Full-Suite/UAT dataset (§7 Row Position Dependency Audit).
+    await page.getByTestId(`order-history-row-${draftId}`).click()
     await expect(page).toHaveURL(new RegExp(`/orders/${draftId}`))
 
     await page.getByTestId('order-detail-approve-button').click()

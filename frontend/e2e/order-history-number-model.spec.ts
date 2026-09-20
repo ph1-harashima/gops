@@ -73,8 +73,12 @@ async function issueOfficialPoNo(page: Page, draftId: string): Promise<string> {
   await page.getByTestId('official-po-request-button').click()
   await page.getByTestId('official-po-request-dialog-confirm').click()
   await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
+  // Post-Freeze Technical Stability Audit
+  // (docs/gops-post-freeze-e2e-stability-audit.md): auto-retrying wait
+  // FIRST, then capture - see the identical fix/comment in
+  // official-po-integration.spec.ts.
+  await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
   const officialPoNo = await page.getByTestId('official-po-no').innerText()
-  expect(officialPoNo).toMatch(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
   return officialPoNo
 }
 

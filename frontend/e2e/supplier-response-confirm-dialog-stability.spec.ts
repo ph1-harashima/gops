@@ -184,10 +184,27 @@ test.describe('Supplier Response Confirm Dialog stability regression', () => {
     const confirmDialogButton = page.getByTestId('confirm-response-dialog-confirm')
     // Fire two rapid clicks - the second must be a no-op (button disables
     // synchronously once the mutation starts, per confirmMutation.isPending).
+    //
+    // Post-Freeze Technical Stability Audit
+    // (docs/gops-post-freeze-e2e-stability-audit.md §17/§20) - the second
+    // click previously used { force: true }, which bypasses Playwright's
+    // own actionability checks (visible/stable/not-obscured) and dispatches
+    // directly at the element's last-known screen coordinate. Once the
+    // first click's mutation succeeds and the page starts navigating away
+    // (Confirm -> Order Detail), that coordinate can end up over WHATEVER
+    // the new page happens to render there once the Dialog's own exit
+    // animation clears - under a long, single-worker Full Suite run this
+    // occasionally landed on something on the destination page instead of
+    // safely no-op'ing, leaving the browser in an unexpected navigation
+    // state (observed as an empty page.url()). A plain (non-forced) click
+    // exercises the exact same "does the second click get safely ignored"
+    // property while still respecting Playwright's own actionability
+    // guard, so it can only ever act on the button itself - never on
+    // whatever coincidentally occupies its former coordinate.
     await confirmDialogButton.click()
-    await confirmDialogButton.click({ trial: false, force: true }).catch(() => {
+    await confirmDialogButton.click({ timeout: 2000 }).catch(() => {
       // The button may already be disabled/gone by the time the second
-      // click dispatches - that outcome itself is the desired "no double
+      // click is attempted - that outcome itself is the desired "no double
       // submit" behavior, not a test failure.
     })
 

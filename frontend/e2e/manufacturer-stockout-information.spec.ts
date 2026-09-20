@@ -153,11 +153,22 @@ test.describe('Manufacturer Stockout Information - Desktop', () => {
     const section = page.getByTestId('sku-restock-section')
     await expect(section.getByTestId('restock-label')).toContainText('2026-11-20')
 
+    // Post-Freeze Technical Stability Audit
+    // (docs/gops-post-freeze-e2e-stability-audit.md §5/§9): the History
+    // Dialog's own GET fires only once opened (query `enabled` gate tied
+    // to the Dialog's `open` state) - wait for that specific response to
+    // resolve BEFORE reading .count(), which is otherwise a one-shot,
+    // non-retrying read that can race the fetch and see 0 rows.
+    const historyResponse = page.waitForResponse((r) => r.url().includes('/restock-expectation/history') && r.request().method() === 'GET')
     await page.getByTestId('sku-restock-view-history-button').click()
     const dialog = page.getByTestId('stockout-history-dialog')
     await expect(dialog).toBeVisible()
+    await historyResponse
     const rows = dialog.locator('[data-testid^="stockout-history-row-"]')
-    await expect(rows).toHaveCount(await rows.count())
+    // Belt-and-suspenders: the network response resolving doesn't guarantee
+    // React has committed the rows yet (a render microtask can still lag) -
+    // auto-retry on the first row's visibility before the one-shot count().
+    await expect(rows.first()).toBeVisible()
     const count = await rows.count()
     expect(count).toBeGreaterThanOrEqual(3)
     // Oldest-first: earliest entry's own restock cell still shows Unknown,
@@ -177,9 +188,17 @@ test.describe('Manufacturer Stockout Information - Desktop', () => {
     const section = page.getByTestId('sku-restock-section')
     await expect(section.getByTestId('stockout-status-chip')).toHaveAttribute('data-stockout-status', 'RESOLVED')
 
+    // Post-Freeze Technical Stability Audit
+    // (docs/gops-post-freeze-e2e-stability-audit.md §5/§9): see the
+    // identical fix/comment on Scenario B/E above.
+    const historyResponse = page.waitForResponse((r) => r.url().includes('/restock-expectation/history') && r.request().method() === 'GET')
     await page.getByTestId('sku-restock-view-history-button').click()
     const dialog = page.getByTestId('stockout-history-dialog')
+    await expect(dialog).toBeVisible()
+    await historyResponse
     const rows = dialog.locator('[data-testid^="stockout-history-row-"]')
+    // Belt-and-suspenders: see the identical comment on Scenario B/E above.
+    await expect(rows.first()).toBeVisible()
     const count = await rows.count()
     expect(count).toBeGreaterThanOrEqual(2)
     await expect(rows.last()).toContainText('解消')

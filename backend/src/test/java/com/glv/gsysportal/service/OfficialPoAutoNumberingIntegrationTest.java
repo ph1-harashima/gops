@@ -1,5 +1,8 @@
 package com.glv.gsysportal.service;
 
+import com.glv.gsysportal.domain.OfficialPoShortCode;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,6 +48,8 @@ class OfficialPoAutoNumberingIntegrationTest {
     private OfficialPoSequenceService sequenceService;
     @Autowired
     private OfficialPoNumberGenerator numberGenerator;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     /** BR-08: the format is always exactly
      * {SupplierShortCode 3 chars}{BrandShortCode 3 chars}{3-digit sequence}. */
@@ -133,5 +138,61 @@ class OfficialPoAutoNumberingIntegrationTest {
         assertEquals(threadCount, results.size());
         assertEquals(threadCount, Set.copyOf(results).size(),
                 "every concurrently-allocated sequence value must be distinct - no duplicate PO Sequence Number");
+    }
+
+    /** Post-Freeze Technical Stability Audit
+     * (docs/gops-post-freeze-e2e-stability-audit.md §16/§34) - a
+     * characterization test, not a behavior fix: {@code String.format("%03d", seq)}
+     * does not truncate or wrap once {@code seq} exceeds 999 - it simply
+     * widens to 4+ digits, silently breaking BR-08's documented fixed
+     * "3-digit sequence" format (and this class's own
+     * {@code generateProducesTheExactBR08Format} regex,
+     * {@code ^[A-Z]{3}[A-Z]{3}\d{3}$}). No collision results (the counter
+     * itself is still correct and monotonic - see
+     * {@code concurrentAllocationsForTheSameSupplierBrandPairNeverCollide}
+     * above), but any downstream system assuming a fixed 9-character
+     * Official PO No. would start receiving 10+ character values. This is
+     * NOT fixed here - the numbering rule itself is explicitly out of this
+     * audit's scope - it is recorded so the eventual UAT Real Data Audit
+     * checks whether any real Supplier x Brand pair is already near or
+     * past 999 cumulative Official POs. Uses a synthetic Supplier/Brand
+     * pair with its own dedicated Short Code fixture rows (cleaned up
+     * after) so it never perturbs another test's counter. */
+    @Test
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    void sequenceExceeding999WidensPastTheDocumented3DigitFormat() {
+        String supplierCode = "STABAUD_SU";
+        String brandCode = "STABAUD_BR";
+        insertShortCodeFixture(OfficialPoShortCode.TYPE_SUPPLIER, supplierCode, "ZZZ");
+        insertShortCodeFixture(OfficialPoShortCode.TYPE_BRAND, brandCode, "ZZZ");
+
+        // The pair's counter starts at 1 on its first ever allocation, so
+        // 998 direct calls here leave it AT 998; the next allocation
+        // (via numberGenerator.generate() below) is the one that returns
+        // 999 - still within the documented 3-digit format.
+        for (int i = 0; i < 998; i++) {
+            sequenceService.nextSequence(supplierCode, brandCode);
+        }
+        String at999 = numberGenerator.generate(supplierCode, brandCode);
+        assertTrue(at999.matches("^[A-Z]{3}[A-Z]{3}\\d{3}$"), "the 1000th call (seq=1000) is the one that overflows, not this one: " + at999);
+
+        String at1000 = numberGenerator.generate(supplierCode, brandCode);
+        assertEquals("ZZZZZZ1000", at1000,
+                "documents the actual current behavior: seq=1000 widens to a 4-digit tail " +
+                "(\"ZZZZZZ1000\", 10 characters) rather than truncating/wrapping/erroring - " +
+                "a real constraint to verify against actual UAT PO volume per Supplier x Brand pair, " +
+                "not something this audit changes (business numbering rule is out of scope).");
+        assertTrue(!at1000.matches("^[A-Z]{3}[A-Z]{3}\\d{3}$"),
+                "confirms this value would now fail BR-08's own documented fixed-format regex");
+    }
+
+    private void insertShortCodeFixture(String codeType, String businessCode, String shortCode) {
+        entityManager.createNativeQuery(
+                "INSERT INTO official_po_short_code (code_type, business_code, short_code, is_active, created_by, created_at, updated_by, updated_at) " +
+                        "VALUES (:codeType, :businessCode, :shortCode, true, 'stability-audit', now(), 'stability-audit', now())")
+                .setParameter("codeType", codeType)
+                .setParameter("businessCode", businessCode)
+                .setParameter("shortCode", shortCode)
+                .executeUpdate();
     }
 }

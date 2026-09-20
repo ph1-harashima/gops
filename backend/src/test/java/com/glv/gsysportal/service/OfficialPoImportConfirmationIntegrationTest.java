@@ -11,6 +11,8 @@ import com.glv.gsysportal.exception.OfficialPoNotSubmittedException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -54,6 +56,8 @@ class OfficialPoImportConfirmationIntegrationTest {
     private PortalOrderRepository portalOrderRepository;
     @Autowired
     private AuditEventRepository auditEventRepository;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     /** Approves an Order, requests Integration, and directly marks the
      * Integration Request SUBMITTED with the given officialPoNo (Phase 9-B's
@@ -88,7 +92,20 @@ class OfficialPoImportConfirmationIntegrationTest {
         return markSubmittedDirect(order, officialPoNo);
     }
 
+    /** Post-Freeze Technical Stability Audit
+     * (docs/gops-post-freeze-e2e-stability-audit.md §6/§17) - releases any
+     * pre-existing claim on this literal officialPoNo before taking it,
+     * within this test method's own transaction (rolled back at test end,
+     * so nothing is permanently altered). See
+     * LegacyPoConcurrencyServiceIntegrationTest.linkToOfficialPo's fuller
+     * comment for why this is needed: the same "PO-CONC-01" literal is also
+     * claimed - permanently, via a real committed row - by
+     * frontend/e2e/legacy-po-concurrency-control.spec.ts. */
     private PortalOrder markSubmittedDirect(PortalOrder order, String officialPoNo) {
+        entityManager.createNativeQuery("UPDATE portal_order SET official_po_no = NULL WHERE official_po_no = :poNo AND id <> :id")
+                .setParameter("poNo", officialPoNo)
+                .setParameter("id", order.getId())
+                .executeUpdate();
         order.setOfficialPoNo(officialPoNo);
         portalOrderRepository.save(order);
 

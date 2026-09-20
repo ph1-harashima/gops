@@ -239,8 +239,16 @@ test.describe('Phase 9-A: Official PO Number / Excel Generation', () => {
     // BR-08 (docs/gulliver-20260917-confirmed-business-rules.md): the
     // Official PO No. itself is already auto-numbered at this point - only
     // the delivery/shipping/payment details remain to (optionally) confirm.
+    // Post-Freeze Technical Stability Audit
+    // (docs/gops-post-freeze-e2e-stability-audit.md): auto-retrying wait
+    // FIRST, then capture - a raw .innerText() read right after the Toast
+    // is not itself waited-on, so it can race the query invalidation this
+    // mutation triggers (the Toast can become visible slightly before the
+    // official-po-no element's own re-render lands). toHaveText() retries
+    // until the DOM actually reflects the auto-numbered value (or times
+    // out), so the later .innerText() capture is guaranteed fresh.
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     const poNo = await page.getByTestId('official-po-no').innerText()
-    expect(poNo).toMatch(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     await page.getByTestId('official-po-delivery-week-input').locator('input').fill('WK40')
     await page.getByTestId('official-po-delivery-date-input').locator('input').fill('2026-10-01')
     await page.getByTestId('official-po-number-confirm-button').click()
@@ -386,8 +394,16 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     await page.getByTestId('official-po-request-button').click()
     await page.getByTestId('official-po-request-dialog-confirm').click()
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
+    // Post-Freeze Technical Stability Audit
+    // (docs/gops-post-freeze-e2e-stability-audit.md): auto-retrying wait
+    // FIRST, then capture - a raw .innerText() read right after the Toast
+    // is not itself waited-on, so it can race the query invalidation this
+    // mutation triggers (the Toast can become visible slightly before the
+    // official-po-no element's own re-render lands). toHaveText() retries
+    // until the DOM actually reflects the auto-numbered value (or times
+    // out), so the later .innerText() capture is guaranteed fresh.
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     const poNo = await page.getByTestId('official-po-no').innerText()
-    expect(poNo).toMatch(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
 
@@ -481,8 +497,16 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     await page.getByTestId('official-po-request-dialog-confirm').click()
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
     // BR-08: Official PO No. is auto-numbered immediately - no manual input.
+    // Post-Freeze Technical Stability Audit
+    // (docs/gops-post-freeze-e2e-stability-audit.md): auto-retrying wait
+    // FIRST, then capture - a raw .innerText() read right after the Toast
+    // is not itself waited-on, so it can race the query invalidation this
+    // mutation triggers (the Toast can become visible slightly before the
+    // official-po-no element's own re-render lands). toHaveText() retries
+    // until the DOM actually reflects the auto-numbered value (or times
+    // out), so the later .innerText() capture is guaranteed fresh.
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     const poNo = await page.getByTestId('official-po-no').innerText()
-    expect(poNo).toMatch(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
 
@@ -610,6 +634,15 @@ test.describe('BR-03: Official PO Cancel Approval Workflow', () => {
     await page.getByTestId('official-po-request-dialog-confirm').click()
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
     // BR-08: Official PO No. is auto-numbered immediately - no manual input.
+    // Post-Freeze Technical Stability Audit
+    // (docs/gops-post-freeze-e2e-stability-audit.md): auto-retrying wait
+    // FIRST, then capture - a raw .innerText() read right after the Toast
+    // is not itself waited-on, so it can race the query invalidation this
+    // mutation triggers (the Toast can become visible slightly before the
+    // official-po-no element's own re-render lands). toHaveText() retries
+    // until the DOM actually reflects the auto-numbered value (or times
+    // out), so the later .innerText() capture is guaranteed fresh.
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
     const poNo = await page.getByTestId('official-po-no').innerText()
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()

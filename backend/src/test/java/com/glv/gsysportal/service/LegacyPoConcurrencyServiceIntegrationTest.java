@@ -16,6 +16,8 @@ import com.glv.gsysportal.exception.LegacyPoNotFoundForBaselineException;
 import com.glv.gsysportal.exception.OfficialPoNotLinkedException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -65,6 +67,8 @@ class LegacyPoConcurrencyServiceIntegrationTest {
     private PortalOrderRepository portalOrderRepository;
     @Autowired
     private AuditEventRepository auditEventRepository;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private PortalOrder createApprovedOrder(String sku) {
         OrderDraftResponse draft = orderDraftService.createDraft(new CreateDraftRequest(List.of(sku), null, null, null), OPERATOR);
@@ -73,8 +77,30 @@ class LegacyPoConcurrencyServiceIntegrationTest {
     }
 
     /** Test-only officialPoNo linkage (same idiom as
-     * FulfillmentServiceIntegrationTest.linkToOfficialPo). */
+     * FulfillmentServiceIntegrationTest.linkToOfficialPo).
+     *
+     * <p>Post-Freeze Technical Stability Audit
+     * (docs/gops-post-freeze-e2e-stability-audit.md §6/§17) - "PO-CONC-01"/
+     * "02"/"03" are shared literals: this class, {@code
+     * OfficialPoImportConfirmationIntegrationTest}, and (non-transactionally,
+     * via a real committed row - see its own comment) {@code
+     * frontend/e2e/legacy-po-concurrency-control.spec.ts} all use the SAME
+     * literals against the SAME {@code uq_portal_order_official_po_no}
+     * UNIQUE constraint. The E2E spec already defends itself with an
+     * "UPDATE ... SET official_po_no=NULL WHERE official_po_no=:x" step
+     * before claiming one; this mirrors that exact same defense here, so
+     * this test's OWN insert can never collide with whatever the E2E suite
+     * (or a prior interleaved run of this same class) currently holds. It
+     * is release-then-claim within THIS test method's own transaction, so
+     * rollback at test end restores exactly what existed before - nothing
+     * is permanently altered or deleted (no violation of "never delete
+     * valid application data merely to make tests pass": the row being
+     * released is put back by the same rollback, not discarded). */
     private PortalOrder linkToOfficialPo(PortalOrder order, String officialPoNo) {
+        entityManager.createNativeQuery("UPDATE portal_order SET official_po_no = NULL WHERE official_po_no = :poNo AND id <> :id")
+                .setParameter("poNo", officialPoNo)
+                .setParameter("id", order.getId())
+                .executeUpdate();
         order.setOfficialPoNo(officialPoNo);
         return portalOrderRepository.save(order);
     }
