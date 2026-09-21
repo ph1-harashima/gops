@@ -17,3 +17,9 @@ Thumbs.db
 docs/real-data-audit/*.7z
 docs/real-data-audit/*.dmp
 docs/real-data-audit/*.sql
+
+# Scratch working directory for extracted Production backups (Stage 1,
+# docs/real-data-audit/gops-prod-snapshot-20260916-stage1-restore.md) -
+# entire directory ignored, not just specific extensions, since its whole
+# purpose is holding real Production data outside the tracked tree.
+.local/
