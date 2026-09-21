@@ -27,6 +27,36 @@
 --     SlTempostarImportBatch.java in Phase 0.5 audit)
 --   - MS_COMM brand lookup: CATE_ID = 'MS_BRAND'
 --
+-- Stage 5E Targeted Remediation (RC-C, docs/real-data-audit/
+-- gops-stage5e-targeted-remediation.md): new optional item_cd-set filter
+-- (:hasItemCodes / :itemCodes - a boolean flag paired with an ALWAYS
+-- non-null, non-empty collection, never a bare nullable IN-clause
+-- parameter, since Spring's NamedParameterJdbcTemplate expands :itemCodes
+-- into the IN(...) list from its bound value's own type and cannot do
+-- that for a null; when the filter is inactive the caller binds a single
+-- placeholder value that cannot match any real item_cd and
+-- :hasItemCodes=false short-circuits the OR before it matters). Used two
+-- ways - (1) findBySkus (Create Draft re-validation, SKU Detail) now
+-- filters here in SQL instead of fetching the full catalog and filtering
+-- in Java (the confirmed primary cause of SKU Detail's Stage 5D slowness -
+-- queryCandidates(null,null,null,true) had NO brand/supplier/keyword
+-- filter at all before this Stage); (2) Candidate List/Stock-Sales List's
+-- own pagination Step 2 - the small, already-resolved page of item_cd
+-- values from RecommendedQtySkuIdsQuery.sql's Step 1. Critically, the SAME
+-- filter is applied INSIDE the latest_po derived table's own WHERE clause
+-- (on tr_po_dtl.item_cd), not only in this query's outer WHERE - Stage
+-- 5D's EXPLAIN ANALYZE confirmed an outer-only filter cannot be pushed
+-- through the ROW_NUMBER() window function by MySQL's optimizer, so
+-- filtering only outside would still fully sort+window all of tr_po_dtl
+-- every time. Filtering inside collapses that sort+window step to just
+-- the matching rows for a small SKU set, with no Production DB index
+-- change (tr_po_dtl.item_cd is still unindexed, so the initial scan
+-- itself is unavoidable, but the expensive SORT/WINDOW AGGREGATE steps
+-- that follow now operate on a handful of rows instead of the full
+-- ~184k). When :hasItemCodes is false (unfiltered browse -
+-- findOrderCandidates, Dashboard), behavior is byte-for-byte unchanged
+-- from before this Stage.
+--
 -- Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
 -- gops-stage4-targeted-real-data-remediation.md), replacing the prior
 -- WH_CD='01' single-row Demo simplification:
@@ -100,6 +130,7 @@ LEFT JOIN (
            ROW_NUMBER() OVER (PARTITION BY d.item_cd ORDER BY p.ordr_date DESC) AS rn
     FROM tr_po_dtl d
     JOIN tr_po p ON p.po_no = d.po_no
+    WHERE (:hasItemCodes = FALSE OR d.item_cd IN (:itemCodes))
 ) latest_po
        ON latest_po.item_cd = i.item_cd AND latest_po.rn = 1
 LEFT JOIN ms_comm sup
@@ -108,4 +139,5 @@ WHERE (:includeDeleted = TRUE OR i.del_flg IS NULL OR i.del_flg = 0)
   AND (:brandCode IS NULL OR i.brand_cd = :brandCode)
   AND (:supplierCode IS NULL OR latest_po.supplier_cd = :supplierCode)
   AND (:keyword IS NULL OR i.item_cd LIKE :keywordLike OR i.description LIKE :keywordLike)
+  AND (:hasItemCodes = FALSE OR i.item_cd IN (:itemCodes))
 ORDER BY i.brand_cd, i.item_cd

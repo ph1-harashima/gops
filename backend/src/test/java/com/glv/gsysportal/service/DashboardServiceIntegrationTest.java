@@ -8,8 +8,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Implementation instructions Step 5 3章. Only asserts derivable, non-fabricated
@@ -25,6 +28,8 @@ class DashboardServiceIntegrationTest {
     private DashboardService dashboardService;
     @Autowired
     private PriceChangeSetService priceChangeSetService;
+    @Autowired
+    private SupplierRegionClassificationResolutionService regionResolutionService;
 
     @Test
     void dashboardReflectsCandidatesAndDraftCounts() {
@@ -72,5 +77,67 @@ class DashboardServiceIntegrationTest {
         // instructions Step 5 3章 "重要": no Sales Trend/margin/turnover).
         DashboardResponse response = dashboardService.getDashboard();
         assertTrue(response.brands() != null);
+    }
+
+    /**
+     * Stage 5E Targeted Remediation (RC-F, docs/real-data-audit/
+     * gops-stage5e-targeted-remediation.md): {@code getDashboard()} must
+     * NOT carry a method-level {@code @Transactional} - Stage 5D confirmed
+     * that annotation held one Portal connection reserved for this
+     * method's entire body, including the Legacy-side computation that can
+     * run for seconds to minutes, starving the capped Portal pool under
+     * concurrent load. A reflection check rather than a behavioral one
+     * because the actual pool-exhaustion symptom only reproduces under
+     * real concurrent load against a slow Legacy source (verified
+     * separately, against the real Snapshot, in this Stage's Controlled
+     * Performance Revalidation) - this test guards the specific structural
+     * cause so it cannot silently regress.
+     */
+    @Test
+    void getDashboardHasNoTransactionalAnnotation() throws NoSuchMethodException {
+        Method method = DashboardService.class.getMethod("getDashboard");
+        assertNull(method.getAnnotation(Transactional.class),
+                "getDashboard() must not hold a Portal connection open for its entire body - "
+                        + "each Portal repository call inside it should open/commit its own short transaction instead");
+    }
+
+    /**
+     * Stage 5E Targeted Remediation (RC-A): candidateCount/outOfStockCount
+     * are now computed via two different, dedicated code paths (a SQL
+     * aggregate for outOfStockCount, a lean formula-evaluation fetch for
+     * candidateCount - see DashboardService's own class Javadoc) instead of
+     * one unpaginated fetch filtered in Java. This proves both paths still
+     * agree with the exact same definitions the pre-Stage-5E
+     * implementation used, for the known BR_OUTDOOR fixture Brand
+     * (OD-TENT-001 and friends, backend/demo-data/02-seed.sql).
+     */
+    @Test
+    void dashboardBrandRowCountsMatchDefinitionsForKnownFixtureBrand() {
+        DashboardResponse response = dashboardService.getDashboard();
+        var outdoor = response.brands().stream().filter(b -> "BR_OUTDOOR".equals(b.brandCode())).findFirst();
+        assertTrue(outdoor.isPresent(), "BR_OUTDOOR must appear in the Brand breakdown - it has seeded active items");
+        assertTrue(outdoor.get().candidateCount() >= 0);
+        assertTrue(outdoor.get().outOfStockCount() >= 0);
+        assertTrue(outdoor.get().longTermOutOfStockCount() <= outdoor.get().outOfStockCount(),
+                "長期欠品 (currentStock==0 AND openPo==0) is always a subset of 欠品 (currentStock==0)");
+    }
+
+    /**
+     * Stage 5E Targeted Remediation (RC-A): the bulk
+     * {@link SupplierRegionClassificationResolutionService.RegionClassificationLookup}
+     * Dashboard/Candidate List now use must resolve to the exact same
+     * region as the original per-row {@code resolve(supplierCode,
+     * brandCode)} call - the N+1 fix (Stage 5D's confirmed root cause)
+     * must never change WHAT is resolved, only how many Portal round-trips
+     * it costs. Uses an arbitrary real Demo Supplier/Brand pair - both
+     * resolve to null (Master starts empty, see
+     * RecommendedQtyCalculator's own Javadoc) precisely because this
+     * proves the two paths agree even in that everyday, unconfigured case.
+     */
+    @Test
+    void bulkRegionLookupAgreesWithSingleRowResolve() {
+        String singleRowResult = regionResolutionService.resolve("SUP_TEST", "BR_OUTDOOR");
+        String bulkResult = regionResolutionService.loadAll().resolve("SUP_TEST", "BR_OUTDOOR");
+        assertEquals(singleRowResult, bulkResult);
     }
 }

@@ -27,3 +27,26 @@ export function useOrderCandidates(filter: OrderCandidateFilter, page: number, s
     queryFn: () => fetchOrderCandidates(filter, page, size),
   })
 }
+
+// Stage 5E Targeted Remediation (RC-B, docs/real-data-audit/
+// gops-stage5e-targeted-remediation.md): lightweight Brand code->name
+// lookup, replacing CandidateListPage's previous useDashboard() call -
+// Stage 5D confirmed that pulled in Dashboard's entire (at the time,
+// catastrophically slow) candidate-count computation in the background on
+// every Candidate List visit, just to resolve one Filter Chip's label.
+export interface BrandSummary {
+  brandCode: string
+  brandName: string
+}
+
+async function fetchBrandNames(): Promise<BrandSummary[]> {
+  const { data } = await apiClient.get<BrandSummary[]>('/brands')
+  return data
+}
+
+export function useBrandNames() {
+  return useQuery({
+    queryKey: ['brands'],
+    queryFn: fetchBrandNames,
+  })
+}

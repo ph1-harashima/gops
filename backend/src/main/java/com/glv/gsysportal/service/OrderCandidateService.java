@@ -6,6 +6,7 @@ import com.glv.gsysportal.dto.response.SkuRestockExpectationResponse;
 import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository;
 import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository.StockSalesListFilter;
 import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
+import com.glv.gsysportal.service.SupplierRegionClassificationResolutionService.RegionClassificationLookup;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -42,13 +43,16 @@ public class OrderCandidateService {
     private final LegacyStockReadRepository legacyStockReadRepository;
     private final RecommendedQtyCalculator recommendedQtyCalculator;
     private final SkuRestockExpectationService restockExpectationService;
+    private final SupplierRegionClassificationResolutionService regionResolutionService;
 
     public OrderCandidateService(LegacyStockReadRepository legacyStockReadRepository,
                                   RecommendedQtyCalculator recommendedQtyCalculator,
-                                  SkuRestockExpectationService restockExpectationService) {
+                                  SkuRestockExpectationService restockExpectationService,
+                                  SupplierRegionClassificationResolutionService regionResolutionService) {
         this.legacyStockReadRepository = legacyStockReadRepository;
         this.recommendedQtyCalculator = recommendedQtyCalculator;
         this.restockExpectationService = restockExpectationService;
+        this.regionResolutionService = regionResolutionService;
     }
 
     public List<OrderCandidateResponse> findOrderCandidates(String brandCode, String supplierCode, String keyword) {
@@ -58,7 +62,12 @@ public class OrderCandidateService {
         // discipline the rest of this List already follows).
         Map<String, SkuRestockExpectationResponse> restockBySku =
                 restockExpectationService.getBulk(rows.stream().map(LegacyStockRow::itemCd).toList());
-        return rows.stream().map(row -> toResponse(row, restockBySku.get(row.itemCd()))).toList();
+        // Stage 5E Targeted Remediation (RC-A): one bulk region-classification
+        // load for the whole List, not one (or, before this Stage, two)
+        // Portal query per row - the confirmed N+1 root cause at this
+        // unpaginated method's full-catalog scale (Stage 5D).
+        RegionClassificationLookup regionLookup = regionResolutionService.loadAll();
+        return rows.stream().map(row -> toResponse(row, restockBySku.get(row.itemCd()), regionLookup)).toList();
     }
 
     /**
@@ -88,10 +97,26 @@ public class OrderCandidateService {
         List<LegacyStockRow> rows = legacyStockReadRepository.findStockSalesList(filter, clampedSize, offset);
         Map<String, SkuRestockExpectationResponse> restockBySku =
                 restockExpectationService.getBulk(rows.stream().map(LegacyStockRow::itemCd).toList());
+        RegionClassificationLookup regionLookup = regionResolutionService.loadAll();
         List<OrderCandidateResponse> content = rows.stream()
-                .map(row -> toResponse(row, restockBySku.get(row.itemCd())))
+                .map(row -> toResponse(row, restockBySku.get(row.itemCd()), regionLookup))
                 .toList();
         return PageResponse.of(content, clampedPage, clampedSize, total);
+    }
+
+    /**
+     * Stage 5E Targeted Remediation (RC-B, docs/real-data-audit/
+     * gops-stage5e-targeted-remediation.md): the lightweight Brand code->name
+     * lookup {@code CandidateListPage}'s Filter Chip needs for display -
+     * previously obtained via {@code useDashboard()}, which pulled in
+     * Dashboard's entire candidate-count computation (Stage 5D RC-B/RC-A)
+     * just to read one field of it. Reuses the same bulk query
+     * {@link DashboardService} itself now uses for the same purpose
+     * (Stage 5E RC-A) - one small (~1,500 row) query, not a second,
+     * independently-maintained Brand Master read.
+     */
+    public Map<String, String> findBrandNames() {
+        return legacyStockReadRepository.findAllBrandNames();
     }
 
     private static int clampSize(Integer size) {
@@ -105,8 +130,13 @@ public class OrderCandidateService {
         return value == null || value.isBlank() ? null : value;
     }
 
-    OrderCandidateResponse toResponse(LegacyStockRow row, SkuRestockExpectationResponse restock) {
-        Integer calc4 = recommendedQtyCalculator.calc4(row);
+    OrderCandidateResponse toResponse(LegacyStockRow row, SkuRestockExpectationResponse restock, RegionClassificationLookup regionLookup) {
+        // Stage 5E Targeted Remediation (RC-A): region resolved exactly once
+        // per row (via the pre-loaded bulk lookup), then reused for calc4 -
+        // previously resolved twice per row (once inside the old calc4(row),
+        // once again here), doubling the N+1 cost Stage 5D identified.
+        String region = recommendedQtyCalculator.resolveRegion(row, regionLookup);
+        Integer calc4 = recommendedQtyCalculator.calc4(row, region);
         return new OrderCandidateResponse(
                 row.itemCd(),
                 row.itemName(),
@@ -117,7 +147,13 @@ public class OrderCandidateService {
                 row.currentStock(),
                 null, // safetyStock: Legacy computes this dynamically via Formula.getSafetyStk(soldQty),
                       // not part of this Step's reduced Read Query scope - left null rather than guessed.
-                sum(row.openPo(), row.openArrival()),
+                // Stage 5E Targeted Remediation (RC-E, docs/real-data-audit/
+                // gops-stage5e-targeted-remediation.md): this field is Open
+                // PO alone - it must never be combined with Open Arrival
+                // (Stage 5D confirmed this was the only call site, across
+                // Candidate List/Dashboard/Stock-Sales/SKU Detail, that did
+                // so; Stock/Sales and SKU Detail were already correct).
+                row.openPo(),
                 row.monthlySales(),
                 row.leadTime(),
                 calc4,
@@ -126,7 +162,7 @@ public class OrderCandidateService {
                 row.unitPrice(),
                 row.currency(),
                 DATA_SOURCE_CODE,
-                recommendedQtyCalculator.resolveRegion(row),
+                region,
                 restock == null ? SkuRestockExpectationResponse.SOURCE_NONE : restock.source(),
                 restock == null ? null : restock.date(),
                 restock == null ? null : restock.stockoutStatus(),
@@ -134,13 +170,5 @@ public class OrderCandidateService {
                 restock == null ? null : restock.contactMethod(),
                 restock != null && restock.hasConflict()
         );
-    }
-
-    private static int sum(Integer... values) {
-        int total = 0;
-        for (Integer v : values) {
-            total += (v == null ? 0 : v);
-        }
-        return total;
     }
 }

@@ -26,8 +26,7 @@ import Divider from '@mui/material/Divider'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { useTheme } from '@mui/material/styles'
 
-import { useOrderCandidates } from './api'
-import { useDashboard } from '../dashboard/api'
+import { useOrderCandidates, useBrandNames } from './api'
 import { useCreateDraft } from '../drafts/api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
@@ -207,13 +206,17 @@ export function CandidateListPage() {
   //
   // The Filter Chip's own Brand *label* is a separate concern - it already
   // showed the resolved name (not the bare code) before Pagination, and
-  // that display behavior is preserved unchanged here via Dashboard's own
-  // existing, already-unpaginated Brand list (useDashboard - the same data
-  // OrderCandidateBrandListPage itself already fetches), not the paginated
-  // candidate rows.
-  const { data: dashboard } = useDashboard()
+  // that display behavior is preserved unchanged here. Stage 5E Targeted
+  // Remediation (RC-B, docs/real-data-audit/gops-stage5e-targeted-remediation.md):
+  // resolves it via the lightweight useBrandNames() lookup instead of
+  // useDashboard() - Stage 5D confirmed the latter pulled Dashboard's
+  // entire candidate-count computation into the background on every
+  // Candidate List visit (this page never used any other field from it),
+  // eventually freezing the tab even though the visible paginated table
+  // itself was always fast and correct.
+  const { data: brandSummaries } = useBrandNames()
   function brandLabel(code: string): string {
-    return dashboard?.brands.find((b) => b.brandCode === code)?.brandName ?? code
+    return brandSummaries?.find((b) => b.brandCode === code)?.brandName ?? code
   }
 
   // Phase 7-F Header/List UX Audit (Filter Chip): every active Filter -

@@ -13,6 +13,20 @@
 -- on the real MsItem are deliberately NOT selected here - out of Foundation
 -- scope (see MarginCalculator's Javadoc and target-price-change-workflow.md
 -- 8章, "Current Selling Price" only).
+--
+-- Stage 5E Targeted Remediation (RC-C, docs/real-data-audit/
+-- gops-stage5e-targeted-remediation.md): new optional item_cd-set filter
+-- (:hasItemCodes / :itemCodes - same safe boolean-flag-plus-always-non-null-
+-- collection pattern as RecommendedQtyReadQuery.sql's own Stage 5E comment
+-- explains). LegacyPriceReadRepository.findBySkus() previously fetched the
+-- ENTIRE catalog via search(null,null,null) and filtered in Java - found
+-- during this Stage's own Controlled Snapshot Performance Revalidation to
+-- be the dominant remaining cost in SKU Detail's real-Production-scale
+-- response (the same "fetch everything, filter in Java" anti-pattern this
+-- Stage already fixed in LegacyStockReadRepository.findBySkus, present here
+-- too and not yet audited). When :hasItemCodes is false (search(),
+-- searchPage(), countSearch() - every other caller), behavior is
+-- byte-for-byte unchanged from before this Stage.
 
 SELECT
     i.item_cd,
@@ -33,4 +47,5 @@ WHERE (i.del_flg IS NULL OR i.del_flg = 0)
   AND (:itemGrpCode IS NULL OR i.item_grp_cd = :itemGrpCode)
   AND (:brandCode IS NULL OR i.brand_cd = :brandCode)
   AND (:keyword IS NULL OR i.item_cd LIKE :keywordLike OR i.description LIKE :keywordLike)
+  AND (:hasItemCodes = FALSE OR i.item_cd IN (:itemCodes))
 ORDER BY i.brand_cd, i.item_cd

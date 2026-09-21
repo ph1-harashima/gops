@@ -39,6 +39,34 @@ test.describe('Order Candidates Brand Entry', () => {
     await expect(page.getByTestId('candidates-view-all-button')).toBeVisible()
   })
 
+  /**
+   * Stage 5E Targeted Remediation (RC-B, docs/real-data-audit/
+   * gops-stage5e-targeted-remediation.md): Candidate List must never call
+   * GET /api/dashboard - Stage 5D confirmed CandidateListPage's previous
+   * useDashboard() call (used only for Filter Chip Brand-name resolution)
+   * pulled in Dashboard's entire candidate-count computation in the
+   * background on every visit, eventually freezing the tab even though
+   * the visible paginated table itself was always correct. Brand-name
+   * resolution now goes through the dedicated, lightweight GET /api/brands
+   * instead (see CandidateListPage.tsx's own Stage 5E comment).
+   */
+  test('Candidate List never calls GET /api/dashboard', async ({ page }) => {
+    await login(page)
+    const dashboardRequests: string[] = []
+    page.on('request', (req) => {
+      if (req.url().includes('/api/dashboard')) {
+        dashboardRequests.push(req.url())
+      }
+    })
+
+    await page.getByTestId('nav-candidates').click()
+    await page.getByTestId('order-candidate-brand-link-BR_HOME').click()
+    await expect(page).toHaveURL(/brandCode=BR_HOME/)
+    await expect(page.getByTestId('filter-chip-brandCode')).toContainText('LIVORA')
+
+    expect(dashboardRequests).toEqual([])
+  })
+
   test('Scenario 2: Brand LIVORA -> LIVORA Candidatesのみ表示', async ({ page }) => {
     await login(page)
     await page.getByTestId('nav-candidates').click()

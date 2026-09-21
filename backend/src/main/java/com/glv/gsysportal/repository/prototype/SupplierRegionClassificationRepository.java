@@ -10,6 +10,13 @@ public interface SupplierRegionClassificationRepository extends JpaRepository<Su
 
     List<SupplierRegionClassification> findAllByOrderBySupplierCodeAscBrandCodeAsc();
 
+    // Stage 5E Targeted Remediation (RC-A/docs/real-data-audit/
+    // gops-stage5e-targeted-remediation.md): bulk-fetch for
+    // RegionClassificationLookup - one query for an entire List/Dashboard
+    // request instead of resolve() being called per row (the confirmed
+    // N+1 root cause, Stage 5D RC-A).
+    List<SupplierRegionClassification> findAllByActiveTrue();
+
     Optional<SupplierRegionClassification> findFirstBySupplierCodeAndBrandCodeAndActiveTrue(String supplierCode, String brandCode);
 
     Optional<SupplierRegionClassification> findFirstBySupplierCodeAndBrandCodeIsNullAndActiveTrue(String supplierCode);

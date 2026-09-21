@@ -62,6 +62,32 @@ class LegacyStockReadRepositoryPhysicalQtyIntegrationTest {
         assertEquals(35, row.currentStock());
     }
 
+    /**
+     * Stage 5E Targeted Remediation (RC-C, docs/real-data-audit/
+     * gops-stage5e-targeted-remediation.md): proves {@link
+     * LegacyStockReadRepository#findBySkus} filters in SQL for a
+     * multi-SKU request too, not just the single-SKU case {@link #fetch()}
+     * already covers - exactly the requested SKUs come back, nothing else,
+     * and nothing is silently dropped. Stage 5D's RCA found the pre-Stage-5E
+     * implementation applied NO SQL filter at all here (fetched the entire
+     * catalog, filtered in Java) - the confirmed primary cause of SKU
+     * Detail's real-Production-scale slowness.
+     */
+    @Test
+    void findBySkusReturnsExactlyTheRequestedSkusForAMultiSkuRequest() {
+        List<LegacyStockRow> rows = legacyStockReadRepository.findBySkus(Set.of(SKU, "OD-TENT-001"));
+        Set<String> returned = rows.stream().map(LegacyStockRow::itemCd).collect(java.util.stream.Collectors.toSet());
+        assertEquals(Set.of(SKU, "OD-TENT-001"), returned);
+    }
+
+    /** A request for zero SKUs must short-circuit to an empty result, never
+     * fall through to "no filter = everything" (Stage 5D's own root cause). */
+    @Test
+    void findBySkusWithEmptyCollectionReturnsEmpty() {
+        List<LegacyStockRow> rows = legacyStockReadRepository.findBySkus(Set.of());
+        assertEquals(0, rows.size());
+    }
+
     @Test
     void logicalQtyBasisExcludesArrQty() {
         // The Strategy-level proof (ARR_QTY never entering the calc) lives

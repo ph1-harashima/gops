@@ -6,14 +6,17 @@ import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.PriceChangeSet;
 import com.glv.gsysportal.dto.response.DashboardBrandRow;
 import com.glv.gsysportal.dto.response.DashboardResponse;
-import com.glv.gsysportal.dto.response.OrderCandidateResponse;
+import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository;
+import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository.DashboardStockAggregateRow;
+import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
 import com.glv.gsysportal.repository.prototype.FollowUpCaseRepository;
 import com.glv.gsysportal.repository.prototype.OrderAttentionRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import com.glv.gsysportal.repository.prototype.PriceChangeSetRepository;
+import com.glv.gsysportal.service.SupplierRegionClassificationResolutionService.RegionClassificationLookup;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,39 +35,83 @@ import java.util.stream.Collectors;
  * 欠品 = currentStock == 0、長期欠品 = currentStock == 0 かつ openPo == 0
  * （入荷予定も無い状態）。日数等の期間ベース定義は、そのようなデータが
  * Prototype側に存在しないため採用していない。
+ *
+ * <p>Stage 5E Targeted Remediation (RC-A, docs/real-data-audit/
+ * gops-stage5e-targeted-remediation.md): previously fetched the ENTIRE
+ * unpaginated candidate catalog via {@code OrderCandidateService
+ * .findOrderCandidates(null,null,null)} and counted with Java {@code Stream}
+ * filters - confirmed by Stage 5D as the primary cause of this endpoint's
+ * real-Production-scale failure (351-407 seconds, frequent client-disconnect
+ * errors). Stage 5D split the KPIs into two categories: outOfStockCount/
+ * longTermOutOfStockCount are pure arithmetic on current_stock/open_po
+ * ("Category A" - now a genuine SQL {@code GROUP BY} aggregate,
+ * {@link LegacyStockReadRepository#findDashboardStockAggregateByBrand()});
+ * candidateCount genuinely requires the full calc4 Recommended-Qty formula
+ * chain ("Category B" - cannot be a SQL aggregate) but is now computed from
+ * a lean query that omits the ms_comm brand/supplier NAME joins Stage 5D
+ * identified as the dominant per-row cost
+ * ({@link LegacyStockReadRepository#findDashboardCandidateInputs()}), with
+ * region classification resolved via one bulk lookup
+ * ({@link SupplierRegionClassificationResolutionService#loadAll()}) instead
+ * of up to 4 Portal round-trips per item (Stage 5D's confirmed N+1).
+ * candidateCount's own DEFINITION (recommendedQty > 0, via the exact same
+ * calc4 this codebase has always used) is unchanged - only how it is
+ * computed changed.
  */
 @Service
 public class DashboardService {
 
-    private final OrderCandidateService orderCandidateService;
+    private final LegacyStockReadRepository legacyStockReadRepository;
+    private final RecommendedQtyCalculator recommendedQtyCalculator;
+    private final SupplierRegionClassificationResolutionService regionResolutionService;
     private final PortalOrderRepository portalOrderRepository;
     private final OrderAttentionRepository orderAttentionRepository;
     private final FollowUpCaseRepository followUpCaseRepository;
     private final PriceChangeSetRepository priceChangeSetRepository;
 
-    public DashboardService(OrderCandidateService orderCandidateService,
+    public DashboardService(LegacyStockReadRepository legacyStockReadRepository,
+                             RecommendedQtyCalculator recommendedQtyCalculator,
+                             SupplierRegionClassificationResolutionService regionResolutionService,
                              PortalOrderRepository portalOrderRepository,
                              OrderAttentionRepository orderAttentionRepository,
                              FollowUpCaseRepository followUpCaseRepository,
                              PriceChangeSetRepository priceChangeSetRepository) {
-        this.orderCandidateService = orderCandidateService;
+        this.legacyStockReadRepository = legacyStockReadRepository;
+        this.recommendedQtyCalculator = recommendedQtyCalculator;
+        this.regionResolutionService = regionResolutionService;
         this.portalOrderRepository = portalOrderRepository;
         this.orderAttentionRepository = orderAttentionRepository;
         this.followUpCaseRepository = followUpCaseRepository;
         this.priceChangeSetRepository = priceChangeSetRepository;
     }
 
-    @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
+    // Stage 5E Targeted Remediation (RC-F, docs/real-data-audit/
+    // gops-stage5e-targeted-remediation.md): deliberately NOT
+    // @Transactional here. Stage 5D confirmed this method-level annotation
+    // held one Portal connection reserved for this method's ENTIRE body -
+    // including the Legacy-side computation below, which can run for
+    // seconds to minutes - starving the capped (max 5) Portal pool under
+    // concurrent load. Each Portal repository call below (portalOrderRepository
+    // .findAll(), etc.) still runs inside its own short, independent
+    // transaction - Spring Data JPA's SimpleJpaRepository is itself
+    // @Transactional(readOnly=true) per method when no broader transaction
+    // is already active - so removing this outer annotation does not make
+    // any individual Portal read non-transactional, it only stops those
+    // reads from sharing one artificially long-lived connection with the
+    // unrelated Legacy work.
     public DashboardResponse getDashboard() {
-        List<OrderCandidateResponse> candidates = orderCandidateService.findOrderCandidates(null, null, null);
+        List<DashboardStockAggregateRow> stockAggregateByBrand = legacyStockReadRepository.findDashboardStockAggregateByBrand();
+        Map<String, Integer> candidateCountByBrand = computeCandidateCountByBrand();
+        Map<String, String> brandNames = legacyStockReadRepository.findAllBrandNames();
+
         List<PortalOrder> orders = portalOrderRepository.findAll();
         Set<Long> orderIdsWithActiveAttention = orderAttentionRepository.findByActiveTrue().stream()
                 .map(OrderAttention::getPortalOrderId)
                 .collect(Collectors.toSet());
 
-        int candidateCount = (int) candidates.stream().filter(DashboardService::isCandidate).count();
-        int outOfStockCount = (int) candidates.stream().filter(DashboardService::isOutOfStock).count();
-        int longTermOutOfStockCount = (int) candidates.stream().filter(DashboardService::isLongTermOutOfStock).count();
+        int candidateCount = candidateCountByBrand.values().stream().mapToInt(Integer::intValue).sum();
+        int outOfStockCount = stockAggregateByBrand.stream().mapToInt(DashboardStockAggregateRow::outOfStockCount).sum();
+        int longTermOutOfStockCount = stockAggregateByBrand.stream().mapToInt(DashboardStockAggregateRow::longTermOutOfStockCount).sum();
         int draftCount = (int) orders.stream().filter(o -> PortalOrder.STATUS_DRAFT.equals(o.getStatus())).count();
         // Phase 7-C1 14章: ADMIN's approval queue entry point.
         int pendingApprovalCount = (int) orders.stream().filter(o -> PortalOrder.STATUS_PENDING_APPROVAL.equals(o.getStatus())).count();
@@ -75,7 +122,8 @@ public class DashboardService {
         // Phase 8-J 11章/13章: Price Change Draft count - see DashboardResponse Javadoc.
         int priceChangeDraftCount = (int) priceChangeSetRepository.countByStatus(PriceChangeSet.STATUS_DRAFT);
 
-        List<DashboardBrandRow> brands = buildBrandRows(candidates, orders, orderIdsWithActiveAttention);
+        List<DashboardBrandRow> brands = buildBrandRows(
+                stockAggregateByBrand, candidateCountByBrand, brandNames, orders, orderIdsWithActiveAttention);
 
         return new DashboardResponse(
                 candidateCount, outOfStockCount, longTermOutOfStockCount,
@@ -84,13 +132,34 @@ public class DashboardService {
         );
     }
 
-    private static List<DashboardBrandRow> buildBrandRows(List<OrderCandidateResponse> candidates, List<PortalOrder> orders,
+    /** candidateCount, overall and per-Brand - see class Javadoc "Category B". */
+    private Map<String, Integer> computeCandidateCountByBrand() {
+        List<LegacyStockRow> rows = legacyStockReadRepository.findDashboardCandidateInputs();
+        RegionClassificationLookup regionLookup = regionResolutionService.loadAll();
+        Map<String, Integer> countByBrand = new HashMap<>();
+        for (LegacyStockRow row : rows) {
+            if (row.brandCd() == null) {
+                continue;
+            }
+            Integer recommendedQty = recommendedQtyCalculator.calc4(row, regionLookup);
+            if (recommendedQty != null && recommendedQty > 0) {
+                countByBrand.merge(row.brandCd(), 1, Integer::sum);
+            }
+        }
+        return countByBrand;
+    }
+
+    private static List<DashboardBrandRow> buildBrandRows(List<DashboardStockAggregateRow> stockAggregateByBrand,
+                                                            Map<String, Integer> candidateCountByBrand,
+                                                            Map<String, String> brandNames,
+                                                            List<PortalOrder> orders,
                                                             Set<Long> orderIdsWithActiveAttention) {
-        // LinkedHashMap to keep a stable, deterministic Brand order (first-seen in the Candidate list).
+        // LinkedHashMap to keep a stable, deterministic Brand order (first-seen,
+        // stock-aggregate order first, then any Portal-only Brand codes).
         Map<String, String> brandNameByCode = new LinkedHashMap<>();
-        for (OrderCandidateResponse c : candidates) {
-            if (c.brandCode() != null) {
-                brandNameByCode.putIfAbsent(c.brandCode(), c.brandName() != null ? c.brandName() : c.brandCode());
+        for (DashboardStockAggregateRow row : stockAggregateByBrand) {
+            if (row.brandCd() != null) {
+                brandNameByCode.putIfAbsent(row.brandCd(), brandNames.getOrDefault(row.brandCd(), row.brandCd()));
             }
         }
         for (PortalOrder o : orders) {
@@ -99,15 +168,16 @@ public class DashboardService {
             }
         }
 
+        Map<String, DashboardStockAggregateRow> stockByBrand = stockAggregateByBrand.stream()
+                .collect(Collectors.toMap(DashboardStockAggregateRow::brandCd, r -> r, (a, b) -> a));
+
         return brandNameByCode.entrySet().stream()
                 .map(entry -> {
                     String brandCode = entry.getKey();
-                    int candidateCount = (int) candidates.stream()
-                            .filter(c -> brandCode.equals(c.brandCode())).filter(DashboardService::isCandidate).count();
-                    int outOfStockCount = (int) candidates.stream()
-                            .filter(c -> brandCode.equals(c.brandCode())).filter(DashboardService::isOutOfStock).count();
-                    int longTermOutOfStockCount = (int) candidates.stream()
-                            .filter(c -> brandCode.equals(c.brandCode())).filter(DashboardService::isLongTermOutOfStock).count();
+                    DashboardStockAggregateRow stock = stockByBrand.get(brandCode);
+                    int candidateCount = candidateCountByBrand.getOrDefault(brandCode, 0);
+                    int outOfStockCount = stock == null ? 0 : stock.outOfStockCount();
+                    int longTermOutOfStockCount = stock == null ? 0 : stock.longTermOutOfStockCount();
                     int draftCount = (int) orders.stream()
                             .filter(o -> brandCode.equals(o.getBrandCode()) && PortalOrder.STATUS_DRAFT.equals(o.getStatus())).count();
                     int awaitingSupplierCount = (int) orders.stream()
@@ -118,17 +188,5 @@ public class DashboardService {
                             longTermOutOfStockCount, draftCount, awaitingSupplierCount, attentionCount);
                 })
                 .toList();
-    }
-
-    private static boolean isCandidate(OrderCandidateResponse c) {
-        return c.recommendedQty() != null && c.recommendedQty() > 0;
-    }
-
-    private static boolean isOutOfStock(OrderCandidateResponse c) {
-        return c.currentStock() != null && c.currentStock() == 0;
-    }
-
-    private static boolean isLongTermOutOfStock(OrderCandidateResponse c) {
-        return isOutOfStock(c) && (c.openPo() == null || c.openPo() == 0);
     }
 }

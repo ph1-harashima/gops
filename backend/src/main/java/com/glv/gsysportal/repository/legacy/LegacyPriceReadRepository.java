@@ -14,9 +14,7 @@ import java.nio.file.Files;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Legacy G-SYS Adapter - READ ONLY (same 3-layer guarantee as
@@ -63,15 +61,33 @@ public class LegacyPriceReadRepository {
         this.listCountSql = loadSql(LIST_COUNT_QUERY_RESOURCE).replace(BASE_QUERY_PLACEHOLDER, this.sql);
     }
 
-    /** Re-fetch by identifier - see class Javadoc. Used for Product Selection
+    /**
+     * Re-fetch by identifier - see class Javadoc. Used for Product Selection
      * candidate re-validation, Baseline Snapshot capture, and Concurrency
-     * Check's "current Legacy value" side. */
+     * Check's "current Legacy value" side.
+     *
+     * <p>Stage 5E Targeted Remediation (RC-C, docs/real-data-audit/
+     * gops-stage5e-targeted-remediation.md): now filters by {@code skus} in
+     * SQL, not by fetching the entire catalog via {@code search(null,null,null)}
+     * and filtering in Java. Found during this Stage's own Controlled
+     * Snapshot Performance Revalidation to be the dominant remaining cost
+     * in SKU Detail's real-Production-scale response - the same "fetch
+     * everything, filter in Java" anti-pattern this Stage already fixed in
+     * {@code LegacyStockReadRepository.findBySkus}, present here too and
+     * not yet audited when that fix was made.
+     */
     @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
     public List<LegacyPriceRow> findBySkus(Collection<String> skus) {
-        Set<String> requested = new HashSet<>(skus);
-        return search(null, null, null).stream()
-                .filter(row -> requested.contains(row.itemCd()))
-                .toList();
+        if (skus == null || skus.isEmpty()) {
+            return List.of();
+        }
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("brandCode", null)
+                .addValue("itemGrpCode", null)
+                .addValue("keyword", null)
+                .addValue("keywordLike", null);
+        bindItemCodes(params, skus);
+        return legacyJdbc.query(sql, params, LegacyPriceReadRepository::mapRow);
     }
 
     /** Product Selection screen's search/filter (target-price-change-workflow.md
@@ -86,6 +102,7 @@ public class LegacyPriceReadRepository {
                 .addValue("itemGrpCode", itemGrpCode)
                 .addValue("keyword", keyword)
                 .addValue("keywordLike", keyword == null ? null : "%" + keyword + "%");
+        bindItemCodes(params, null);
 
         return legacyJdbc.query(sql, params, (rs, rowNum) -> new LegacyPriceRow(
                 rs.getString("item_cd"),
@@ -126,11 +143,26 @@ public class LegacyPriceReadRepository {
     }
 
     private static MapSqlParameterSource searchParams(String brandCode, String itemGrpCode, String keyword) {
-        return new MapSqlParameterSource()
+        MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("brandCode", brandCode)
                 .addValue("itemGrpCode", itemGrpCode)
                 .addValue("keyword", keyword)
                 .addValue("keywordLike", keyword == null ? null : "%" + keyword + "%");
+        bindItemCodes(params, null);
+        return params;
+    }
+
+    /** Stage 5E Targeted Remediation (RC-C): same safe binding pattern as
+     * {@code LegacyStockReadRepository.bindItemCodes} - see that method's
+     * own Javadoc for why a bare nullable IN-clause parameter is unsafe. */
+    private static void bindItemCodes(MapSqlParameterSource params, Collection<String> itemCodes) {
+        if (itemCodes == null || itemCodes.isEmpty()) {
+            params.addValue("hasItemCodes", false);
+            params.addValue("itemCodes", List.of("(none)"));
+        } else {
+            params.addValue("hasItemCodes", true);
+            params.addValue("itemCodes", itemCodes);
+        }
     }
 
     private static LegacyPriceRow mapRow(ResultSet rs, int rowNum) throws SQLException {

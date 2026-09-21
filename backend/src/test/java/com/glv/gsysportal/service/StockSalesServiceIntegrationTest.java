@@ -47,6 +47,27 @@ class StockSalesServiceIntegrationTest {
         assertEquals("OD-TENT-001", page.content().get(0).sku());
     }
 
+    /**
+     * Stage 5E Targeted Remediation (RC-C/RC-E, docs/real-data-audit/
+     * gops-stage5e-targeted-remediation.md): confirms the two-step
+     * pagination redesign (RC-C) preserved exact correctness for Stock/Sales
+     * List, and that Open PO and Open Arrival remain two genuinely separate
+     * fields here (RC-E fixed a combined-field bug in Candidate List only -
+     * this test proves Stock/Sales was never affected and stays correct
+     * after RC-C's query rewrite). Same STAGE4-WH-TEST-001 fixture as
+     * LegacyStockReadRepositoryPhysicalQtyIntegrationTest (po_qty_1=3,
+     * arr_qty_1=999).
+     */
+    @Test
+    void openPoAndOpenArrivalRemainSeparateFields() {
+        PageResponse<StockSalesSummaryResponse> page = stockSalesService.list(
+                "STAGE4-WH-TEST-001", null, null, null, null, null, null, null, null);
+        assertEquals(1, page.totalElements());
+        StockSalesSummaryResponse row = page.content().get(0);
+        assertEquals(3, row.openPoQty());
+        assertEquals(999, row.openArrivalQty());
+    }
+
     @Test
     void filterByBrandCodeNarrowsResults() {
         PageResponse<StockSalesSummaryResponse> page = stockSalesService.list(
