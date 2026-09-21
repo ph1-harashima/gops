@@ -457,6 +457,19 @@ test.describe('Mobile Scenarios (390x844)', () => {
     await enterSupplierResponse.click()
     await expect(page).toHaveURL(new RegExp(`/orders/${draftId}/supplier-response(\\?.*)?$`))
 
+    // G-OPS Visual Re-Review Final Correction (Finding A): below `sm` this
+    // screen renders a 1-SKU-per-Card layout (response-cards /
+    // response-card-*), never the Desktop Table - the Desktop Table's own
+    // <table> element must be entirely absent, not just visually squeezed.
+    await expect(page.getByTestId('response-cards')).toBeVisible()
+    await expect(page.getByTestId(`response-card-${sku}`)).toBeVisible()
+    await expect(page.locator('table')).toHaveCount(0)
+
+    // Confirmed Delivery Date input must also be directly usable on the
+    // Card (not just Confirmed Qty) - same readOnly/isEditable gating as
+    // the Desktop Table's equivalent cell.
+    await expect(page.getByTestId(`confirmed-delivery-input-${sku}`).locator('input')).toBeEditable()
+
     // Type into the confirmed Qty field WITHOUT saving yet - this is
     // exactly the state (isDirty === true) that previously showed the
     // unsaved-changes Warning directly on top of the Save button.

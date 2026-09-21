@@ -168,6 +168,55 @@ test.describe('Phase 1 Final Cleanup: Order History Number Model', () => {
     await expect(page.locator('tbody tr')).toHaveCount(1)
   })
 
+  /** G-OPS Visual Re-Review Final Correction (Finding B): root-caused via
+   * Source read (OrderHistoryService.buildSpecification - a real DB-pushed
+   * Specification/Pageable, case-insensitive LIKE '%keyword%' against
+   * draftNo/prototypePoNo/officialPoNo, not a client-side filter) and live
+   * network/URL/rendered-row tracing (docs/gops-visual-re-review-final-
+   * correction.md §5) - the search itself was never broken. What the
+   * original Visual Re-Review screenshot actually showed was two
+   * screenshot-capture artifacts: the keyword was typed but Enter was never
+   * pressed (this input's own established "commit on Enter/blur, not every
+   * keystroke" design, matching OH-3 above), and a separate capture used
+   * click coordinates computed for a different browser window size than was
+   * actually active. This test locks in the ALREADY-CORRECT behavior this
+   * Finding's Root Cause Analysis proved, covering the two areas OH-1
+   * through OH-4 above do not: Portal管理番号 (prototypePoNo, not
+   * officialPoNo) search, and Clear returning to the unfiltered list. */
+  test('OH-5 (Finding B Root Cause Fix): Portal管理番号 search narrows correctly, and Clear returns to the unfiltered list', async ({ page }) => {
+    const draftId = await createOrderableDraft(page)
+    await submitAndApprove(page, draftId)
+
+    await page.goto(`/orders/${draftId}`)
+    const managementNo = (await page.locator('h1').innerText()).split(' - ').pop()!.trim()
+    expect(managementNo).toBeTruthy()
+
+    // Portal管理番号 search (distinct from OH-3's 正式PO番号 search above) -
+    // must narrow to exactly this Order, same Enter-triggered/URL-param-
+    // backed mechanism.
+    await openHistoryFilteredBy(page, managementNo)
+    await expect(page).toHaveURL(new RegExp(`orderNoKeyword=${managementNo}`))
+    // Any Filter change resets Page to 0 (OrderHistoryListPage.updateFilter's
+    // own `next.set('page', '0')`) - Search composes correctly with
+    // Pagination rather than only ever filtering whatever the current Page
+    // happened to already be.
+    await expect(page).toHaveURL(/page=0/)
+    const rows = page.locator('tbody tr')
+    await expect(rows).toHaveCount(1)
+    await expect(rows.first().getByTestId('order-history-management-no')).toHaveText(managementNo)
+
+    // Clear (empty the input, commit with Enter) - returns to the unfiltered
+    // list, not stuck on the last search's zero/one-row result.
+    const input = page.getByTestId('order-no-keyword-input').locator('input')
+    await input.fill('')
+    await input.press('Enter')
+    await expect(page).not.toHaveURL(/orderNoKeyword=/)
+    // The unfiltered list always has more than this one Order (every other
+    // spec in this suite creates its own) - a strictly stronger assertion
+    // than merely "not 1", which a coincidentally-empty DB could satisfy too.
+    await expect(rows.nth(1)).toBeVisible()
+  })
+
   test('OH-2 (Mobile): Management No. / Official PO No. / Revision remain distinct and readable at 390px width', async ({ page }) => {
     // Fixture setup (login/nav/draft creation) uses the Desktop nav testids
     // (nav-candidates, nav-logout, etc.) - mirroring mobile-responsive.spec.ts's

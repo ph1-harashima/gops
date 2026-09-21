@@ -25,6 +25,11 @@ import Tooltip from '@mui/material/Tooltip'
 import MenuItem from '@mui/material/MenuItem'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Checkbox from '@mui/material/Checkbox'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
+import Divider from '@mui/material/Divider'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { useTheme } from '@mui/material/styles'
 
 import {
   useSupplierResponse, useSaveSupplierResponse, useConfirmSupplierResponse,
@@ -242,6 +247,15 @@ export function SupplierResponsePage() {
 
   const { user } = useAuth()
   const isAdmin = user?.role === ROLE_ADMIN
+
+  // G-OPS Visual Re-Review Final Correction (Finding A): below `sm` (600px)
+  // this screen's SKU response table becomes unreadable (Desktop Table
+  // squeezed into a narrow viewport - the underlying regression this Card
+  // layout fixes, distinct from Finding #3's already-fixed Save-button-
+  // hidden-behind-Warning issue). Same isCardLayout idiom this codebase
+  // already uses elsewhere (CandidateListPage, OrderHistoryListPage).
+  const theme = useTheme()
+  const isCardLayout = useMediaQuery(theme.breakpoints.down('sm'))
 
   const [responseDate, setResponseDate] = useState('')
   const [responseNote, setResponseNote] = useState('')
@@ -525,6 +539,139 @@ export function SupplierResponsePage() {
         />
       </Paper>
 
+      {isCardLayout ? (
+        <Stack spacing={1.5} data-testid="response-cards">
+          {response.details.map((d) => {
+            const edit = lines[d.detailId] ?? { confirmedQty: '', confirmedDelivery: '', responseNote: '', supplyStatus: '' }
+            const diffs = response.differences.filter((diff) => diff.skuCode === d.sku)
+            return (
+              <Card key={d.detailId} variant="outlined" data-testid={`response-card-${d.sku}`}>
+                <CardContent sx={{ '&:last-child': { pb: 2 } }}>
+                  <Typography variant="body2" color="text.secondary">{d.sku}</Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, wordBreak: 'break-word' }}>{d.itemName}</Typography>
+
+                  <Divider sx={{ my: 1 }} />
+
+                  <Stack spacing={1.25}>
+                    <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" color="text.secondary">{t('table.orderedQty')}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>{d.orderedQty}</Typography>
+                    </Stack>
+
+                    <Stack spacing={0.5}>
+                      <Tooltip title={d.warningCodes.map((w) => t(`status:warningCode.${w}`, { defaultValue: w })).join(', ')}
+                               disableHoverListener={d.warningCodes.length === 0}>
+                        <span>
+                          <Typography variant="body2" color="text.secondary">{t('table.confirmedQty')} *</Typography>
+                        </span>
+                      </Tooltip>
+                      <TextField
+                        type="number"
+                        size="small"
+                        fullWidth
+                        placeholder={t('unanswered') ?? undefined}
+                        value={edit.confirmedQty}
+                        color={d.warningCodes.length > 0 ? 'warning' : undefined}
+                        onChange={(e) => handleQtyChange(d.detailId, e.target.value)}
+                        data-testid={`confirmed-qty-input-${d.sku}`}
+                        slotProps={{
+                          htmlInput: { min: 0, step: 1 },
+                          input: { readOnly: !isEditable },
+                        }}
+                      />
+                    </Stack>
+
+                    <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+                      <Typography variant="body2" color="text.secondary">{t('table.requestedDelivery')}</Typography>
+                      <Typography variant="body2">{d.requestedDelivery ?? '—'}</Typography>
+                    </Stack>
+
+                    <Stack spacing={0.5}>
+                      <Typography variant="body2" color="text.secondary">{t('table.confirmedDelivery')}</Typography>
+                      <TextField
+                        type="date"
+                        size="small"
+                        fullWidth
+                        value={edit.confirmedDelivery}
+                        onChange={(e) => handleDeliveryChange(d.detailId, e.target.value)}
+                        data-testid={`confirmed-delivery-input-${d.sku}`}
+                        slotProps={{ inputLabel: { shrink: true }, input: { readOnly: !isEditable } }}
+                      />
+                    </Stack>
+
+                    {diffs.length > 0 && (
+                      <Stack spacing={0.25} data-testid={`response-card-diff-${d.sku}`}>
+                        <Typography variant="body2" color="text.secondary">{t('differences.title')}</Typography>
+                        {diffs.map((diff) => (
+                          <Typography key={diff.type} variant="body2" sx={{ fontWeight: 500 }}>
+                            {diff.type === 'UNANSWERED'
+                              ? t('differences.unansweredLine', { orderedQty: diff.orderedValue ?? '—' })
+                              : `${t(`differences.type.${diff.type}`)}: ${diff.orderedValue ?? '—'} → ${diff.confirmedValue ?? t('unanswered')}`}
+                          </Typography>
+                        ))}
+                      </Stack>
+                    )}
+
+                    <Stack spacing={0.5}>
+                      <Typography variant="body2" color="text.secondary">{t('table.responseNote')}</Typography>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        value={edit.responseNote}
+                        onChange={(e) => handleNoteChange(d.detailId, e.target.value)}
+                        slotProps={{ input: { readOnly: !isEditable } }}
+                      />
+                    </Stack>
+
+                    <Stack spacing={0.5}>
+                      <Typography variant="body2" color="text.secondary">{t('table.supplyStatus')}</Typography>
+                      {isEditable ? (
+                        <TextField
+                          select
+                          size="small"
+                          fullWidth
+                          value={edit.supplyStatus}
+                          onChange={(e) => handleSupplyStatusChange(d.detailId, e.target.value)}
+                          data-testid={`supply-status-select-${d.sku}`}
+                        >
+                          <MenuItem value="">{t('unanswered')}</MenuItem>
+                          {SUPPLY_STATUS_OPTIONS.map((option) => (
+                            <MenuItem key={option} value={option}>
+                              {t(`status:supplyStatus.${option}`, { defaultValue: option })}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      ) : (
+                        <Typography variant="body2">
+                          {d.supplyStatus
+                            ? t(`status:supplyStatus.${d.supplyStatus}`, { defaultValue: d.supplyStatus })
+                            : t('unanswered')}
+                        </Typography>
+                      )}
+                    </Stack>
+
+                    {d.attentions.length > 0 && (
+                      <Stack spacing={0.5}>
+                        <Typography variant="body2" color="text.secondary">{t('table.attention')}</Typography>
+                        <AttentionChips attentions={d.attentions} acknowledgeable />
+                      </Stack>
+                    )}
+
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setStockoutDialogSku(d.sku)}
+                      data-testid={`register-stockout-button-${d.sku}`}
+                    >
+                      {t('table.registerStockoutButton')}
+                    </Button>
+                  </Stack>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </Stack>
+      ) : (
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
@@ -649,6 +796,7 @@ export function SupplierResponsePage() {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
 
       <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
         <Typography variant="subtitle1" gutterBottom>{t('summary.title')}</Typography>
