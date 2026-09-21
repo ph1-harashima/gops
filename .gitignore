@@ -10,3 +10,10 @@ Thumbs.db
 # 一時ファイル
 *.tmp
 ~$*
+
+# Production DB backups (real customer data) - never committed, regardless
+# of how they are staged (docs/real-data-audit/gops-prod-snapshot-*-stage0.md
+# 参照)
+docs/real-data-audit/*.7z
+docs/real-data-audit/*.dmp
+docs/real-data-audit/*.sql
