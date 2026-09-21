@@ -46,7 +46,7 @@ class SupplierMasterServiceIntegrationTest {
 
     @Test
     void listSuppliersReturnsOnlyLegacyRegisteredSuppliers_neverFabricated() {
-        List<SupplierMasterSummaryResponse> suppliers = service.listSuppliers();
+        List<SupplierMasterSummaryResponse> suppliers = service.listSuppliers(null, null).content();
 
         // The Legacy Demo Master is exactly SUP_ALPHA/SUP_BETA/SUP_GAMMA
         // (docs/gops-information-architecture-cross-screen-audit.md 4.3章
@@ -70,7 +70,7 @@ class SupplierMasterServiceIntegrationTest {
         supplierRegionClassificationService.create(
                 new SupplierRegionClassificationRequest("SUP_ALPHA", "BR_OUTDOOR", "OVERSEAS", true), ADMIN);
 
-        SupplierMasterSummaryResponse alpha = service.listSuppliers().stream()
+        SupplierMasterSummaryResponse alpha = service.listSuppliers(null, null).content().stream()
                 .filter(s -> "SUP_ALPHA".equals(s.supplierCode()))
                 .findFirst().orElseThrow();
 
@@ -86,7 +86,7 @@ class SupplierMasterServiceIntegrationTest {
         manufacturerChannelService.create(
                 new ManufacturerChannelRequest("SUP_ALPHA", "BR_HOME", "EDI", true), ADMIN);
 
-        SupplierMasterSummaryResponse alpha = service.listSuppliers().stream()
+        SupplierMasterSummaryResponse alpha = service.listSuppliers(null, null).content().stream()
                 .filter(s -> "SUP_ALPHA".equals(s.supplierCode()))
                 .findFirst().orElseThrow();
 
@@ -95,7 +95,7 @@ class SupplierMasterServiceIntegrationTest {
 
     @Test
     void listSuppliersShowsMissingWhenNothingConfigured() {
-        SupplierMasterSummaryResponse gamma = service.listSuppliers().stream()
+        SupplierMasterSummaryResponse gamma = service.listSuppliers(null, null).content().stream()
                 .filter(s -> "SUP_GAMMA".equals(s.supplierCode()))
                 .findFirst().orElseThrow();
 
@@ -110,9 +110,55 @@ class SupplierMasterServiceIntegrationTest {
         assertEquals("GAM", gamma.officialPoShortCode());
     }
 
+    /** Stage 5H Systematic Performance Remediation (RC-J, docs/real-data-audit/
+     * gops-stage5h-systematic-performance-remediation.md): pagination is
+     * additive - the same 3 Suppliers, same per-row computation, just
+     * sliced. size=1 forces exactly 2 pages for the 3-Supplier Demo fixture. */
+    @Test
+    void listSuppliersIsPaginatedWithoutLosingOrDuplicatingRows() {
+        var page0 = service.listSuppliers(0, 1);
+        var page1 = service.listSuppliers(1, 1);
+        var page2 = service.listSuppliers(2, 1);
+
+        assertEquals(1, page0.content().size());
+        assertEquals(1, page1.content().size());
+        assertEquals(1, page2.content().size());
+        assertEquals(3, page0.totalElements());
+        assertEquals(3, page1.totalElements());
+        assertEquals(0, page0.page());
+        assertEquals(1, page1.page());
+
+        var codes = java.util.Set.of(
+                page0.content().get(0).supplierCode(),
+                page1.content().get(0).supplierCode(),
+                page2.content().get(0).supplierCode());
+        assertEquals(java.util.Set.of("SUP_ALPHA", "SUP_BETA", "SUP_GAMMA"), codes,
+                "3 pages of size 1 must cover all 3 Suppliers exactly once each, none dropped or duplicated");
+    }
+
     @Test
     void getSupplierRejectsUnknownSupplierCode() {
         assertThrows(SupplierCodeNotFoundException.class, () -> service.getSupplier("NO_SUCH_SUPPLIER"));
+    }
+
+    /**
+     * Stage 5H Systematic Performance Remediation (RC-G, docs/real-data-audit/
+     * gops-stage5h-systematic-performance-remediation.md): mirrors
+     * DashboardServiceIntegrationTest's own {@code
+     * getDashboardHasNoTransactionalAnnotation} (Stage 5E RC-F) - neither
+     * {@code listSuppliers} nor {@code getSupplier} may hold a Portal
+     * connection open for their entire body, which (before this Stage)
+     * included {@link SupplierMasterService#brandsBySupplier}'s Legacy-side
+     * work.
+     */
+    @Test
+    void listSuppliersAndGetSupplierHaveNoTransactionalAnnotation() throws NoSuchMethodException {
+        java.lang.reflect.Method list = SupplierMasterService.class.getMethod("listSuppliers", Integer.class, Integer.class);
+        java.lang.reflect.Method get = SupplierMasterService.class.getMethod("getSupplier", String.class);
+        assertEquals(null, list.getAnnotation(Transactional.class),
+                "listSuppliers() must not hold a Portal connection open for its entire body");
+        assertEquals(null, get.getAnnotation(Transactional.class),
+                "getSupplier() must not hold a Portal connection open for its entire body");
     }
 
     @Test
@@ -153,7 +199,7 @@ class SupplierMasterServiceIntegrationTest {
                         "soon-inactive@example.com", "TO", "ja", null, null, false, false),
                 ADMIN);
 
-        Optional<SupplierMasterSummaryResponse> gamma = service.listSuppliers().stream()
+        Optional<SupplierMasterSummaryResponse> gamma = service.listSuppliers(null, null).content().stream()
                 .filter(s -> "SUP_GAMMA".equals(s.supplierCode()))
                 .findFirst();
 

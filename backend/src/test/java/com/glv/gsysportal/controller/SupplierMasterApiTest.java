@@ -48,12 +48,17 @@ class SupplierMasterApiTest {
                 .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"));
     }
 
+    /** Stage 5H Systematic Performance Remediation (RC-J, docs/real-data-audit/
+     * gops-stage5h-systematic-performance-remediation.md): now a
+     * {@code PageResponse} envelope, not a plain array - size=1000 keeps
+     * this test independent of the Demo fixture's own Supplier count/
+     * ordering rather than assuming SUP_ALPHA falls on the default page. */
     @Test
     @WithUserDetails("admin01")
     void adminCanListSuppliers() throws Exception {
-        mockMvc.perform(get("/api/admin/suppliers"))
+        mockMvc.perform(get("/api/admin/suppliers").param("size", "1000"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.supplierCode == 'SUP_ALPHA')]").exists());
+                .andExpect(jsonPath("$.content[?(@.supplierCode == 'SUP_ALPHA')]").exists());
     }
 
     @Test

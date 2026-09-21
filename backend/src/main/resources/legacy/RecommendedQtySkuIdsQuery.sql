@@ -16,6 +16,15 @@
 -- Step 2 (RecommendedQtyReadQuery.sql's item_cd-bound path), for the
 -- small, already-paginated set Step 1 resolves.
 --
+-- Stage 5H Systematic Performance Remediation (RC-I, docs/real-data-audit/
+-- gops-stage5h-systematic-performance-remediation.md): this is now the
+-- "full" variant, used only when :supplierCode or any of :minStock/
+-- :maxStock/:minSales/:maxSales is actually set - LegacyStockReadRepository
+-- chooses RecommendedQtySkuIdsLeanQuery.sql instead (identical brandCode/
+-- keyword/includeDeleted semantics, no latest_po/ms_stk joins) for the far
+-- more common Brand-only or fully-unfiltered browse, where those joins
+-- were confirmed pure overhead.
+--
 -- Kept from the base query, because both are cheap (confirmed via
 -- EXPLAIN ANALYZE - current_stock's correlated subquery is well-indexed
 -- on ms_stk.item_cd; the 'XX' aggregate row join is a primary-key lookup)

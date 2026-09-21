@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
@@ -9,6 +10,7 @@ import TableCell from '@mui/material/TableCell'
 import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
+import TablePagination from '@mui/material/TablePagination'
 import Stack from '@mui/material/Stack'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -18,6 +20,8 @@ import Button from '@mui/material/Button'
 import { useSupplierMasterList } from './supplierMasterApi'
 import type { SupplierMasterSummary } from '../../shared/types/supplierMaster'
 
+const DEFAULT_PAGE_SIZE = 20
+
 /**
  * Master Maintenance Hub (docs/gops-master-maintenance-hub-implementation.md):
  * "Master Maintenance -> Supplier一覧 -> Supplier選択 -> Supplier Settings",
@@ -25,11 +29,19 @@ import type { SupplierMasterSummary } from '../../shared/types/supplierMaster'
  * Code/Name here is Legacy `ms_comm` READ ONLY (the exact same Source of
  * Truth every Master Maintenance Create already validates a Supplier Code
  * against) - never a new Portal Supplier Master, never guessed.
+ *
+ * Stage 5H Systematic Performance Remediation (RC-J, docs/real-data-audit/
+ * gops-stage5h-systematic-performance-remediation.md): now Backend-paginated
+ * (602 Suppliers today) - same {@link TablePagination} pattern
+ * CandidateListPage already uses. Supplier Detail (SupplierOverviewTab) is
+ * deliberately unaffected - it is always exactly one record.
  */
 export function SupplierMasterListPage() {
   const { t } = useTranslation(['supplierMaster', 'manufacturerChannel', 'supplierRegionClassification', 'common'])
   const navigate = useNavigate()
-  const { data, isLoading, isError, refetch } = useSupplierMasterList()
+  const [page, setPage] = useState(0)
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE)
+  const { data, isLoading, isError, refetch } = useSupplierMasterList(page, size)
 
   function regionLabel(value: SupplierMasterSummary['regionClassification']): string {
     if (value === 'MIXED') return t('supplierMaster:mixed')
@@ -85,7 +97,7 @@ export function SupplierMasterListPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {(data ?? []).map((s) => (
+            {(data?.content ?? []).map((s) => (
               <TableRow
                 key={s.supplierCode}
                 hover
@@ -115,6 +127,19 @@ export function SupplierMasterListPage() {
           </TableBody>
         </Table>
       </TableContainer>
+      <TablePagination
+        component="div"
+        count={data?.totalElements ?? 0}
+        page={page}
+        rowsPerPage={size}
+        rowsPerPageOptions={[10, 20, 50, 100]}
+        onPageChange={(_e, newPage) => setPage(newPage)}
+        onRowsPerPageChange={(e) => {
+          setSize(Number(e.target.value))
+          setPage(0)
+        }}
+        data-testid="supplier-master-list-pagination"
+      />
     </Box>
   )
 }

@@ -1,11 +1,17 @@
 package com.glv.gsysportal.repository.legacy;
 
+import com.glv.gsysportal.repository.legacy.row.LegacySupplierBrandAssociationRow;
 import com.glv.gsysportal.repository.legacy.row.LegacySupplierRow;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -22,10 +28,14 @@ import java.util.Set;
 @Repository
 public class OfficialPoPreflightReadRepository {
 
+    private static final String SUPPLIER_BRAND_ASSOCIATION_QUERY_RESOURCE = "legacy/SupplierBrandAssociationQuery.sql";
+
     private final NamedParameterJdbcTemplate legacyJdbc;
+    private final String supplierBrandAssociationSql;
 
     public OfficialPoPreflightReadRepository(NamedParameterJdbcTemplate legacyNamedParameterJdbcTemplate) {
         this.legacyJdbc = legacyNamedParameterJdbcTemplate;
+        this.supplierBrandAssociationSql = loadSql(SUPPLIER_BRAND_ASSOCIATION_QUERY_RESOURCE);
     }
 
     /** Mirrors PrOfficialPoImportBatch's Supplier Master check
@@ -86,5 +96,36 @@ public class OfficialPoPreflightReadRepository {
                 "SELECT item_cd FROM ms_item WHERE item_cd IN (:skus) AND (del_flg IS NULL OR del_flg = 0)",
                 new MapSqlParameterSource("skus", skus), (rs, rowNum) -> rs.getString("item_cd"));
         return new HashSet<>(found);
+    }
+
+    /**
+     * Stage 5H Systematic Performance Remediation (RC-H, docs/real-data-audit/
+     * gops-stage5h-systematic-performance-remediation.md): the lightweight
+     * (Supplier, Brand) association {@code SupplierMasterService
+     * .brandsBySupplier()} needs - see SupplierBrandAssociationQuery.sql's
+     * own header comment for why this replaces a full-catalog
+     * {@code OrderCandidateService.findOrderCandidates(null,null,null)}
+     * call. Brand display name is NOT resolved here - the caller uses the
+     * existing bulk {@code LegacyStockReadRepository.findAllBrandNames()}
+     * lookup, avoiding a second per-row {@code ms_comm} join.
+     */
+    @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
+    public List<LegacySupplierBrandAssociationRow> findSupplierBrandAssociations() {
+        return legacyJdbc.query(supplierBrandAssociationSql, new MapSqlParameterSource(),
+                (rs, rowNum) -> new LegacySupplierBrandAssociationRow(
+                        rs.getString("supplier_cd"), rs.getString("brand_cd")));
+    }
+
+    private static String loadSql(String resourceName) {
+        try {
+            var resource = new ClassPathResource(resourceName);
+            return new String(Files.readAllBytes(resource.getFile().toPath()), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            try (var is = new ClassPathResource(resourceName).getInputStream()) {
+                return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            } catch (IOException inner) {
+                throw new UncheckedIOException("Failed to load " + resourceName, inner);
+            }
+        }
     }
 }

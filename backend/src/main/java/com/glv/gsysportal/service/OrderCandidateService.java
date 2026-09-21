@@ -55,6 +55,25 @@ public class OrderCandidateService {
         this.regionResolutionService = regionResolutionService;
     }
 
+    /**
+     * Full, unpaginated Order Candidate browse. As of Stage 5H (docs/real-data-audit/
+     * gops-stage5h-systematic-performance-remediation.md, Dead Full-Catalog
+     * Path Audit): when called with no filter at all
+     * ({@code (null, null, null)}) this scans and calc4-evaluates the
+     * entire active catalog (116,842 SKUs against the Production Snapshot)
+     * - it has NO HTTP-reachable caller anymore ({@code DashboardService}
+     * stopped calling it in Stage 5E's RC-A; {@code SupplierMasterService}
+     * stopped calling it in Stage 5H's RC-H). Kept (not deleted) because it
+     * is still a correct, independently useful "browse with an optional
+     * filter, no pagination" primitive and a test
+     * ({@code OrderCandidateServicePaginationIntegrationTest
+     * .unpaginatedFindOrderCandidatesStillReturnsEveryRow}) relies on it as
+     * a correctness cross-check against {@link #findOrderCandidatesPage}'s
+     * total count. Before adding any new caller of the unpaginated
+     * {@code (null, null, null)} form, prefer a lean, SQL-side query for
+     * just the fields actually needed - see {@code SupplierBrandAssociationQuery.sql}
+     * for the pattern this Stage established.
+     */
     public List<OrderCandidateResponse> findOrderCandidates(String brandCode, String supplierCode, String keyword) {
         List<LegacyStockRow> rows = legacyStockReadRepository.findOrderCandidates(brandCode, supplierCode, keyword);
         // Post-Freeze Business Refinement: one bulk restock-expectation
@@ -75,10 +94,14 @@ public class OrderCandidateService {
      * gops-stage3-real-data-compatibility-review.md Finding #3 - a
      * confirmed real Brand has 18,596 SKUs and this List had no pagination
      * at all). Backend-paginated - {@link #findOrderCandidates} itself is
-     * deliberately left unchanged, since {@code DashboardService} and
-     * {@code SupplierMasterService} both call it expecting the complete,
-     * unpaginated result for their own aggregate/KPI computation, not a
-     * single page. Reuses {@link LegacyStockReadRepository#findStockSalesList}/
+     * deliberately left unchanged (kept as a general-purpose primitive; see
+     * its own Javadoc). Historical note, corrected in Stage 5H (the
+     * original reason given here - that {@code DashboardService} and
+     * {@code SupplierMasterService} both called it expecting the complete,
+     * unpaginated result - is no longer true of either: {@code
+     * DashboardService} stopped in Stage 5E's RC-A, {@code
+     * SupplierMasterService} stopped in Stage 5H's RC-H). Reuses
+     * {@link LegacyStockReadRepository#findStockSalesList}/
      * {@link LegacyStockReadRepository#countStockSalesList} - the exact
      * SQL/pagination contract {@code StockSalesService} already uses
      * (same base query, same default/max page size), not a second,

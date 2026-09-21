@@ -80,14 +80,16 @@ class OrderCandidateServicePaginationIntegrationTest {
         assertEquals(OrderCandidateService.MAX_PAGE_SIZE, page.size());
     }
 
-    /** {@link OrderCandidateService#findOrderCandidates} itself must stay
-     * exactly as it was - {@code SupplierMasterService} calls it expecting
-     * the full, unpaginated result for its own aggregate computation.
-     * (Stage 5E Targeted Remediation RC-A, docs/real-data-audit/
-     * gops-stage5e-targeted-remediation.md: {@code DashboardService} no
-     * longer calls this method at all - it now uses its own dedicated,
-     * leaner queries - but this method's own contract is unchanged for
-     * every caller that still relies on it.) */
+    /** {@link OrderCandidateService#findOrderCandidates}'s unpaginated
+     * contract must stay correct even though, as of Stage 5H (docs/real-data-audit/
+     * gops-stage5h-systematic-performance-remediation.md, Dead Full-Catalog
+     * Path Audit), it has no HTTP-reachable caller left -
+     * {@code DashboardService} stopped calling it in Stage 5E's RC-A and
+     * {@code SupplierMasterService} stopped calling it in Stage 5H's RC-H
+     * (replaced with a lean Supplier/Brand-association-only query). Kept as
+     * a correctness cross-check against {@link OrderCandidateService#findOrderCandidatesPage}'s
+     * total count, and to guard the method itself in case a future caller
+     * needs a genuine unpaginated browse. */
     @Test
     void unpaginatedFindOrderCandidatesStillReturnsEveryRow() {
         List<OrderCandidateResponse> all = orderCandidateService.findOrderCandidates(null, null, null);

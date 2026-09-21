@@ -42,6 +42,10 @@ public class LegacyStockReadRepository {
     // already-paginated set.
     private static final String SKU_IDS_QUERY_RESOURCE = "legacy/RecommendedQtySkuIdsQuery.sql";
     private static final String SKU_IDS_COUNT_QUERY_RESOURCE = "legacy/RecommendedQtySkuIdsCountQuery.sql";
+    // Stage 5H Systematic Performance Remediation (RC-I) - see
+    // RecommendedQtySkuIdsLeanQuery.sql's own header comment.
+    private static final String SKU_IDS_LEAN_QUERY_RESOURCE = "legacy/RecommendedQtySkuIdsLeanQuery.sql";
+    private static final String SKU_IDS_LEAN_COUNT_QUERY_RESOURCE = "legacy/RecommendedQtySkuIdsLeanCountQuery.sql";
     // Stage 5E Targeted Remediation (RC-A): Dashboard-only queries - see
     // each file's own header comment.
     private static final String DASHBOARD_STOCK_AGGREGATE_QUERY_RESOURCE = "legacy/DashboardStockAggregateQuery.sql";
@@ -52,6 +56,8 @@ public class LegacyStockReadRepository {
     private final String poHistorySql;
     private final String skuIdsSql;
     private final String skuIdsCountSql;
+    private final String skuIdsLeanSql;
+    private final String skuIdsLeanCountSql;
     private final String dashboardStockAggregateSql;
     private final String dashboardCandidateInputsSql;
 
@@ -61,6 +67,8 @@ public class LegacyStockReadRepository {
         this.poHistorySql = loadSql(PO_HISTORY_QUERY_RESOURCE);
         this.skuIdsSql = loadSql(SKU_IDS_QUERY_RESOURCE);
         this.skuIdsCountSql = loadSql(SKU_IDS_COUNT_QUERY_RESOURCE);
+        this.skuIdsLeanSql = loadSql(SKU_IDS_LEAN_QUERY_RESOURCE);
+        this.skuIdsLeanCountSql = loadSql(SKU_IDS_LEAN_COUNT_QUERY_RESOURCE);
         this.dashboardStockAggregateSql = loadSql(DASHBOARD_STOCK_AGGREGATE_QUERY_RESOURCE);
         this.dashboardCandidateInputsSql = loadSql(DASHBOARD_CANDIDATE_INPUTS_QUERY_RESOURCE);
     }
@@ -161,7 +169,8 @@ public class LegacyStockReadRepository {
      */
     @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
     public List<LegacyStockRow> findStockSalesList(StockSalesListFilter filter, int limit, int offset) {
-        List<String> pageItemCodes = legacyJdbc.query(skuIdsSql,
+        String sqlToUse = needsFullSkuIdsQuery(filter) ? skuIdsSql : skuIdsLeanSql;
+        List<String> pageItemCodes = legacyJdbc.query(sqlToUse,
                 toSkuIdsParams(filter).addValue("limit", limit).addValue("offset", offset),
                 (rs, rowNum) -> rs.getString("item_cd"));
         if (pageItemCodes.isEmpty()) {
@@ -172,8 +181,26 @@ public class LegacyStockReadRepository {
 
     @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
     public long countStockSalesList(StockSalesListFilter filter) {
-        Long count = legacyJdbc.queryForObject(skuIdsCountSql, toSkuIdsParams(filter), Long.class);
+        String sqlToUse = needsFullSkuIdsQuery(filter) ? skuIdsCountSql : skuIdsLeanCountSql;
+        Long count = legacyJdbc.queryForObject(sqlToUse, toSkuIdsParams(filter), Long.class);
         return count == null ? 0L : count;
+    }
+
+    /**
+     * Stage 5H Systematic Performance Remediation (RC-I, docs/real-data-audit/
+     * gops-stage5h-systematic-performance-remediation.md): {@code true} only
+     * when a filter is active that the lean Step 1 query
+     * (RecommendedQtySkuIdsLeanQuery.sql) structurally cannot answer -
+     * :supplierCode (needs {@code latest_po}) or :minStock/:maxStock/
+     * :minSales/:maxSales (need the stock/sales correlated subqueries and
+     * {@code ms_stk agg}). brandCode/keyword/includeDeleted are supported
+     * by both variants identically, so the common "browse a Brand" and
+     * fully-unfiltered "view all" cases always take the lean, faster path.
+     */
+    private static boolean needsFullSkuIdsQuery(StockSalesListFilter filter) {
+        return filter.supplierCode() != null
+                || filter.minStock() != null || filter.maxStock() != null
+                || filter.minSales() != null || filter.maxSales() != null;
     }
 
     private static MapSqlParameterSource toSkuIdsParams(StockSalesListFilter f) {
