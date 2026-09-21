@@ -70,6 +70,42 @@ class SafetyGuardIntegrationTest {
     }
 
     /**
+     * Stage 5B Snapshot Validation Gate (docs/real-data-audit/
+     * gops-stage5b-production-like-snapshot-environment.md §5/§6): the
+     * snapshot-validation profile alone, without the exact-match
+     * GOPS_SNAPSHOT_VALIDATION_ALLOWED_DB_NAME env var, must grant nothing -
+     * still fails before any DataSource connection attempt, so this does not
+     * require Docker.
+     */
+    @Test
+    void applicationContextFailsToStart_whenSnapshotProfileActiveButDbPropertyMissing() {
+        assertThrows(SafetyGuardViolationException.class, () ->
+            boot("local,snapshot-validation",
+                "app.legacy.datasource.jdbc-url=jdbc:mysql://localhost:33199/goo_prod_snapshot_20260916",
+                "app.prototype.datasource.jdbc-url=jdbc:postgresql://localhost:54321/gsys_portal"
+            )
+        );
+    }
+
+    /**
+     * The real Legacy Production schema name ("goo") must remain permanently
+     * denied even when the snapshot-validation profile is active and an
+     * attacker/misconfiguration sets the exact-match property to "goo"
+     * itself - proven end-to-end, not just at the static-method level (see
+     * SafetyGuardEnvironmentPostProcessorTest.goo_isNeverAllowed_*).
+     */
+    @Test
+    void applicationContextFailsToStart_whenSnapshotProfileActiveAndPropertySetToGoo() {
+        assertThrows(SafetyGuardViolationException.class, () ->
+            boot("local,snapshot-validation",
+                "app.legacy.datasource.jdbc-url=jdbc:mysql://localhost:3306/goo",
+                "app.prototype.datasource.jdbc-url=jdbc:postgresql://localhost:54321/gsys_portal",
+                "GOPS_SNAPSHOT_VALIDATION_ALLOWED_DB_NAME=goo"
+            )
+        );
+    }
+
+    /**
      * Boots the real application (minus the web server, to keep the test
      * fast) with the given profile and property overrides, closing the
      * context immediately if it does start.
