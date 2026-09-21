@@ -50,14 +50,19 @@ import java.util.Set;
  * every row-creation path, docs/gops-phase1-final-cleanup-report.md) to be
  * 100% Test-only: {@code supplier_contact} rows whose email ends in
  * {@code @example.com} (never used by any migration/seed data) and
- * {@code mail_template} rows literally named {@code "Follow-up E2E Template %"}.
+ * {@code mail_template} rows literally named {@code "Follow-up E2E Template %"}
+ * or (Final E2E Remediation, docs/gops-final-e2e-failure-root-cause-analysis.md
+ * §12-13: every E2E spec that dynamically creates a Mail Template now names
+ * it with this prefix, closing the "majority of mail_template rows remain
+ * ambiguous" gap the RCA doc identified) {@code "E2E %"}.
  * Both predicates also require {@code is_active = false}, so an Active row -
  * Demo Business Master or otherwise - is never touched (Regression C).
  * {@code manufacturer_channel}, {@code supplier_region_classification}, and
- * every other {@code mail_template} row are deliberately left alone: no
- * content-based marker distinguishes their E2E-created rows from genuine
- * Demo Master data today, and "曖昧な条件によるDELETEは禁止" (100%識別できない場合：削除しない)
- * is an absolute rule here, not a preference - see Known Limitations in the
+ * every {@code mail_template} row not matching one of the two markers above
+ * are deliberately left alone: no content-based marker distinguishes their
+ * E2E-created rows from genuine Demo Master data today, and
+ * "曖昧な条件によるDELETEは禁止" (100%識別できない場合：削除しない) is an
+ * absolute rule here, not a preference - see Known Limitations in the
  * Freeze doc for the follow-up. */
 @Component
 public class DemoResetRunner implements CommandLineRunner {
@@ -150,11 +155,12 @@ public class DemoResetRunner implements CommandLineRunner {
         int contactsDeleted = prototypeJdbc.update(
                 "DELETE FROM supplier_contact WHERE is_active = false AND email LIKE '%@example.com'");
         int templatesDeleted = prototypeJdbc.update(
-                "DELETE FROM mail_template WHERE is_active = false AND template_name LIKE 'Follow-up E2E Template %'");
+                "DELETE FROM mail_template WHERE is_active = false "
+                        + "AND (template_name LIKE 'Follow-up E2E Template %' OR template_name LIKE 'E2E %')");
 
         log.warn("=== TEST MASTER DATA CLEANUP: deleted {} supplier_contact row(s) "
                         + "(is_active=false AND email LIKE '%@example.com') and {} mail_template row(s) "
-                        + "(is_active=false AND template_name LIKE 'Follow-up E2E Template %'). "
+                        + "(is_active=false AND template_name LIKE 'Follow-up E2E Template %' OR 'E2E %'). "
                         + "manufacturer_channel, supplier_region_classification, official_po_short_code, and every "
                         + "other mail_template row are left untouched - no reliable content-based Test marker "
                         + "exists for them yet. ===",

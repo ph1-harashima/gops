@@ -106,6 +106,27 @@ class DemoResetRunnerCleanupTestMasterDataIntegrationTest {
         assertEquals(0, countMailTemplateByName(name));
     }
 
+    /** Final E2E Remediation (docs/gops-final-e2e-failure-root-cause-analysis.md
+     * §12-13): every E2E spec that dynamically creates a Mail Template now
+     * names it with an "E2E " prefix (e.g. mobile-responsive.spec.ts's
+     * "E2E Mobile M6 Template", email-send.spec.ts's "E2E PO Template") -
+     * this second, broader marker closes the gap where only 2 of 201
+     * accumulated mail_template rows matched the original, narrower
+     * "Follow-up E2E Template %" pattern. Uses a distinctive numeric suffix
+     * (like the "Follow-up E2E Template" tests above), never the literal
+     * names actual E2E specs use, so this fixture can never collide with a
+     * real, already-committed row of the same name from an actual E2E run
+     * against this same shared local DB. */
+    @Test
+    void deletesInactiveE2EPrefixedMailTemplate() throws Exception {
+        String name = "E2E Cleanup Regression Template 999999999999";
+        insertMailTemplate(name, false);
+
+        demoResetRunner.cleanupTestMasterData();
+
+        assertEquals(0, countMailTemplateByName(name));
+    }
+
     // --- B: ambiguous rows (no confident marker) survive -----------------
 
     @Test
@@ -143,6 +164,16 @@ class DemoResetRunnerCleanupTestMasterDataIntegrationTest {
     @Test
     void keepsActiveFollowUpE2EMailTemplate() throws Exception {
         String name = "Follow-up E2E Template 888888888888";
+        insertMailTemplate(name, true);
+
+        demoResetRunner.cleanupTestMasterData();
+
+        assertEquals(1, countMailTemplateByName(name));
+    }
+
+    @Test
+    void keepsActiveE2EPrefixedMailTemplate() throws Exception {
+        String name = "E2E Cleanup Regression Template 888888888888";
         insertMailTemplate(name, true);
 
         demoResetRunner.cleanupTestMasterData();

@@ -96,7 +96,13 @@ test.describe('Phase 9-E: Real Email Send', () => {
     // --- Mail Template ---
     await page.goto('/admin/mail-templates')
     await page.getByTestId('mail-template-create-button').click()
-    await page.getByTestId('mail-template-templateName').locator('input').fill('PO Template')
+    // Final E2E Remediation (Master Data Ownership / Namespace Convention):
+    // "E2E " prefix marks this row as Test-owned (matches
+    // DemoResetRunner.cleanupTestMasterData()'s widened mail_template
+    // pattern, and this file's own cleanup test below) - toContainText
+    // assertions below still match on the un-prefixed substring, so no
+    // assertion weakening.
+    await page.getByTestId('mail-template-templateName').locator('input').fill('E2E PO Template')
     await page.getByTestId('mail-template-supplierCode').locator('input').fill('SUP_ALPHA')
     await page.getByTestId('mail-template-brandCode').locator('input').fill('BR_OUTDOOR')
     await page.getByTestId('mail-template-subjectTemplate').locator('input').fill('PO {{poNo}}')
@@ -352,16 +358,26 @@ test.describe('Phase 9-E: Real Email Send', () => {
 
   // Runs last within this file (Playwright executes tests within one
   // describe block in declaration order by default, single worker in this
-  // project's playwright.config.ts). Deactivates the SUP_ALPHA/BR_OUTDOOR
-  // Supplier Contact / Mail Template / Manufacturer Channel rows the two
-  // tests above created for real (E2E hits the actual running server, not
-  // a rolled-back transaction) - other specs in a full-suite run
-  // (supplier-contact-mail-template.spec.ts's own Scenario C/D, in
-  // particular) assume SUP_ALPHA/BR_OUTDOOR starts with no active Contact/
-  // Template configured yet, the same assumption this file's own tests
-  // relied on when THEY ran. Deactivating (not deleting) matches every
-  // Master's own Uniqueness policy (re-adding after deactivation is
-  // explicitly allowed).
+  // project's playwright.config.ts). Deactivates the Supplier Contact / Mail
+  // Template / Manufacturer Channel rows the two tests above created for
+  // real (E2E hits the actual running server, not a rolled-back
+  // transaction). Deactivating (not deleting) matches every Master's own
+  // Uniqueness policy (re-adding after deactivation is explicitly allowed).
+  //
+  // Final E2E Remediation (Master Data Ownership Principle,
+  // docs/gops-final-e2e-failure-root-cause-analysis.md §9): Supplier
+  // Contact/Mail Template are now matched by OWNED IDENTITY (the exact
+  // email/templateName this file's own tests above created), not by
+  // supplierCode+brandCode+active alone - the prior broad filter would
+  // deactivate ANY active row sharing SUP_ALPHA/BR_OUTDOOR regardless of
+  // which spec (or manual verification session) created it, which is what
+  // let it silently absorb unrelated orphan rows. manufacturer_channel keeps
+  // its existing business-key filter: unlike the other two tables it has no
+  // per-row identity a test creates fresh each time (every spec reuses the
+  // same fixed supplierCode/brandCode via the shared ensureManufacturerChannel
+  // idiom - Freeze Blocker-2's own resolution for this table, per
+  // docs/gops-phase1-final-cleanup-report.md §7.2), so there is no
+  // "other spec's row" to accidentally catch here.
   test('cleanup: deactivate the Master data rows the tests above created', async ({ page }) => {
     await login(page, ADMIN_USERNAME, ADMIN_PASSWORD)
 
@@ -376,7 +392,7 @@ test.describe('Phase 9-E: Real Email Send', () => {
 
     const contacts = await (await page.request.get('/api/admin/supplier-contacts')).json()
     for (const c of contacts) {
-      if (c.supplierCode === 'SUP_ALPHA' && c.brandCode === 'BR_OUTDOOR' && c.active) {
+      if (c.email === 'taro@example.com' && c.active) {
         await page.request.put(`/api/admin/supplier-contacts/${c.id}`, {
           data: { ...c, active: false },
         })
@@ -385,7 +401,7 @@ test.describe('Phase 9-E: Real Email Send', () => {
 
     const templates = await (await page.request.get('/api/admin/mail-templates')).json()
     for (const t of templates) {
-      if (t.supplierCode === 'SUP_ALPHA' && t.brandCode === 'BR_OUTDOOR' && t.active) {
+      if (t.templateName === 'E2E PO Template' && t.active) {
         await page.request.put(`/api/admin/mail-templates/${t.id}`, {
           data: { ...t, active: false },
         })

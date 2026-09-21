@@ -93,12 +93,27 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Submit for Approval -
   await page.getByTestId('save-draft-button').click()
   await expect(page.getByText('保存しました。')).toBeVisible()
 
-  // ---- Preview (before approval - no PO No. assigned yet) ----
+  // ---- Preview (before approval - no Official PO No. assigned yet) ----
   // Phase 6-A: the returnTo chain is forwarded from Draft to Preview too.
+  // Final E2E Remediation: Post-Freeze Visual Walkthrough Findings Fix
+  // (Finding #1, commit d50ac09) split the old single ambiguous "PO No."
+  // field (prototypePoNoUnassigned: "未採番") into two explicit fields -
+  // Portal管理番号 (prototypePoNo ?? draftNo, always has a value) and
+  // 正式PO番号 (officialPoNo, falls back to officialPoNoUnassigned: "未発行"
+  // until an Official PO Integration Request is made). This test's own flow
+  // never requests one, so 正式PO番号 stays 未発行 throughout - this
+  // assertion follows the current canonical wording (was asserting a string
+  // that no longer exists anywhere in the app after that rename).
   await page.getByTestId('go-to-preview-button').click()
   await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview(\\?.*)?$`))
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/candidates?brandCode=BR_KITCHEN')
-  await expect(page.getByText('未採番')).toBeVisible()
+  // exact:true - DemoManufacturerCommunicationFactory's own Demo mail preview
+  // body also renders "正式PO番号: 未発行" as one line of its (unrelated)
+  // multi-line text, so a plain substring match on '未発行' alone hits that
+  // too (Playwright strict-mode violation) - the exact, whole-element match
+  // on this field's own full label+value text is unambiguous.
+  await expect(page.getByText('正式PO番号: 未発行', { exact: true })).toBeVisible()
+  const portalManagementNoBeforeApproval = await page.getByText('Portal管理番号').innerText()
 
   // ---- 承認依頼 (Phase 7-C1: back to Draft, Submit for Approval) ----
   await page.getByRole('button', { name: '発注ドラフトへ戻る' }).click()
@@ -120,14 +135,24 @@ test('Core Demo Scenario: Candidate -> Draft -> Preview -> Submit for Approval -
   await page.getByTestId('approve-dialog-confirm').click()
   await expect(page.getByText('承認しました。')).toBeVisible()
 
-  // Approved -> PO No. is now assigned, and 発注詳細's primary Action is
-  // "PO プレビューを見る" (Phase 7-C1 16章: APPROVED replaces the old
-  // READY_TO_ORDER Preview entry point).
+  // Approved -> Portal管理番号 (prototypePoNo) is now assigned, and
+  // 発注詳細's primary Action is "PO プレビューを見る" (Phase 7-C1 16章:
+  // APPROVED replaces the old READY_TO_ORDER Preview entry point).
+  // Final E2E Remediation: confirmed via OrderStatusTransitionService#approve
+  // (prototypePoNo is generated and set exactly here, at Approval, not
+  // earlier) that Portal管理番号's displayed value transitions from draftNo
+  // to the real prototypePoNo at this point - the meaningful equivalent of
+  // this test's original "PO No. is now assigned" check under the current,
+  // split-field design. 正式PO番号 still correctly shows 未発行 here (this
+  // test never requests an Official PO Integration - asserting its absence
+  // would be a false check, not a stronger one).
   const goToPreview = page.getByTestId('order-detail-primary-action')
   await expect(goToPreview).toHaveText('PO プレビューを見る')
   await goToPreview.click()
   await expect(page).toHaveURL(new RegExp(`/orders/drafts/${draftId}/preview(\\?.*)?$`))
-  await expect(page.getByText('未採番')).toHaveCount(0)
+  await expect(page.getByText('正式PO番号: 未発行', { exact: true })).toBeVisible()
+  const portalManagementNoAfterApproval = await page.getByText('Portal管理番号').innerText()
+  expect(portalManagementNoAfterApproval).not.toBe(portalManagementNoBeforeApproval)
 
   // ---- Demo Send (メール発注済みとして記録) - continuing as this ADMIN session
   // since Demo Send itself is not Role-restricted (SupplierWorkflowController

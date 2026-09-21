@@ -377,7 +377,12 @@ test.describe('Mobile Scenarios (390x844)', () => {
 
     await page.goto('/admin/mail-templates')
     await page.getByTestId('mail-template-create-button').click()
-    await page.getByTestId('mail-template-templateName').locator('input').fill('Mobile M6 Template')
+    // Final E2E Remediation (Master Data Ownership / Namespace Convention):
+    // "E2E " prefix marks this row as Test-owned (matches
+    // DemoResetRunner.cleanupTestMasterData()'s widened mail_template
+    // pattern) - toContainText below still matches on the un-prefixed
+    // substring, so no assertion weakening.
+    await page.getByTestId('mail-template-templateName').locator('input').fill('E2E Mobile M6 Template')
     await page.getByTestId('mail-template-supplierCode').locator('input').fill(supplierCode)
     await page.getByTestId('mail-template-brandCode').locator('input').fill(brandCode)
     await page.getByTestId('mail-template-subjectTemplate').locator('input').fill('PO {{poNo}}')
@@ -405,6 +410,31 @@ test.describe('Mobile Scenarios (390x844)', () => {
 
     await page.getByTestId('email-send-confirm-dialog-confirm').click()
     await expect(page.getByText('メールを送信しました。')).toBeVisible()
+
+    // Final E2E Remediation (Master Data Ownership Principle,
+    // docs/gops-final-e2e-failure-root-cause-analysis.md §8-9): this test
+    // creates a Supplier Contact and Mail Template for SUP_BETA/BR_HOME but
+    // previously left both active with no cleanup of its own, causing them
+    // to collide with any later test targeting the same key. Deactivate only
+    // the exact rows THIS test created (matched by the unique email/
+    // templateName it just used, not by supplierCode+brandCode alone, so a
+    // different spec's row for the same key is never touched).
+    const contacts = await (await page.request.get('/api/admin/supplier-contacts')).json()
+    for (const c of contacts) {
+      if (c.email === 'm6-mobile-scenario@example.com' && c.active) {
+        await page.request.put(`/api/admin/supplier-contacts/${c.id}`, {
+          data: { ...c, active: false },
+        })
+      }
+    }
+    const templates = await (await page.request.get('/api/admin/mail-templates')).json()
+    for (const t of templates) {
+      if (t.templateName === 'E2E Mobile M6 Template' && t.active) {
+        await page.request.put(`/api/admin/mail-templates/${t.id}`, {
+          data: { ...t, active: false },
+        })
+      }
+    }
   })
 
   test('M7 (Finding #7): SKU Detail long product name does not consume most of First View', async ({ page }) => {
