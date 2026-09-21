@@ -25,7 +25,16 @@ public class OverseasRecommendedQtyStrategy implements RecommendedQtyStrategy {
 
     @Override
     public Integer calculate(LegacyStockRow row) {
-        Integer logicalQty = sum(row.currentStock(), row.openPo(), row.openArrival(), row.openShip());
+        // Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
+        // gops-stage3b-legacy-stock-logic-audit.md §5, confirmed via Legacy
+        // source): LOGICAL_QTY = PHISICAL_QTY + open_po + open_ship only -
+        // ARR_QTY is never a LOGICAL_QTY summand in Legacy's own SQL.
+        // row.currentStock() is PHISICAL_QTY (RecommendedQtyReadQuery.sql) -
+        // the display figure and this calc input are the same value by
+        // design, not a coincidence; row.openArrival() itself remains a
+        // separate, correctly-sourced field used only for direct display
+        // elsewhere, never folded into this calc.
+        Integer logicalQty = sum(row.currentStock(), row.openPo(), row.openShip());
         Integer stkStandard = row.stkStandard();
 
         List<Integer> poQtyList = List.of(row.openPo() == null ? 0 : row.openPo());

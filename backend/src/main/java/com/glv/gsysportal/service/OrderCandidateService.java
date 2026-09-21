@@ -1,8 +1,10 @@
 package com.glv.gsysportal.service;
 
 import com.glv.gsysportal.dto.response.OrderCandidateResponse;
+import com.glv.gsysportal.dto.response.PageResponse;
 import com.glv.gsysportal.dto.response.SkuRestockExpectationResponse;
 import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository;
+import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository.StockSalesListFilter;
 import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,14 @@ import java.util.Map;
  */
 @Service
 public class OrderCandidateService {
+
+    // Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
+    // gops-stage4-targeted-real-data-remediation.md): matches
+    // StockSalesService's own MAX/DEFAULT_PAGE_SIZE exactly - one shared
+    // Candidate List / Stock-Sales List pagination contract, not two
+    // independently-chosen ones.
+    static final int MAX_PAGE_SIZE = 100;
+    static final int DEFAULT_PAGE_SIZE = 20;
 
     /**
      * All data in this Step is sourced from the Legacy Demo Instance
@@ -51,6 +61,50 @@ public class OrderCandidateService {
         return rows.stream().map(row -> toResponse(row, restockBySku.get(row.itemCd()))).toList();
     }
 
+    /**
+     * Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
+     * gops-stage3-real-data-compatibility-review.md Finding #3 - a
+     * confirmed real Brand has 18,596 SKUs and this List had no pagination
+     * at all). Backend-paginated - {@link #findOrderCandidates} itself is
+     * deliberately left unchanged, since {@code DashboardService} and
+     * {@code SupplierMasterService} both call it expecting the complete,
+     * unpaginated result for their own aggregate/KPI computation, not a
+     * single page. Reuses {@link LegacyStockReadRepository#findStockSalesList}/
+     * {@link LegacyStockReadRepository#countStockSalesList} - the exact
+     * SQL/pagination contract {@code StockSalesService} already uses
+     * (same base query, same default/max page size), not a second,
+     * independently-maintained pagination implementation.
+     */
+    public PageResponse<OrderCandidateResponse> findOrderCandidatesPage(String brandCode, String supplierCode, String keyword,
+                                                                          Integer page, Integer size) {
+        StockSalesListFilter filter = new StockSalesListFilter(
+                blankToNull(keyword), blankToNull(brandCode), blankToNull(supplierCode),
+                null, null, null, null);
+        int clampedSize = clampSize(size);
+        int clampedPage = page == null || page < 0 ? 0 : page;
+        int offset = clampedPage * clampedSize;
+
+        long total = legacyStockReadRepository.countStockSalesList(filter);
+        List<LegacyStockRow> rows = legacyStockReadRepository.findStockSalesList(filter, clampedSize, offset);
+        Map<String, SkuRestockExpectationResponse> restockBySku =
+                restockExpectationService.getBulk(rows.stream().map(LegacyStockRow::itemCd).toList());
+        List<OrderCandidateResponse> content = rows.stream()
+                .map(row -> toResponse(row, restockBySku.get(row.itemCd())))
+                .toList();
+        return PageResponse.of(content, clampedPage, clampedSize, total);
+    }
+
+    private static int clampSize(Integer size) {
+        if (size == null || size <= 0) {
+            return DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(size, MAX_PAGE_SIZE);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
     OrderCandidateResponse toResponse(LegacyStockRow row, SkuRestockExpectationResponse restock) {
         Integer calc4 = recommendedQtyCalculator.calc4(row);
         return new OrderCandidateResponse(
@@ -68,6 +122,7 @@ public class OrderCandidateService {
                 row.leadTime(),
                 calc4,
                 row.itemStatus(),
+                row.discon(),
                 row.unitPrice(),
                 row.currency(),
                 DATA_SOURCE_CODE,

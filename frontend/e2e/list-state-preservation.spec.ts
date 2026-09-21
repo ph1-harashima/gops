@@ -36,6 +36,41 @@ async function selectFirstRealOption(page: Page, labelText: string): Promise<str
   return text
 }
 
+/**
+ * Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
+ * gops-stage4-targeted-real-data-remediation.md Remediation C): Candidate
+ * List's Brand/Supplier Filters are now typed-code TextFields, not a
+ * Select (Backend Pagination means the full option list is no longer
+ * fetched client-side to populate a dropdown - see CandidateListPage.tsx's
+ * own comment on this change). Discovers a real, currently-in-use Brand
+ * code the same "dynamic, not hardcoded" way this file's own header
+ * comment already established - via the live API (the same unpaginated
+ * data DashboardService itself relies on) - then types it into the field
+ * and blurs to commit, mirroring CandidateListPage's own onBlur contract.
+ */
+async function fillCandidateBrandFilter(page: Page): Promise<{ code: string; name: string }> {
+  const candidates = await (await page.request.get('/api/order-candidates?page=0&size=1')).json()
+  const first = candidates.content[0]
+  const input = page.getByTestId('candidate-filter-brand').locator('input')
+  await input.fill(first.brandCode)
+  await input.blur()
+  return { code: first.brandCode, name: first.brandName ?? first.brandCode }
+}
+
+/** Same idea as {@link fillCandidateBrandFilter}, scoped to whichever
+ * Brand is already the active Filter (via the same live API, so the
+ * discovered Supplier is guaranteed to have at least one candidate under
+ * that Brand - no "0 results" flake from an incompatible Brand+Supplier
+ * combination). */
+async function fillCandidateSupplierFilter(page: Page, brandCode: string): Promise<string> {
+  const candidates = await (await page.request.get(`/api/order-candidates?brandCode=${brandCode}&page=0&size=1`)).json()
+  const first = candidates.content[0]
+  const input = page.getByTestId('candidate-filter-supplier').locator('input')
+  await input.fill(first.supplierCode)
+  await input.blur()
+  return first.supplierCode
+}
+
 test.describe('Phase 6-A: List State Preservation', () => {
   test('Scenario A: Candidate List Filter survives a SKU Detail round trip', async ({ page }) => {
     await login(page)
@@ -44,18 +79,19 @@ test.describe('Phase 6-A: List State Preservation', () => {
     await page.getByTestId('candidates-view-all-button').click()
     await expect(page).toHaveURL(/\/candidates\?recommendedOnly=true$/)
 
-    const brandName = await selectFirstRealOption(page, 'ブランド')
+    const brand = await fillCandidateBrandFilter(page)
     await expect(page).toHaveURL(/brandCode=/)
-    await selectFirstRealOption(page, 'メーカー')
+    const supplierCode = await fillCandidateSupplierFilter(page, brand.code)
     await expect(page).toHaveURL(/supplierCode=/)
 
     const listUrl = page.url()
     const brandCode = new URL(listUrl).searchParams.get('brandCode')
-    const supplierCode = new URL(listUrl).searchParams.get('supplierCode')
-    expect(brandCode).toBeTruthy()
-    expect(supplierCode).toBeTruthy()
+    const urlSupplierCode = new URL(listUrl).searchParams.get('supplierCode')
+    expect(brandCode).toBe(brand.code)
+    expect(urlSupplierCode).toBe(supplierCode)
 
     // Open whichever row the Filter left visible.
+    await expect(page.getByText(/件の発注候補/)).toBeVisible()
     const firstSkuButton = page.locator('table tbody tr').first().getByRole('button').first()
     await expect(firstSkuButton).toBeVisible()
     await firstSkuButton.click()
@@ -63,14 +99,17 @@ test.describe('Phase 6-A: List State Preservation', () => {
 
     await page.getByRole('button', { name: '発注候補一覧へ戻る' }).click()
     await expect(page).toHaveURL(listUrl)
-    await expect(page.getByLabel('ブランド')).toHaveText(brandName)
+    // Stage 4: the Brand Filter is now a typed-code TextField, not a
+    // Select - it shows the raw brandCode, same convention
+    // useStockSalesList's own Brand/Supplier fields already use.
+    await expect(page.getByTestId('candidate-filter-brand').locator('input')).toHaveValue(brand.code)
   })
 
   test('Scenario B: Candidate List Filter survives a Draft creation round trip', async ({ page }) => {
     await login(page)
     await page.getByTestId('nav-candidates').click()
     await page.getByTestId('candidates-view-all-button').click()
-    await selectFirstRealOption(page, 'ブランド')
+    await fillCandidateBrandFilter(page)
     await expect(page).toHaveURL(/brandCode=/)
     const listUrl = page.url()
 
@@ -120,7 +159,7 @@ test.describe('Phase 6-A: List State Preservation', () => {
     await page.getByTestId('nav-candidates').click()
     await page.getByTestId('candidates-view-all-button').click()
 
-    const brandName = await selectFirstRealOption(page, 'ブランド')
+    const brand = await fillCandidateBrandFilter(page)
     await expect(page).toHaveURL(/brandCode=/)
     const filteredListUrl = page.url()
 
@@ -131,7 +170,7 @@ test.describe('Phase 6-A: List State Preservation', () => {
 
     await page.goBack()
     await expect(page).toHaveURL(filteredListUrl)
-    await expect(page.getByLabel('ブランド')).toHaveText(brandName)
+    await expect(page.getByTestId('candidate-filter-brand').locator('input')).toHaveValue(brand.code)
 
     await page.goForward()
     await expect(page).toHaveURL(detailUrl)

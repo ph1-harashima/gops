@@ -44,13 +44,23 @@ import java.util.Set;
 public class LegacyPriceReadRepository {
 
     private static final String QUERY_RESOURCE = "legacy/PriceReadQuery.sql";
+    private static final String LIST_QUERY_RESOURCE = "legacy/PriceCandidateListQuery.sql";
+    private static final String LIST_COUNT_QUERY_RESOURCE = "legacy/PriceCandidateListCountQuery.sql";
+    private static final String BASE_QUERY_PLACEHOLDER = "${BASE_QUERY}";
 
     private final NamedParameterJdbcTemplate legacyJdbc;
     private final String sql;
+    private final String listSql;
+    private final String listCountSql;
 
     public LegacyPriceReadRepository(NamedParameterJdbcTemplate legacyNamedParameterJdbcTemplate) {
         this.legacyJdbc = legacyNamedParameterJdbcTemplate;
         this.sql = loadSql(QUERY_RESOURCE);
+        // Stage 4 Targeted Real-Data Remediation (Remediation D): same
+        // base-query-reuse convention LegacyStockReadRepository's own
+        // constructor already established for StockSalesListQuery.sql.
+        this.listSql = loadSql(LIST_QUERY_RESOURCE).replace(BASE_QUERY_PLACEHOLDER, this.sql);
+        this.listCountSql = loadSql(LIST_COUNT_QUERY_RESOURCE).replace(BASE_QUERY_PLACEHOLDER, this.sql);
     }
 
     /** Re-fetch by identifier - see class Javadoc. Used for Product Selection
@@ -90,6 +100,53 @@ public class LegacyPriceReadRepository {
                 nullableBoolean(rs, "free_ship_flg"),
                 rs.getBigDecimal("ship_fee")
         ));
+    }
+
+    /**
+     * Stage 4 Targeted Real-Data Remediation (Remediation D,
+     * docs/real-data-audit/gops-stage4-targeted-real-data-remediation.md):
+     * Backend-paginated Product Selection search - a confirmed real Brand
+     * has 18,596 SKUs (Stage 2 §5) and {@link #search} itself returns every
+     * matching row unpaginated. {@link #search}/{@link #findBySkus} are
+     * deliberately left unchanged - Baseline Snapshot/Concurrency Check
+     * re-fetch by exact identifier and must keep working exactly as before.
+     */
+    @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
+    public List<LegacyPriceRow> searchPage(String brandCode, String itemGrpCode, String keyword, int limit, int offset) {
+        MapSqlParameterSource params = searchParams(brandCode, itemGrpCode, keyword)
+                .addValue("limit", limit)
+                .addValue("offset", offset);
+        return legacyJdbc.query(listSql, params, LegacyPriceReadRepository::mapRow);
+    }
+
+    @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
+    public long countSearch(String brandCode, String itemGrpCode, String keyword) {
+        Long count = legacyJdbc.queryForObject(listCountSql, searchParams(brandCode, itemGrpCode, keyword), Long.class);
+        return count == null ? 0L : count;
+    }
+
+    private static MapSqlParameterSource searchParams(String brandCode, String itemGrpCode, String keyword) {
+        return new MapSqlParameterSource()
+                .addValue("brandCode", brandCode)
+                .addValue("itemGrpCode", itemGrpCode)
+                .addValue("keyword", keyword)
+                .addValue("keywordLike", keyword == null ? null : "%" + keyword + "%");
+    }
+
+    private static LegacyPriceRow mapRow(ResultSet rs, int rowNum) throws SQLException {
+        return new LegacyPriceRow(
+                rs.getString("item_cd"),
+                rs.getString("item_name"),
+                rs.getString("brand_cd"),
+                rs.getString("brand_name"),
+                rs.getString("item_grp_cd"),
+                rs.getString("item_status"),
+                nullableBoolean(rs, "discon"),
+                rs.getBigDecimal("prc_sell_w_tax"),
+                rs.getBigDecimal("cost_this_month_avg"),
+                nullableBoolean(rs, "free_ship_flg"),
+                rs.getBigDecimal("ship_fee")
+        );
     }
 
     /** Distinct, non-null Item Group codes across all non-deleted items - the

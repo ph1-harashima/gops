@@ -5,6 +5,7 @@ import com.glv.gsysportal.dto.request.AddPriceChangeItemGroupRequest;
 import com.glv.gsysportal.dto.request.CreatePriceChangeSetRequest;
 import com.glv.gsysportal.dto.request.UpdatePriceChangeNoteRequest;
 import com.glv.gsysportal.dto.request.UpdateProposedPriceRequest;
+import com.glv.gsysportal.dto.response.PageResponse;
 import com.glv.gsysportal.dto.response.PriceChangeCandidateResponse;
 import com.glv.gsysportal.dto.response.PriceChangeSetDetailResponse;
 import com.glv.gsysportal.dto.response.PriceChangeSetSummary;
@@ -48,12 +49,21 @@ public class PriceChangeSetController {
         this.currentUserProvider = currentUserProvider;
     }
 
+    /**
+     * Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
+     * gops-stage4-targeted-real-data-remediation.md Remediation D):
+     * Backend-paginated - a confirmed real Brand has 18,596 SKUs (Stage 2
+     * §5) and this endpoint previously returned every matching row in one
+     * response, the same issue Order Candidate List had.
+     */
     @GetMapping("/api/price-changes/legacy-items")
-    public List<PriceChangeCandidateResponse> searchCandidates(
+    public PageResponse<PriceChangeCandidateResponse> searchCandidates(
             @RequestParam(required = false) String brandCode,
             @RequestParam(required = false) String itemGrpCd,
-            @RequestParam(required = false) String keyword) {
-        return priceChangeSetService.searchCandidates(brandCode, itemGrpCd, keyword);
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return priceChangeSetService.searchCandidatesPage(brandCode, itemGrpCd, keyword, page, size);
     }
 
     @GetMapping("/api/price-changes/item-groups")

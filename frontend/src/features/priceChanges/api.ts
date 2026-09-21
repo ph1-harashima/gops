@@ -5,6 +5,7 @@ import type {
   PriceChangeSetDetail,
   PriceChangeSetSummary,
 } from '../../shared/types/priceChange'
+import type { PageResponse } from '../../shared/types/pagination'
 
 async function fetchList(status?: string): Promise<PriceChangeSetSummary[]> {
   const { data } = await apiClient.get<PriceChangeSetSummary[]>('/price-changes', { params: { status } })
@@ -31,18 +32,33 @@ export function usePriceChangeDetail(id: number) {
   })
 }
 
-async function searchCandidates(params: { brandCode?: string; itemGrpCd?: string; keyword?: string }): Promise<PriceChangeCandidate[]> {
-  const { data } = await apiClient.get<PriceChangeCandidate[]>('/price-changes/legacy-items', { params })
+// Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
+// gops-stage4-targeted-real-data-remediation.md Remediation D):
+// Backend-paginated - a confirmed real Brand has 18,596 SKUs, and this
+// endpoint previously returned every matching row in one response.
+async function searchCandidates(
+  params: { brandCode?: string; itemGrpCd?: string; keyword?: string },
+  page: number,
+  size: number,
+): Promise<PageResponse<PriceChangeCandidate>> {
+  const { data } = await apiClient.get<PageResponse<PriceChangeCandidate>>('/price-changes/legacy-items', {
+    params: { ...params, page, size },
+  })
   return data
 }
 
 /** Product Selection search - deliberately NOT auto-run on every keystroke
  * (enabled gate below); callers trigger it explicitly (button click) to
  * avoid hammering the Legacy READ ONLY connection on every character. */
-export function usePriceChangeCandidates(params: { brandCode?: string; itemGrpCd?: string; keyword?: string }, enabled: boolean) {
+export function usePriceChangeCandidates(
+  params: { brandCode?: string; itemGrpCd?: string; keyword?: string },
+  enabled: boolean,
+  page: number,
+  size: number,
+) {
   return useQuery({
-    queryKey: ['price-changes', 'candidates', params],
-    queryFn: () => searchCandidates(params),
+    queryKey: ['price-changes', 'candidates', params, page, size],
+    queryFn: () => searchCandidates(params, page, size),
     enabled,
   })
 }

@@ -34,6 +34,8 @@
   "createDraft": "選択した{{count}}件でドラフト作成",
   "createDraftMixedSupplier": "複数のメーカーが混在しているため、ドラフトを作成できません。同一メーカーのSKUのみ選択してください。",
   "createDraftFailed": "ドラフトの作成に失敗しました（{{code}}）。",
+  "selectionLockedSupplier": "選択中のメーカー: {{supplier}}（他メーカーのSKUは選択できません）",
+  "pageFilteredEmpty": "このページに表示条件に合う発注候補はありません。他のページをご確認ください。",
   "brandList": {
     "title": "発注候補 - ブランド選択",
     "subtitle": "確認したいブランドを選択してください。",

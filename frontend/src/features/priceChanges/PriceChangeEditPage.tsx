@@ -16,6 +16,7 @@ import TableCell from '@mui/material/TableCell'
 import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
+import TablePagination from '@mui/material/TablePagination'
 import Divider from '@mui/material/Divider'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
@@ -82,6 +83,7 @@ export function PriceChangeEditPage() {
       },
       { replace: true },
     )
+    setCandidatePage(0)
   }
   const [itemGrpCd, setItemGrpCd] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -94,7 +96,16 @@ export function PriceChangeEditPage() {
     () => ({ brandCode: brandCode || undefined, itemGrpCd: itemGrpCd || undefined, keyword: keyword || undefined }),
     [brandCode, itemGrpCd, keyword],
   )
-  const { data: candidates, isFetching: candidatesLoading } = usePriceChangeCandidates(searchParams, searchArmed)
+  // Stage 4 Targeted Real-Data Remediation: local (not URL-driven) page
+  // state, matching this in-page search section's own existing local
+  // searchArmed/keyword/itemGrpCd convention - this is a sub-search inside
+  // the Edit screen, not its own route. Any Filter change re-arms at page 0.
+  const [candidatePage, setCandidatePage] = useState(0)
+  const [candidatePageSize, setCandidatePageSize] = useState(20)
+  const { data: candidatesPage, isFetching: candidatesLoading } = usePriceChangeCandidates(
+    searchParams, searchArmed, candidatePage, candidatePageSize,
+  )
+  const candidates = candidatesPage?.content
 
   const [noteDraft, setNoteDraft] = useState<string | null>(null)
   const [removeTarget, setRemoveTarget] = useState<{ detailId: number; itemCd: string } | null>(null)
@@ -221,7 +232,10 @@ export function PriceChangeEditPage() {
             label={t('priceChanges:productSelection.itemGroup')}
             sx={{ minWidth: 200 }}
             value={itemGrpCd}
-            onChange={(e) => setItemGrpCd(e.target.value)}
+            onChange={(e) => {
+              setItemGrpCd(e.target.value)
+              setCandidatePage(0)
+            }}
             data-testid="item-group-select"
           >
             <MenuItem value="">{t('priceChanges:productSelection.allItemGroups')}</MenuItem>
@@ -244,10 +258,18 @@ export function PriceChangeEditPage() {
             sx={{ minWidth: 220 }}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && setSearchArmed(true)}
+            onKeyDown={(e) => e.key === 'Enter' && (setSearchArmed(true), setCandidatePage(0))}
             data-testid="candidate-keyword-input"
           />
-          <Button variant="outlined" size="small" onClick={() => setSearchArmed(true)} data-testid="search-candidates-button">
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => {
+              setSearchArmed(true)
+              setCandidatePage(0)
+            }}
+            data-testid="search-candidates-button"
+          >
             {t('priceChanges:productSelection.search')}
           </Button>
           <Button
@@ -263,10 +285,10 @@ export function PriceChangeEditPage() {
 
         {candidatesLoading && <CircularProgress size={20} />}
 
-        {!candidatesLoading && searchArmed && candidates && (
+        {!candidatesLoading && searchArmed && candidatesPage && candidates && (
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              {t('priceChanges:productSelection.resultCount', { count: candidates.length })}
+              {t('priceChanges:productSelection.resultCount', { count: candidatesPage.totalElements })}
             </Typography>
             <TableContainer sx={{ maxHeight: 300 }} data-testid="candidate-search-results">
               <Table size="small" stickyHeader>
@@ -306,6 +328,19 @@ export function PriceChangeEditPage() {
                 </TableBody>
               </Table>
             </TableContainer>
+            <TablePagination
+              component="div"
+              count={candidatesPage.totalElements}
+              page={candidatesPage.page}
+              rowsPerPage={candidatesPage.size}
+              rowsPerPageOptions={[10, 20, 50, 100]}
+              onPageChange={(_e, newPage) => setCandidatePage(newPage)}
+              onRowsPerPageChange={(e) => {
+                setCandidatePageSize(Number(e.target.value))
+                setCandidatePage(0)
+              }}
+              data-testid="price-change-candidates-pagination"
+            />
           </>
         )}
         {!searchArmed && (

@@ -27,21 +27,27 @@
 --     SlTempostarImportBatch.java in Phase 0.5 audit)
 --   - MS_COMM brand lookup: CATE_ID = 'MS_BRAND'
 --
--- REDUCED vs. Legacy (deliberate, documented simplifications for this Demo Instance,
--- NOT a change to Legacy's calculation rules):
---   - Legacy's physical stock sum spans WH1..WH5,WH7..WH9,WH12 (excluding WH6=Damaged,
---     WH10=Private Auction, WH11=Disposal). This Demo Instance seeds only ONE physical
---     warehouse row (WH_CD='01') per item, so the physical-stock sum here is a
---     single-row LEFT JOIN rather than a 9-way LEFT JOIN. The exclusion RULE itself
---     (exclude Damaged/Private Auction/Disposal) is preserved conceptually; it simply
---     has no seeded rows to exclude in this reduced schema.
---   - The SHIP_QTY_* contribution to LOGICAL_QTY is included in the sum below for
---     completeness (Legacy's SQL adds it), but is 0 for all seeded items in this Step.
---   - An additional WH-quantity term that appeared in Legacy's raw LOGICAL_QTY SQL
---     (STK_QTY_4..15 summed a second time alongside PHISICAL_QTY) was flagged as
---     NOT FULLY RESOLVED in the Phase 0 Source Audit (its exact semantics were unclear).
---     It is deliberately NOT reproduced here rather than guessed at - see final
---     implementation report for this Step.
+-- Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
+-- gops-stage4-targeted-real-data-remediation.md), replacing the prior
+-- WH_CD='01' single-row Demo simplification:
+--   - current_stock is now Legacy's own PHISICAL_QTY: SUM(ms_stk.stk_qty)
+--     WHERE wh_cd IN ('4','5','6','7','8','10','11','12','15') - the exact
+--     9-warehouse set MsStkRepositoryImpl.getBaseStockList() sums (WH1..WH5,
+--     WH7..WH9,WH12 in Legacy's own aliasing), confirmed via Legacy source
+--     (docs/real-data-audit/gops-stage3b-legacy-stock-logic-audit.md §3-4)
+--     cross-verified against the real Warehouse Master (ms_comm
+--     CATE_ID='MS_WH'): wh_cd='9' (不良品F/Defective), '13'
+--     (個人オークション/Private Auction), '14' (廃棄倉庫/Disposal) are
+--     excluded - matching Legacy's own commented-out JOIN lines and inline
+--     "EXCLUDE DISPOSAL INVENTORY" comment exactly. A correlated subquery
+--     (not 9 LEFT JOINs) keeps this query's existing "one row per item"
+--     shape - no GROUP BY, no row-multiplication risk (Stage 3 Audit B5).
+--   - This value is used both for the current_stock DISPLAY figure and, in
+--     OverseasRecommendedQtyStrategy, as the PHISICAL_QTY component of
+--     Legacy's own LOGICAL_QTY (= PHISICAL_QTY + open_po + open_ship,
+--     confirmed Stage 3B §5 - ARR_QTY is deliberately never part of
+--     LOGICAL_QTY, matching Legacy's own SQL, which sums PO_QTY_1..20 and
+--     SHIP_QTY_1..10 only alongside the same 9-warehouse STK_QTY sum).
 --   - Supplier is derived from the most recent TR_PO/TR_PO_DTL for the item (MS_ITEM
 --     has NO supplier_cd column in Legacy at all - confirmed Phase 0 audit F章 - so
 --     there is no "correct" master-data join to reduce from; this derivation is a
@@ -55,7 +61,11 @@ SELECT
     i.lead_time,
     i.item_status,
     i.discon,
-    COALESCE(phys.stk_qty, 0)                                                   AS current_stock,
+    COALESCE((
+        SELECT SUM(phys.stk_qty) FROM ms_stk phys
+        WHERE phys.item_cd = i.item_cd
+          AND phys.wh_cd IN ('4','5','6','7','8','10','11','12','15')
+    ), 0)                                                                        AS current_stock,
     COALESCE(agg.stk_standard, 0)                                               AS stk_standard,
     COALESCE(agg.sold_qty, 0)                                                   AS monthly_sales,
     COALESCE(agg.po_qty_1,0)+COALESCE(agg.po_qty_2,0)+COALESCE(agg.po_qty_3,0)+COALESCE(agg.po_qty_4,0)+COALESCE(agg.po_qty_5,0)
@@ -81,8 +91,6 @@ SELECT
 FROM ms_item i
 LEFT JOIN ms_stk agg
        ON agg.item_cd = i.item_cd AND agg.wh_cd = 'XX'
-LEFT JOIN ms_stk phys
-       ON phys.item_cd = i.item_cd AND phys.wh_cd = '01'
 LEFT JOIN ms_formula f
        ON f.id = i.item_cd
 LEFT JOIN ms_comm b

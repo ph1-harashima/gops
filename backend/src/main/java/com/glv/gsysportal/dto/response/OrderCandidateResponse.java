@@ -24,6 +24,13 @@ public record OrderCandidateResponse(
         String leadTime,
         Integer recommendedQty,
         String itemStatus,
+        /** Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
+         * gops-stage3-real-data-compatibility-review.md §5/§C6): real
+         * Production data shows genuinely-discontinued items rarely carry
+         * a recognizable itemStatus string (mostly NULL/blank/"NEW") - the
+         * Frontend must not rely on itemStatus alone to flag discontinued
+         * items. Propagated straight from MS_ITEM.DISCON, never inferred. */
+        Boolean discon,
         BigDecimal unitPrice,
         String currency,
         String dataSource,

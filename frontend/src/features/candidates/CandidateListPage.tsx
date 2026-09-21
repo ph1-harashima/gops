@@ -14,7 +14,7 @@ import TableRow from '@mui/material/TableRow'
 import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import TextField from '@mui/material/TextField'
-import MenuItem from '@mui/material/MenuItem'
+import TablePagination from '@mui/material/TablePagination'
 import Stack from '@mui/material/Stack'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
@@ -27,6 +27,7 @@ import useMediaQuery from '@mui/material/useMediaQuery'
 import { useTheme } from '@mui/material/styles'
 
 import { useOrderCandidates } from './api'
+import { useDashboard } from '../dashboard/api'
 import { useCreateDraft } from '../drafts/api'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
@@ -38,10 +39,15 @@ import { RestockConflictWarning } from '../../shared/components/RestockConflictW
 import { Toast } from '../../shared/components/Toast'
 import { computeStockJudgement } from '../../shared/domain/stockJudgement'
 import { listReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
-import type { OrderCandidateFilter } from '../../shared/types/orderCandidate'
+import type { OrderCandidate, OrderCandidateFilter } from '../../shared/types/orderCandidate'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
 
 const FILTER_PARAMS = ['brandCode', 'supplierCode', 'keyword'] as const
+// Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
+// gops-stage4-targeted-real-data-remediation.md): matches
+// OrderCandidateService's own MAX/DEFAULT_PAGE_SIZE (Backend clamps
+// regardless - this is only the initial/default value on first load).
+const DEFAULT_PAGE_SIZE = 20
 
 export function CandidateListPage() {
   const { t } = useTranslation(['candidates', 'common'])
@@ -88,8 +94,20 @@ export function CandidateListPage() {
   // two numbers agree instead of one going to an always-unfiltered list.
   const outOfStockOnly = searchParams.get('outOfStockOnly') === 'true'
   const longTermOutOfStockOnly = searchParams.get('longTermOutOfStockOnly') === 'true'
+  const page = Number(searchParams.get('page') ?? '0')
+  const size = Number(searchParams.get('size') ?? String(DEFAULT_PAGE_SIZE))
   const [keywordInput, setKeywordInput] = useState(filter.keyword ?? '')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Candidate Selection Supplier UX (docs/real-data-audit/
+  // gops-stage4-targeted-real-data-remediation.md §6): real data shows
+  // 27.1% of Brands span multiple Suppliers (Stage 2 §5) - once the first
+  // SKU is selected, its Supplier is locked in and other-Supplier rows
+  // become unselectable, rather than only discovering
+  // MIXED_SUPPLIER_NOT_ALLOWED after Create Draft. Tracked separately from
+  // `selected` (a plain Set<string> of SKUs) because selection can span
+  // multiple pages - the owning Supplier of an already-selected SKU from a
+  // page no longer in view would otherwise be unrecoverable.
+  const [selectedSupplierCode, setSelectedSupplierCode] = useState<string | null>(null)
 
   // Keeps the Keyword text field in sync when the URL changes from outside
   // a keystroke here - browser Back/Forward, a typed/bookmarked URL, or a
@@ -108,19 +126,41 @@ export function CandidateListPage() {
           if (value) next.set(key, value)
           else next.delete(key)
         }
+        // Stage 4: a changed Filter can invalidate the current page (fewer
+        // total results) - reset to page 0, same convention
+        // useStockSalesList's own updateFilter already established.
+        next.set('page', '0')
         return next
       },
       { replace: true },
     )
   }
 
+  function changePage(newPage: number) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('page', String(newPage))
+      return next
+    }, { replace: true })
+  }
+
+  function changeSize(newSize: number) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('size', String(newSize))
+      next.set('page', '0')
+      return next
+    }, { replace: true })
+  }
+
   const listPath = listReturnTo('/candidates', searchParams)
 
-  const { data, isLoading, isError, refetch } = useOrderCandidates(filter)
+  const { data, isLoading, isError, refetch } = useOrderCandidates(filter, page, size)
+
   const createDraftMutation = useCreateDraft()
 
   const visibleData = useMemo(() => {
-    if (!data) return data
+    if (!data) return undefined
     // Phase 7-G: filters now route through the same computeStockJudgement()
     // the new 在庫判定 column/Badge renders from - previously this predicate
     // was duplicated inline here, independently from what any Badge showed
@@ -128,7 +168,15 @@ export function CandidateListPage() {
     // NORMAL (not === OUT_OF_STOCK) because 長期欠品 is a SUBSET of 欠品
     // (see stockJudgement.ts) - this keeps the exact same filtering RESULT
     // as before, only the implementation is now shared/single-sourced.
-    return data
+    //
+    // Stage 4: these 3 remain a CLIENT-SIDE display filter over the
+    // CURRENT PAGE only (unchanged design - they exist to match Dashboard
+    // KPI predicates, never became a Backend query param) - now that the
+    // List is paginated, a page can legitimately show fewer than `size`
+    // rows (or none) while more matching rows exist on other pages. This
+    // is an accepted, pre-existing trade-off carried forward, not
+    // redesigned this Stage.
+    return data.content
       .filter((row) => !recommendedOnly || (row.recommendedQty ?? 0) > 0)
       .filter((row) => !outOfStockOnly || computeStockJudgement(row.currentStock, row.openPo) !== 'NORMAL')
       .filter((row) => !longTermOutOfStockOnly || computeStockJudgement(row.currentStock, row.openPo) === 'LONG_TERM_OUT_OF_STOCK')
@@ -150,49 +198,65 @@ export function CandidateListPage() {
     )
   }
 
-  const brandOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const row of data ?? []) {
-      if (row.brandCode) map.set(row.brandCode, row.brandName ?? row.brandCode)
-    }
-    return Array.from(map.entries())
-  }, [data])
-
-  const supplierOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const row of data ?? []) {
-      if (row.supplierCode) map.set(row.supplierCode, row.supplierName ?? row.supplierCode)
-    }
-    return Array.from(map.entries())
-  }, [data])
+  // Stage 4 Targeted Real-Data Remediation: Brand *filter input* options
+  // used to be derived from the (previously unpaginated) full result set -
+  // with Backend Pagination, `data` only ever holds one page, so that no
+  // longer reflects every real Brand/Supplier (matches useStockSalesList's
+  // own already-paginated convention: typed code, not a dropdown of every
+  // known value, rather than showing an incomplete/misleading one).
+  //
+  // The Filter Chip's own Brand *label* is a separate concern - it already
+  // showed the resolved name (not the bare code) before Pagination, and
+  // that display behavior is preserved unchanged here via Dashboard's own
+  // existing, already-unpaginated Brand list (useDashboard - the same data
+  // OrderCandidateBrandListPage itself already fetches), not the paginated
+  // candidate rows.
+  const { data: dashboard } = useDashboard()
+  function brandLabel(code: string): string {
+    return dashboard?.brands.find((b) => b.brandCode === code)?.brandName ?? code
+  }
 
   // Phase 7-F Header/List UX Audit (Filter Chip): every active Filter -
   // Brand/Supplier/Keyword text Filters plus the three boolean display
   // Filters - surfaced as one removable Chip each, so a Dashboard Deep Link
   // (e.g. Brand + 欠品) is legible at a glance instead of only visible by
   // re-reading the Filter controls above.
-  function brandOptionsLabel(code: string): string {
-    return brandOptions.find(([c]) => c === code)?.[1] ?? code
-  }
-  function supplierOptionsLabel(code: string): string {
-    return supplierOptions.find(([c]) => c === code)?.[1] ?? code
-  }
   const activeFilterChips = [
-    filter.brandCode ? { key: 'brandCode', label: `${t('candidates:filter.brand')}: ${brandOptionsLabel(filter.brandCode)}`, onDelete: () => updateFilter({ brandCode: undefined }) } : null,
-    filter.supplierCode ? { key: 'supplierCode', label: `${t('candidates:filter.supplier')}: ${supplierOptionsLabel(filter.supplierCode)}`, onDelete: () => updateFilter({ supplierCode: undefined }) } : null,
+    filter.brandCode ? { key: 'brandCode', label: `${t('candidates:filter.brand')}: ${brandLabel(filter.brandCode)}`, onDelete: () => updateFilter({ brandCode: undefined }) } : null,
+    filter.supplierCode ? { key: 'supplierCode', label: `${t('candidates:filter.supplier')}: ${filter.supplierCode}`, onDelete: () => updateFilter({ supplierCode: undefined }) } : null,
     filter.keyword ? { key: 'keyword', label: `${t('candidates:filter.keyword')}: ${filter.keyword}`, onDelete: () => updateFilter({ keyword: undefined }) } : null,
     recommendedOnly ? { key: 'recommendedOnly', label: t('candidates:filter.recommendedOnly'), onDelete: () => toggleRecommendedOnly(false) } : null,
     outOfStockOnly ? { key: 'outOfStockOnly', label: t('candidates:filter.outOfStockOnly'), onDelete: () => setBooleanParam('outOfStockOnly', false) } : null,
     longTermOutOfStockOnly ? { key: 'longTermOutOfStockOnly', label: t('candidates:filter.longTermOutOfStockOnly'), onDelete: () => setBooleanParam('longTermOutOfStockOnly', false) } : null,
   ].filter((c): c is { key: string; label: string; onDelete: () => void } => c !== null)
 
-  function toggleSelect(sku: string) {
+  // Candidate Selection Supplier UX (§6): blocks selecting a row whose
+  // Supplier differs from the already-locked-in one - the checkbox is also
+  // rendered `disabled` for such rows (see isSupplierLocked below), so this
+  // defensive check should never actually trigger through normal UI use;
+  // it exists so toggleSelect itself can never silently mix Suppliers even
+  // if called some other way. Backend's own MIXED_SUPPLIER_NOT_ALLOWED
+  // (OrderDraftService) is unchanged and remains the authoritative guard.
+  function toggleSelect(row: OrderCandidate) {
     setSelected((prev) => {
+      if (prev.has(row.sku)) {
+        const next = new Set(prev)
+        next.delete(row.sku)
+        if (next.size === 0) setSelectedSupplierCode(null)
+        return next
+      }
+      if (selectedSupplierCode && row.supplierCode && row.supplierCode !== selectedSupplierCode) {
+        return prev
+      }
       const next = new Set(prev)
-      if (next.has(sku)) next.delete(sku)
-      else next.add(sku)
+      next.add(row.sku)
+      if (next.size === 1) setSelectedSupplierCode(row.supplierCode ?? null)
       return next
     })
+  }
+
+  function isSupplierLocked(row: OrderCandidate): boolean {
+    return Boolean(selectedSupplierCode && row.supplierCode && row.supplierCode !== selectedSupplierCode && !selected.has(row.sku))
   }
 
   function applyKeyword() {
@@ -205,6 +269,7 @@ export function CandidateListPage() {
       {
         onSuccess: (draft) => {
           setSelected(new Set())
+          setSelectedSupplierCode(null)
           navigate(withReturnTo(`/orders/drafts/${draft.id}`, listPath))
         },
       },
@@ -249,37 +314,31 @@ export function CandidateListPage() {
       </Typography>
 
       <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', gap: 2 }}>
+        {/* Stage 4: typed code, not a dropdown - see the comment above
+            activeFilterChips for why (Backend Pagination means `data` is
+            never the full Brand/Supplier universe anymore). `key` forces
+            React to remount (re-read defaultValue) when the URL Filter
+            changes from outside this field, same uncontrolled-field
+            convention useStockSalesList's own Brand/Supplier inputs use. */}
         <TextField
-          select
+          key={`brand-${filter.brandCode ?? ''}`}
           size="small"
           label={t('candidates:filter.brand')}
           sx={{ minWidth: 200 }}
-          value={filter.brandCode ?? ''}
-          onChange={(e) => updateFilter({ brandCode: e.target.value || undefined })}
-        >
-          <MenuItem value="">{t('candidates:filter.all')}</MenuItem>
-          {brandOptions.map(([code, name]) => (
-            <MenuItem key={code} value={code}>
-              {name}
-            </MenuItem>
-          ))}
-        </TextField>
+          defaultValue={filter.brandCode ?? ''}
+          onBlur={(e) => updateFilter({ brandCode: e.target.value || undefined })}
+          data-testid="candidate-filter-brand"
+        />
 
         <TextField
-          select
+          key={`supplier-${filter.supplierCode ?? ''}`}
           size="small"
           label={t('candidates:filter.supplier')}
           sx={{ minWidth: 220 }}
-          value={filter.supplierCode ?? ''}
-          onChange={(e) => updateFilter({ supplierCode: e.target.value || undefined })}
-        >
-          <MenuItem value="">{t('candidates:filter.all')}</MenuItem>
-          {supplierOptions.map(([code, name]) => (
-            <MenuItem key={code} value={code}>
-              {name}
-            </MenuItem>
-          ))}
-        </TextField>
+          defaultValue={filter.supplierCode ?? ''}
+          onBlur={(e) => updateFilter({ supplierCode: e.target.value || undefined })}
+          data-testid="candidate-filter-supplier"
+        />
 
         <TextField
           size="small"
@@ -331,6 +390,20 @@ export function CandidateListPage() {
         />
 
         <Box sx={{ flexGrow: 1 }} />
+
+        {/* Candidate Selection Supplier UX (§6): visible reason the other
+            rows' checkboxes are disabled once a Supplier is locked in -
+            real data shows 27.1% of Brands span multiple Suppliers (Stage
+            2 §5), so this is a real, not hypothetical, everyday state. */}
+        {selectedSupplierCode && (
+          <Chip
+            size="small"
+            color="primary"
+            variant="outlined"
+            label={t('candidates:selectionLockedSupplier', { supplier: selectedSupplierCode })}
+            data-testid="selection-locked-supplier-chip"
+          />
+        )}
 
         <Button
           variant="contained"
@@ -391,18 +464,29 @@ export function CandidateListPage() {
         </Alert>
       )}
 
-      {!isLoading && !isError && visibleData && visibleData.length === 0 && (
+      {/* Stage 4: emptiness is now judged from the Backend's own total
+          (data.totalElements), not visibleData.length - the latter can be
+          0 on a page whose rows were all removed by the client-side
+          recommendedOnly/outOfStockOnly/longTermOutOfStockOnly Filters
+          while other pages still have real results (see the comment above
+          visibleData's own useMemo). */}
+      {!isLoading && !isError && data && data.totalElements === 0 && (
         <Alert severity="info" sx={{ my: 2 }}>
           {t('candidates:empty')}
         </Alert>
       )}
 
-      {!isLoading && !isError && visibleData && visibleData.length > 0 && (
+      {!isLoading && !isError && data && data.totalElements > 0 && visibleData && (
         <Box sx={isCardLayout ? {} : { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {t('candidates:resultCount', { count: visibleData.length })}
           </Typography>
-          {isCardLayout ? (
+          {visibleData.length === 0 && (
+            <Alert severity="info" sx={{ mb: 2 }} data-testid="candidate-page-filtered-empty">
+              {t('candidates:pageFilteredEmpty')}
+            </Alert>
+          )}
+          {visibleData.length > 0 && (isCardLayout ? (
             // Post-Freeze Visual Walkthrough Findings Fix (Finding #6): a
             // Card per SKU, mirroring Order History List's own mobile Card
             // pattern - minimum fields per the fix task's own §8.1: SKU/
@@ -420,7 +504,8 @@ export function CandidateListPage() {
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
                       <Checkbox
                         checked={selected.has(row.sku)}
-                        onChange={() => toggleSelect(row.sku)}
+                        onChange={() => toggleSelect(row)}
+                        disabled={isSupplierLocked(row)}
                         slotProps={{ input: { 'aria-label': row.sku } as never }}
                         data-testid={`candidate-checkbox-${row.sku}`}
                         sx={{ mt: -1, ml: -1.5 }}
@@ -435,7 +520,7 @@ export function CandidateListPage() {
                           >
                             {row.sku}
                           </Button>
-                          <ItemStatusChip status={row.itemStatus} />
+                          <ItemStatusChip status={row.itemStatus} discon={row.discon} />
                         </Stack>
                         <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', flexWrap: 'wrap', mt: 0.25 }}>
                           <Typography variant="body2" sx={{ fontWeight: 600, wordBreak: 'break-word' }}>
@@ -534,7 +619,8 @@ export function CandidateListPage() {
                     <TableCell padding="checkbox">
                       <Checkbox
                         checked={selected.has(row.sku)}
-                        onChange={() => toggleSelect(row.sku)}
+                        onChange={() => toggleSelect(row)}
+                        disabled={isSupplierLocked(row)}
                         slotProps={{ input: { 'aria-label': row.sku } as never }}
                         data-testid={`candidate-checkbox-${row.sku}`}
                       />
@@ -572,7 +658,7 @@ export function CandidateListPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <ItemStatusChip status={row.itemStatus} />
+                      <ItemStatusChip status={row.itemStatus} discon={row.discon} />
                     </TableCell>
                     <TableCell>
                       <StockJudgementChip judgement={computeStockJudgement(row.currentStock, row.openPo)} />
@@ -595,7 +681,17 @@ export function CandidateListPage() {
               </TableBody>
             </Table>
           </TableContainer>
-          )}
+          ))}
+          <TablePagination
+            component="div"
+            count={data.totalElements}
+            page={data.page}
+            rowsPerPage={data.size}
+            rowsPerPageOptions={[10, 20, 50, 100]}
+            onPageChange={(_e, newPage) => changePage(newPage)}
+            onRowsPerPageChange={(e) => changeSize(Number(e.target.value))}
+            data-testid="candidate-list-pagination"
+          />
         </Box>
       )}
     </Box>

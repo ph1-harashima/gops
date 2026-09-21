@@ -272,6 +272,76 @@ INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_dateti
 INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('07','HM-MUG-001',b'0',9,b'0',NOW(),NOW());
 INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('04','KT-PAN-001',b'0',4,b'0',NOW(),NOW());
 
+-- ============================================================================
+-- Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
+-- gops-stage4-targeted-real-data-remediation.md Remediation A). The '01'
+-- rows above (and the zero-padded '04'/'05'/'07' rows just above them) are a
+-- pre-existing Demo-only placeholder convention this Demo Instance used
+-- before this Remediation - confirmed via the real 2026-09-16 Production
+-- Snapshot (docs/real-data-audit/gops-stage3b-legacy-stock-logic-audit.md
+-- §3) that real Legacy WH_CD values are bare, non-zero-padded digits
+-- ('4'..'15', not '04'..'15'), and that '01' does not exist in real
+-- Production at all. RecommendedQtyReadQuery.sql's current_stock now sums
+-- WH_CD IN ('4','5','6','7','8','10','11','12','15') (Stage 3B's confirmed
+-- PHISICAL_QTY set) - a bare-digit code, so it can never match any of the
+-- zero-padded rows above. Left those rows completely untouched (still
+-- real, still exercised by Warehouse Stock List's own WH_CD Filter E2E
+-- coverage - arrival-warehouse-stock-visibility-foundation.spec.ts /
+-- stock-sales-visibility-foundation.spec.ts both assert specific '01'/'04'/
+-- '05' testids for OD-TENT-001/OD-BAG-002) rather than risk breaking that
+-- unrelated, already-passing coverage. Instead, ADDING one new row per
+-- item at wh_cd='6' (Building B 2F - a real, PHISICAL_QTY-included code,
+-- confirmed via the real Warehouse Master, Stage 3B §3), each holding the
+-- SAME quantity its old '01' row already had - current_stock's numeric
+-- VALUE is therefore unchanged for every item below (no existing E2E
+-- assertion needs updating), only its now-correct WH_CD source changes.
+-- ============================================================================
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','OD-TENT-001',b'0',2,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','OD-TENT-002',b'0',0,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','OD-CHAIR-001',b'0',50,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','OD-CHAIR-002',b'0',5,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','OD-BAG-001',b'0',5,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','OD-BAG-002',b'0',0,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','OD-LAMP-001',b'0',0,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','HM-MUG-001',b'0',2,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','HM-MUG-002',b'0',0,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','HM-TOWEL-001',b'0',50,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','HM-TOWEL-002',b'0',5,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','HM-RUG-001',b'0',5,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','HM-RUG-002',b'0',0,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','KT-PAN-001',b'0',2,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','KT-PAN-002',b'0',0,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','KT-KNIFE-001',b'0',50,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','KT-KNIFE-002',b'0',5,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','KT-BOWL-001',b'0',5,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('6','KT-BOWL-002',b'0',0,b'0',NOW(),NOW());
+
+-- ============================================================================
+-- Stage 4 Targeted Real-Data Remediation - dedicated test fixture
+-- (docs/real-data-audit/gops-stage4-targeted-real-data-remediation.md §4).
+-- A single, isolated item (never referenced by any other spec/assertion)
+-- deliberately spanning multiple included AND excluded WH_CD values at
+-- once, with deliberately large/distinguishing quantities on the excluded
+-- codes and on ARR_QTY - a wrong SQL/calc change here would be off by
+-- orders of magnitude, not a subtle off-by-one, so any regression is
+-- unmissable. WH_CD='12' (also PHISICAL_QTY-included, per Stage 3B §3) is
+-- deliberately left with NO row at all for this item, to exercise "no row
+-- for an included warehouse = 0", the same NULL-handling COALESCE/SUM
+-- already proven for every other included code.
+-- ============================================================================
+INSERT INTO ms_item (item_cd, brand_cd, description, lead_time, item_status, discon, sale_flg, item_grp_cd, prc_sell_w_tax, cost_this_month_avg, free_ship_flg, ship_fee, del_flg, create_datetime, update_datetime) VALUES ('STAGE4-WH-TEST-001','BR_OUTDOOR','Stage 4 Warehouse Logic Test Item','30','NEW',b'0',b'1',NULL,NULL,NULL,NULL,NULL,b'0',NOW(),NOW());
+-- 'XX' aggregate row: stk_standard=8, sold_qty=20, po_qty_1=3, ship_qty_1=7 (both real LOGICAL_QTY summands), arr_qty_1=999 (must NOT be summed).
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, stk_standard, sold_qty, po_qty_1, arr_qty_1, ship_qty_1, del_flg, create_datetime, update_datetime) VALUES ('XX','STAGE4-WH-TEST-001',b'1',0,8,20,3,999,7,b'0',NOW(),NOW());
+-- Included (PHISICAL_QTY) warehouses - real quantities, must be summed: 10+20+5 = 35.
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('4','STAGE4-WH-TEST-001',b'0',10,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('8','STAGE4-WH-TEST-001',b'0',20,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('15','STAGE4-WH-TEST-001',b'0',5,b'0',NOW(),NOW());
+-- Excluded warehouses (Defective/Private Auction/Disposal, Stage 3B §3) -
+-- deliberately huge quantities that must NEVER appear in current_stock.
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('9','STAGE4-WH-TEST-001',b'0',1000,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('13','STAGE4-WH-TEST-001',b'0',2000,b'0',NOW(),NOW());
+INSERT INTO ms_stk (wh_cd, item_cd, pri_wh_flag, stk_qty, del_flg, create_datetime, update_datetime) VALUES ('14','STAGE4-WH-TEST-001',b'0',3000,b'0',NOW(),NOW());
+
 -- Brand-diverse Invoice fixtures beyond the existing all-BR_OUTDOOR set
 -- above, so Arrival List's Brand/Supplier Filter has BR_HOME/BR_KITCHEN
 -- rows to find too. Reuses existing PO-HOME-08/PO-KITCHEN-14 (already

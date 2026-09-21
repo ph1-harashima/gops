@@ -17,6 +17,11 @@ export interface OrderCandidate {
   leadTime: string | null
   recommendedQty: number | null
   itemStatus: string | null
+  // Stage 4 Targeted Real-Data Remediation (docs/real-data-audit/
+  // gops-stage3-real-data-compatibility-review.md §5/§C6): real
+  // discontinued-item signal, propagated straight from MS_ITEM.DISCON -
+  // itemStatus alone rarely reflects it in real Production data.
+  discon: boolean | null
   unitPrice: number | null
   currency: string | null
   dataSource: string

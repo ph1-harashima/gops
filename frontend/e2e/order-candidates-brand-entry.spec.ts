@@ -46,6 +46,13 @@ test.describe('Order Candidates Brand Entry', () => {
     await expect(page).toHaveURL(/\/candidates\?brandCode=BR_HOME$/)
 
     await expect(page.getByTestId('filter-chip-brandCode')).toContainText('LIVORA')
+    // Stage 4 Targeted Real-Data Remediation: Candidate List is now
+    // Backend-paginated (a second network round trip beyond the pre-
+    // existing single unpaginated fetch), so an explicit wait for the
+    // result-count text (the same wait Scenario 3 below already uses) is
+    // needed before counting rows - a non-retrying `.count()` immediately
+    // after a click race against that request otherwise flakes.
+    await expect(page.getByText(/件の発注候補/)).toBeVisible()
     const rowCount = await page.locator('table tbody tr').count()
     expect(rowCount).toBeGreaterThan(0)
     const brandCells = page.locator('table tbody tr td:nth-child(4)')

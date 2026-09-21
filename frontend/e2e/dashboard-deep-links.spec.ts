@@ -248,7 +248,18 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
     const brandFilteredListUrl = page.url()
 
     await expect(page.getByTestId('filter-chip-brandCode')).toContainText(brandName ?? '')
-    await expect(page.getByLabel('ブランド')).toHaveText(brandName ?? '')
+    // Stage 4 Targeted Real-Data Remediation: the Brand Filter is now a
+    // typed code TextField, not a Select (Candidate List Backend
+    // Pagination means the full Brand option list is no longer fetched
+    // client-side - see CandidateListPage.tsx's own comment on this same
+    // change) - it shows the raw brandCode query param value, same
+    // convention useStockSalesList's own Brand/Supplier fields already
+    // use. The resolved NAME is still checked immediately above via the
+    // Filter Chip (which resolves it via Dashboard's own Brand list,
+    // unaffected by this change) - this assertion is now scoped to what a
+    // plain TextField can actually show.
+    const brandCode = new URL(brandFilteredListUrl).searchParams.get('brandCode')
+    await expect(page.getByTestId('candidate-filter-brand').locator('input')).toHaveValue(brandCode ?? '')
 
     await expect(page.getByText(/件の発注候補|発注候補が見つかりませんでした/)).toBeVisible()
     const brandColumnCells = page.locator('table tbody tr td:nth-child(4)')

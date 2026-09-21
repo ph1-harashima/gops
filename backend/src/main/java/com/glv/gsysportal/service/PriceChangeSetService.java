@@ -72,10 +72,48 @@ public class PriceChangeSetService {
     public List<com.glv.gsysportal.dto.response.PriceChangeCandidateResponse> searchCandidates(
             String brandCode, String itemGrpCd, String keyword) {
         return legacyPriceReadRepository.search(brandCode, itemGrpCd, keyword).stream()
-                .map(row -> new com.glv.gsysportal.dto.response.PriceChangeCandidateResponse(
-                        row.itemCd(), row.itemName(), row.brandCd(), row.brandName(), row.itemGrpCd(),
-                        row.itemStatus(), row.prcSellWTax(), row.costThisMonthAvg()))
+                .map(PriceChangeSetService::toCandidateResponse)
                 .toList();
+    }
+
+    static final int MAX_PAGE_SIZE = 100;
+    static final int DEFAULT_PAGE_SIZE = 20;
+
+    /**
+     * Stage 4 Targeted Real-Data Remediation (Remediation D,
+     * docs/real-data-audit/gops-stage4-targeted-real-data-remediation.md):
+     * Backend-paginated Product Selection search - {@link #searchCandidates}
+     * itself is deliberately left unchanged for any other/future caller
+     * expecting the full unpaginated result. Same page/size contract as
+     * {@code OrderCandidateService#findOrderCandidatesPage}/
+     * {@code StockSalesService#list}.
+     */
+    @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
+    public com.glv.gsysportal.dto.response.PageResponse<com.glv.gsysportal.dto.response.PriceChangeCandidateResponse> searchCandidatesPage(
+            String brandCode, String itemGrpCd, String keyword, Integer page, Integer size) {
+        int clampedSize = clampSize(size);
+        int clampedPage = page == null || page < 0 ? 0 : page;
+        int offset = clampedPage * clampedSize;
+
+        long total = legacyPriceReadRepository.countSearch(brandCode, itemGrpCd, keyword);
+        List<com.glv.gsysportal.dto.response.PriceChangeCandidateResponse> content =
+                legacyPriceReadRepository.searchPage(brandCode, itemGrpCd, keyword, clampedSize, offset).stream()
+                        .map(PriceChangeSetService::toCandidateResponse)
+                        .toList();
+        return com.glv.gsysportal.dto.response.PageResponse.of(content, clampedPage, clampedSize, total);
+    }
+
+    private static com.glv.gsysportal.dto.response.PriceChangeCandidateResponse toCandidateResponse(LegacyPriceRow row) {
+        return new com.glv.gsysportal.dto.response.PriceChangeCandidateResponse(
+                row.itemCd(), row.itemName(), row.brandCd(), row.brandName(), row.itemGrpCd(),
+                row.itemStatus(), row.prcSellWTax(), row.costThisMonthAvg());
+    }
+
+    private static int clampSize(Integer size) {
+        if (size == null || size <= 0) {
+            return DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(size, MAX_PAGE_SIZE);
     }
 
     /** Item Group picker options (9章) - see {@link LegacyPriceReadRepository#findDistinctItemGroupCodes()}

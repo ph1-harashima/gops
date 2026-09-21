@@ -34,6 +34,8 @@
   "createDraft": "Create Draft from {{count}} selected",
   "createDraftMixedSupplier": "A Draft cannot mix multiple manufacturers. Please select SKUs from a single manufacturer only.",
   "createDraftFailed": "Failed to create the Draft ({{code}}).",
+  "selectionLockedSupplier": "Selected manufacturer: {{supplier}} (SKUs from other manufacturers cannot be selected)",
+  "pageFilteredEmpty": "No order candidates on this page match the current display filters. Check other pages.",
   "brandList": {
     "title": "Order Candidates - Select Brand",
     "subtitle": "Select the Brand you want to check.",
