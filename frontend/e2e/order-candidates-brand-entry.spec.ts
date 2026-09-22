@@ -49,9 +49,31 @@ test.describe('Order Candidates Brand Entry', () => {
    * the visible paginated table itself was always correct. Brand-name
    * resolution now goes through the dedicated, lightweight GET /api/brands
    * instead (see CandidateListPage.tsx's own Stage 5E comment).
+   *
+   * Stage 5K-R (docs/real-data-audit/
+   * gops-stage5kr-null-brand-remediation-and-final-verification.md §16):
+   * this assertion's start point was widened by the same commit
+   * (a0d471d, "Order Candidates: Brand-first entry ... IA Phase 3") that
+   * put a new Brand List landing page (OrderCandidateBrandListPage) in
+   * front of `/candidates` - that page's own header comment states
+   * explicitly it "Reuses Dashboard's own useDashboard() query as-is",
+   * matching Stage 5J §13's confirmed design (Dashboard and Brand List
+   * intentionally share one endpoint) - so listening for `/api/dashboard`
+   * from before that landing page even loads was never a correct test of
+   * RC-B's own concern (CandidateListPage itself, reached only after
+   * selecting a Brand). Source/test audit confirms this is an obsolete
+   * assertion scope, not a real regression - narrowed to start counting
+   * only after the Brand List has finished its own, expected load, so
+   * this test now verifies exactly what RC-B always meant to guard:
+   * navigating from the Brand List into one Brand's Candidate List
+   * triggers zero *additional* Dashboard calls. Application behavior is
+   * unchanged - only this test's own scope was corrected.
    */
   test('Candidate List never calls GET /api/dashboard', async ({ page }) => {
     await login(page)
+    await page.getByTestId('nav-candidates').click()
+    await expect(page.getByTestId('order-candidate-brand-list-table-container')).toBeVisible()
+
     const dashboardRequests: string[] = []
     page.on('request', (req) => {
       if (req.url().includes('/api/dashboard')) {
@@ -59,7 +81,6 @@ test.describe('Order Candidates Brand Entry', () => {
       }
     })
 
-    await page.getByTestId('nav-candidates').click()
     await page.getByTestId('order-candidate-brand-link-BR_HOME').click()
     await expect(page).toHaveURL(/brandCode=BR_HOME/)
     await expect(page.getByTestId('filter-chip-brandCode')).toContainText('LIVORA')

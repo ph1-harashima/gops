@@ -188,6 +188,74 @@ class DashboardRefreshServiceTest {
         verify(aggregateCurrentRepository).activate(1L);
     }
 
+    /**
+     * Stage 5K-R (docs/real-data-audit/
+     * gops-stage5kr-null-brand-remediation-and-final-verification.md):
+     * reproduces the Production Snapshot defect Stage 5K-V found - 10 of
+     * the real ~47,280 non-deleted items have {@code brand_cd IS NULL}.
+     * {@code DashboardStockAggregateQuery.sql}'s {@code GROUP BY brand_cd}
+     * legitimately produces a {@code null}-keyed row for these, which the
+     * pre-Stage-5K live {@code DashboardService.buildBrandRows} explicitly
+     * skipped ({@code if (row.brandCd() != null)}) when building the
+     * per-Brand breakdown, while still folding the row's stock counts into
+     * the plain Overall sum. This test fails against the pre-fix Stage 5K
+     * code (which passes {@code null} straight through into a
+     * {@code DashboardBrandLegacyAggregate} row - in a real Postgres
+     * connection this hits {@code brand_code NOT NULL}, and even here at
+     * the mock boundary the captured row list contains a null-brandCode
+     * entry, which this test explicitly asserts against) and passes after
+     * restoring that same guard.
+     */
+    @Test
+    void refreshExcludesNullBrandCdFromBrandRowsButKeepsItsStockInOverall() {
+        when(legacyStockReadRepository.findDashboardStockAggregateByBrand()).thenReturn(List.of(
+                new DashboardStockAggregateRow("BR_A", 3, 1),
+                new DashboardStockAggregateRow("BR_B", 2, 0),
+                new DashboardStockAggregateRow(null, 1, 1) // the 10 real null-brand_cd items, aggregated
+        ));
+        LegacyStockRow rowA1 = candidateRow("SKU-A1", "BR_A", "1");
+        LegacyStockRow rowB1 = candidateRow("SKU-B1", "BR_B", "1");
+        LegacyStockRow rowNull = candidateRow("SKU-N1", null, "1"); // must never reach calc4/candidateCountByBrand as a key
+        when(legacyStockReadRepository.findDashboardCandidateInputs()).thenReturn(List.of(rowA1, rowB1, rowNull));
+        when(legacyStockReadRepository.findAllBrandNames()).thenReturn(Map.of("BR_A", "Brand A", "BR_B", "Brand B"));
+        RegionClassificationLookup lookup = mock(RegionClassificationLookup.class);
+        when(regionResolutionService.loadAll()).thenReturn(lookup);
+        when(recommendedQtyCalculator.calc4(eq(rowA1), any(RegionClassificationLookup.class))).thenReturn(5);
+        when(recommendedQtyCalculator.calc4(eq(rowB1), any(RegionClassificationLookup.class))).thenReturn(2);
+
+        DashboardRefreshService.RefreshOutcome outcome = service.refresh(DashboardRefreshRun.TRIGGER_MANUAL, "admin01");
+
+        assertFalse(outcome.skipped(), "a null brand_cd must never fail the Refresh (pre-Stage-5K parity)");
+        assertEquals(1L, outcome.refreshRunId());
+
+        ArgumentCaptor<List<DashboardBrandLegacyAggregate>> brandRowsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(brandLegacyAggregateRepository).saveAll(brandRowsCaptor.capture());
+        List<DashboardBrandLegacyAggregate> brandRows = brandRowsCaptor.getValue();
+
+        assertEquals(2, brandRows.size(), "exactly BR_A and BR_B - no row for the null Brand");
+        assertTrue(brandRows.stream().noneMatch(r -> r.getBrandCode() == null),
+                "no Brand Aggregate row may ever have a null brandCode (V34's own NOT NULL constraint)");
+
+        ArgumentCaptor<DashboardLegacyAggregate> overallCaptor = ArgumentCaptor.forClass(DashboardLegacyAggregate.class);
+        verify(legacyAggregateRepository).save(overallCaptor.capture());
+        // Overall = SUM(non-null Brand rows) + the null-brand stock contribution -
+        // NOT simply SUM(Brand rows), since the null-brand row is deliberately
+        // excluded from brandRows above (Stage 5K-R §11's explicit instruction:
+        // do not force a stale "Overall == SUM(Brand)" invariant onto this
+        // real-data shape).
+        assertEquals(3 + 2 + 1, overallCaptor.getValue().getOutOfStockCount(),
+                "Overall outOfStockCount includes BR_A(3) + BR_B(2) + the null-brand items(1)");
+        assertEquals(1 + 0 + 1, overallCaptor.getValue().getLongTermOutOfStockCount(),
+                "Overall longTermOutOfStockCount includes BR_A(1) + BR_B(0) + the null-brand items(1)");
+        // candidateCount has no null-brand term to add back - computeLegacyAggregates
+        // already skips a null brandCd row entirely before it ever reaches
+        // candidateCountByBrand (matching the OLD computeCandidateCountByBrand's
+        // own "if (row.brandCd() == null) continue;" precedent).
+        assertEquals(2, overallCaptor.getValue().getCandidateCount(), "BR_A:1 + BR_B:1, the null-brand row was never a candidate at all");
+
+        verify(aggregateCurrentRepository).activate(1L);
+    }
+
     private static LegacyStockRow candidateRow(String itemCd, String brandCd, String formula11) {
         return new LegacyStockRow(itemCd, null, brandCd, null, null, null, null,
                 0, 0, null, 0, 0, 0, formula11, null, null, null, "SUP_X", null, null, null, null);

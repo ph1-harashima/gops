@@ -264,9 +264,24 @@ public class DashboardRefreshService {
                                  int evaluatedItemCount, int formulaErrorCount) {
         TransactionTemplate tx = new TransactionTemplate(prototypeTransactionManager);
         tx.executeWithoutResult(status -> {
+            // Stage 5K-R (docs/real-data-audit/
+            // gops-stage5kr-null-brand-remediation-and-final-verification.md):
+            // DashboardStockAggregateQuery.sql's GROUP BY brand_cd legitimately
+            // produces a null-keyed row whenever a non-deleted item has no
+            // Brand assigned (confirmed on the real Production Snapshot: 10 of
+            // ~47,280 items) - a null brandCode must never become a
+            // dashboard_brand_legacy_aggregate row (V34's own NOT NULL
+            // constraint), matching the pre-Stage-5K live
+            // DashboardService.buildBrandRows' own "if (row.brandCd() != null)"
+            // guard exactly. candidateCountByBrand never contains a null key
+            // in the first place (computeLegacyAggregates already skips a null
+            // brandCd row before it is ever added there, mirroring the OLD
+            // computeCandidateCountByBrand's own equivalent skip) - only
+            // stockAggregateByBrand needs this guard.
             java.util.Set<String> allBrandCodes = new java.util.LinkedHashSet<>();
             allBrandCodes.addAll(stockAggregateByBrand.keySet());
             allBrandCodes.addAll(candidateCountByBrand.keySet());
+            allBrandCodes.remove(null);
 
             int overallCandidateCount = 0;
             int overallOutOfStock = 0;
@@ -280,6 +295,15 @@ public class DashboardRefreshService {
                 overallLongTermOutOfStock += stock[1];
                 String brandName = brandNames.getOrDefault(brandCode, brandCode);
                 brandRows.add(new DashboardBrandLegacyAggregate(runId, brandCode, brandName, candidateCount, stock[0], stock[1]));
+            }
+            // The null-Brand items' stock contribution is still folded into
+            // the Overall total (pre-Stage-5K parity - they simply never get
+            // their own Brand row). candidateCountByBrand has no null-key
+            // counterpart to add back (see comment above).
+            int[] nullBrandStock = stockAggregateByBrand.get(null);
+            if (nullBrandStock != null) {
+                overallOutOfStock += nullBrandStock[0];
+                overallLongTermOutOfStock += nullBrandStock[1];
             }
             brandLegacyAggregateRepository.saveAll(brandRows);
             legacyAggregateRepository.save(new DashboardLegacyAggregate(
