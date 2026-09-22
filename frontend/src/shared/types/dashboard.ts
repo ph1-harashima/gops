@@ -13,6 +13,16 @@ export interface DashboardBrandRow {
 }
 
 export interface Dashboard {
+  // Stage 5K (docs/real-data-audit/gops-stage5k-dashboard-read-model-implementation.md):
+  // candidateCount/outOfStockCount/longTermOutOfStockCount (overall and
+  // per-Brand) now come from a background Read Model Refresh, not a
+  // live per-request calc4 - calculatedAt/initialized surface that.
+  /** ISO instant the active Read Model version was published, or null
+   * when `initialized` is false. */
+  calculatedAt: string | null
+  /** False only in the narrow window before the very first Refresh has
+   * ever succeeded - every count below is 0 (not a real value) then. */
+  initialized: boolean
   candidateCount: number
   outOfStockCount: number
   longTermOutOfStockCount: number

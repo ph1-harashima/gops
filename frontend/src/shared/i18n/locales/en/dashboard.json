@@ -17,6 +17,8 @@
     "warehouseStock": "Warehouse Stock",
     "stockSales": "Stock / Sales"
   },
+  "lastUpdated": "Data updated: {{timestamp}}",
+  "initializing": "Preparing data. Please check back shortly.",
   "brandBreakdown": "Breakdown by Brand",
   "table": {
     "brand": "Brand",

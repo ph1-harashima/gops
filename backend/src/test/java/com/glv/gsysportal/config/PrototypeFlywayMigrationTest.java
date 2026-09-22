@@ -112,7 +112,11 @@ class PrototypeFlywayMigrationTest {
         // stockout_status/shortage_qty/information_received_date/
         // contact_method; new sku_manufacturer_stockout_history table
         // (Business-facing timeline, separate from audit_event).
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33"), versions);
+        // V34 (Stage 5K, docs/real-data-audit/
+        // gops-stage5k-dashboard-read-model-implementation.md): Dashboard
+        // Read Model - dashboard_refresh_run, dashboard_legacy_aggregate,
+        // dashboard_brand_legacy_aggregate, dashboard_aggregate_current.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34"), versions);
     }
 
     @Test

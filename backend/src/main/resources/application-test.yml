@@ -1,0 +1,10 @@
+# Stage 5K: disables the RECURRING DashboardRefreshScheduler tick under
+# the "test" profile only - DashboardRefreshStartupRunner (the one-time
+# bootstrap refresh tests actually need candidateCount data from) is
+# deliberately NOT gated by this same flag (see that class's own
+# Javadoc), so tests still get a populated Read Model, just without a
+# background :07/:37 tick racing test assertions mid-run.
+app:
+  dashboard:
+    refresh:
+      enabled: false

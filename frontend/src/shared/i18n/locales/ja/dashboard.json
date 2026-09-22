@@ -17,6 +17,8 @@
     "warehouseStock": "倉庫在庫",
     "stockSales": "在庫・販売確認"
   },
+  "lastUpdated": "データ更新: {{timestamp}}",
+  "initializing": "データを準備中です。しばらくしてから再度ご確認ください。",
   "brandBreakdown": "ブランド別内訳",
   "table": {
     "brand": "ブランド",

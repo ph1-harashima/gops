@@ -1,25 +1,27 @@
 package com.glv.gsysportal.service;
 
+import com.glv.gsysportal.domain.DashboardAggregateCurrent;
+import com.glv.gsysportal.domain.DashboardBrandLegacyAggregate;
+import com.glv.gsysportal.domain.DashboardLegacyAggregate;
 import com.glv.gsysportal.domain.FollowUpCase;
 import com.glv.gsysportal.domain.OrderAttention;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.PriceChangeSet;
 import com.glv.gsysportal.dto.response.DashboardBrandRow;
 import com.glv.gsysportal.dto.response.DashboardResponse;
-import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository;
-import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository.DashboardStockAggregateRow;
-import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
+import com.glv.gsysportal.repository.prototype.DashboardAggregateCurrentRepository;
+import com.glv.gsysportal.repository.prototype.DashboardBrandLegacyAggregateRepository;
+import com.glv.gsysportal.repository.prototype.DashboardLegacyAggregateRepository;
 import com.glv.gsysportal.repository.prototype.FollowUpCaseRepository;
 import com.glv.gsysportal.repository.prototype.OrderAttentionRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import com.glv.gsysportal.repository.prototype.PriceChangeSetRepository;
-import com.glv.gsysportal.service.SupplierRegionClassificationResolutionService.RegionClassificationLookup;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -36,82 +38,63 @@ import java.util.stream.Collectors;
  * （入荷予定も無い状態）。日数等の期間ベース定義は、そのようなデータが
  * Prototype側に存在しないため採用していない。
  *
- * <p>Stage 5E Targeted Remediation (RC-A, docs/real-data-audit/
- * gops-stage5e-targeted-remediation.md): previously fetched the ENTIRE
- * unpaginated candidate catalog via {@code OrderCandidateService
- * .findOrderCandidates(null,null,null)} and counted with Java {@code Stream}
- * filters - confirmed by Stage 5D as the primary cause of this endpoint's
- * real-Production-scale failure (351-407 seconds, frequent client-disconnect
- * errors). Stage 5D split the KPIs into two categories: outOfStockCount/
- * longTermOutOfStockCount are pure arithmetic on current_stock/open_po
- * ("Category A" - now a genuine SQL {@code GROUP BY} aggregate,
- * {@link LegacyStockReadRepository#findDashboardStockAggregateByBrand()});
- * candidateCount genuinely requires the full calc4 Recommended-Qty formula
- * chain ("Category B" - cannot be a SQL aggregate) but is now computed from
- * a lean query that omits the ms_comm brand/supplier NAME joins Stage 5D
- * identified as the dominant per-row cost
- * ({@link LegacyStockReadRepository#findDashboardCandidateInputs()}), with
- * region classification resolved via one bulk lookup
- * ({@link SupplierRegionClassificationResolutionService#loadAll()}) instead
- * of up to 4 Portal round-trips per item (Stage 5D's confirmed N+1).
- * candidateCount's own DEFINITION (recommendedQty > 0, via the exact same
- * calc4 this codebase has always used) is unchanged - only how it is
- * computed changed.
+ * <p>Stage 5K (docs/real-data-audit/gops-stage5k-dashboard-read-model-implementation.md):
+ * {@code candidateCount}/{@code outOfStockCount}/{@code
+ * longTermOutOfStockCount} (overall and per-Brand) no longer run {@code
+ * calc4} here at all - this method now only reads the Portal DB Read
+ * Model ({@code dashboard_aggregate_current} -> {@code
+ * dashboard_legacy_aggregate}/{@code dashboard_brand_legacy_aggregate}),
+ * populated by {@link DashboardRefreshService} on a schedule
+ * ({@code DashboardRefreshScheduler}) or on demand (Manual Refresh). The
+ * previous live-computation logic (Stage 5E RC-A's lean
+ * {@code findDashboardCandidateInputs}/{@code calc4} path) moved to
+ * {@link DashboardRefreshService} verbatim - candidateCount's DEFINITION
+ * (recommendedQty > 0, via the exact same calc4 this codebase has always
+ * used) is unchanged, only WHEN it is computed changed (Stage 5J §1
+ * Executive Summary). Portal-derived KPIs (draftCount et al.) are
+ * deliberately UNCHANGED - still a live, request-time read (Stage 5J §4:
+ * Portal's own tables are small enough that this stays simpler and
+ * strictly more correct than Read-Modeling them too).
  */
 @Service
 public class DashboardService {
 
-    private final LegacyStockReadRepository legacyStockReadRepository;
-    private final RecommendedQtyCalculator recommendedQtyCalculator;
-    private final SupplierRegionClassificationResolutionService regionResolutionService;
+    private final DashboardAggregateCurrentRepository aggregateCurrentRepository;
+    private final DashboardLegacyAggregateRepository legacyAggregateRepository;
+    private final DashboardBrandLegacyAggregateRepository brandLegacyAggregateRepository;
     private final PortalOrderRepository portalOrderRepository;
     private final OrderAttentionRepository orderAttentionRepository;
     private final FollowUpCaseRepository followUpCaseRepository;
     private final PriceChangeSetRepository priceChangeSetRepository;
 
-    public DashboardService(LegacyStockReadRepository legacyStockReadRepository,
-                             RecommendedQtyCalculator recommendedQtyCalculator,
-                             SupplierRegionClassificationResolutionService regionResolutionService,
+    public DashboardService(DashboardAggregateCurrentRepository aggregateCurrentRepository,
+                             DashboardLegacyAggregateRepository legacyAggregateRepository,
+                             DashboardBrandLegacyAggregateRepository brandLegacyAggregateRepository,
                              PortalOrderRepository portalOrderRepository,
                              OrderAttentionRepository orderAttentionRepository,
                              FollowUpCaseRepository followUpCaseRepository,
                              PriceChangeSetRepository priceChangeSetRepository) {
-        this.legacyStockReadRepository = legacyStockReadRepository;
-        this.recommendedQtyCalculator = recommendedQtyCalculator;
-        this.regionResolutionService = regionResolutionService;
+        this.aggregateCurrentRepository = aggregateCurrentRepository;
+        this.legacyAggregateRepository = legacyAggregateRepository;
+        this.brandLegacyAggregateRepository = brandLegacyAggregateRepository;
         this.portalOrderRepository = portalOrderRepository;
         this.orderAttentionRepository = orderAttentionRepository;
         this.followUpCaseRepository = followUpCaseRepository;
         this.priceChangeSetRepository = priceChangeSetRepository;
     }
 
-    // Stage 5E Targeted Remediation (RC-F, docs/real-data-audit/
-    // gops-stage5e-targeted-remediation.md): deliberately NOT
-    // @Transactional here. Stage 5D confirmed this method-level annotation
-    // held one Portal connection reserved for this method's ENTIRE body -
-    // including the Legacy-side computation below, which can run for
-    // seconds to minutes - starving the capped (max 5) Portal pool under
-    // concurrent load. Each Portal repository call below (portalOrderRepository
-    // .findAll(), etc.) still runs inside its own short, independent
-    // transaction - Spring Data JPA's SimpleJpaRepository is itself
-    // @Transactional(readOnly=true) per method when no broader transaction
-    // is already active - so removing this outer annotation does not make
-    // any individual Portal read non-transactional, it only stops those
-    // reads from sharing one artificially long-lived connection with the
-    // unrelated Legacy work.
+    // Stage 5E Targeted Remediation (RC-F) / Stage 5K: still deliberately
+    // NOT @Transactional here - the Read Model reads below are now all
+    // small, indexed, Portal-DB-only SELECTs (no Legacy work at all left
+    // in this method, Stage 5J §12), but each Portal repository call still
+    // opens/commits its own short transaction independently rather than
+    // sharing one held open for this method's whole body.
     public DashboardResponse getDashboard() {
-        List<DashboardStockAggregateRow> stockAggregateByBrand = legacyStockReadRepository.findDashboardStockAggregateByBrand();
-        Map<String, Integer> candidateCountByBrand = computeCandidateCountByBrand();
-        Map<String, String> brandNames = legacyStockReadRepository.findAllBrandNames();
-
+        Optional<DashboardAggregateCurrent> current = aggregateCurrentRepository.findBySingleton(Boolean.TRUE);
         List<PortalOrder> orders = portalOrderRepository.findAll();
         Set<Long> orderIdsWithActiveAttention = orderAttentionRepository.findByActiveTrue().stream()
                 .map(OrderAttention::getPortalOrderId)
                 .collect(Collectors.toSet());
-
-        int candidateCount = candidateCountByBrand.values().stream().mapToInt(Integer::intValue).sum();
-        int outOfStockCount = stockAggregateByBrand.stream().mapToInt(DashboardStockAggregateRow::outOfStockCount).sum();
-        int longTermOutOfStockCount = stockAggregateByBrand.stream().mapToInt(DashboardStockAggregateRow::longTermOutOfStockCount).sum();
         int draftCount = (int) orders.stream().filter(o -> PortalOrder.STATUS_DRAFT.equals(o.getStatus())).count();
         // Phase 7-C1 14章: ADMIN's approval queue entry point.
         int pendingApprovalCount = (int) orders.stream().filter(o -> PortalOrder.STATUS_PENDING_APPROVAL.equals(o.getStatus())).count();
@@ -122,45 +105,45 @@ public class DashboardService {
         // Phase 8-J 11章/13章: Price Change Draft count - see DashboardResponse Javadoc.
         int priceChangeDraftCount = (int) priceChangeSetRepository.countByStatus(PriceChangeSet.STATUS_DRAFT);
 
-        List<DashboardBrandRow> brands = buildBrandRows(
-                stockAggregateByBrand, candidateCountByBrand, brandNames, orders, orderIdsWithActiveAttention);
+        if (current.isEmpty()) {
+            // Stage 5J §15 Startup/Empty State: only reachable if the
+            // one-time startup Refresh (DashboardRefreshStartupRunner)
+            // itself failed and no later scheduled/manual Refresh has
+            // succeeded since - never a fabricated 0 candidateCount
+            // presented as real (Stage 5K §16 "no synchronous 13-second
+            // fallback" is about the request thread never computing
+            // calc4 itself - it does NOT mean silently faking a value).
+            List<DashboardBrandRow> portalOnlyBrands = buildBrandRows(
+                    List.of(), orders, orderIdsWithActiveAttention);
+            return new DashboardResponse(null, false, 0, 0, 0, draftCount, pendingApprovalCount,
+                    awaitingSupplierCount, attentionCount, openFollowUpCaseCount, priceChangeDraftCount, portalOnlyBrands);
+        }
+
+        Long refreshRunId = current.get().getActiveRefreshRunId();
+        DashboardLegacyAggregate overall = legacyAggregateRepository.findById(refreshRunId).orElseThrow(
+                () -> new IllegalStateException("dashboard_aggregate_current points at refresh_run_id=" + refreshRunId
+                        + " but no dashboard_legacy_aggregate row exists for it"));
+        List<DashboardBrandLegacyAggregate> brandAggregates = brandLegacyAggregateRepository.findByRefreshRunId(refreshRunId);
+
+        List<DashboardBrandRow> brands = buildBrandRows(brandAggregates, orders, orderIdsWithActiveAttention);
 
         return new DashboardResponse(
-                candidateCount, outOfStockCount, longTermOutOfStockCount,
+                current.get().getActivatedAt(), true,
+                overall.getCandidateCount(), overall.getOutOfStockCount(), overall.getLongTermOutOfStockCount(),
                 draftCount, pendingApprovalCount, awaitingSupplierCount, attentionCount, openFollowUpCaseCount,
                 priceChangeDraftCount, brands
         );
     }
 
-    /** candidateCount, overall and per-Brand - see class Javadoc "Category B". */
-    private Map<String, Integer> computeCandidateCountByBrand() {
-        List<LegacyStockRow> rows = legacyStockReadRepository.findDashboardCandidateInputs();
-        RegionClassificationLookup regionLookup = regionResolutionService.loadAll();
-        Map<String, Integer> countByBrand = new HashMap<>();
-        for (LegacyStockRow row : rows) {
-            if (row.brandCd() == null) {
-                continue;
-            }
-            Integer recommendedQty = recommendedQtyCalculator.calc4(row, regionLookup);
-            if (recommendedQty != null && recommendedQty > 0) {
-                countByBrand.merge(row.brandCd(), 1, Integer::sum);
-            }
-        }
-        return countByBrand;
-    }
-
-    private static List<DashboardBrandRow> buildBrandRows(List<DashboardStockAggregateRow> stockAggregateByBrand,
-                                                            Map<String, Integer> candidateCountByBrand,
-                                                            Map<String, String> brandNames,
+    private static List<DashboardBrandRow> buildBrandRows(List<DashboardBrandLegacyAggregate> legacyBrandAggregates,
                                                             List<PortalOrder> orders,
                                                             Set<Long> orderIdsWithActiveAttention) {
         // LinkedHashMap to keep a stable, deterministic Brand order (first-seen,
-        // stock-aggregate order first, then any Portal-only Brand codes).
+        // Legacy aggregate order first, then any Portal-only Brand codes).
         Map<String, String> brandNameByCode = new LinkedHashMap<>();
-        for (DashboardStockAggregateRow row : stockAggregateByBrand) {
-            if (row.brandCd() != null) {
-                brandNameByCode.putIfAbsent(row.brandCd(), brandNames.getOrDefault(row.brandCd(), row.brandCd()));
-            }
+        for (DashboardBrandLegacyAggregate row : legacyBrandAggregates) {
+            brandNameByCode.putIfAbsent(row.getBrandCode(),
+                    row.getBrandName() != null ? row.getBrandName() : row.getBrandCode());
         }
         for (PortalOrder o : orders) {
             if (o.getBrandCode() != null) {
@@ -168,16 +151,16 @@ public class DashboardService {
             }
         }
 
-        Map<String, DashboardStockAggregateRow> stockByBrand = stockAggregateByBrand.stream()
-                .collect(Collectors.toMap(DashboardStockAggregateRow::brandCd, r -> r, (a, b) -> a));
+        Map<String, DashboardBrandLegacyAggregate> legacyByBrand = legacyBrandAggregates.stream()
+                .collect(Collectors.toMap(DashboardBrandLegacyAggregate::getBrandCode, r -> r, (a, b) -> a));
 
         return brandNameByCode.entrySet().stream()
                 .map(entry -> {
                     String brandCode = entry.getKey();
-                    DashboardStockAggregateRow stock = stockByBrand.get(brandCode);
-                    int candidateCount = candidateCountByBrand.getOrDefault(brandCode, 0);
-                    int outOfStockCount = stock == null ? 0 : stock.outOfStockCount();
-                    int longTermOutOfStockCount = stock == null ? 0 : stock.longTermOutOfStockCount();
+                    DashboardBrandLegacyAggregate legacy = legacyByBrand.get(brandCode);
+                    int candidateCount = legacy == null ? 0 : legacy.getCandidateCount();
+                    int outOfStockCount = legacy == null ? 0 : legacy.getOutOfStockCount();
+                    int longTermOutOfStockCount = legacy == null ? 0 : legacy.getLongTermOutOfStockCount();
                     int draftCount = (int) orders.stream()
                             .filter(o -> brandCode.equals(o.getBrandCode()) && PortalOrder.STATUS_DRAFT.equals(o.getStatus())).count();
                     int awaitingSupplierCount = (int) orders.stream()

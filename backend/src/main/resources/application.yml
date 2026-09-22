@@ -87,6 +87,27 @@ app:
   # inventing a second environment-detection scheme.
   demo-features:
     enabled: true
+  # Stage 5K (docs/real-data-audit/gops-stage5k-dashboard-read-model-implementation.md
+  # / gops-stage5j-production-batch-schedule-addendum.md §13/§14): the
+  # Addendum's own recommendation (30 min, offset :07/:37, quiet hours
+  # ~22:00-04:30) is a DEFAULT here, never hardcoded into
+  # DashboardRefreshScheduler/DashboardRefreshService - explicitly NOT yet
+  # a confirmed Business Rule pending Gulliver's single freshness Yes/No
+  # (Addendum §14). A Production deploy overrides these via
+  # application-production.yml or env vars once that answer comes back,
+  # with no code change.
+  dashboard:
+    refresh:
+      enabled: true
+      # Spring cron: second minute hour day month weekday.
+      cron: "0 7,37 * * * *"
+      quiet-hours-start: "22:00"
+      quiet-hours-end: "04:30"
+      timeout-seconds: 120
+      # Stage 5K §20 Retention: finished (SUCCEEDED/FAILED) refresh_run
+      # rows older than this are purged after each successful refresh -
+      # the currently-active run is always excluded regardless of age.
+      retention-days: 30
 
 server:
   port: 8080

@@ -49,6 +49,26 @@ export function DashboardPage() {
     )
   }
 
+  // Stage 5K: candidateCount/outOfStockCount/longTermOutOfStockCount now
+  // come from a background Read Model Refresh (docs/real-data-audit/
+  // gops-stage5k-dashboard-read-model-implementation.md) - `initialized`
+  // is only ever false in the narrow window before the very first Refresh
+  // has succeeded (e.g. a freshly-reset environment). Every count is 0
+  // then, not a real value, so this shows an explicit "preparing" state
+  // instead of a misleadingly-empty-looking Dashboard.
+  if (!data.initialized) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h5" component="h1" gutterBottom>
+          {t('title')}
+        </Typography>
+        <Alert severity="info" action={<Button color="inherit" size="small" onClick={() => refetch()}>{t('common:retry')}</Button>}>
+          {t('initializing')}
+        </Alert>
+      </Box>
+    )
+  }
+
   // Phase 6-D Deep Link audit (docs/production-ux-workflow-redesign.md 10章;
   // full per-KPI writeup in the Phase 6-D completion report). Every target
   // filter reuses Phase 6-A's URL Query Parameter mechanism as-is - no new
@@ -127,6 +147,14 @@ export function DashboardPage() {
       <Typography variant="h5" component="h1" gutterBottom>
         {t('title')}
       </Typography>
+      {data.calculatedAt && (
+        // Stage 5J §14 Freshness UX: a plain timestamp, never "Read Model" /
+        // "Refresh Version" / "calc4" technical language shown to a general
+        // Operator (Stage 5J §13 explicit instruction).
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }} data-testid="dashboard-last-updated">
+          {t('lastUpdated', { timestamp: new Date(data.calculatedAt).toLocaleString('ja-JP') })}
+        </Typography>
+      )}
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {kpis.map((kpi) => {
