@@ -13,6 +13,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Warehouse Stock Visibility Foundation (Phase 8-G 8章/9章/10章). Pure
@@ -21,6 +24,24 @@ import java.util.Set;
  * or {@link com.glv.gsysportal.repository.legacy.FulfillmentReadRepository}
  * (Phase 8-G 11章 - Arrival and Warehouse Stock are never composed together
  * anywhere in this codebase, not even at the Service layer).
+ *
+ * <p>Warehouse Stock Production-Scale Remediation (docs/real-data-audit/
+ * gops-warehouse-stock-production-scale-remediation.md §10): the
+ * unfiltered {@code countList}/{@code findList} calls each independently
+ * cost several seconds at Production scale (measured on the isolated
+ * Snapshot - neither shows the old pathological filesort, but a
+ * ~567,000-row {@code ms_item x ms_stk} nested-loop join has a real,
+ * measured floor of several seconds either way, with no Legacy index
+ * change available this Stage). They are entirely independent reads with
+ * no data dependency on each other, so this method runs them
+ * concurrently (one dedicated, short-lived worker thread - the same
+ * per-call-executor pattern {@code DashboardRefreshService} already
+ * established, not a new persistent thread pool) instead of serially -
+ * roughly halving the unfiltered-case wall-clock cost. This does not, by
+ * itself, bring the unfiltered case under this Stage's <=2s target (see
+ * the remediation doc's own honest reporting) - it is a real, measured
+ * improvement layered on top of the Phase 1/Phase 2 query redesign, nothing
+ * more.
  */
 @Service
 public class WarehouseStockService {
@@ -45,11 +66,18 @@ public class WarehouseStockService {
         int clampedPage = page == null || page < 0 ? 0 : page;
         int offset = clampedPage * clampedSize;
 
-        long total = warehouseStockReadRepository.countList(filter);
-        List<WarehouseStockSummaryResponse> content = warehouseStockReadRepository.findList(filter, clampedSize, offset).stream()
-                .map(WarehouseStockService::toSummary)
-                .toList();
-        return PageResponse.of(content, clampedPage, clampedSize, total);
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            CompletableFuture<Long> totalFuture = CompletableFuture.supplyAsync(
+                    () -> warehouseStockReadRepository.countList(filter), executor);
+            List<WarehouseStockSummaryResponse> content = warehouseStockReadRepository.findList(filter, clampedSize, offset).stream()
+                    .map(WarehouseStockService::toSummary)
+                    .toList();
+            long total = totalFuture.join();
+            return PageResponse.of(content, clampedPage, clampedSize, total);
+        } finally {
+            executor.shutdown();
+        }
     }
 
     /** Warehouse Stock Detail (Phase 8-G 10章) - all physical-warehouse rows

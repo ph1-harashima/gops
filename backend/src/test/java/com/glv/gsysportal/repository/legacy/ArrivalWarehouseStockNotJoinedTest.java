@@ -24,7 +24,12 @@ class ArrivalWarehouseStockNotJoinedTest {
             "legacy/ArrivalListQuery.sql", "legacy/ArrivalListCountQuery.sql",
     };
     private static final String[] WAREHOUSE_STOCK_QUERY_RESOURCES = {
-            "legacy/WarehouseStockListQuery.sql", "legacy/WarehouseStockListCountQuery.sql", "legacy/WarehouseStockBySkuQuery.sql",
+            // Warehouse Stock Production-Scale Remediation (docs/real-data-audit/
+            // gops-warehouse-stock-production-scale-remediation.md): the old
+            // single-query WarehouseStockListQuery.sql was replaced by a
+            // two-step pair - both checked here in its place.
+            "legacy/WarehouseStockPageKeysQuery.sql", "legacy/WarehouseStockDetailByItemCodesQuery.sql",
+            "legacy/WarehouseStockListCountQuery.sql", "legacy/WarehouseStockBySkuQuery.sql",
     };
 
     @Test
