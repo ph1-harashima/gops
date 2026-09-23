@@ -1,6 +1,9 @@
 {
   "listTitle": "Suppliers",
   "listSubtitle": "Select the Supplier whose settings you want to check or change.",
+  "search": "Search supplier (code or name)",
+  "searchPlaceholder": "Search by supplier code or name",
+  "noSuppliersMatch": "No suppliers match.",
   "table": {
     "supplierCode": "Supplier Code",
     "supplierName": "Supplier Name",

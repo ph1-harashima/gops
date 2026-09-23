@@ -13,17 +13,22 @@ import type { PageResponse } from '../../shared/types/pagination'
  * - same {@link PageResponse} envelope every other paginated List screen
  * (Candidate List, Stock/Sales List) already uses.
  */
-async function fetchSuppliers(page: number, size: number): Promise<PageResponse<SupplierMasterSummary>> {
+/** G-OPS Operational Workflow Realignment Phase G §18: `keyword` (Supplier
+ * Code/Name), forwarded as-is to the Backend's own filter - still
+ * Backend-side pagination (RC-J unchanged, see SupplierMasterService's own
+ * Javadoc). `undefined` omits the param entirely rather than sending an
+ * empty string. */
+async function fetchSuppliers(page: number, size: number, keyword?: string): Promise<PageResponse<SupplierMasterSummary>> {
   const { data } = await apiClient.get<PageResponse<SupplierMasterSummary>>('/admin/suppliers', {
-    params: { page, size },
+    params: { page, size, keyword: keyword || undefined },
   })
   return data
 }
 
-export function useSupplierMasterList(page: number, size: number) {
+export function useSupplierMasterList(page: number, size: number, keyword?: string) {
   return useQuery({
-    queryKey: ['supplier-master-list', page, size],
-    queryFn: () => fetchSuppliers(page, size),
+    queryKey: ['supplier-master-list', page, size, keyword],
+    queryFn: () => fetchSuppliers(page, size, keyword),
   })
 }
 

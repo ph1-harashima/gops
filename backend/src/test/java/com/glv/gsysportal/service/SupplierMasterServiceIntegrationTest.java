@@ -46,7 +46,7 @@ class SupplierMasterServiceIntegrationTest {
 
     @Test
     void listSuppliersReturnsOnlyLegacyRegisteredSuppliers_neverFabricated() {
-        List<SupplierMasterSummaryResponse> suppliers = service.listSuppliers(null, null).content();
+        List<SupplierMasterSummaryResponse> suppliers = service.listSuppliers(null, null, null).content();
 
         // The Legacy Demo Master is exactly SUP_ALPHA/SUP_BETA/SUP_GAMMA
         // (docs/gops-information-architecture-cross-screen-audit.md 4.3章
@@ -70,7 +70,7 @@ class SupplierMasterServiceIntegrationTest {
         supplierRegionClassificationService.create(
                 new SupplierRegionClassificationRequest("SUP_ALPHA", "BR_OUTDOOR", "OVERSEAS", true), ADMIN);
 
-        SupplierMasterSummaryResponse alpha = service.listSuppliers(null, null).content().stream()
+        SupplierMasterSummaryResponse alpha = service.listSuppliers(null, null, null).content().stream()
                 .filter(s -> "SUP_ALPHA".equals(s.supplierCode()))
                 .findFirst().orElseThrow();
 
@@ -86,7 +86,7 @@ class SupplierMasterServiceIntegrationTest {
         manufacturerChannelService.create(
                 new ManufacturerChannelRequest("SUP_ALPHA", "BR_HOME", "EDI", true), ADMIN);
 
-        SupplierMasterSummaryResponse alpha = service.listSuppliers(null, null).content().stream()
+        SupplierMasterSummaryResponse alpha = service.listSuppliers(null, null, null).content().stream()
                 .filter(s -> "SUP_ALPHA".equals(s.supplierCode()))
                 .findFirst().orElseThrow();
 
@@ -95,7 +95,7 @@ class SupplierMasterServiceIntegrationTest {
 
     @Test
     void listSuppliersShowsMissingWhenNothingConfigured() {
-        SupplierMasterSummaryResponse gamma = service.listSuppliers(null, null).content().stream()
+        SupplierMasterSummaryResponse gamma = service.listSuppliers(null, null, null).content().stream()
                 .filter(s -> "SUP_GAMMA".equals(s.supplierCode()))
                 .findFirst().orElseThrow();
 
@@ -116,9 +116,9 @@ class SupplierMasterServiceIntegrationTest {
      * sliced. size=1 forces exactly 2 pages for the 3-Supplier Demo fixture. */
     @Test
     void listSuppliersIsPaginatedWithoutLosingOrDuplicatingRows() {
-        var page0 = service.listSuppliers(0, 1);
-        var page1 = service.listSuppliers(1, 1);
-        var page2 = service.listSuppliers(2, 1);
+        var page0 = service.listSuppliers(0, 1, null);
+        var page1 = service.listSuppliers(1, 1, null);
+        var page2 = service.listSuppliers(2, 1, null);
 
         assertEquals(1, page0.content().size());
         assertEquals(1, page1.content().size());
@@ -134,6 +134,48 @@ class SupplierMasterServiceIntegrationTest {
                 page2.content().get(0).supplierCode());
         assertEquals(java.util.Set.of("SUP_ALPHA", "SUP_BETA", "SUP_GAMMA"), codes,
                 "3 pages of size 1 must cover all 3 Suppliers exactly once each, none dropped or duplicated");
+    }
+
+    /** G-OPS Operational Workflow Realignment Phase G §18: Supplier Code/Name
+     * search, applied before the existing pagination (still Backend-side -
+     * the assertion below on totalElements/page proves the Client still
+     * only ever gets a slice, not all rows re-filtered client-side). */
+    @Test
+    void listSuppliersFiltersByCodeKeyword_caseInsensitiveSubstring() {
+        var filtered = service.listSuppliers(null, null, "alpha");
+
+        assertEquals(1, filtered.totalElements());
+        assertEquals("SUP_ALPHA", filtered.content().get(0).supplierCode());
+    }
+
+    @Test
+    void listSuppliersFiltersByNameKeyword() {
+        // Every Legacy Demo Supplier has a real, non-blank name (already
+        // proven by listSuppliersReturnsOnlyLegacyRegisteredSuppliers_neverFabricated
+        // above) - search by an exact substring of SUP_GAMMA's own actual
+        // name rather than a guessed/invented one.
+        String gammaName = service.listSuppliers(null, null, null).content().stream()
+                .filter(s -> "SUP_GAMMA".equals(s.supplierCode()))
+                .findFirst().orElseThrow().supplierName();
+        String substring = gammaName.substring(0, Math.min(3, gammaName.length()));
+
+        var filtered = service.listSuppliers(null, null, substring);
+
+        assertTrue(filtered.content().stream().anyMatch(s -> "SUP_GAMMA".equals(s.supplierCode())));
+    }
+
+    @Test
+    void listSuppliersKeywordBlankOrNullMeansNoFilter() {
+        assertEquals(3, service.listSuppliers(null, null, null).totalElements());
+        assertEquals(3, service.listSuppliers(null, null, "").totalElements());
+        assertEquals(3, service.listSuppliers(null, null, "   ").totalElements());
+    }
+
+    @Test
+    void listSuppliersKeywordMatchingNothingReturnsEmptyNotError() {
+        var filtered = service.listSuppliers(null, null, "NO_SUCH_SUPPLIER_KEYWORD_XYZ");
+        assertEquals(0, filtered.totalElements());
+        assertTrue(filtered.content().isEmpty());
     }
 
     @Test
@@ -153,7 +195,7 @@ class SupplierMasterServiceIntegrationTest {
      */
     @Test
     void listSuppliersAndGetSupplierHaveNoTransactionalAnnotation() throws NoSuchMethodException {
-        java.lang.reflect.Method list = SupplierMasterService.class.getMethod("listSuppliers", Integer.class, Integer.class);
+        java.lang.reflect.Method list = SupplierMasterService.class.getMethod("listSuppliers", Integer.class, Integer.class, String.class);
         java.lang.reflect.Method get = SupplierMasterService.class.getMethod("getSupplier", String.class);
         assertEquals(null, list.getAnnotation(Transactional.class),
                 "listSuppliers() must not hold a Portal connection open for its entire body");
@@ -199,7 +241,7 @@ class SupplierMasterServiceIntegrationTest {
                         "soon-inactive@example.com", "TO", "ja", null, null, false, false),
                 ADMIN);
 
-        Optional<SupplierMasterSummaryResponse> gamma = service.listSuppliers(null, null).content().stream()
+        Optional<SupplierMasterSummaryResponse> gamma = service.listSuppliers(null, null, null).content().stream()
                 .filter(s -> "SUP_GAMMA".equals(s.supplierCode()))
                 .findFirst();
 

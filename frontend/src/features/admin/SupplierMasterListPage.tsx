@@ -16,6 +16,7 @@ import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
+import TextField from '@mui/material/TextField'
 
 import { useSupplierMasterList } from './supplierMasterApi'
 import type { SupplierMasterSummary } from '../../shared/types/supplierMaster'
@@ -41,7 +42,19 @@ export function SupplierMasterListPage() {
   const navigate = useNavigate()
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(DEFAULT_PAGE_SIZE)
-  const { data, isLoading, isError, refetch } = useSupplierMasterList(page, size)
+  // G-OPS Operational Workflow Realignment Phase G §18: same "local input
+  // state, commit on blur/Enter" idiom as CandidateListPage/OrderHistoryListPage's
+  // own keyword filters - typing must not fire a fresh Backend request on
+  // every keystroke. Any keyword change resets to page 0 (a changed Filter
+  // can invalidate the current page), same convention every other
+  // Backend-paginated List in this codebase already follows.
+  const [keywordInput, setKeywordInput] = useState('')
+  const [keyword, setKeyword] = useState('')
+  function applyKeyword() {
+    setKeyword(keywordInput)
+    setPage(0)
+  }
+  const { data, isLoading, isError, refetch } = useSupplierMasterList(page, size, keyword)
 
   function regionLabel(value: SupplierMasterSummary['regionClassification']): string {
     if (value === 'MIXED') return t('supplierMaster:mixed')
@@ -82,6 +95,40 @@ export function SupplierMasterListPage() {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         {t('supplierMaster:listSubtitle')}
       </Typography>
+
+      <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+        <TextField
+          size="small"
+          label={t('supplierMaster:search')}
+          placeholder={t('supplierMaster:searchPlaceholder') ?? undefined}
+          sx={{ minWidth: 260 }}
+          value={keywordInput}
+          onChange={(e) => setKeywordInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && applyKeyword()}
+          onBlur={applyKeyword}
+          slotProps={{ htmlInput: { 'data-testid': 'supplier-master-search-input' } }}
+        />
+      </Stack>
+
+      {/* §18: pagination control at both top and bottom - on a 602-row,
+          31-page (at size=20) list, a top control lets the ADMIN jump
+          pages without first scrolling down past however many rows are
+          currently rendered. Same component/props as the bottom one -
+          MUI's own TablePagination is happy to render more than once for
+          the same state. */}
+      <TablePagination
+        component="div"
+        count={data?.totalElements ?? 0}
+        page={page}
+        rowsPerPage={size}
+        rowsPerPageOptions={[10, 20, 50, 100]}
+        onPageChange={(_e, newPage) => setPage(newPage)}
+        onRowsPerPageChange={(e) => {
+          setSize(Number(e.target.value))
+          setPage(0)
+        }}
+        data-testid="supplier-master-list-pagination-top"
+      />
 
       <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="supplier-master-list-table-container">
         <Table size="small" stickyHeader sx={{ minWidth: 650, '& .MuiTableCell-root': { whiteSpace: 'nowrap' }, '& .MuiTableCell-stickyHeader': { backgroundColor: 'background.paper' } }}>
@@ -124,6 +171,15 @@ export function SupplierMasterListPage() {
                 <TableCell>{s.officialPoShortCode ?? t('supplierMaster:missing')}</TableCell>
               </TableRow>
             ))}
+            {data?.content.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7}>
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                    {t('supplierMaster:noSuppliersMatch')}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableContainer>
@@ -138,7 +194,7 @@ export function SupplierMasterListPage() {
           setSize(Number(e.target.value))
           setPage(0)
         }}
-        data-testid="supplier-master-list-pagination"
+        data-testid="supplier-master-list-pagination-bottom"
       />
     </Box>
   )

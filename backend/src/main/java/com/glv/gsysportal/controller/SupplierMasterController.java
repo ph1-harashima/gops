@@ -38,8 +38,9 @@ public class SupplierMasterController {
     @GetMapping("/api/admin/suppliers")
     public PageResponse<SupplierMasterSummaryResponse> list(
             @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size) {
-        return service.listSuppliers(page, size);
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String keyword) {
+        return service.listSuppliers(page, size, keyword);
     }
 
     @GetMapping("/api/admin/suppliers/{supplierCode}")

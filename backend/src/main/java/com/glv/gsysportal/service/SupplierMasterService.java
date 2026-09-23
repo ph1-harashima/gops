@@ -101,7 +101,20 @@ public class SupplierMasterService {
      * Brand count) is unchanged - only the final slice returned differs;
      * Business Meaning of every field is identical to before this Stage.
      */
-    public PageResponse<SupplierMasterSummaryResponse> listSuppliers(Integer page, Integer size) {
+    /**
+     * G-OPS Operational Workflow Realignment Phase G §18: {@code keyword}
+     * added as a Supplier Code/Name filter, applied to the already-
+     * in-memory-materialized {@code all} list BEFORE the existing
+     * pagination slice below - Backend server-side pagination (RC-J) is
+     * unchanged and preserved exactly (the Client still only ever receives
+     * one page, never all 602 rows); this Phase does not also convert the
+     * underlying Legacy Supplier/Brand/Contact/Channel/Region join to a
+     * DB-pushed-down query (a separate, larger performance change flagged
+     * in the prior End-to-End UX Audit §19/§23, out of this Phase's own
+     * scope). Case-insensitive substring match, same convention as
+     * OrderCandidateService's own keyword filter.
+     */
+    public PageResponse<SupplierMasterSummaryResponse> listSuppliers(Integer page, Integer size, String keyword) {
         List<LegacySupplierRow> suppliers = legacyMasterReadRepository.findAllSuppliers();
         Map<String, Map<String, String>> brandsBySupplier = brandsBySupplier();
         List<SupplierContactResponse> contacts = supplierContactService.list();
@@ -125,6 +138,7 @@ public class SupplierMasterService {
                                 .filter(c -> c.active() && "SUPPLIER".equals(c.codeType()) && c.businessCode().equals(s.code()))
                                 .map(OfficialPoShortCodeResponse::shortCode)
                                 .findFirst().orElse(null)))
+                .filter(row -> matchesKeyword(row, keyword))
                 .toList();
 
         int clampedSize = size == null || size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
@@ -216,5 +230,14 @@ public class SupplierMasterService {
             return null;
         }
         return distinct.size() == 1 ? distinct.iterator().next() : "MIXED";
+    }
+
+    private static boolean matchesKeyword(SupplierMasterSummaryResponse row, String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return true;
+        }
+        String needle = keyword.trim().toLowerCase();
+        return (row.supplierCode() != null && row.supplierCode().toLowerCase().contains(needle))
+                || (row.supplierName() != null && row.supplierName().toLowerCase().contains(needle));
     }
 }
