@@ -160,6 +160,52 @@ public class DashboardService {
         );
     }
 
+    /**
+     * G-OPS Candidate Brand List UX improvement (発注候補 Brand一覧):
+     * {@link com.glv.gsysportal.controller.OrderCandidateController}'s own
+     * dedicated Brand entry point - deliberately NOT a param added to
+     * {@link #getDashboard()}/{@code GET /api/dashboard} itself, so the
+     * Dashboard Read Model's own request/response contract (and every test
+     * built against it) is completely untouched. Reuses the exact same
+     * {@link #buildBrandRows} computation over the exact same Read Model
+     * getDashboard() already reads (dashboard_brand_legacy_aggregate) - not
+     * a second, independently-computed Brand aggregation - but skips every
+     * Dashboard-only KPI (signaturePendingCount, priceChangeDraftCount,
+     * openFollowUpCaseCount, Official PO Integration Request lookups) this
+     * screen never needs, so this call is lighter than a full
+     * getDashboard(), never heavier.
+     *
+     * <p>Keyword (Brand Code/Name substring, case-insensitive) and the
+     * candidateCount&gt;0 default filter are applied here, server-side,
+     * before returning - the Frontend only ever receives the
+     * already-matching subset, never the full Brand catalog to filter
+     * itself (Production Snapshot scale: 571 Brand rows today).
+     */
+    public List<DashboardBrandRow> findBrandRowsForCandidateEntry(String keyword, boolean includeZeroCandidates) {
+        Optional<DashboardAggregateCurrent> current = aggregateCurrentRepository.findBySingleton(Boolean.TRUE);
+        List<PortalOrder> orders = portalOrderRepository.findAll();
+        Set<Long> orderIdsWithActiveAttention = orderAttentionRepository.findByActiveTrue().stream()
+                .map(OrderAttention::getPortalOrderId)
+                .collect(Collectors.toSet());
+
+        List<DashboardBrandRow> brands;
+        if (current.isEmpty()) {
+            brands = buildBrandRows(List.of(), orders, orderIdsWithActiveAttention);
+        } else {
+            Long refreshRunId = current.get().getActiveRefreshRunId();
+            List<DashboardBrandLegacyAggregate> brandAggregates = brandLegacyAggregateRepository.findByRefreshRunId(refreshRunId);
+            brands = buildBrandRows(brandAggregates, orders, orderIdsWithActiveAttention);
+        }
+
+        String needle = keyword == null ? "" : keyword.trim().toLowerCase();
+        return brands.stream()
+                .filter(b -> includeZeroCandidates || b.candidateCount() > 0)
+                .filter(b -> needle.isEmpty()
+                        || (b.brandCode() != null && b.brandCode().toLowerCase().contains(needle))
+                        || (b.brandName() != null && b.brandName().toLowerCase().contains(needle)))
+                .toList();
+    }
+
     private static List<DashboardBrandRow> buildBrandRows(List<DashboardBrandLegacyAggregate> legacyBrandAggregates,
                                                             List<PortalOrder> orders,
                                                             Set<Long> orderIdsWithActiveAttention) {

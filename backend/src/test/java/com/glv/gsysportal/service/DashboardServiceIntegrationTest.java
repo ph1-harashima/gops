@@ -1,6 +1,7 @@
 package com.glv.gsysportal.service;
 
 import com.glv.gsysportal.dto.request.CreateDraftRequest;
+import com.glv.gsysportal.dto.response.DashboardBrandRow;
 import com.glv.gsysportal.dto.response.DashboardResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -139,5 +140,66 @@ class DashboardServiceIntegrationTest {
         String singleRowResult = regionResolutionService.resolve("SUP_TEST", "BR_OUTDOOR");
         String bulkResult = regionResolutionService.loadAll().resolve("SUP_TEST", "BR_OUTDOOR");
         assertEquals(singleRowResult, bulkResult);
+    }
+
+    /**
+     * Candidate Brand List UX improvement (OrderCandidateBrandListPage's
+     * own Brand entry screen, GET /api/order-candidates/brands): the
+     * candidateCount>0 default filter must exclude every zero-candidate
+     * Brand unless explicitly asked to include them - the same "hide
+     * zero-activity rows by default" contract Phase D's Dashboard Brand
+     * Breakdown table and Phase E's (now superseded) client-side filter
+     * both already established, now enforced server-side instead.
+     */
+    @Test
+    void findBrandRowsForCandidateEntryDefaultHidesZeroCandidateBrands() {
+        List<DashboardBrandRow> hiddenByDefault = dashboardService.findBrandRowsForCandidateEntry(null, false);
+        assertTrue(hiddenByDefault.stream().allMatch(b -> b.candidateCount() > 0),
+                "every row returned with includeZeroCandidates=false must have candidateCount > 0");
+
+        List<DashboardBrandRow> withZero = dashboardService.findBrandRowsForCandidateEntry(null, true);
+        assertTrue(withZero.size() >= hiddenByDefault.size(),
+                "includeZeroCandidates=true must return at least as many rows as the default view");
+    }
+
+    /**
+     * Keyword matches both Brand Code and Brand Name, case-insensitively,
+     * same convention as SupplierMasterService's own keyword filter
+     * (Phase G §18) - reused here for consistency, not duplicated
+     * independently.
+     */
+    @Test
+    void findBrandRowsForCandidateEntryFiltersByKeywordCaseInsensitiveOnCodeOrName() {
+        List<DashboardBrandRow> byCode = dashboardService.findBrandRowsForCandidateEntry("br_outdoor", true);
+        assertTrue(byCode.stream().anyMatch(b -> "BR_OUTDOOR".equals(b.brandCode())),
+                "lowercase Brand Code substring must still match BR_OUTDOOR");
+        assertTrue(byCode.stream().allMatch(b -> b.brandCode().toLowerCase().contains("br_outdoor")
+                        || b.brandName().toLowerCase().contains("br_outdoor")),
+                "every returned row must actually match the keyword on code or name");
+    }
+
+    @Test
+    void findBrandRowsForCandidateEntryKeywordMatchingNothingReturnsEmptyNotError() {
+        List<DashboardBrandRow> result = dashboardService.findBrandRowsForCandidateEntry("NO_SUCH_BRAND_XYZ", true);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findBrandRowsForCandidateEntryBlankKeywordMeansNoFilter() {
+        List<DashboardBrandRow> blank = dashboardService.findBrandRowsForCandidateEntry("   ", true);
+        List<DashboardBrandRow> nullKeyword = dashboardService.findBrandRowsForCandidateEntry(null, true);
+        assertEquals(nullKeyword.size(), blank.size());
+    }
+
+    /**
+     * Same reasoning as getDashboardHasNoTransactionalAnnotation above
+     * (RC-F): this method's own Portal repository calls should each open/
+     * commit their own short transaction, not share one held open for the
+     * whole method body.
+     */
+    @Test
+    void findBrandRowsForCandidateEntryHasNoTransactionalAnnotation() throws NoSuchMethodException {
+        Method method = DashboardService.class.getMethod("findBrandRowsForCandidateEntry", String.class, boolean.class);
+        assertNull(method.getAnnotation(Transactional.class));
     }
 }

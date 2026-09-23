@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
@@ -23,8 +23,7 @@ import Checkbox from '@mui/material/Checkbox'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { useTheme } from '@mui/material/styles'
 
-import { useDashboard } from '../dashboard/api'
-import type { DashboardBrandRow } from '../../shared/types/dashboard'
+import { useOrderCandidateBrands } from './api'
 
 /**
  * Order Candidates Brand Entry (docs/gops-order-candidates-brand-entry-implementation.md):
@@ -33,31 +32,38 @@ import type { DashboardBrandRow } from '../../shared/types/dashboard'
  * children" principle Master Maintenance Hub already established
  * (docs/gops-master-maintenance-hub-implementation.md).
  *
- * Reuses Dashboard's own `useDashboard()` query as-is (same Brand breakdown
- * data Dashboard's own table already renders) - no second Dashboard-like
- * endpoint, no new Candidate API. CandidateListPage itself (the actual SKU
- * Flat List) is completely unchanged; this screen is purely a new landing
- * page in front of it.
+ * CandidateListPage itself (the actual SKU Flat List) is completely
+ * unchanged; this screen is purely a landing page in front of it.
  *
- * G-OPS Operational Workflow Realignment Phase E §11: search (Brand
- * Code/Name) + a "候補0件のブランドも表示" toggle defaulting to hidden,
- * mirroring Phase D's identical Dashboard Brand Breakdown treatment (same
- * underlying `data.brands`). Deliberately LOCAL React state, not URL
- * Query Parameters: {@link CandidatesEntryPage} renders this component
- * only when the URL has ZERO Query Parameters at all - adding one for this
- * screen's own search/toggle would flip routing to the flat
+ * G-OPS Operational Workflow Realignment Phase E §11 / Candidate Brand
+ * List UX improvement: search (Brand Code/Name) + a "候補0件のブランドも
+ * 表示" toggle defaulting to hidden. Both now run server-side via
+ * `useOrderCandidateBrands` (`GET /api/order-candidates/brands`,
+ * `DashboardService.findBrandRowsForCandidateEntry`) - a dedicated,
+ * separate endpoint reusing the exact same Read Model `GET /api/dashboard`
+ * already reads, filtered before it ever reaches the Frontend (Production
+ * Snapshot scale: 571 Brand rows). Originally (Phase E) this screen called
+ * `useDashboard()` directly and filtered the full Brand list client-side -
+ * changed because that fetched every Brand row (and every unrelated
+ * Dashboard KPI) just to power this screen's own search, the same
+ * fetch-all-then-filter-in-Frontend pattern Stage 5E RC-B already rejected
+ * for this screen's Brand Filter Chip (see `api.ts`'s own `useBrandNames`
+ * Javadoc).
+ *
+ * Search commits on blur/Enter (not per keystroke) - same idiom as
+ * SupplierMasterListPage/OrderHistoryListPage's own keyword filters, to
+ * avoid firing a request per character. Deliberately LOCAL React state,
+ * not URL Query Parameters: {@link CandidatesEntryPage} renders this
+ * component only when the URL has ZERO Query Parameters at all - adding
+ * one for this screen's own search/toggle would flip routing to the flat
  * CandidateListPage instead. This is a real, discovered limitation (not
  * an oversight) - browser Back to a bare `/candidates` remounts this page
  * fresh, so this search/toggle does not survive that round trip the way a
- * URL-backed filter would. Flagged as a known limitation, not fixed this
- * Phase (fixing it would mean either special-casing one param name in
- * CandidatesEntryPage's own routing check, or moving this screen to its
- * own dedicated route - both a bigger change than this Phase's own scope).
+ * URL-backed filter would. Still not fixed (out of this change's scope).
  */
 export function OrderCandidateBrandListPage() {
   const { t } = useTranslation(['candidates', 'common'])
   const navigate = useNavigate()
-  const { data, isLoading, isError, refetch } = useDashboard()
   const theme = useTheme()
   // Mobile Responsive Audit UX-01/UX-03: the Desktop 7-column KPI Table is
   // too dense to read at a glance below `sm` (600px) - a Brand Card (name +
@@ -65,18 +71,17 @@ export function OrderCandidateBrandListPage() {
   // same testids/URLs as the Desktop Table below - purely a presentation
   // swap, no new API/Business Logic.
   const isCardLayout = useMediaQuery(theme.breakpoints.down('sm'))
+  // Same "local input state, commit on blur/Enter" idiom as
+  // SupplierMasterListPage/OrderHistoryListPage's own keyword filters -
+  // typing must not fire a fresh Backend request on every keystroke.
+  const [brandSearchInput, setBrandSearchInput] = useState('')
   const [brandSearch, setBrandSearch] = useState('')
+  function applyBrandSearch() {
+    setBrandSearch(brandSearchInput)
+  }
   const [showZeroCandidateBrands, setShowZeroCandidateBrands] = useState(false)
-
-  const filteredBrands = useMemo(() => {
-    if (!data) return [] as DashboardBrandRow[]
-    const query = brandSearch.trim().toLowerCase()
-    return data.brands.filter((b) => {
-      if (!showZeroCandidateBrands && b.candidateCount === 0) return false
-      if (!query) return true
-      return b.brandCode.toLowerCase().includes(query) || b.brandName.toLowerCase().includes(query)
-    })
-  }, [data, brandSearch, showZeroCandidateBrands])
+  const { data, isLoading, isError, refetch } = useOrderCandidateBrands(brandSearch, showZeroCandidateBrands)
+  const filteredBrands = data ?? []
 
   if (isLoading) {
     return (
@@ -123,10 +128,12 @@ export function OrderCandidateBrandListPage() {
         <TextField
           size="small"
           label={t('candidates:brandList.search')}
-          value={brandSearch}
-          onChange={(e) => setBrandSearch(e.target.value)}
+          value={brandSearchInput}
+          onChange={(e) => setBrandSearchInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && applyBrandSearch()}
+          onBlur={applyBrandSearch}
           sx={{ minWidth: 220 }}
-          data-testid="candidate-brand-list-search"
+          slotProps={{ htmlInput: { 'data-testid': 'candidate-brand-list-search' } }}
         />
         <FormControlLabel
           control={

@@ -197,4 +197,40 @@ test.describe('Order Candidates Brand Entry', () => {
     await expect(page).toHaveURL(/\/candidates$/)
     await expect(page.getByTestId('order-candidate-brand-list-table-container')).toBeVisible()
   })
+
+  /**
+   * Candidate Brand List UX improvement: keyword search + the
+   * "候補0件も表示" toggle both run server-side (GET
+   * /api/order-candidates/brands) - ACT/HNK (real Legacy Demo DB fixture
+   * Brands with candidateCount=0) are hidden by default and only appear
+   * once the toggle is checked, proving the filter is actually applied,
+   * not merely present in the UI.
+   */
+  test('Brand検索でBrand Code/Nameによる絞り込みができる', async ({ page }) => {
+    await login(page)
+    await page.getByTestId('nav-candidates').click()
+    await expect(page.getByTestId('order-candidate-brand-row-BR_HOME')).toBeVisible()
+
+    await page.locator('[data-testid="candidate-brand-list-search"]').fill('BR_HOME')
+    await page.locator('[data-testid="candidate-brand-list-search"]').blur()
+
+    await expect(page.getByTestId('order-candidate-brand-row-BR_HOME')).toBeVisible()
+    await expect(page.getByTestId('order-candidate-brand-row-BR_KITCHEN')).toHaveCount(0)
+    await expect(page.getByTestId('order-candidate-brand-row-BR_OUTDOOR')).toHaveCount(0)
+  })
+
+  test('初期表示は候補0件のBrandを除外し、「候補0件も表示」で表示される', async ({ page }) => {
+    await login(page)
+    await page.getByTestId('nav-candidates').click()
+    await expect(page.getByTestId('order-candidate-brand-row-BR_HOME')).toBeVisible()
+
+    // Default: candidateCount=0 Brands (ACT/HNK, real fixture) are hidden.
+    await expect(page.getByTestId('order-candidate-brand-row-ACT')).toHaveCount(0)
+
+    await page.getByTestId('candidate-brand-list-show-zero').click()
+
+    await expect(page.getByTestId('order-candidate-brand-row-ACT')).toBeVisible()
+    // Non-zero Brands remain visible alongside the newly-revealed zero ones.
+    await expect(page.getByTestId('order-candidate-brand-row-BR_HOME')).toBeVisible()
+  })
 })
