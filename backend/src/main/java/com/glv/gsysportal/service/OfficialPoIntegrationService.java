@@ -540,11 +540,15 @@ public class OfficialPoIntegrationService {
         OffsetDateTime now = OffsetDateTime.now();
         request.setPdfFileKey(fileKey);
         request.setPdfGeneratedAt(now);
-        request.setUpdatedAt(now);
+        // Phase A (Signature axis): every (re)generation invalidates any
+        // prior signature - see resetSignatureForNewPdf's own Javadoc.
+        request.resetSignatureForNewPdf(now);
         OfficialPoIntegrationRequest saved = integrationRequestRepository.save(request);
 
         auditEventRepository.save(new AuditEvent(orderId, null,
                 AuditEvent.OFFICIAL_PO_PDF_GENERATED, null, null, fileKey, performedBy, now));
+        auditEventRepository.save(new AuditEvent(orderId, null,
+                AuditEvent.OFFICIAL_PO_SIGNATURE_PENDING, null, null, null, performedBy, now));
         return toResponse(saved);
     }
 

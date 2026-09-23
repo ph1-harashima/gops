@@ -116,7 +116,12 @@ class PrototypeFlywayMigrationTest {
         // gops-stage5k-dashboard-read-model-implementation.md): Dashboard
         // Read Model - dashboard_refresh_run, dashboard_legacy_aggregate,
         // dashboard_brand_legacy_aggregate, dashboard_aggregate_current.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34"), versions);
+        // V35 (G-OPS Operational Workflow Realignment Phase A, docs/ux-audit/
+        // gops-operational-workflow-realignment-implementation.md): Signature
+        // axis - official_po_integration_request.signature_status/
+        // signed_pdf_file_key/signed_at/signed_by; ck_audit_event_type
+        // extended for OFFICIAL_PO_SIGNATURE_PENDING/OFFICIAL_PO_SIGNED.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35"), versions);
     }
 
     @Test

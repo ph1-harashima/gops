@@ -213,6 +213,31 @@ public class OfficialPoIntegrationRequest {
     @Column(name = "cancel_reason")
     private String cancelReason;
 
+    // --- G-OPS Operational Workflow Realignment, Phase A (docs/ux-audit/
+    // gops-operational-workflow-realignment-implementation.md): the
+    // Signature axis - deliberately independent of Integration Status
+    // (PENDING..FAILED, the G-SYS hand-off) and of Lifecycle Status
+    // (ACTIVE..CANCELLED, Reissue/Cancel). Critical Design Principle: "Admin
+    // approved" (PortalOrder.STATUS_APPROVED) must never be read as "signed
+    // PDF confirmed" - Supplier Send readiness must gate on this axis
+    // reaching SIGNED, not on Order status or PDF generation alone. ---
+    public static final String SIGNATURE_NOT_REQUIRED = "NOT_REQUIRED";
+    /** A formal PDF exists but has not yet been confirmed signed. */
+    public static final String SIGNATURE_PENDING = "PENDING";
+    public static final String SIGNATURE_SIGNED = "SIGNED";
+
+    @Column(name = "signature_status", nullable = false, length = 20)
+    private String signatureStatus = SIGNATURE_NOT_REQUIRED;
+
+    @Column(name = "signed_pdf_file_key", length = 255)
+    private String signedPdfFileKey;
+
+    @Column(name = "signed_at")
+    private OffsetDateTime signedAt;
+
+    @Column(name = "signed_by", length = 50)
+    private String signedBy;
+
     /** C-2: this Revision's Request has been replaced by a newer one
      * (Reissue). Reachable only from ACTIVE - a SUPERSEDED or CANCELLED
      * Request is a terminal historical record and is never re-superseded. */
@@ -267,6 +292,52 @@ public class OfficialPoIntegrationRequest {
         this.lifecycleChangedBy = performedBy;
         this.lifecycleChangedAt = now;
         this.updatedAt = now;
+    }
+
+    /** Every (re)generation of the unsigned/formal PDF invalidates any prior
+     * signature - a signed artifact only ever attests to the exact bytes
+     * that were signed, so a new PDF (whether the very first one, or a
+     * correction re-generate on an already-SIGNED Request) always resets
+     * this axis back to PENDING, never leaves a stale SIGNED standing next
+     * to a newer, never-signed PDF. Called by {@code
+     * OfficialPoIntegrationService#generatePdf} immediately after {@link
+     * #pdfFileKey}/{@link #pdfGeneratedAt} are set - no guard on the
+     * current {@link #signatureStatus}, since every prior value (including
+     * NOT_REQUIRED, PENDING, or SIGNED) is a valid predecessor here. */
+    public void resetSignatureForNewPdf(OffsetDateTime now) {
+        this.signatureStatus = SIGNATURE_PENDING;
+        this.signedPdfFileKey = null;
+        this.signedBy = null;
+        this.signedAt = null;
+        this.updatedAt = now;
+    }
+
+    /** An ADMIN has uploaded/registered the signed PDF for the CURRENT
+     * (still-PENDING) formal PDF. Reachable only from PENDING - there must
+     * be an unsigned PDF to sign in the first place (NOT_REQUIRED), and an
+     * already-SIGNED Request must not be silently re-signed without first
+     * invalidating the old signature via {@link #resetSignatureForNewPdf}
+     * (which never applies here, since generating a new PDF already moves
+     * this back to PENDING on its own). */
+    public void markSigned(String signedFileKey, String performedBy, OffsetDateTime now) {
+        if (!SIGNATURE_PENDING.equals(signatureStatus)) {
+            throw new IllegalStateException("Cannot mark SIGNED from signature status " + signatureStatus);
+        }
+        this.signatureStatus = SIGNATURE_SIGNED;
+        this.signedPdfFileKey = signedFileKey;
+        this.signedBy = performedBy;
+        this.signedAt = now;
+        this.updatedAt = now;
+    }
+
+    /** Supplier Send readiness gate (Critical Design Principle): Admin
+     * approval alone (a fact about {@link PortalOrder#getStatus()}, not
+     * this entity) never implies this is true. A Cancelled/Superseded
+     * Request is also never ready to send, regardless of its own
+     * Signature axis - a signed PDF for a Document that has since been
+     * withdrawn is not sendable. */
+    public boolean isReadyToSend() {
+        return SIGNATURE_SIGNED.equals(signatureStatus) && LIFECYCLE_ACTIVE.equals(lifecycleStatus);
     }
 
     /** GENERATED transition. Called for real by

@@ -217,6 +217,23 @@ public class AuditEvent {
      * Manufacturer Contact must never silently block the Cancel Approval
      * itself. */
     public static final String OFFICIAL_PO_CANCEL_NOTIFIED = "OFFICIAL_PO_CANCEL_NOTIFIED";
+
+    // --- Phase UX-1 Phase A (Signature axis, docs/ux-audit/
+    // gops-operational-workflow-realignment-implementation.md): "Admin
+    // approved" and "signed PDF confirmed" are deliberately never the same
+    // state (Critical Design Principle) - these two events record the
+    // Signature axis's own two real transitions, independent of every other
+    // Official PO event above. ---
+    /** A (re)generated formal PDF has invalidated any prior signature -
+     * written whenever {@code generatePdf} runs, including the very first
+     * time (PENDING from NOT_REQUIRED) and every re-generate thereafter
+     * (PENDING from a prior SIGNED, per the "any new PDF requires
+     * re-signature" rule). */
+    public static final String OFFICIAL_PO_SIGNATURE_PENDING = "OFFICIAL_PO_SIGNATURE_PENDING";
+    /** A signed PDF was registered against the current, still-PENDING
+     * Signature - never triggered automatically, always an explicit ADMIN
+     * upload action. */
+    public static final String OFFICIAL_PO_SIGNED = "OFFICIAL_PO_SIGNED";
     /** C-5: an actual Email Send whose To/CC differed from the Master-resolved
      * (Supplier Contact) addresses for at least one recipient - {@link #note}
      * holds a human-readable summary of Master vs. actually-sent addresses

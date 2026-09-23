@@ -218,4 +218,104 @@ class OfficialPoIntegrationRequestTest {
         assertThrows(IllegalStateException.class, () -> r.markCancelled("admin-tester", now));
         assertThrows(IllegalStateException.class, () -> r.markSuperseded("supersede after cancel", "admin-tester", now));
     }
+
+    // --- G-OPS Operational Workflow Realignment, Phase A (docs/ux-audit/
+    // gops-operational-workflow-realignment-implementation.md): the
+    // Signature axis - a fourth, independent axis alongside Integration
+    // Status/Lifecycle Status above. Critical Design Principle: "Admin
+    // approved" must never be conflated with "signed PDF confirmed". ---
+
+    @Test
+    void newRequestDefaultsToSignatureNotRequired() {
+        OfficialPoIntegrationRequest r = pending();
+        assertEquals(OfficialPoIntegrationRequest.SIGNATURE_NOT_REQUIRED, r.getSignatureStatus());
+    }
+
+    @Test
+    void generatingAPdfMovesSignatureToPending() {
+        OfficialPoIntegrationRequest r = pending();
+        OffsetDateTime now = OffsetDateTime.now();
+        r.resetSignatureForNewPdf(now);
+        assertEquals(OfficialPoIntegrationRequest.SIGNATURE_PENDING, r.getSignatureStatus());
+    }
+
+    @Test
+    void markSignedRecordsFileKeyActorAndTimestamp() {
+        OfficialPoIntegrationRequest r = pending();
+        OffsetDateTime generatedAt = OffsetDateTime.now();
+        r.resetSignatureForNewPdf(generatedAt);
+
+        OffsetDateTime signedAt = generatedAt.plusHours(1);
+        r.markSigned("signed/order-1-rev1.pdf", "admin-tester", signedAt);
+
+        assertEquals(OfficialPoIntegrationRequest.SIGNATURE_SIGNED, r.getSignatureStatus());
+        assertEquals("signed/order-1-rev1.pdf", r.getSignedPdfFileKey());
+        assertEquals("admin-tester", r.getSignedBy());
+        assertEquals(signedAt, r.getSignedAt());
+    }
+
+    @Test
+    void cannotMarkSignedWithoutAPendingPdfFirst() {
+        OfficialPoIntegrationRequest r = pending();
+        assertThrows(IllegalStateException.class,
+                () -> r.markSigned("signed/order-1-rev1.pdf", "admin-tester", OffsetDateTime.now()),
+                "NOT_REQUIRED has no unsigned PDF to sign yet");
+    }
+
+    @Test
+    void cannotMarkSignedTwiceWithoutANewPdfInBetween() {
+        OfficialPoIntegrationRequest r = pending();
+        OffsetDateTime now = OffsetDateTime.now();
+        r.resetSignatureForNewPdf(now);
+        r.markSigned("signed/v1.pdf", "admin-tester", now);
+
+        assertThrows(IllegalStateException.class, () -> r.markSigned("signed/v2.pdf", "admin-tester", now),
+                "an already-SIGNED Request must not be silently re-signed");
+    }
+
+    @Test
+    void regeneratingThePdfAfterSigningResetsToUnsignedAndClearsTheOldSignedFile() {
+        OfficialPoIntegrationRequest r = pending();
+        OffsetDateTime firstGen = OffsetDateTime.now();
+        r.resetSignatureForNewPdf(firstGen);
+        r.markSigned("signed/v1.pdf", "admin-tester", firstGen.plusMinutes(10));
+        assertEquals(OfficialPoIntegrationRequest.SIGNATURE_SIGNED, r.getSignatureStatus());
+
+        // A correction re-generates the formal PDF - the old signature no
+        // longer attests to the current document and must not survive.
+        OffsetDateTime secondGen = firstGen.plusHours(1);
+        r.resetSignatureForNewPdf(secondGen);
+
+        assertEquals(OfficialPoIntegrationRequest.SIGNATURE_PENDING, r.getSignatureStatus());
+        assertEquals(null, r.getSignedPdfFileKey());
+        assertEquals(null, r.getSignedBy());
+        assertEquals(null, r.getSignedAt());
+    }
+
+    @Test
+    void notReadyToSendUntilSigned() {
+        OfficialPoIntegrationRequest r = pending();
+        assertEquals(false, r.isReadyToSend());
+
+        r.resetSignatureForNewPdf(OffsetDateTime.now());
+        assertEquals(false, r.isReadyToSend(), "a generated-but-unsigned PDF is never sendable");
+
+        r.markSigned("signed/v1.pdf", "admin-tester", OffsetDateTime.now());
+        assertEquals(true, r.isReadyToSend());
+    }
+
+    @Test
+    void aCancelledDocumentIsNeverReadyToSendEvenIfPreviouslySigned() {
+        OfficialPoIntegrationRequest r = pending();
+        OffsetDateTime now = OffsetDateTime.now();
+        r.resetSignatureForNewPdf(now);
+        r.markSigned("signed/v1.pdf", "admin-tester", now);
+        assertEquals(true, r.isReadyToSend());
+
+        r.markCancelRequested("Order cancelled by customer", "operator-tester", now);
+        r.markCancelled("admin-tester", now);
+
+        assertEquals(false, r.isReadyToSend(),
+                "a signed PDF for a Document that has since been withdrawn is not sendable");
+    }
 }
