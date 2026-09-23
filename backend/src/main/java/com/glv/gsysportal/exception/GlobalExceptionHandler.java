@@ -147,6 +147,11 @@ public class GlobalExceptionHandler {
         return error(request, HttpStatus.NOT_FOUND, "DRAFT_NOT_FOUND");
     }
 
+    @ExceptionHandler(DraftDeletionNotAllowedException.class)
+    public ResponseEntity<Map<String, Object>> handleDraftDeletionNotAllowed(DraftDeletionNotAllowedException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "DRAFT_DELETION_NOT_ALLOWED");
+    }
+
     @ExceptionHandler(EmptySkuListException.class)
     public ResponseEntity<Map<String, Object>> handleEmptySkuList(EmptySkuListException ex, HttpServletRequest request) {
         return error(request, HttpStatus.BAD_REQUEST, "EMPTY_SKU_LIST");

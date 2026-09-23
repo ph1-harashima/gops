@@ -25,6 +25,12 @@ import java.time.OffsetDateTime;
 public class AuditEvent {
 
     public static final String ORDER_DRAFT_CREATED = "ORDER_DRAFT_CREATED";
+    /** G-OPS Operational Workflow Realignment Phase F §16: soft delete only
+     * (see {@link com.glv.gsysportal.domain.PortalOrder}'s own
+     * @SQLRestriction Javadoc) - recorded before the Draft becomes
+     * invisible to normal queries, so this row remains the definitive
+     * record of who deleted it and when. */
+    public static final String ORDER_DRAFT_DELETED = "ORDER_DRAFT_DELETED";
     public static final String ORDER_QTY_CHANGED = "ORDER_QTY_CHANGED";
     public static final String REQUESTED_DELIVERY_CHANGED = "REQUESTED_DELIVERY_CHANGED";
     public static final String REMARK_CHANGED = "REMARK_CHANGED";

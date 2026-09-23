@@ -56,6 +56,8 @@
     "leadTime": "リードタイム",
     "openArrival": "入荷予定",
     "restock": "入荷/再入荷予定",
+    "itemStatus": "商品状態",
+    "stockJudgement": "在庫判定",
     "viewSkuDetail": "SKU詳細を見る"
   },
   "notAvailable": "—",

@@ -25,7 +25,7 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogContentText from '@mui/material/DialogContentText'
 import DialogActions from '@mui/material/DialogActions'
 
-import { useOrderDraft, useUpdateDraft } from './api'
+import { useOrderDraft, useUpdateDraft, useDeleteDraft } from './api'
 import { useSubmitForApproval } from './poPreviewApi'
 import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
 import { DataSourceBadge } from '../../shared/components/DataSourceBadge'
@@ -66,8 +66,10 @@ export function OrderDraftPage() {
   const { data: draft, isLoading, isError } = useOrderDraft(draftId)
   const updateMutation = useUpdateDraft(draftId)
   const submitMutation = useSubmitForApproval(draftId)
+  const deleteMutation = useDeleteDraft(draftId)
   const { user } = useAuth()
   const isAdmin = user?.role === ROLE_ADMIN
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const [orderDate, setOrderDate] = useState('')
   const [requestedDelivery, setRequestedDelivery] = useState('')
@@ -172,6 +174,22 @@ export function OrderDraftPage() {
     })
   }
 
+  /** G-OPS Operational Workflow Realignment Phase F §16: soft delete,
+   * DRAFT-only, no-downstream-process-started only - the Backend is the
+   * sole authority on the guard (409 DRAFT_DELETION_NOT_ALLOWED surfaces
+   * as-is via deleteErrorCode below if the ADMIN/creator's own local view
+   * is stale). On success there is nothing left to show on this screen,
+   * so this navigates back to wherever the Draft was opened from, same
+   * target handleBack already uses. */
+  function handleDelete() {
+    deleteMutation.mutate(undefined, {
+      onSuccess: () => {
+        setDeleteDialogOpen(false)
+        navigate(backTarget)
+      },
+    })
+  }
+
   if (isLoading) {
     return (
       <Stack direction="row" spacing={1} sx={{ m: 4, alignItems: 'center' }}>
@@ -197,6 +215,16 @@ export function OrderDraftPage() {
     submitMutation.isError && axios.isAxiosError<ApiErrorBody>(submitMutation.error)
       ? submitMutation.error.response?.data?.errorCode
       : null
+  const deleteErrorCode =
+    deleteMutation.isError && axios.isAxiosError<ApiErrorBody>(deleteMutation.error)
+      ? deleteMutation.error.response?.data?.errorCode
+      : null
+  // Same visibility rule as canSubmitForApproval - only the creator or an
+  // ADMIN, and only while genuinely DRAFT (the Backend's own guard also
+  // independently checks for downstream Official PO/Revision history that
+  // this Frontend has no way to know about in advance - a 409 surfaces via
+  // deleteErrorCode if that Backend-only check fails).
+  const canDeleteDraft = draft.status === 'DRAFT' && (isAdmin || draft.createdBy === user?.username)
 
   // Phase 7-C1 4章/13章: mirrors OrderDraftPersistenceService.update()'s
   // ownership/role matrix - DRAFT is editable by its own creator or any
@@ -292,6 +320,16 @@ export function OrderDraftPage() {
         autoHideDuration={null}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         testId="unsaved-changes-toast"
+      />
+      <Toast
+        open={Boolean(deleteErrorCode)}
+        severity="error"
+        message={
+          deleteErrorCode === 'DRAFT_DELETION_NOT_ALLOWED' ? t('drafts:deleteErrorNotAllowed') :
+          t('drafts:errorGeneric')
+        }
+        onClose={() => deleteMutation.reset()}
+        testId="delete-error-toast"
       />
 
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
@@ -426,6 +464,19 @@ export function OrderDraftPage() {
           </Typography>
           <Divider orientation="vertical" flexItem />
           {isEditable && (
+            // G-OPS Operational Workflow Realignment Phase F §16 (Draft
+            // Lifecycle, Option C per the prior audit's own comparison):
+            // the PortalOrder row was already persisted the moment this
+            // screen was reached (OrderDraftService.createDraft, called
+            // from the Candidate List's own create-draft action) - this
+            // button only PATCHes qty/date/remark edits onto an
+            // already-existing row, it creates nothing. Relabeled from
+            // "ドラフトを保存" (which read as "nothing was saved before
+            // this click") to make that accurately reflect what actually
+            // happens; create-on-open itself is intentionally unchanged
+            // (the prior audit's Option A/B/C comparison rejected
+            // rewriting creation timing as a bigger change than this
+            // Phase's own scope for a label-only complaint).
             <Button
               variant="contained"
               onClick={handleSave}
@@ -442,6 +493,21 @@ export function OrderDraftPage() {
           >
             {t('drafts:preview')}
           </Button>
+          {/* G-OPS Operational Workflow Realignment Phase F §16: DRAFT-only,
+              same "creator or ADMIN" visibility rule as Save/Submit above -
+              the Backend's own no-downstream-process-started guard is the
+              real authority (deleteErrorCode Toast above surfaces a 409 if
+              this Frontend's view is stale). */}
+          {canDeleteDraft && (
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => setDeleteDialogOpen(true)}
+              data-testid="delete-draft-button"
+            >
+              {t('drafts:deleteDraft')}
+            </Button>
+          )}
           {/* Phase 7-C1 8章: DRAFT -> PENDING_APPROVAL. Only the Draft's own
               creator or an ADMIN can submit (OrderStatusTransitionService.
               submitForApproval's ownership check) - hidden rather than
@@ -498,6 +564,33 @@ export function OrderDraftPage() {
             data-testid="submit-for-approval-dialog-confirm"
           >
             {submitMutation.isPending ? <CircularProgress size={20} /> : t('drafts:submitDialogConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={(_event, reason) => {
+          if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+          setDeleteDialogOpen(false)
+        }}
+      >
+        <DialogTitle>{t('drafts:deleteDialogTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ whiteSpace: 'pre-wrap' }}>{t('drafts:deleteDialogBody')}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleteMutation.isPending} data-testid="delete-draft-dialog-cancel">
+            {t('drafts:deleteDialogCancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+            data-testid="delete-draft-dialog-confirm"
+          >
+            {deleteMutation.isPending ? <CircularProgress size={20} /> : t('drafts:deleteDialogConfirm')}
           </Button>
         </DialogActions>
       </Dialog>

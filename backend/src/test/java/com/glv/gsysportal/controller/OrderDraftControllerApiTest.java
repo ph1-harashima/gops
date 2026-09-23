@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -161,5 +162,60 @@ class OrderDraftControllerApiTest {
                                 "details", java.util.List.of(Map.of("detailId", detailId, "orderQty", -1))))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("INVALID_ORDER_QTY"));
+    }
+
+    // ---- Delete Draft (G-OPS Operational Workflow Realignment Phase F
+    // §16) ----
+
+    @Test
+    void deleteDraft_withoutAuthentication_returns401() throws Exception {
+        mockMvc.perform(delete("/api/orders/drafts/999999"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithUserDetails("purchase01")
+    void deleteDraft_nonExistent_returns404() throws Exception {
+        mockMvc.perform(delete("/api/orders/drafts/999999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("DRAFT_NOT_FOUND"));
+    }
+
+    @Test
+    @WithUserDetails("purchase01")
+    void deleteDraft_thenGet_returns404() throws Exception {
+        String createResponse = mockMvc.perform(post("/api/orders/drafts")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of("skus", java.util.List.of("OD-TENT-001")))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Object id = objectMapper.readValue(createResponse, Map.class).get("id");
+
+        mockMvc.perform(delete("/api/orders/drafts/" + id))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/orders/drafts/" + id))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("DRAFT_NOT_FOUND"));
+    }
+
+    @Test
+    @WithUserDetails("admin01")
+    void deleteDraft_onceApproved_returns409() throws Exception {
+        String createResponse = mockMvc.perform(post("/api/orders/drafts")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(Map.of("skus", java.util.List.of("OD-TENT-001")))))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Object id = objectMapper.readValue(createResponse, Map.class).get("id");
+
+        mockMvc.perform(post("/api/orders/" + id + "/submit-for-approval"))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/orders/" + id + "/approve"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/orders/drafts/" + id))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("DRAFT_DELETION_NOT_ALLOWED"));
     }
 }

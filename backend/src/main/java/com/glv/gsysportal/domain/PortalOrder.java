@@ -13,6 +13,7 @@ import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,8 +24,20 @@ import java.util.List;
 /**
  * Technical Design 5.1. Order Draft header. Prototype PostgreSQL only.
  */
+/**
+ * G-OPS Operational Workflow Realignment Phase F §16 (Draft Lifecycle):
+ * {@code @SQLRestriction} makes a soft-deleted row (deleted_at IS NOT
+ * NULL) transparently invisible to every existing HQL/Criteria query
+ * through this entity (findById, findAll, Dashboard's live count, Order
+ * History's Specification, etc.) without needing to touch each call site
+ * individually - a deleted Draft is simply gone everywhere a normal
+ * business view looks. Native SQL against portal_order (none exists in
+ * this codebase today) would NOT be covered by this restriction; if one
+ * is ever added, it must filter deleted_at IS NULL itself.
+ */
 @Entity
 @Table(name = "portal_order")
+@SQLRestriction("deleted_at IS NULL")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -200,4 +213,12 @@ public class PortalOrder {
     @OneToMany(mappedBy = "portalOrder", cascade = CascadeType.ALL, orphanRemoval = false)
     @OrderBy("lineNo ASC")
     private List<PortalOrderDetail> details = new ArrayList<>();
+
+    // --- Phase F §16: soft delete only (see the class-level @SQLRestriction
+    // Javadoc for why hard delete was rejected). Both null unless deleted. ---
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
+
+    @Column(name = "deleted_by", length = 50)
+    private String deletedBy;
 }

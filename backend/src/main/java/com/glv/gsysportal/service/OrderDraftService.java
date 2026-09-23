@@ -6,6 +6,7 @@ import com.glv.gsysportal.dto.request.CreateDraftRequest;
 import com.glv.gsysportal.dto.request.UpdateDraftRequest;
 import com.glv.gsysportal.dto.response.OrderDraftDetailResponse;
 import com.glv.gsysportal.dto.response.OrderDraftResponse;
+import com.glv.gsysportal.exception.DraftDeletionNotAllowedException;
 import com.glv.gsysportal.exception.DraftNotFoundException;
 import com.glv.gsysportal.exception.EmptySkuListException;
 import com.glv.gsysportal.exception.MixedSupplierException;
@@ -14,10 +15,12 @@ import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.repository.legacy.LegacyStockReadRepository;
 import com.glv.gsysportal.repository.legacy.row.LegacyStockRow;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
+import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -37,15 +40,18 @@ public class OrderDraftService {
     private final OrderDraftPersistenceService persistenceService;
     private final PortalOrderRepository portalOrderRepository;
     private final AuditEventRepository auditEventRepository;
+    private final OfficialPoIntegrationRequestRepository integrationRequestRepository;
 
     public OrderDraftService(LegacyStockReadRepository legacyStockReadRepository,
                               OrderDraftPersistenceService persistenceService,
                               PortalOrderRepository portalOrderRepository,
-                              AuditEventRepository auditEventRepository) {
+                              AuditEventRepository auditEventRepository,
+                              OfficialPoIntegrationRequestRepository integrationRequestRepository) {
         this.legacyStockReadRepository = legacyStockReadRepository;
         this.persistenceService = persistenceService;
         this.portalOrderRepository = portalOrderRepository;
         this.auditEventRepository = auditEventRepository;
+        this.integrationRequestRepository = integrationRequestRepository;
     }
 
     public OrderDraftResponse createDraft(CreateDraftRequest request, String performedBy) {
@@ -81,12 +87,67 @@ public class OrderDraftService {
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
     public OrderDraftResponse getDraft(Long id) {
         PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
+        // @SQLRestriction (see PortalOrder's own Javadoc) does not apply to
+        // a direct by-ID lookup like findById (a documented Hibernate
+        // characteristic, confirmed live: a soft-deleted row is still
+        // returned by findById even though it correctly disappears from
+        // findAll/Specification-based queries elsewhere) - checked
+        // explicitly here so a soft-deleted Draft is genuinely NotFound
+        // through this entry point too.
+        if (order.getDeletedAt() != null) {
+            throw new DraftNotFoundException(id);
+        }
         return toResponse(order, resolveReturnReason(order));
     }
 
     public OrderDraftResponse updateDraft(Long id, UpdateDraftRequest request, String performedBy, boolean performerIsAdmin) {
         PortalOrder saved = persistenceService.update(id, request, performedBy, performerIsAdmin);
         return toResponse(saved, resolveReturnReason(saved));
+    }
+
+    /**
+     * G-OPS Operational Workflow Realignment Phase F §16: soft delete only
+     * (see {@link PortalOrder}'s own @SQLRestriction Javadoc for why hard
+     * delete was rejected - AuditEvent's real, enforced FK to portal_order
+     * plus this codebase's own "audit trail is permanent" convention).
+     * Allowed only while status=DRAFT AND no downstream process has
+     * started - checked directly (not inferred from status alone), since
+     * an ADMIN's "差し戻し" (return to Draft) can leave an Order back in
+     * DRAFT status while it already has a real Official PO Integration
+     * Request and/or Revision/Send history from a PRIOR approval cycle;
+     * status=DRAFT alone does not guarantee "never touched downstream".
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public void deleteDraft(Long id, String performedBy, boolean performerIsAdmin) {
+        PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
+        if (order.getDeletedAt() != null) {
+            throw new DraftNotFoundException(id);
+        }
+
+        // Same "creator or ADMIN" ownership rule as OrderDraftPersistenceService
+        // .update()'s own DRAFT-status branch - deletion is at least as
+        // sensitive as editing, so it gets no looser a permission model.
+        if (!performerIsAdmin && !performedBy.equals(order.getCreatedBy())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Only the Draft's creator or an ADMIN may delete it");
+        }
+
+        if (!PortalOrder.STATUS_DRAFT.equals(order.getStatus())) {
+            throw new DraftDeletionNotAllowedException(id, "status is " + order.getStatus() + ", not DRAFT");
+        }
+        if (order.getCurrentRevisionNo() != null) {
+            throw new DraftDeletionNotAllowedException(id, "already has Revision/Send history (currentRevisionNo=" + order.getCurrentRevisionNo() + ")");
+        }
+        if (integrationRequestRepository.findFirstByPortalOrderIdOrderByRevisionNoDesc(id).isPresent()) {
+            throw new DraftDeletionNotAllowedException(id, "already has an Official PO Integration Request");
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        auditEventRepository.save(new AuditEvent(id, null,
+                AuditEvent.ORDER_DRAFT_DELETED, null, null, null, performedBy, now));
+        order.setDeletedAt(now);
+        order.setDeletedBy(performedBy);
+        portalOrderRepository.save(order);
     }
 
     /**

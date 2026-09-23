@@ -333,6 +333,104 @@ class OrderDraftServiceIntegrationTest {
         assertThrows(DraftNotFoundException.class, () -> orderDraftService.getDraft(-1L));
     }
 
+    // ---- Delete Draft (G-OPS Operational Workflow Realignment Phase F
+    // §16) - soft delete, DRAFT-only, no-downstream-process-started only. ----
+
+    @Test
+    void deleteDraft_softDeletesAndRecordsAuditEvent() {
+        OrderDraftResponse created = orderDraftService.createDraft(
+                new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+
+        orderDraftService.deleteDraft(created.id(), "tester01", false);
+
+        // @SQLRestriction only affects actual SQL - within this single test
+        // method's one Hibernate session, the just-modified entity is still
+        // in the first-level (session) cache and would be returned from
+        // there without a fresh query unless explicitly cleared. flush()
+        // first is essential: clear() alone discards any not-yet-flushed
+        // pending UPDATE along with the cached instance, which would make
+        // this assertion pass for the wrong reason (re-reading the
+        // ORIGINAL, still-non-deleted row, not a correctly-filtered one).
+        // A real HTTP request's own separate transaction commits (flushing)
+        // before any later request's fresh session reads it, so this
+        // explicit flush()+clear() pair reproduces that real condition.
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThrows(DraftNotFoundException.class, () -> orderDraftService.getDraft(created.id()),
+                "a soft-deleted Draft must become invisible to normal reads (@SQLRestriction)");
+        assertTrue(auditEventRepository.findByPortalOrderIdOrderByPerformedAtAsc(created.id()).stream()
+                .anyMatch(e -> AuditEvent.ORDER_DRAFT_DELETED.equals(e.getEventType())));
+    }
+
+    @Test
+    void deleteDraft_actuallySetsDeletedAtAndDeletedByOnTheRow() {
+        OrderDraftResponse created = orderDraftService.createDraft(
+                new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+
+        orderDraftService.deleteDraft(created.id(), "admin-tester", true);
+
+        // Bypass the Repository's own @SQLRestriction-filtered query methods
+        // by going through the EntityManager directly, to verify this is a
+        // real soft delete (row still physically present) and not an
+        // accidental hard delete.
+        PortalOrder raw = entityManager.find(PortalOrder.class, created.id());
+        assertNotNull(raw, "the row must still physically exist - this is a SOFT delete");
+    }
+
+    @Test
+    void deleteDraft_notFoundThrows() {
+        assertThrows(DraftNotFoundException.class, () -> orderDraftService.deleteDraft(-1L, "tester01", false));
+    }
+
+    @Test
+    void deleteDraft_refusedForNonCreatorNonAdmin() {
+        OrderDraftResponse created = orderDraftService.createDraft(
+                new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> orderDraftService.deleteDraft(created.id(), "tester02", false),
+                "same ownership rule as editing - only the creator or an ADMIN may delete");
+    }
+
+    @Test
+    void deleteDraft_refusedOnceApproved() {
+        OrderDraftResponse created = orderDraftService.createDraft(
+                new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+        statusTransitionService.submitForApproval(created.id(), "tester01", false);
+        statusTransitionService.approve(created.id(), "admin-tester");
+
+        assertThrows(com.glv.gsysportal.exception.DraftDeletionNotAllowedException.class,
+                () -> orderDraftService.deleteDraft(created.id(), "tester01", false));
+    }
+
+    /** The exact edge case this guard exists for: an Order returned to
+     * DRAFT after already having a real Official PO Integration Request
+     * from a prior approval cycle - status=DRAFT alone must NOT be treated
+     * as "never touched downstream". */
+    @Test
+    void deleteDraft_refusedIfReturnedToDraftButAlreadyHasAnOfficialPoIntegrationRequest() {
+        OrderDraftResponse created = orderDraftService.createDraft(
+                new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), "tester01");
+        statusTransitionService.submitForApproval(created.id(), "tester01", false);
+        PortalOrder approved = statusTransitionService.approve(created.id(), "admin-tester");
+        officialPoIntegrationService.requestIntegration(approved.getId(), "admin-tester");
+        statusTransitionService.returnToDraft(approved.getId(), "admin-tester");
+
+        OrderDraftResponse backToDraft = orderDraftService.getDraft(approved.getId());
+        assertEquals(PortalOrder.STATUS_DRAFT, backToDraft.status(), "sanity check: really back in DRAFT status");
+
+        assertThrows(com.glv.gsysportal.exception.DraftDeletionNotAllowedException.class,
+                () -> orderDraftService.deleteDraft(approved.getId(), "tester01", false),
+                "DRAFT status alone must not be trusted - this Order already has real Official PO Integration history");
+    }
+
     @Autowired
     private com.glv.gsysportal.repository.prototype.PortalOrderRepository portalOrderRepository;
+    @Autowired
+    private OrderStatusTransitionService statusTransitionService;
+    @Autowired
+    private OfficialPoIntegrationService officialPoIntegrationService;
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 }

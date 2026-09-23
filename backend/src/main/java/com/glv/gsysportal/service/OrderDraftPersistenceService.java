@@ -138,6 +138,11 @@ public class OrderDraftPersistenceService {
     @Transactional(transactionManager = "prototypeTransactionManager")
     public PortalOrder update(Long id, UpdateDraftRequest request, String performedBy, boolean performerIsAdmin) {
         PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
+        // See OrderDraftService.getDraft's own comment: @SQLRestriction does
+        // not cover a direct findById lookup - checked explicitly.
+        if (order.getDeletedAt() != null) {
+            throw new DraftNotFoundException(id);
+        }
 
         // Phase 7-C1 editability matrix (checked first, before touching any
         // field, so a rejected save never partially applies):

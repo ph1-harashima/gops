@@ -56,6 +56,9 @@ import { OrderStatusChip } from '../../shared/components/OrderStatusChip'
 import { AttentionChips } from '../../shared/components/AttentionChips'
 import { RestockLabel } from '../../shared/components/RestockLabel'
 import { StockoutStatusChip } from '../../shared/components/StockoutStatusChip'
+import { ItemStatusChip } from '../../shared/components/ItemStatusChip'
+import { StockJudgementChip } from '../../shared/components/StockJudgementChip'
+import { computeStockJudgement } from '../../shared/domain/stockJudgement'
 import { ManufacturerConfirmationCaption } from '../../shared/components/ManufacturerConfirmationCaption'
 import { RestockConflictWarning } from '../../shared/components/RestockConflictWarning'
 import { Toast } from '../../shared/components/Toast'
@@ -803,6 +806,19 @@ export function OrderHistoryDetailPage() {
                         </Stack>
                       ),
                     }] : []),
+                    // G-OPS Operational Workflow Realignment Phase F §17:
+                    // same two Chips the Desktop Table's own appended
+                    // columns render - 商品状態/在庫判定 were the one piece
+                    // of judgement material this screen dropped relative to
+                    // Candidate List/SKU Detail.
+                    {
+                      label: t('detailTable.itemStatus'),
+                      value: <ItemStatusChip status={line.itemStatus} discon={line.discon} />,
+                    },
+                    {
+                      label: t('detailTable.stockJudgement'),
+                      value: <StockJudgementChip judgement={computeStockJudgement(line.currentStock, line.openPo)} />,
+                    },
                   ].map((row) => (
                     <Stack key={row.label} direction="row" sx={{ justifyContent: 'space-between' }}>
                       <Typography variant="body2" color="text.secondary">{row.label}</Typography>
@@ -845,6 +861,12 @@ export function OrderHistoryDetailPage() {
                   columns above, to keep this table's existing E2E cell
                   indices stable. */}
               <TableCell>{t('detailTable.restock')}</TableCell>
+              {/* G-OPS Operational Workflow Realignment Phase F §17:
+                  appended last, same "append, never insert" rule - 商品状態/
+                  在庫判定 were the one piece of judgement material this
+                  screen dropped relative to Candidate List/SKU Detail. */}
+              <TableCell>{t('detailTable.itemStatus')}</TableCell>
+              <TableCell>{t('detailTable.stockJudgement')}</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -888,6 +910,8 @@ export function OrderHistoryDetailPage() {
                     <ManufacturerConfirmationCaption informationReceivedDate={line.informationReceivedDate} contactMethod={line.contactMethod} />
                   </Stack>
                 </TableCell>
+                <TableCell><ItemStatusChip status={line.itemStatus} discon={line.discon} /></TableCell>
+                <TableCell><StockJudgementChip judgement={computeStockJudgement(line.currentStock, line.openPo)} /></TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -121,7 +121,11 @@ class PrototypeFlywayMigrationTest {
         // axis - official_po_integration_request.signature_status/
         // signed_pdf_file_key/signed_at/signed_by; ck_audit_event_type
         // extended for OFFICIAL_PO_SIGNATURE_PENDING/OFFICIAL_PO_SIGNED.
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35"), versions);
+        // V36 (G-OPS Operational Workflow Realignment Phase F, docs/ux-audit/
+        // gops-operational-workflow-realignment-implementation.md §16):
+        // Draft soft delete - portal_order.deleted_at/deleted_by;
+        // ck_audit_event_type extended for ORDER_DRAFT_DELETED.
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36"), versions);
     }
 
     @Test

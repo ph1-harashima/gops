@@ -30,6 +30,20 @@ public record OrderHistoryDetailLineView(
         Integer monthlySales,
         String leadTime,
         Integer openArrival,
+        /** G-OPS Operational Workflow Realignment Phase F §17: the same two
+         * fields Candidate List/SKU Detail already show (商品状態/廃番 and
+         * the 在庫判定 input) were the one piece of judgement material this
+         * screen dropped relative to what the person who placed the Order
+         * already saw. Both come from the SAME {@code LegacyStockRow} this
+         * class's other Legacy-sourced fields already use - no new query.
+         * {@code openPo} is deliberately separate from {@code openArrival}
+         * above (two different Legacy concepts) - it exists solely so the
+         * Frontend can run the exact same {@code computeStockJudgement}
+         * (currentStock, openPo) every other screen uses, not a new value
+         * to display on its own. */
+        String itemStatus,
+        Boolean discon,
+        Integer openPo,
         /** Post-Freeze Business Refinement (re-audit doc §10-4): lets the
          * Approver see "欠品だがいつ入るのか" without leaving the Approval
          * screen. Same merged Display-Priority value as Candidate List/SKU

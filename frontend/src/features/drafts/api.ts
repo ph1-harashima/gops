@@ -42,3 +42,15 @@ export function useUpdateDraft(id: number) {
     },
   })
 }
+
+/** G-OPS Operational Workflow Realignment Phase F §16: soft delete,
+ * DRAFT-only, no-downstream-process-started only - the Backend
+ * (OrderDraftService.deleteDraft) is the sole authority on the guard;
+ * this call surfaces its 409 DRAFT_DELETION_NOT_ALLOWED as-is. */
+async function deleteDraft(id: number): Promise<void> {
+  await apiClient.delete(`/orders/drafts/${id}`)
+}
+
+export function useDeleteDraft(id: number) {
+  return useMutation({ mutationFn: () => deleteDraft(id) })
+}

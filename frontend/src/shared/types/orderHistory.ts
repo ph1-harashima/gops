@@ -48,6 +48,14 @@ export interface OrderHistoryDetailLine {
   monthlySales: number | null
   leadTime: string | null
   openArrival: number | null
+  // G-OPS Operational Workflow Realignment Phase F §17: 商品状態/廃番 and
+  // the 在庫判定 input (openPo, deliberately separate from openArrival
+  // above - two different Legacy concepts) - the same judgement material
+  // Candidate List/SKU Detail already show, from the same Legacy row this
+  // screen's other fields already come from.
+  itemStatus: string | null
+  discon: boolean | null
+  openPo: number | null
   // Post-Freeze Business Refinement (re-audit doc §10-4).
   restockSource: RestockSource
   restockDate: string | null

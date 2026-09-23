@@ -7,6 +7,7 @@ import com.glv.gsysportal.security.CurrentUserProvider;
 import com.glv.gsysportal.service.OrderDraftService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,6 +50,15 @@ public class OrderDraftController {
     public OrderDraftResponse updateDraft(@PathVariable Long id, @RequestBody UpdateDraftRequest request) {
         return orderDraftService.updateDraft(id, request,
                 currentUserProvider.currentUsername(), currentUserProvider.isAdmin());
+    }
+
+    /** G-OPS Operational Workflow Realignment Phase F §16: soft delete,
+     * DRAFT-only, no-downstream-process-started only - see {@link
+     * OrderDraftService#deleteDraft}'s own Javadoc for the exact guard. */
+    @DeleteMapping("/api/orders/drafts/{id}")
+    public ResponseEntity<Void> deleteDraft(@PathVariable Long id) {
+        orderDraftService.deleteDraft(id, currentUserProvider.currentUsername(), currentUserProvider.isAdmin());
+        return ResponseEntity.noContent().build();
     }
 
 }
