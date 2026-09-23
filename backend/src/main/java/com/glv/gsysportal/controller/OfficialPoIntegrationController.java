@@ -17,7 +17,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
 
 /**
  * Phase 7-C2A 6章: explicit Business Action for Official PO Integration -
@@ -137,6 +142,36 @@ public class OfficialPoIntegrationController {
     @GetMapping("/api/orders/{id}/official-po/pdf")
     public ResponseEntity<byte[]> downloadPdf(@PathVariable Long id) {
         var download = integrationService.downloadPdf(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(download.fileName()).build().toString())
+                .body(download.bytes());
+    }
+
+    /** G-OPS Operational Workflow Realignment Phase C (docs/ux-audit/
+     * gops-operational-workflow-realignment-implementation.md §7-2): the
+     * ADMIN uploads the signed PDF they already have in hand - the
+     * signature itself happens entirely offline, never inside G-OPS.
+     * Refused (409) unless the current Request's Signature axis is
+     * actually PENDING (see {@code OfficialPoIntegrationService
+     * #registerSignedPdf}'s Javadoc). */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/api/orders/{id}/official-po/signed-pdf")
+    public OfficialPoIntegrationResponse registerSignedPdf(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        try {
+            return integrationService.registerSignedPdf(id, file.getBytes(), currentUserProvider.currentUsername());
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read uploaded signed PDF for Order " + id, e);
+        }
+    }
+
+    /** Downloads the registered signed Official PO PDF. ADMIN only, mirrors
+     * {@link #downloadPdf}. */
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/api/orders/{id}/official-po/signed-pdf")
+    public ResponseEntity<byte[]> downloadSignedPdf(@PathVariable Long id) {
+        var download = integrationService.downloadSignedPdf(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION,

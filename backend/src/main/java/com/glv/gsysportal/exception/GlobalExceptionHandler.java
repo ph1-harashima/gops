@@ -418,6 +418,18 @@ public class GlobalExceptionHandler {
         return error(request, HttpStatus.NOT_FOUND, "OFFICIAL_PO_PDF_NOT_GENERATED");
     }
 
+    // --- G-OPS Operational Workflow Realignment Phase C: Signature axis ---
+
+    @ExceptionHandler(OfficialPoSignaturePendingRequiredException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoSignaturePendingRequired(OfficialPoSignaturePendingRequiredException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_SIGNATURE_PENDING_REQUIRED");
+    }
+
+    @ExceptionHandler(SignedOfficialPoNotAvailableException.class)
+    public ResponseEntity<Map<String, Object>> handleSignedOfficialPoNotAvailable(SignedOfficialPoNotAvailableException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.NOT_FOUND, "SIGNED_OFFICIAL_PO_NOT_AVAILABLE");
+    }
+
     // --- Gap Analysis C-2/C-3: Official PO Reissue ---
 
     @ExceptionHandler(OfficialPoReissueNotRequiredException.class)

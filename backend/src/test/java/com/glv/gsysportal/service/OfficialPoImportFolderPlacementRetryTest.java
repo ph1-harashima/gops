@@ -75,6 +75,8 @@ class OfficialPoImportFolderPlacementRetryTest {
                 mock(com.glv.gsysportal.repository.prototype.OrderEmailRepository.class);
         OfficialPoNumberGenerator officialPoNumberGenerator = mock(OfficialPoNumberGenerator.class);
         OfficialPoCancelNotificationService cancelNotificationService = mock(OfficialPoCancelNotificationService.class);
+        com.glv.gsysportal.service.integration.SignedOfficialPoAdapter signedOfficialPoAdapter =
+                mock(com.glv.gsysportal.service.integration.SignedOfficialPoAdapter.class);
 
         PortalOrder order = order();
         OfficialPoIntegrationRequest request = generatedRequest();
@@ -102,7 +104,8 @@ class OfficialPoImportFolderPlacementRetryTest {
         OfficialPoIntegrationService service = new OfficialPoIntegrationService(portalOrderRepository,
                 integrationRequestRepository, auditEventRepository, preflightService, excelGenerationService,
                 pdfGenerationService, importFolderAdapter, idempotencyService, legacyReadRepository, objectMapper,
-                portalUserRepository, orderEmailRepository, officialPoNumberGenerator, cancelNotificationService);
+                portalUserRepository, orderEmailRepository, officialPoNumberGenerator, cancelNotificationService,
+                signedOfficialPoAdapter);
 
         // First attempt fails.
         doThrow(new OfficialPoImportFolderWriteException("disk full", new java.io.IOException("disk full")))

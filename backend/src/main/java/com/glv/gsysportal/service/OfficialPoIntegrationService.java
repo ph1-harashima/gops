@@ -25,6 +25,8 @@ import com.glv.gsysportal.exception.OfficialPoNotSubmittedException;
 import com.glv.gsysportal.exception.OfficialPoNumberRequiredException;
 import com.glv.gsysportal.exception.OfficialPoPreflightBlockedException;
 import com.glv.gsysportal.exception.OfficialPoReissueNotRequiredException;
+import com.glv.gsysportal.exception.OfficialPoSignaturePendingRequiredException;
+import com.glv.gsysportal.exception.SignedOfficialPoNotAvailableException;
 import com.glv.gsysportal.exception.OrderNotApprovedException;
 import com.glv.gsysportal.repository.legacy.LegacyPoConcurrencyReadRepository;
 import com.glv.gsysportal.repository.legacy.row.LegacyPoConcurrencyHeaderRow;
@@ -41,6 +43,7 @@ import com.glv.gsysportal.service.excel.OfficialPoFileNaming;
 import com.glv.gsysportal.service.excel.OfficialPoPdfDownload;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderAdapter;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderWriteException;
+import com.glv.gsysportal.service.integration.SignedOfficialPoAdapter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,6 +83,7 @@ public class OfficialPoIntegrationService {
     private final OrderEmailRepository orderEmailRepository;
     private final OfficialPoNumberGenerator officialPoNumberGenerator;
     private final OfficialPoCancelNotificationService cancelNotificationService;
+    private final SignedOfficialPoAdapter signedOfficialPoAdapter;
 
     public OfficialPoIntegrationService(PortalOrderRepository portalOrderRepository,
                                          OfficialPoIntegrationRequestRepository integrationRequestRepository,
@@ -94,7 +98,8 @@ public class OfficialPoIntegrationService {
                                          PortalUserRepository portalUserRepository,
                                          OrderEmailRepository orderEmailRepository,
                                          OfficialPoNumberGenerator officialPoNumberGenerator,
-                                         OfficialPoCancelNotificationService cancelNotificationService) {
+                                         OfficialPoCancelNotificationService cancelNotificationService,
+                                         SignedOfficialPoAdapter signedOfficialPoAdapter) {
         this.portalOrderRepository = portalOrderRepository;
         this.integrationRequestRepository = integrationRequestRepository;
         this.auditEventRepository = auditEventRepository;
@@ -109,6 +114,7 @@ public class OfficialPoIntegrationService {
         this.orderEmailRepository = orderEmailRepository;
         this.officialPoNumberGenerator = officialPoNumberGenerator;
         this.cancelNotificationService = cancelNotificationService;
+        this.signedOfficialPoAdapter = signedOfficialPoAdapter;
     }
 
     /**
@@ -571,6 +577,55 @@ public class OfficialPoIntegrationService {
     }
 
     /**
+     * G-OPS Operational Workflow Realignment Phase C (docs/ux-audit/
+     * gops-operational-workflow-realignment-implementation.md §7-2): an
+     * ADMIN uploads the signed PDF they already have in hand (the
+     * signature itself happens entirely offline - see {@link
+     * SignedOfficialPoAdapter}'s own Javadoc for why this is a STORE, not
+     * a directory poll). Requires the CURRENT Request's Signature axis to
+     * be PENDING (a formal PDF must already exist, and it must not already
+     * be SIGNED - re-signing requires a fresh {@code generatePdf} call
+     * first, which itself resets this axis back to PENDING).
+     */
+    @Transactional(transactionManager = "prototypeTransactionManager")
+    public OfficialPoIntegrationResponse registerSignedPdf(Long orderId, byte[] signedPdfBytes, String performedBy) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        OfficialPoIntegrationRequest request = resolveCurrentRequest(order);
+
+        if (!OfficialPoIntegrationRequest.SIGNATURE_PENDING.equals(request.getSignatureStatus())) {
+            throw new OfficialPoSignaturePendingRequiredException(orderId, request.getSignatureStatus());
+        }
+
+        String fileKey = signedOfficialPoAdapter.storeSignedPdf(orderId, request.getRevisionNo(), signedPdfBytes);
+        OffsetDateTime now = OffsetDateTime.now();
+        request.markSigned(fileKey, performedBy, now);
+        OfficialPoIntegrationRequest saved = integrationRequestRepository.save(request);
+
+        auditEventRepository.save(new AuditEvent(orderId, null,
+                AuditEvent.OFFICIAL_PO_SIGNED, null, null, fileKey, performedBy, now));
+        return toResponse(saved);
+    }
+
+    /** Streams the stored signed PDF bytes - mirrors {@link #downloadPdf}'s
+     * own shape exactly, under its own "signed" file-name suffix so it is
+     * never confused with the unsigned/formal PDF in a download list. */
+    @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
+    public OfficialPoPdfDownload downloadSignedPdf(Long orderId) {
+        PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        OfficialPoIntegrationRequest request = integrationRequestRepository
+                .findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId)
+                .orElseThrow(() -> new SignedOfficialPoNotAvailableException(orderId));
+        if (request.getSignedPdfFileKey() == null) {
+            throw new SignedOfficialPoNotAvailableException(orderId);
+        }
+        byte[] bytes = signedOfficialPoAdapter.loadSignedPdf(request.getSignedPdfFileKey());
+        String fileName = OfficialPoFileNaming.buildFileName(order.getSupplierCode(), order.getBrandCode(),
+                request.getSignedAt() == null ? null : request.getSignedAt().toLocalDate(),
+                request.getOfficialPoNo(), request.getRevisionNo(), "signed.pdf");
+        return new OfficialPoPdfDownload(bytes, fileName);
+    }
+
+    /**
      * "Import Folderへ配置" (Production PO Workflow §C/Phase 9-B). Requires
      * the Excel to already be GENERATED (a retry from FAILED is allowed -
      * the same stored bytes are re-placed, never regenerated). Idempotent
@@ -747,7 +802,10 @@ public class OfficialPoIntegrationService {
                 r.getPdfFileKey() != null,
                 r.getLifecycleStatus(),
                 r.getLifecycleReason(),
-                isReissueRequired(r)
+                isReissueRequired(r),
+                r.getSignatureStatus(),
+                r.getSignedPdfFileKey() != null,
+                r.isReadyToSend()
         );
     }
 

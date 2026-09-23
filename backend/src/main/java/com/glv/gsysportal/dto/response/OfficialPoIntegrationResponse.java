@@ -57,7 +57,21 @@ public record OfficialPoIntegrationResponse(
          * (Revision) has happened since - the Frontend's "Official POの再発行
          * が必要です" banner and the enabling condition for the Reissue
          * Action (never automatic - C-3's explicit requirement). */
-        boolean reissueRequired
+        boolean reissueRequired,
+        /** G-OPS Operational Workflow Realignment Phase C (docs/ux-audit/
+         * gops-operational-workflow-realignment-implementation.md): the
+         * Signature axis - NOT_REQUIRED/PENDING/SIGNED, independent of
+         * {@code status} and {@code lifecycleStatus} above. */
+        String signatureStatus,
+        /** Whether a signed PDF is currently available for download -
+         * derived from {@code signedPdfFileKey != null}, mirroring {@code
+         * pdfGenerated}'s own idiom (never exposes the storage key
+         * itself). */
+        boolean signedPdfAvailable,
+        /** Critical Design Principle: Admin approval alone never implies
+         * this is true - Supplier Send readiness requires SIGNATURE_SIGNED
+         * on an ACTIVE (not Cancelled/Superseded) Document. */
+        boolean readyToSend
 ) {
     public static final String STATUS_NOT_REQUESTED = "NOT_REQUESTED";
 
@@ -85,7 +99,10 @@ public record OfficialPoIntegrationResponse(
                 false, // pdfGenerated
                 null, // lifecycleStatus
                 null, // lifecycleReason
-                false // reissueRequired
+                false, // reissueRequired
+                null, // signatureStatus
+                false, // signedPdfAvailable
+                false // readyToSend
         );
     }
 }
