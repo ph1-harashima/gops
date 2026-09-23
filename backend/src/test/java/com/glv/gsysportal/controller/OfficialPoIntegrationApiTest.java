@@ -129,14 +129,14 @@ class OfficialPoIntegrationApiTest {
         mockMvc.perform(post("/api/orders/" + id + "/official-po/request").with(asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.officialPoNo").value(matchesPattern("^[A-Z]{3}[A-Z]{3}\\d{3}$")))
+                .andExpect(jsonPath("$.officialPoNo").value(matchesPattern("^#[A-Z]{3}-[A-Z]{3}\\d{3}$")))
                 .andExpect(jsonPath("$.revisionNo").value(1))
                 .andExpect(jsonPath("$.preflight.result").value("PASS"));
 
         mockMvc.perform(get("/api/orders/" + id + "/official-po"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.officialPoNo").value(matchesPattern("^[A-Z]{3}[A-Z]{3}\\d{3}$")));
+                .andExpect(jsonPath("$.officialPoNo").value(matchesPattern("^#[A-Z]{3}-[A-Z]{3}\\d{3}$")));
 
         // Scenario B: double Request does not create a second row - same
         // Revision, same shape, still 200 (not a Conflict), and the Official

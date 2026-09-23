@@ -179,7 +179,7 @@ class OfficialPoReissueIntegrationTest {
         assertEquals("PENDING", reissued.status());
         assertFalse(reissued.reissueRequired(), "the new ACTIVE Document has not been issued yet");
         // BR-08 Scenario 7: Reissue advances the Revision, never the
-        // Official PO No. itself - ABCXYZ001/Revision 002, never ABCXYZ002.
+        // Official PO No. itself - #ABC-XYZ001/Revision 002, never #ABC-XYZ002.
         assertEquals(poNo, reissued.officialPoNo(), "Reissue must carry the SAME Official PO No. forward, never re-number it");
 
         List<OfficialPoRevisionHistoryEntry> history = integrationService.getRevisionHistory(reapproved.getId());

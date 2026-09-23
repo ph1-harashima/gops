@@ -51,15 +51,18 @@ class OfficialPoAutoNumberingIntegrationTest {
     @PersistenceContext
     private EntityManager entityManager;
 
-    /** BR-08: the format is always exactly
-     * {SupplierShortCode 3 chars}{BrandShortCode 3 chars}{3-digit sequence}. */
+    /** BR-08 as reconciled by docs/ux-audit/
+     * gops-official-po-number-final-reality-audit.md: the format is always
+     * exactly {@code #}{SupplierShortCode 3 chars}{@code -}{BrandShortCode
+     * 3 chars}{3-digit sequence} - the Legacy-compatible shape, not the
+     * no-separator shape this class used to document. */
     @Test
     @Transactional(transactionManager = "prototypeTransactionManager")
-    void generateProducesTheExactBR08Format() {
+    void generateProducesTheExactLegacyCompatibleFormat() {
         String poNo = numberGenerator.generate("SUP_ALPHA", "BR_OUTDOOR");
 
-        assertTrue(poNo.matches("^[A-Z]{3}[A-Z]{3}\\d{3}$"), "unexpected format: " + poNo);
-        assertTrue(poNo.startsWith("ALPOUT"), "must use the registered Short Codes verbatim: " + poNo);
+        assertTrue(poNo.matches("^#[A-Z]{3}-[A-Z]{3}\\d{3}$"), "unexpected format: " + poNo);
+        assertTrue(poNo.startsWith("#ALP-OUT"), "must use the registered Short Codes verbatim: " + poNo);
     }
 
     /** BR-08 §8/Scenario 5: repeated allocations for the SAME Supplier x
@@ -146,8 +149,8 @@ class OfficialPoAutoNumberingIntegrationTest {
      * does not truncate or wrap once {@code seq} exceeds 999 - it simply
      * widens to 4+ digits, silently breaking BR-08's documented fixed
      * "3-digit sequence" format (and this class's own
-     * {@code generateProducesTheExactBR08Format} regex,
-     * {@code ^[A-Z]{3}[A-Z]{3}\d{3}$}). No collision results (the counter
+     * {@code generateProducesTheExactLegacyCompatibleFormat} regex,
+     * {@code ^#[A-Z]{3}-[A-Z]{3}\d{3}$}). No collision results (the counter
      * itself is still correct and monotonic - see
      * {@code concurrentAllocationsForTheSameSupplierBrandPairNeverCollide}
      * above), but any downstream system assuming a fixed 9-character
@@ -174,15 +177,15 @@ class OfficialPoAutoNumberingIntegrationTest {
             sequenceService.nextSequence(supplierCode, brandCode);
         }
         String at999 = numberGenerator.generate(supplierCode, brandCode);
-        assertTrue(at999.matches("^[A-Z]{3}[A-Z]{3}\\d{3}$"), "the 1000th call (seq=1000) is the one that overflows, not this one: " + at999);
+        assertTrue(at999.matches("^#[A-Z]{3}-[A-Z]{3}\\d{3}$"), "the 1000th call (seq=1000) is the one that overflows, not this one: " + at999);
 
         String at1000 = numberGenerator.generate(supplierCode, brandCode);
-        assertEquals("ZZZZZZ1000", at1000,
+        assertEquals("#ZZZ-ZZZ1000", at1000,
                 "documents the actual current behavior: seq=1000 widens to a 4-digit tail " +
-                "(\"ZZZZZZ1000\", 10 characters) rather than truncating/wrapping/erroring - " +
+                "(\"#ZZZ-ZZZ1000\", 12 characters) rather than truncating/wrapping/erroring - " +
                 "a real constraint to verify against actual UAT PO volume per Supplier x Brand pair, " +
                 "not something this audit changes (business numbering rule is out of scope).");
-        assertTrue(!at1000.matches("^[A-Z]{3}[A-Z]{3}\\d{3}$"),
+        assertTrue(!at1000.matches("^#[A-Z]{3}-[A-Z]{3}\\d{3}$"),
                 "confirms this value would now fail BR-08's own documented fixed-format regex");
     }
 

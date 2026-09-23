@@ -94,7 +94,7 @@ class OfficialPoIntegrationServiceIntegrationTest {
         // superseded 7-C2A 7章's original "no auto-numbering this Phase" Gate -
         // the Official PO No. is now auto-numbered immediately.
         assertNotNull(response.officialPoNo());
-        assertTrue(response.officialPoNo().matches("^[A-Z]{3}[A-Z]{3}\\d{3}$"));
+        assertTrue(response.officialPoNo().matches("^#[A-Z]{3}-[A-Z]{3}\\d{3}$"));
         assertEquals(1, response.revisionNo());
         assertEquals(ADMIN, response.requestedBy());
         assertNotNull(response.preflight());
