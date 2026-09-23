@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
@@ -16,10 +17,14 @@ import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Divider from '@mui/material/Divider'
+import TextField from '@mui/material/TextField'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Checkbox from '@mui/material/Checkbox'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { useTheme } from '@mui/material/styles'
 
 import { useDashboard } from '../dashboard/api'
+import type { DashboardBrandRow } from '../../shared/types/dashboard'
 
 /**
  * Order Candidates Brand Entry (docs/gops-order-candidates-brand-entry-implementation.md):
@@ -33,6 +38,21 @@ import { useDashboard } from '../dashboard/api'
  * endpoint, no new Candidate API. CandidateListPage itself (the actual SKU
  * Flat List) is completely unchanged; this screen is purely a new landing
  * page in front of it.
+ *
+ * G-OPS Operational Workflow Realignment Phase E §11: search (Brand
+ * Code/Name) + a "候補0件のブランドも表示" toggle defaulting to hidden,
+ * mirroring Phase D's identical Dashboard Brand Breakdown treatment (same
+ * underlying `data.brands`). Deliberately LOCAL React state, not URL
+ * Query Parameters: {@link CandidatesEntryPage} renders this component
+ * only when the URL has ZERO Query Parameters at all - adding one for this
+ * screen's own search/toggle would flip routing to the flat
+ * CandidateListPage instead. This is a real, discovered limitation (not
+ * an oversight) - browser Back to a bare `/candidates` remounts this page
+ * fresh, so this search/toggle does not survive that round trip the way a
+ * URL-backed filter would. Flagged as a known limitation, not fixed this
+ * Phase (fixing it would mean either special-casing one param name in
+ * CandidatesEntryPage's own routing check, or moving this screen to its
+ * own dedicated route - both a bigger change than this Phase's own scope).
  */
 export function OrderCandidateBrandListPage() {
   const { t } = useTranslation(['candidates', 'common'])
@@ -45,6 +65,18 @@ export function OrderCandidateBrandListPage() {
   // same testids/URLs as the Desktop Table below - purely a presentation
   // swap, no new API/Business Logic.
   const isCardLayout = useMediaQuery(theme.breakpoints.down('sm'))
+  const [brandSearch, setBrandSearch] = useState('')
+  const [showZeroCandidateBrands, setShowZeroCandidateBrands] = useState(false)
+
+  const filteredBrands = useMemo(() => {
+    if (!data) return [] as DashboardBrandRow[]
+    const query = brandSearch.trim().toLowerCase()
+    return data.brands.filter((b) => {
+      if (!showZeroCandidateBrands && b.candidateCount === 0) return false
+      if (!query) return true
+      return b.brandCode.toLowerCase().includes(query) || b.brandName.toLowerCase().includes(query)
+    })
+  }, [data, brandSearch, showZeroCandidateBrands])
 
   if (isLoading) {
     return (
@@ -87,10 +119,35 @@ export function OrderCandidateBrandListPage() {
         {t('candidates:brandList.subtitle')}
       </Typography>
 
+      <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+        <TextField
+          size="small"
+          label={t('candidates:brandList.search')}
+          value={brandSearch}
+          onChange={(e) => setBrandSearch(e.target.value)}
+          sx={{ minWidth: 220 }}
+          data-testid="candidate-brand-list-search"
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={showZeroCandidateBrands}
+              onChange={(e) => setShowZeroCandidateBrands(e.target.checked)}
+              data-testid="candidate-brand-list-show-zero"
+            />
+          }
+          label={t('candidates:brandList.showZeroCandidateBrands')}
+        />
+      </Stack>
+
+      {filteredBrands.length === 0 && (
+        <Alert severity="info" sx={{ mb: 2 }}>{t('candidates:brandList.noBrandsMatch')}</Alert>
+      )}
+
       {isCardLayout ? (
         <Box sx={{ flex: 1, overflow: 'auto' }} data-testid="order-candidate-brand-list-table-container">
           <Stack spacing={1.5}>
-            {data.brands.map((b) => (
+            {filteredBrands.map((b) => (
               <Card key={b.brandCode} variant="outlined" data-testid={`order-candidate-brand-row-${b.brandCode}`}>
                 <CardContent sx={{ '&:last-child': { pb: 2 } }}>
                   <Button
@@ -139,7 +196,7 @@ export function OrderCandidateBrandListPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.brands.map((b) => (
+            {filteredBrands.map((b) => (
               <TableRow key={b.brandCode} hover data-testid={`order-candidate-brand-row-${b.brandCode}`}>
                 <TableCell>
                   {/* Section 2: Brand name -> Brand-only Candidate List, no

@@ -18,6 +18,10 @@ import TextField from '@mui/material/TextField'
 import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Divider from '@mui/material/Divider'
+import Accordion from '@mui/material/Accordion'
+import AccordionSummary from '@mui/material/AccordionSummary'
+import AccordionDetails from '@mui/material/AccordionDetails'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { useTheme } from '@mui/material/styles'
 
@@ -39,6 +43,7 @@ import { resolveReturnTo, withReturnTo } from '../../shared/navigation/returnTo'
 import { Toast } from '../../shared/components/Toast'
 import type { ApiErrorBody } from '../../shared/types/orderDraft'
 import type { ContactMethod, StockoutStatus } from '../../shared/types/restockExpectation'
+import type { SkuPoHistoryLine } from '../../shared/types/skuDetail'
 
 function restockErrorCodeOf(error: unknown): string | null {
   if (axios.isAxiosError<ApiErrorBody>(error)) {
@@ -479,33 +484,75 @@ export function SkuDetailPage() {
       {data.poHistory.length === 0 ? (
         <Alert severity="info">{t('historyEmpty')}</Alert>
       ) : (
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('historyTable.poNo')}</TableCell>
-                <TableCell>{t('historyTable.orderDate')}</TableCell>
-                <TableCell>{t('historyTable.supplier')}</TableCell>
-                <TableCell align="right">{t('historyTable.qty')}</TableCell>
-                <TableCell align="right">{t('historyTable.unitPrice')}</TableCell>
-                <TableCell>{t('historyTable.status')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {data.poHistory.map((line, i) => (
-                <TableRow key={`${line.poNo}-${i}`} hover>
-                  <TableCell>{line.poNo}</TableCell>
-                  <TableCell>{line.orderDate ?? t('notAvailable')}</TableCell>
-                  <TableCell>{line.supplierName ?? line.supplierCode ?? t('notAvailable')}</TableCell>
-                  <TableCell align="right">{line.qty ?? t('notAvailable')}</TableCell>
-                  <TableCell align="right">{line.unitPrice != null ? `¥${line.unitPrice.toLocaleString()}` : t('notAvailable')}</TableCell>
-                  <TableCell>{line.status ?? t('notAvailable')}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        // G-OPS Operational Workflow Realignment Phase E §14: current year
+        // expanded by default, previous years collapsed - a pure frontend
+        // grouping of the same already-fetched flat array (no backend
+        // change, no data deleted; SkuPoHistoryReadQuery.sql's own
+        // unpaginated full-history fetch is untouched - see that file's
+        // own comment). Rows within each year keep the exact order the
+        // Backend already returns them in (ORDER BY ordr_date DESC,
+        // po_no DESC) - grouping never re-sorts.
+        groupPoHistoryByYear(data.poHistory).map(({ year, lines }) => (
+          <Accordion key={year} defaultExpanded={year === currentYear} data-testid={`sku-history-year-${year}`}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle2">
+                {t('historyYearGroup', { year: year === 'unknown' ? t('historyYearUnknown') : year, count: lines.length })}
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ p: 0 }}>
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>{t('historyTable.poNo')}</TableCell>
+                      <TableCell>{t('historyTable.orderDate')}</TableCell>
+                      <TableCell>{t('historyTable.supplier')}</TableCell>
+                      <TableCell align="right">{t('historyTable.qty')}</TableCell>
+                      <TableCell align="right">{t('historyTable.unitPrice')}</TableCell>
+                      <TableCell>{t('historyTable.status')}</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {lines.map((line, i) => (
+                      <TableRow key={`${line.poNo}-${i}`} hover>
+                        <TableCell>{line.poNo}</TableCell>
+                        <TableCell>{line.orderDate ?? t('notAvailable')}</TableCell>
+                        <TableCell>{line.supplierName ?? line.supplierCode ?? t('notAvailable')}</TableCell>
+                        <TableCell align="right">{line.qty ?? t('notAvailable')}</TableCell>
+                        <TableCell align="right">{line.unitPrice != null ? `¥${line.unitPrice.toLocaleString()}` : t('notAvailable')}</TableCell>
+                        <TableCell>{line.status ?? t('notAvailable')}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </AccordionDetails>
+          </Accordion>
+        ))
       )}
     </Box>
   )
+}
+
+const currentYear = String(new Date().getFullYear())
+
+/** Groups already-fetched, already-ordered PO history lines by 発注年
+ * (extracted from `orderDate`, "不明" for a null date) - preserves each
+ * group's existing relative order, and orders the groups themselves
+ * newest-first (matching the flat list's own DESC order), with "不明"
+ * last regardless of where it appears in the source data. */
+function groupPoHistoryByYear(lines: SkuPoHistoryLine[]) {
+  const groups = new Map<string, SkuPoHistoryLine[]>()
+  for (const line of lines) {
+    const year = line.orderDate ? line.orderDate.slice(0, 4) : 'unknown'
+    if (!groups.has(year)) groups.set(year, [])
+    groups.get(year)!.push(line)
+  }
+  return Array.from(groups.entries())
+    .map(([year, groupLines]) => ({ year, lines: groupLines }))
+    .sort((a, b) => {
+      if (a.year === 'unknown') return 1
+      if (b.year === 'unknown') return -1
+      return b.year.localeCompare(a.year)
+    })
 }

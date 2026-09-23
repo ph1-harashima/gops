@@ -8,7 +8,8 @@
     "all": "All",
     "recommendedOnly": "Show recommended only",
     "outOfStockOnly": "Show out of stock only",
-    "longTermOutOfStockOnly": "Show long-term out of stock only"
+    "longTermOutOfStockOnly": "Show long-term out of stock only",
+    "showDiscontinued": "Show discontinued items"
   },
   "table": {
     "select": "Select",
@@ -49,6 +50,9 @@
       "attention": "Needs Attention"
     },
     "viewAllButton": "Show All Order Candidates",
-    "backToBrandList": "Back to Brand List"
+    "backToBrandList": "Back to Brand List",
+    "search": "Search brand (code or name)",
+    "showZeroCandidateBrands": "Show brands with 0 candidates",
+    "noBrandsMatch": "No brands match."
   }
 }

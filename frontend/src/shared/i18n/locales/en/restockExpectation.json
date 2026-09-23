@@ -3,6 +3,8 @@
   "manualDisplay": "Expected restock {{date}}",
   "unknownDisplay": "Restock: Unknown",
   "noneDisplay": "—",
+  "overdueLabel": "Overdue",
+  "overdueTooltip": "The expected arrival date has passed, but G-SYS has not yet recorded it as received. Please confirm the actual status.",
   "editSectionTitle": "Manufacturer Stockout Information",
   "legacyReadOnlyNote": "The Expected Arrival Date is shown automatically from G-SYS Arrival data. It cannot be edited here.",
   "conflictWarning": "The G-SYS Expected Arrival and the Manufacturer-confirmed stockout information disagree. Please review both.",

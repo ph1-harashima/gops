@@ -8,7 +8,8 @@
     "all": "すべて",
     "recommendedOnly": "推奨発注数ありのみ表示",
     "outOfStockOnly": "欠品のみ表示",
-    "longTermOutOfStockOnly": "長期欠品のみ表示"
+    "longTermOutOfStockOnly": "長期欠品のみ表示",
+    "showDiscontinued": "廃番商品も表示"
   },
   "table": {
     "select": "選択",
@@ -49,6 +50,9 @@
       "attention": "要確認"
     },
     "viewAllButton": "すべての発注候補を表示",
-    "backToBrandList": "ブランド一覧へ戻る"
+    "backToBrandList": "ブランド一覧へ戻る",
+    "search": "ブランド検索（コード・名称）",
+    "showZeroCandidateBrands": "候補0件のブランドも表示",
+    "noBrandsMatch": "該当するブランドがありません。"
   }
 }

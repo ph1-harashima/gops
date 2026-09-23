@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
@@ -93,10 +93,33 @@ export function CandidateListPage() {
   // two numbers agree instead of one going to an always-unfiltered list.
   const outOfStockOnly = searchParams.get('outOfStockOnly') === 'true'
   const longTermOutOfStockOnly = searchParams.get('longTermOutOfStockOnly') === 'true'
+  // G-OPS Operational Workflow Realignment Phase E §12: 商品状態（通常/廃番）
+  // is a separate axis from 在庫状態（通常/欠品/長期欠品）above - reusing the
+  // existing `row.discon`/ItemStatusChip judgement as-is (no new Business
+  // Rule, no change to what "discontinued" means). Default hides 廃番 items
+  // from the actionable Candidate List (ordering a discontinued item is
+  // rarely the intent); checkbox reveals them - same URL-persisted Boolean
+  // idiom as outOfStockOnly/longTermOutOfStockOnly above, defaulted to the
+  // OPPOSITE sense (absence of the param = hide, not show).
+  const showDiscontinued = searchParams.get('showDiscontinued') === 'true'
   const page = Number(searchParams.get('page') ?? '0')
   const size = Number(searchParams.get('size') ?? String(DEFAULT_PAGE_SIZE))
   const [keywordInput, setKeywordInput] = useState(filter.keyword ?? '')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  // G-OPS Operational Workflow Realignment Phase E §15: selection must
+  // survive a round trip to SKU Detail and back (both Browser Back and the
+  // in-app "戻る" button use the same URL, so persisting to the URL - the
+  // same "single source of truth" idiom every other Filter on this page
+  // already uses - covers both at once). Read once on mount from
+  // `?selected=SKU1,SKU2,...`; a `useEffect` below mirrors state changes
+  // back to the URL. Capped defensively (MAX_PERSISTED_SELECTION) so an
+  // unusually large selection can never produce an unwieldy URL - the
+  // cap only affects what is PERSISTED across a navigation, never the
+  // current session's own Set (Create Draft always uses the full `selected`
+  // below, uncapped).
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    const raw = searchParams.get('selected')
+    return raw ? new Set(raw.split(',').filter(Boolean)) : new Set()
+  })
   // Candidate Selection Supplier UX (docs/real-data-audit/
   // gops-stage4-targeted-real-data-remediation.md §6): real data shows
   // 27.1% of Brands span multiple Suppliers (Stage 2 §5) - once the first
@@ -105,8 +128,39 @@ export function CandidateListPage() {
   // MIXED_SUPPLIER_NOT_ALLOWED after Create Draft. Tracked separately from
   // `selected` (a plain Set<string> of SKUs) because selection can span
   // multiple pages - the owning Supplier of an already-selected SKU from a
-  // page no longer in view would otherwise be unrecoverable.
-  const [selectedSupplierCode, setSelectedSupplierCode] = useState<string | null>(null)
+  // page no longer in view would otherwise be unrecoverable. Persisted to
+  // the URL alongside `selected` for the same round-trip reason.
+  const [selectedSupplierCode, setSelectedSupplierCode] = useState<string | null>(
+    () => searchParams.get('selectedSupplier'),
+  )
+
+  const MAX_PERSISTED_SELECTION = 200
+  // Deliberately NOT a reactive useEffect keyed on [selected,
+  // selectedSupplierCode]: Create Draft's onSuccess clears both AND
+  // navigates away in the same event handler - an effect would still fire
+  // once more on that clearing update, racing setSearchParams(replace)
+  // against navigate()'s own history push and intermittently corrupting
+  // the just-navigated-to Draft page's URL (confirmed live via a failing
+  // E2E run before this fix). Called explicitly, only from toggleSelect
+  // below (the one place selection changes while staying on this page) -
+  // Create Draft's own reset never calls this, since the page is leaving
+  // anyway and there is nothing on the new URL to clean up.
+  function syncSelectionToUrl(nextSelected: Set<string>, nextSelectedSupplierCode: string | null) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (nextSelected.size > 0) {
+          next.set('selected', Array.from(nextSelected).slice(0, MAX_PERSISTED_SELECTION).join(','))
+        } else {
+          next.delete('selected')
+        }
+        if (nextSelectedSupplierCode) next.set('selectedSupplier', nextSelectedSupplierCode)
+        else next.delete('selectedSupplier')
+        return next
+      },
+      { replace: true },
+    )
+  }
 
   // Keeps the Keyword text field in sync when the URL changes from outside
   // a keystroke here - browser Back/Forward, a typed/bookmarked URL, or a
@@ -156,6 +210,39 @@ export function CandidateListPage() {
 
   const { data, isLoading, isError, refetch } = useOrderCandidates(filter, page, size)
 
+  // §15 (best-effort): scroll position within the Desktop Table, restored
+  // after returning from SKU Detail. Keyed by the list's own returnTo path
+  // (already incorporates filters/page/selection) via sessionStorage - a
+  // per-tab, per-viewer convenience only, never read by anyone else, so
+  // this is an acceptable use of browser storage per this codebase's own
+  // "per-viewer convenience, not shared state" convention. Desktop layout
+  // only (data-testid="candidate-list-table-container") - the Mobile Card
+  // layout uses the page's own scroll (App shell), out of scope here.
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const scrollStorageKey = `candidateListScroll:${listPath}`
+  useEffect(() => {
+    if (isLoading || !data) return
+    const saved = sessionStorage.getItem(scrollStorageKey)
+    if (saved && scrollContainerRef.current) {
+      try {
+        scrollContainerRef.current.scrollTop = Number(saved)
+      } catch {
+        // sessionStorage/scroll restoration is a pure convenience - never
+        // let a read/parse failure affect the List itself.
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, data])
+
+  function saveScrollPosition() {
+    if (!scrollContainerRef.current) return
+    try {
+      sessionStorage.setItem(scrollStorageKey, String(scrollContainerRef.current.scrollTop))
+    } catch {
+      // Same convenience-only rationale as above.
+    }
+  }
+
   const createDraftMutation = useCreateDraft()
 
   const visibleData = useMemo(() => {
@@ -179,7 +266,8 @@ export function CandidateListPage() {
       .filter((row) => !recommendedOnly || (row.recommendedQty ?? 0) > 0)
       .filter((row) => !outOfStockOnly || computeStockJudgement(row.currentStock, row.openPo) !== 'NORMAL')
       .filter((row) => !longTermOutOfStockOnly || computeStockJudgement(row.currentStock, row.openPo) === 'LONG_TERM_OUT_OF_STOCK')
-  }, [data, recommendedOnly, outOfStockOnly, longTermOutOfStockOnly])
+      .filter((row) => showDiscontinued || !row.discon)
+  }, [data, recommendedOnly, outOfStockOnly, longTermOutOfStockOnly, showDiscontinued])
 
   function toggleRecommendedOnly(checked: boolean) {
     setBooleanParam('recommendedOnly', checked)
@@ -241,21 +329,24 @@ export function CandidateListPage() {
   // if called some other way. Backend's own MIXED_SUPPLIER_NOT_ALLOWED
   // (OrderDraftService) is unchanged and remains the authoritative guard.
   function toggleSelect(row: OrderCandidate) {
-    setSelected((prev) => {
-      if (prev.has(row.sku)) {
-        const next = new Set(prev)
-        next.delete(row.sku)
-        if (next.size === 0) setSelectedSupplierCode(null)
-        return next
-      }
-      if (selectedSupplierCode && row.supplierCode && row.supplierCode !== selectedSupplierCode) {
-        return prev
-      }
-      const next = new Set(prev)
-      next.add(row.sku)
-      if (next.size === 1) setSelectedSupplierCode(row.supplierCode ?? null)
-      return next
-    })
+    if (selected.has(row.sku)) {
+      const next = new Set(selected)
+      next.delete(row.sku)
+      const nextSupplierCode = next.size === 0 ? null : selectedSupplierCode
+      setSelected(next)
+      setSelectedSupplierCode(nextSupplierCode)
+      syncSelectionToUrl(next, nextSupplierCode)
+      return
+    }
+    if (selectedSupplierCode && row.supplierCode && row.supplierCode !== selectedSupplierCode) {
+      return
+    }
+    const next = new Set(selected)
+    next.add(row.sku)
+    const nextSupplierCode = next.size === 1 ? (row.supplierCode ?? null) : selectedSupplierCode
+    setSelected(next)
+    setSelectedSupplierCode(nextSupplierCode)
+    syncSelectionToUrl(next, nextSupplierCode)
   }
 
   function isSupplierLocked(row: OrderCandidate): boolean {
@@ -273,7 +364,19 @@ export function CandidateListPage() {
         onSuccess: (draft) => {
           setSelected(new Set())
           setSelectedSupplierCode(null)
-          navigate(withReturnTo(`/orders/drafts/${draft.id}`, listPath))
+          // §15: the just-drafted SKUs are no longer an "in-progress
+          // selection" once committed to a Draft - the returnTo target for
+          // THIS navigation must not carry `selected`/`selectedSupplier`
+          // forward (unlike the general `listPath` used for SKU Detail
+          // navigation, where preserving an in-progress selection across
+          // the round trip is the whole point of this Phase's change).
+          // Without this, returning via "戻る" would re-show the
+          // already-drafted SKU's checkbox as still checked.
+          const cleanParams = new URLSearchParams(searchParams)
+          cleanParams.delete('selected')
+          cleanParams.delete('selectedSupplier')
+          const cleanListPath = listReturnTo('/candidates', cleanParams)
+          navigate(withReturnTo(`/orders/drafts/${draft.id}`, cleanListPath))
         },
       },
     )
@@ -390,6 +493,16 @@ export function CandidateListPage() {
             />
           }
           label={t('candidates:filter.longTermOutOfStockOnly')}
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={showDiscontinued}
+              onChange={(e) => setBooleanParam('showDiscontinued', e.target.checked)}
+              data-testid="show-discontinued-checkbox"
+            />
+          }
+          label={t('candidates:filter.showDiscontinued')}
         />
 
         <Box sx={{ flexGrow: 1 }} />
@@ -590,7 +703,7 @@ export function CandidateListPage() {
               ))}
             </Stack>
           ) : (
-          <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="candidate-list-table-container">
+          <TableContainer ref={scrollContainerRef} onScroll={saveScrollPosition} component={Paper} variant="outlined" sx={{ flex: 1, overflow: 'auto', minHeight: 220 }} data-testid="candidate-list-table-container">
             {/* Phase 7-F Header/List UX Audit: MUI's default stickyHeader
                 background was found transparent in this theme via live
                 reproduction (underlying row text visibly showed through the

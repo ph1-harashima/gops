@@ -30,6 +30,8 @@
     "marginDisclaimer": "現在の売価と当月平均原価から算出した参考値です。実績の粗利益ではありません。"
   },
   "historyEmpty": "この商品の発注実績はありません。",
+  "historyYearGroup": "{{year}}年（{{count}}件）",
+  "historyYearUnknown": "発注日不明",
   "historyTable": {
     "poNo": "PO No.",
     "orderDate": "発注日",

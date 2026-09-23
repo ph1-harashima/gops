@@ -100,14 +100,23 @@ test.describe('Phase 7-G: 在庫判定（暫定）Badge visibility and cross-scr
     // FIELDNEST's 欠品 cell (3rd data column) - reuses the same Brand-row
     // Deep Link Dashboard already has (Phase 7-F).
     const cell = page.locator('table tbody tr').filter({ hasText: 'FIELDNEST' }).locator('td').nth(2).getByRole('button')
-    const expectedCount = Number((await cell.textContent())?.trim())
     await cell.click()
     await expect(page).toHaveURL(/\/candidates\?brandCode=.+&outOfStockOnly=true/)
     await expect(page.getByText(/件の発注候補/)).toBeVisible()
 
+    // G-OPS Operational Workflow Realignment Phase E §12: Candidate List
+    // now defaults to hiding 廃番 (discontinued) items - FIELDNEST's own
+    // 欠品 count from the Dashboard/Brand row includes at least one
+    // discontinued+out-of-stock SKU, so the Dashboard count and this
+    // default-filtered List's row count are no longer expected to match
+    // exactly (an intentional consequence of that new default, not a
+    // regression). This test's actual purpose is Badge alignment across
+    // 欠品/長期欠品, not exact count-matching nor discon filtering, so it
+    // only asserts rowCount > 0 (mirroring Test D's own precedent right
+    // above) and checks every visible row's Badge.
     const table = page.getByTestId('candidate-list-table-container')
     const rowCount = await table.locator('tbody tr').count()
-    expect(rowCount).toBe(expectedCount)
+    expect(rowCount).toBeGreaterThan(0)
     for (let i = 0; i < rowCount; i++) {
       const label = await table.locator('tbody tr').nth(i).getByTestId('stock-judgement-chip').textContent()
       expect(['欠品', '長期欠品']).toContain(label)

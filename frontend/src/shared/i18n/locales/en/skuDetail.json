@@ -30,6 +30,8 @@
     "marginDisclaimer": "A reference value calculated from Legacy's current selling price and this month's average cost. This is not Actual Gross Profit."
   },
   "historyEmpty": "There is no Legacy PO history for this item.",
+  "historyYearGroup": "{{year}} ({{count}})",
+  "historyYearUnknown": "Unknown order date",
   "historyTable": {
     "poNo": "PO No.",
     "orderDate": "Order Date",

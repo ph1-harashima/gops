@@ -155,8 +155,18 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
     await expect(page.getByTestId('filter-chip-outOfStockOnly')).toBeVisible()
     await waitForListSettled(page, /件の発注候補|発注候補が見つかりませんでした/)
 
+    // G-OPS Operational Workflow Realignment Phase E §12: Candidate List
+    // now defaults to hiding 廃番 (discontinued) items, which the
+    // Dashboard's own 欠品 KPI count (Legacy Read-Model-derived, unaware of
+    // this Frontend-only display default) does not exclude - hiding
+    // discontinued items can only ever REDUCE what's shown, never exceed
+    // the KPI's own count, so this is now an upper-bound check rather than
+    // exact equality (an intentional consequence of that new default, not
+    // a regression).
     const resultText = await page.getByText(/件の発注候補/).textContent()
-    expect(Number(resultText?.match(/(\d+)件/)?.[1])).toBe(expected)
+    const actual = Number(resultText?.match(/(\d+)件/)?.[1])
+    expect(actual).toBeLessThanOrEqual(expected)
+    if (expected > 0) expect(actual).toBeGreaterThan(0)
   })
 
   test('長期欠品 KPI -> Candidate List with longTermOutOfStockOnly, count matches', async ({ page }) => {
@@ -169,8 +179,11 @@ test.describe('Phase 6-D: Dashboard Deep Links', () => {
     await expect(page.getByTestId('filter-chip-longTermOutOfStockOnly')).toBeVisible()
     await waitForListSettled(page, /件の発注候補|発注候補が見つかりませんでした/)
 
+    // Same Phase E §12 rationale as the 欠品 KPI test above.
     const resultText = await page.getByText(/件の発注候補/).textContent()
-    expect(Number(resultText?.match(/(\d+)件/)?.[1])).toBe(expected)
+    const actual = Number(resultText?.match(/(\d+)件/)?.[1])
+    expect(actual).toBeLessThanOrEqual(expected)
+    if (expected > 0) expect(actual).toBeGreaterThan(0)
   })
 
   test('Brand row Deep Links: 発注候補 carries recommendedOnly, 欠品 carries outOfStockOnly, 要確認 carries hasAttention', async ({ page }) => {
