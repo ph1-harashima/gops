@@ -4,6 +4,7 @@ import com.glv.gsysportal.domain.DashboardAggregateCurrent;
 import com.glv.gsysportal.domain.DashboardBrandLegacyAggregate;
 import com.glv.gsysportal.domain.DashboardLegacyAggregate;
 import com.glv.gsysportal.domain.FollowUpCase;
+import com.glv.gsysportal.domain.OfficialPoIntegrationRequest;
 import com.glv.gsysportal.domain.OrderAttention;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.PriceChangeSet;
@@ -13,6 +14,7 @@ import com.glv.gsysportal.repository.prototype.DashboardAggregateCurrentReposito
 import com.glv.gsysportal.repository.prototype.DashboardBrandLegacyAggregateRepository;
 import com.glv.gsysportal.repository.prototype.DashboardLegacyAggregateRepository;
 import com.glv.gsysportal.repository.prototype.FollowUpCaseRepository;
+import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.OrderAttentionRepository;
 import com.glv.gsysportal.repository.prototype.PortalOrderRepository;
 import com.glv.gsysportal.repository.prototype.PriceChangeSetRepository;
@@ -66,6 +68,7 @@ public class DashboardService {
     private final OrderAttentionRepository orderAttentionRepository;
     private final FollowUpCaseRepository followUpCaseRepository;
     private final PriceChangeSetRepository priceChangeSetRepository;
+    private final OfficialPoIntegrationRequestRepository integrationRequestRepository;
 
     public DashboardService(DashboardAggregateCurrentRepository aggregateCurrentRepository,
                              DashboardLegacyAggregateRepository legacyAggregateRepository,
@@ -73,7 +76,8 @@ public class DashboardService {
                              PortalOrderRepository portalOrderRepository,
                              OrderAttentionRepository orderAttentionRepository,
                              FollowUpCaseRepository followUpCaseRepository,
-                             PriceChangeSetRepository priceChangeSetRepository) {
+                             PriceChangeSetRepository priceChangeSetRepository,
+                             OfficialPoIntegrationRequestRepository integrationRequestRepository) {
         this.aggregateCurrentRepository = aggregateCurrentRepository;
         this.legacyAggregateRepository = legacyAggregateRepository;
         this.brandLegacyAggregateRepository = brandLegacyAggregateRepository;
@@ -81,6 +85,7 @@ public class DashboardService {
         this.orderAttentionRepository = orderAttentionRepository;
         this.followUpCaseRepository = followUpCaseRepository;
         this.priceChangeSetRepository = priceChangeSetRepository;
+        this.integrationRequestRepository = integrationRequestRepository;
     }
 
     // Stage 5E Targeted Remediation (RC-F) / Stage 5K: still deliberately
@@ -105,6 +110,25 @@ public class DashboardService {
         // Phase 8-J 11章/13章: Price Change Draft count - see DashboardResponse Javadoc.
         int priceChangeDraftCount = (int) priceChangeSetRepository.countByStatus(PriceChangeSet.STATUS_DRAFT);
 
+        // Phase D (Signature axis KPIs, see DashboardResponse Javadoc): the
+        // CURRENT (latest revision) Integration Request per Order - same
+        // "small Portal table, reduce in Java" precedent as orders/
+        // orderIdsWithActiveAttention above, never a bulk SQL GROUP BY.
+        Map<Long, OfficialPoIntegrationRequest> currentIntegrationRequestByOrderId = integrationRequestRepository.findAll().stream()
+                .collect(Collectors.toMap(OfficialPoIntegrationRequest::getPortalOrderId, r -> r,
+                        (a, b) -> a.getRevisionNo() >= b.getRevisionNo() ? a : b));
+        int signaturePendingCount = (int) orders.stream()
+                .filter(o -> {
+                    OfficialPoIntegrationRequest r = currentIntegrationRequestByOrderId.get(o.getId());
+                    return r != null && OfficialPoIntegrationRequest.SIGNATURE_PENDING.equals(r.getSignatureStatus());
+                }).count();
+        int readyToSendCount = (int) orders.stream()
+                .filter(o -> PortalOrder.STATUS_APPROVED.equals(o.getStatus()))
+                .filter(o -> {
+                    OfficialPoIntegrationRequest r = currentIntegrationRequestByOrderId.get(o.getId());
+                    return r != null && r.isReadyToSend();
+                }).count();
+
         if (current.isEmpty()) {
             // Stage 5J §15 Startup/Empty State: only reachable if the
             // one-time startup Refresh (DashboardRefreshStartupRunner)
@@ -116,7 +140,8 @@ public class DashboardService {
             List<DashboardBrandRow> portalOnlyBrands = buildBrandRows(
                     List.of(), orders, orderIdsWithActiveAttention);
             return new DashboardResponse(null, false, 0, 0, 0, draftCount, pendingApprovalCount,
-                    awaitingSupplierCount, attentionCount, openFollowUpCaseCount, priceChangeDraftCount, portalOnlyBrands);
+                    awaitingSupplierCount, attentionCount, openFollowUpCaseCount, priceChangeDraftCount,
+                    signaturePendingCount, readyToSendCount, portalOnlyBrands);
         }
 
         Long refreshRunId = current.get().getActiveRefreshRunId();
@@ -131,7 +156,7 @@ public class DashboardService {
                 current.get().getActivatedAt(), true,
                 overall.getCandidateCount(), overall.getOutOfStockCount(), overall.getLongTermOutOfStockCount(),
                 draftCount, pendingApprovalCount, awaitingSupplierCount, attentionCount, openFollowUpCaseCount,
-                priceChangeDraftCount, brands
+                priceChangeDraftCount, signaturePendingCount, readyToSendCount, brands
         );
     }
 

@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Box from '@mui/material/Box'
@@ -15,8 +16,16 @@ import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import Grid from '@mui/material/Grid'
 import Tooltip from '@mui/material/Tooltip'
+import TextField from '@mui/material/TextField'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Checkbox from '@mui/material/Checkbox'
 
 import { useDashboard } from './api'
+import { useAuth } from '../auth/AuthContext'
+import { ROLE_ADMIN, ROLE_OPERATOR } from '../../shared/types/auth'
+import type { DashboardBrandRow } from '../../shared/types/dashboard'
+
+const BRAND_TABLE_DEFAULT_ROWS = 10
 
 /**
  * Action / Operation Cockpit (implementation instructions Step 5 3章).
@@ -24,11 +33,41 @@ import { useDashboard } from './api'
  * decision right now" (a count), never a trend/margin/turnover-rate chart.
  * Clicking a KPI or a Brand row cell navigates to the corresponding
  * pre-filtered screen.
+ *
+ * G-OPS Operational Workflow Realignment Phase D (docs/ux-audit/
+ * gops-operational-workflow-realignment-implementation.md §9/§10):
+ * reorganized from a flat KPI grid into the real operational sequence
+ * (発注候補 → 発注作成中 → 承認待ち → 署名待ち → メーカー送付待ち →
+ * メーカー回答待ち → 要確認, with 問い合わせ中/価格変更 as a secondary
+ * group) - a pure reordering/grouping of counts that already existed
+ * (signaturePendingCount/readyToSendCount are Phase D's only new counts,
+ * both computed live from Postgres only, never touching the Legacy Read
+ * Model - see DashboardService's own Javadoc). The Brand Breakdown table
+ * no longer dumps every Brand unfiltered - it defaults to hiding
+ * zero-activity Brands and capping to the first 10, with a search box and
+ * an explicit "すべて表示" action, since Brand *search* to place an order
+ * belongs on Candidate Brand List, not here (§10).
  */
 export function DashboardPage() {
   const { t } = useTranslation(['dashboard', 'common', 'status'])
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { data, isLoading, isError, refetch } = useDashboard()
+  const [brandSearch, setBrandSearch] = useState('')
+  const [showZeroActivityBrands, setShowZeroActivityBrands] = useState(false)
+  const [showAllBrands, setShowAllBrands] = useState(false)
+
+  const filteredBrands = useMemo(() => {
+    if (!data) return [] as DashboardBrandRow[]
+    const query = brandSearch.trim().toLowerCase()
+    return data.brands.filter((b) => {
+      if (!showZeroActivityBrands && isZeroActivityBrand(b)) return false
+      if (!query) return true
+      return b.brandCode.toLowerCase().includes(query) || b.brandName.toLowerCase().includes(query)
+    })
+  }, [data, brandSearch, showZeroActivityBrands])
+
+  const visibleBrands = showAllBrands ? filteredBrands : filteredBrands.slice(0, BRAND_TABLE_DEFAULT_ROWS)
 
   if (isLoading) {
     return (
@@ -69,65 +108,59 @@ export function DashboardPage() {
     )
   }
 
-  // Phase 6-D Deep Link audit (docs/production-ux-workflow-redesign.md 10章;
-  // full per-KPI writeup in the Phase 6-D completion report). Every target
-  // filter reuses Phase 6-A's URL Query Parameter mechanism as-is - no new
-  // state management, no Backend/API change.
-  //
-  // - 発注候補: DashboardService.isCandidate() = recommendedQty > 0, over the
-  //   SAME unfiltered Candidate set /candidates itself fetches. ?recommendedOnly=true
-  //   applies that identical condition client-side on the List (6-D 3章).
-  // - 欠品/長期欠品: DashboardService's own comment marks their definition
-  //   [TBD - CUSTOMER REVIEW] (currentStock==0 / +openPo==0, a provisional
-  //   Proxy). Phase 7-F Header/List UX Audit: Candidate List now has a
-  //   matching client-side Filter (outOfStockOnly/longTermOutOfStockOnly)
-  //   reusing this EXACT SAME provisional Predicate - not a new Business
-  //   Rule, just closing the Dashboard-count-vs-List-count gap the 6-D
-  //   comment above previously reported (not hidden) as a known mismatch.
-  //   The provisional definition itself remains unchanged and still
-  //   unconfirmed (customer-review-decision-package.md D-5).
-  // - 発注作成中: DashboardService.draftCount is STATUS_DRAFT only -
-  //   READY_TO_ORDER is excluded, matching Label ("作成中" reads as "still
-  //   editable", not "confirmed but unsent") - no change needed (6-D 4章).
-  // - メーカー回答待ち: already correct (status=AWAITING_SUPPLIER).
-  // - 要確認: DashboardService.attentionCount counts any order (any Status)
-  //   with an active Attention. Order List already returns activeAttentionTypes
-  //   per row, so ?hasAttention=true is a client-side Filter over data the
-  //   existing API already sends - no new Attention Filter API (6-D 6章).
-  const kpis = [
-    // Freeze Blocker-1: this KPI used to jump straight to the all-Brand
-    // ?recommendedOnly=true flat SKU List, skipping the Brand-first entry
-    // (OrderCandidateBrandListPage) IA Phase 3 already established for
-    // every OTHER 発注候補 entry point (Global Nav, Brand-row "戻る", etc.) -
-    // this was the one remaining inconsistent entry point. The all-Brand
-    // view is still reachable, just one explicit click away via the Brand
-    // List's own "すべての発注候補を表示" button, matching the Freeze
-    // instructions' "通常導線にはしないこと" for the KPI itself.
-    { key: 'candidateCount', label: t('kpi.candidates'), value: data.candidateCount, onClick: () => navigate('/candidates'), tooltip: undefined as string | undefined },
-    // Phase 7-G: same provisional Predicate/Tooltip wording as the new
-    // 在庫判定 Chip (status:stockJudgementTooltip) so a user who has already
-    // seen the Chip's Tooltip on the List/Detail recognizes this KPI refers
-    // to the identical concept - not a new caveat, just making the existing
-    // "件数だけでは分からない" gap this KPI already had (undocumented until
-    // now) explicit here too.
+  const isAdmin = user?.role === ROLE_ADMIN
+  const isOperator = user?.role === ROLE_OPERATOR
+
+  // Phase D §9: the workflow-sequence order, grouped into two sections -
+  // "対応が必要" (needs a decision) and "その他" (secondary/no dedicated
+  // Filter target yet, same precedent openFollowUpCaseCount already had).
+  // Every onClick target/query-param below is unchanged from before this
+  // Phase except the 2 new tiles - see DashboardKpiContractIntegrationTest
+  // for the exact-match vs. superset-destination contract each one holds.
+  type Kpi = { key: string; label: string; value: number; onClick: () => void; tooltip?: string; highlightForRole?: boolean }
+  const actionNeeded: Kpi[] = [
+    { key: 'candidateCount', label: t('kpi.candidates'), value: data.candidateCount, onClick: () => navigate('/candidates') },
     { key: 'outOfStockCount', label: t('kpi.outOfStock'), value: data.outOfStockCount, onClick: () => navigate('/candidates?outOfStockOnly=true'), tooltip: t('status:stockJudgementTooltip') },
     { key: 'longTermOutOfStockCount', label: t('kpi.longTermOutOfStock'), value: data.longTermOutOfStockCount, onClick: () => navigate('/candidates?longTermOutOfStockOnly=true'), tooltip: t('status:stockJudgementTooltip') },
-    { key: 'draftCount', label: t('kpi.draft'), value: data.draftCount, onClick: () => navigate('/orders/history?status=DRAFT'), tooltip: undefined as string | undefined },
-    // Phase 7-C1 14章: ADMIN's approval queue entry point - minimal design,
-    // reusing the same Dashboard KPI -> pre-filtered Order List pattern as
-    // every other tile here (no new screen, no new API).
-    { key: 'pendingApprovalCount', label: t('kpi.pendingApproval'), value: data.pendingApprovalCount, onClick: () => navigate('/orders/history?status=PENDING_APPROVAL'), tooltip: undefined as string | undefined },
-    { key: 'awaitingSupplierCount', label: t('kpi.awaitingSupplier'), value: data.awaitingSupplierCount, onClick: () => navigate('/orders/history?status=AWAITING_SUPPLIER'), tooltip: undefined as string | undefined },
-    { key: 'attentionCount', label: t('kpi.attention'), value: data.attentionCount, onClick: () => navigate('/orders/history?hasAttention=true'), tooltip: undefined as string | undefined },
-    // Phase 7-C7A 19章: no dedicated Order List Filter exists for "has an
-    // Open Follow-up Case" this Phase (same "count only, unfiltered target"
-    // precedent as 欠品/長期欠品 above) - the count itself is exact.
-    { key: 'openFollowUpCaseCount', label: t('kpi.openFollowUpCase'), value: data.openFollowUpCaseCount, onClick: () => navigate('/orders/history'), tooltip: undefined as string | undefined },
-    // Phase 8-J 11章/13章: Dashboard's information design predated Phase
-    // 8-B/8-D (Price Change Foundation) - DRAFT is a single, unambiguous
-    // Status value (§13 whitelist), same precedent as draftCount above.
-    { key: 'priceChangeDraftCount', label: t('kpi.priceChangeDraft'), value: data.priceChangeDraftCount, onClick: () => navigate('/price-changes?status=DRAFT'), tooltip: undefined as string | undefined },
+    { key: 'pendingApprovalCount', label: t('kpi.pendingApproval'), value: data.pendingApprovalCount, onClick: () => navigate('/orders/history?status=PENDING_APPROVAL'), highlightForRole: isAdmin },
+    // Phase D §9/§2 (Critical Design Principle): 署名待ち/メーカー送付待ち
+    // have no dedicated Order List Filter yet (same "count only, superset
+    // destination" precedent as openFollowUpCaseCount below) - both land on
+    // the broader APPROVED list, a real superset of their own count.
+    { key: 'signaturePendingCount', label: t('kpi.signaturePending'), value: data.signaturePendingCount, onClick: () => navigate('/orders/history?status=APPROVED'), highlightForRole: isAdmin },
+    { key: 'readyToSendCount', label: t('kpi.readyToSend'), value: data.readyToSendCount, onClick: () => navigate('/orders/history?status=APPROVED'), highlightForRole: isOperator },
+    { key: 'attentionCount', label: t('kpi.attention'), value: data.attentionCount, onClick: () => navigate('/orders/history?hasAttention=true') },
   ]
+  const inProgress: Kpi[] = [
+    { key: 'draftCount', label: t('kpi.draft'), value: data.draftCount, onClick: () => navigate('/orders/history?status=DRAFT') },
+    { key: 'awaitingSupplierCount', label: t('kpi.awaitingSupplier'), value: data.awaitingSupplierCount, onClick: () => navigate('/orders/history?status=AWAITING_SUPPLIER'), highlightForRole: isOperator },
+  ]
+  const other: Kpi[] = [
+    { key: 'openFollowUpCaseCount', label: t('kpi.openFollowUpCase'), value: data.openFollowUpCaseCount, onClick: () => navigate('/orders/history') },
+    { key: 'priceChangeDraftCount', label: t('kpi.priceChangeDraft'), value: data.priceChangeDraftCount, onClick: () => navigate('/price-changes?status=DRAFT') },
+  ]
+
+  const renderKpiTile = (kpi: Kpi) => {
+    const tile = (
+      <Paper
+        variant="outlined"
+        onClick={kpi.onClick}
+        sx={{
+          p: 2, textAlign: 'center', cursor: 'pointer', '&:hover': { boxShadow: 2 },
+          ...(kpi.highlightForRole ? { borderColor: 'primary.main', borderWidth: 2 } : {}),
+        }}
+        data-testid={`kpi-tile-${kpi.key}`}
+      >
+        <Typography variant="h4">{kpi.value}</Typography>
+        <Typography variant="body2" color="text.secondary">{kpi.label}</Typography>
+      </Paper>
+    )
+    return (
+      <Grid key={kpi.key} size={{ xs: 6, sm: 4, md: 2 }}>
+        {kpi.tooltip ? <Tooltip title={kpi.tooltip}>{tile}</Tooltip> : tile}
+      </Grid>
+    )
+  }
 
   // Phase 8-J 11章/13章: plain Navigation Cards (no count) into Arrival/
   // Warehouse Stock/Stock-Sales (Phase 8-G/8-H) - Dashboard had zero entry
@@ -156,25 +189,19 @@ export function DashboardPage() {
         </Typography>
       )}
 
+      <Typography variant="h6" gutterBottom>{t('section.actionNeeded')}</Typography>
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        {kpis.map((kpi) => {
-          const tile = (
-            <Paper
-              variant="outlined"
-              onClick={kpi.onClick}
-              sx={{ p: 2, textAlign: 'center', cursor: 'pointer', '&:hover': { boxShadow: 2 } }}
-              data-testid={`kpi-tile-${kpi.key}`}
-            >
-              <Typography variant="h4">{kpi.value}</Typography>
-              <Typography variant="body2" color="text.secondary">{kpi.label}</Typography>
-            </Paper>
-          )
-          return (
-            <Grid key={kpi.key} size={{ xs: 6, sm: 4, md: 2 }}>
-              {kpi.tooltip ? <Tooltip title={kpi.tooltip}>{tile}</Tooltip> : tile}
-            </Grid>
-          )
-        })}
+        {actionNeeded.map(renderKpiTile)}
+      </Grid>
+
+      <Typography variant="h6" gutterBottom>{t('section.inProgress')}</Typography>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {inProgress.map(renderKpiTile)}
+      </Grid>
+
+      <Typography variant="h6" gutterBottom>{t('section.other')}</Typography>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {other.map(renderKpiTile)}
       </Grid>
 
       <Typography variant="h6" gutterBottom>{t('nav.title')}</Typography>
@@ -194,6 +221,26 @@ export function DashboardPage() {
       </Grid>
 
       <Typography variant="h6" gutterBottom>{t('brandBreakdown')}</Typography>
+      <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+        <TextField
+          size="small"
+          label={t('brandSearch')}
+          value={brandSearch}
+          onChange={(e) => setBrandSearch(e.target.value)}
+          sx={{ minWidth: 220 }}
+          data-testid="dashboard-brand-search"
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={showZeroActivityBrands}
+              onChange={(e) => setShowZeroActivityBrands(e.target.checked)}
+              data-testid="dashboard-show-zero-activity-brands"
+            />
+          }
+          label={t('showZeroActivityBrands')}
+        />
+      </Stack>
       <TableContainer component={Paper} variant="outlined">
         <Table size="small">
           <TableHead>
@@ -208,7 +255,7 @@ export function DashboardPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.brands.map((b) => (
+            {visibleBrands.map((b) => (
               <TableRow key={b.brandCode} hover>
                 <TableCell>
                   <Button size="small" onClick={() => navigate(`/candidates?brandCode=${b.brandCode}`)}>
@@ -252,9 +299,32 @@ export function DashboardPage() {
                 </TableCell>
               </TableRow>
             ))}
+            {visibleBrands.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7}>
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                    {t('noBrandsMatch')}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableContainer>
+      {!showAllBrands && filteredBrands.length > BRAND_TABLE_DEFAULT_ROWS && (
+        <Button sx={{ mt: 1 }} onClick={() => setShowAllBrands(true)} data-testid="dashboard-show-all-brands">
+          {t('showAllBrands', { count: filteredBrands.length })}
+        </Button>
+      )}
     </Box>
   )
+}
+
+/** Phase D §10: a Brand with nothing actionable anywhere in this row - the
+ * same "0件のBrand" concept the End-to-End UX Audit's §2/§3 proposed,
+ * applied here too since Dashboard's own Brand Breakdown table shares the
+ * exact same over-long-unfiltered-list problem Candidate Brand List has. */
+function isZeroActivityBrand(b: DashboardBrandRow): boolean {
+  return b.candidateCount === 0 && b.outOfStockCount === 0 && b.longTermOutOfStockCount === 0
+      && b.draftCount === 0 && b.awaitingSupplierCount === 0 && b.attentionCount === 0
 }

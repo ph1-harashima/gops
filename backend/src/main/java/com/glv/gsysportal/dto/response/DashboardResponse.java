@@ -49,6 +49,21 @@ public record DashboardResponse(
          * 8-D (Price Change Foundation) and had zero entry point into it
          * until this Phase. */
         int priceChangeDraftCount,
+        /** G-OPS Operational Workflow Realignment Phase D (docs/ux-audit/
+         * gops-operational-workflow-realignment-implementation.md §9):
+         * Approved orders whose current Official PO Integration Request's
+         * Signature axis is PENDING (a formal PDF exists, not yet signed).
+         * Computed live from Postgres only - never touches the Legacy Read
+         * Model, same "Portal tables are small enough" precedent as {@code
+         * draftCount} above. */
+        int signaturePendingCount,
+        /** Signed and still APPROVED (not yet actually sent) - the
+         * Critical Design Principle's "ready to send" gate, made visible
+         * as its own actionable count distinct from {@code
+         * signaturePendingCount} above. Once actually sent, an Order moves
+         * out of APPROVED and is counted by {@code awaitingSupplierCount}
+         * instead - this count and that one are mutually exclusive. */
+        int readyToSendCount,
         List<DashboardBrandRow> brands
 ) {
 }

@@ -9,7 +9,14 @@
     "awaitingSupplier": "Awaiting Supplier Response",
     "attention": "Needs Attention",
     "openFollowUpCase": "Open Follow-up Cases",
-    "priceChangeDraft": "Price Change (Draft)"
+    "priceChangeDraft": "Price Change (Draft)",
+    "signaturePending": "Signature Pending",
+    "readyToSend": "Ready to Send"
+  },
+  "section": {
+    "actionNeeded": "Action Needed",
+    "inProgress": "In Progress",
+    "other": "Other"
   },
   "nav": {
     "title": "Other Screens",
@@ -20,6 +27,10 @@
   "lastUpdated": "Data updated: {{timestamp}}",
   "initializing": "Preparing data. Please check back shortly.",
   "brandBreakdown": "Breakdown by Brand",
+  "brandSearch": "Search brand (code or name)",
+  "showZeroActivityBrands": "Show brands with no activity",
+  "noBrandsMatch": "No brands match.",
+  "showAllBrands": "Show all brands ({{count}})",
   "table": {
     "brand": "Brand",
     "candidates": "Order Candidates",

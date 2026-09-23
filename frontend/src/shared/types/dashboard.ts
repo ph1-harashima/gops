@@ -35,5 +35,13 @@ export interface Dashboard {
   openFollowUpCaseCount: number
   /** Phase 8-J 11章/13章: Price Change Sets currently in DRAFT status. */
   priceChangeDraftCount: number
+  /** G-OPS Operational Workflow Realignment Phase D: Approved orders whose
+   * current Official PO Integration Request's Signature axis is PENDING
+   * (a formal PDF exists, not yet signed). */
+  signaturePendingCount: number
+  /** Signed and still APPROVED (not yet actually sent) - mutually
+   * exclusive with awaitingSupplierCount (which covers orders already
+   * sent). */
+  readyToSendCount: number
   brands: DashboardBrandRow[]
 }

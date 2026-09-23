@@ -9,7 +9,14 @@
     "awaitingSupplier": "メーカー回答待ち",
     "attention": "要確認",
     "openFollowUpCase": "問い合わせ中",
-    "priceChangeDraft": "価格変更（下書き）"
+    "priceChangeDraft": "価格変更（下書き）",
+    "signaturePending": "署名待ち",
+    "readyToSend": "メーカー送付待ち"
+  },
+  "section": {
+    "actionNeeded": "対応が必要",
+    "inProgress": "進行中",
+    "other": "その他"
   },
   "nav": {
     "title": "その他の画面へ",
@@ -20,6 +27,10 @@
   "lastUpdated": "データ更新: {{timestamp}}",
   "initializing": "データを準備中です。しばらくしてから再度ご確認ください。",
   "brandBreakdown": "ブランド別内訳",
+  "brandSearch": "ブランド検索（コード・名称）",
+  "showZeroActivityBrands": "対応不要なブランドも表示",
+  "noBrandsMatch": "該当するブランドがありません。",
+  "showAllBrands": "すべてのブランドを表示（{{count}}件）",
   "table": {
     "brand": "ブランド",
     "candidates": "発注候補",
