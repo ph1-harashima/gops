@@ -46,6 +46,12 @@ public class LegacyStockReadRepository {
     // RecommendedQtySkuIdsLeanQuery.sql's own header comment.
     private static final String SKU_IDS_LEAN_QUERY_RESOURCE = "legacy/RecommendedQtySkuIdsLeanQuery.sql";
     private static final String SKU_IDS_LEAN_COUNT_QUERY_RESOURCE = "legacy/RecommendedQtySkuIdsLeanCountQuery.sql";
+    // RecommendedQty Production-scale performance remediation (see
+    // RecommendedQtySkuIdsStockRangeQuery.sql's own header comment for the
+    // root cause) - used when a minStock/maxStock/minSales/maxSales filter
+    // is set but :supplierCode is not.
+    private static final String SKU_IDS_STOCK_RANGE_QUERY_RESOURCE = "legacy/RecommendedQtySkuIdsStockRangeQuery.sql";
+    private static final String SKU_IDS_STOCK_RANGE_COUNT_QUERY_RESOURCE = "legacy/RecommendedQtySkuIdsStockRangeCountQuery.sql";
     // Stage 5E Targeted Remediation (RC-A): Dashboard-only queries - see
     // each file's own header comment.
     private static final String DASHBOARD_STOCK_AGGREGATE_QUERY_RESOURCE = "legacy/DashboardStockAggregateQuery.sql";
@@ -58,6 +64,8 @@ public class LegacyStockReadRepository {
     private final String skuIdsCountSql;
     private final String skuIdsLeanSql;
     private final String skuIdsLeanCountSql;
+    private final String skuIdsStockRangeSql;
+    private final String skuIdsStockRangeCountSql;
     private final String dashboardStockAggregateSql;
     private final String dashboardCandidateInputsSql;
 
@@ -69,6 +77,8 @@ public class LegacyStockReadRepository {
         this.skuIdsCountSql = loadSql(SKU_IDS_COUNT_QUERY_RESOURCE);
         this.skuIdsLeanSql = loadSql(SKU_IDS_LEAN_QUERY_RESOURCE);
         this.skuIdsLeanCountSql = loadSql(SKU_IDS_LEAN_COUNT_QUERY_RESOURCE);
+        this.skuIdsStockRangeSql = loadSql(SKU_IDS_STOCK_RANGE_QUERY_RESOURCE);
+        this.skuIdsStockRangeCountSql = loadSql(SKU_IDS_STOCK_RANGE_COUNT_QUERY_RESOURCE);
         this.dashboardStockAggregateSql = loadSql(DASHBOARD_STOCK_AGGREGATE_QUERY_RESOURCE);
         this.dashboardCandidateInputsSql = loadSql(DASHBOARD_CANDIDATE_INPUTS_QUERY_RESOURCE);
     }
@@ -169,7 +179,7 @@ public class LegacyStockReadRepository {
      */
     @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
     public List<LegacyStockRow> findStockSalesList(StockSalesListFilter filter, int limit, int offset) {
-        String sqlToUse = needsFullSkuIdsQuery(filter) ? skuIdsSql : skuIdsLeanSql;
+        String sqlToUse = selectSkuIdsSql(filter, skuIdsSql, skuIdsStockRangeSql, skuIdsLeanSql);
         List<String> pageItemCodes = legacyJdbc.query(sqlToUse,
                 toSkuIdsParams(filter).addValue("limit", limit).addValue("offset", offset),
                 (rs, rowNum) -> rs.getString("item_cd"));
@@ -181,26 +191,41 @@ public class LegacyStockReadRepository {
 
     @Transactional(readOnly = true, transactionManager = "legacyTransactionManager")
     public long countStockSalesList(StockSalesListFilter filter) {
-        String sqlToUse = needsFullSkuIdsQuery(filter) ? skuIdsCountSql : skuIdsLeanCountSql;
+        String sqlToUse = selectSkuIdsSql(filter, skuIdsCountSql, skuIdsStockRangeCountSql, skuIdsLeanCountSql);
         Long count = legacyJdbc.queryForObject(sqlToUse, toSkuIdsParams(filter), Long.class);
         return count == null ? 0L : count;
     }
 
     /**
-     * Stage 5H Systematic Performance Remediation (RC-I, docs/real-data-audit/
-     * gops-stage5h-systematic-performance-remediation.md): {@code true} only
-     * when a filter is active that the lean Step 1 query
-     * (RecommendedQtySkuIdsLeanQuery.sql) structurally cannot answer -
-     * :supplierCode (needs {@code latest_po}) or :minStock/:maxStock/
-     * :minSales/:maxSales (need the stock/sales correlated subqueries and
-     * {@code ms_stk agg}). brandCode/keyword/includeDeleted are supported
-     * by both variants identically, so the common "browse a Brand" and
-     * fully-unfiltered "view all" cases always take the lean, faster path.
+     * RecommendedQty Production-scale performance remediation (see
+     * RecommendedQtySkuIdsStockRangeQuery.sql's own header comment for the
+     * root cause and the two rejected alternative rewrites): three-way
+     * choice, replacing Stage 5H RC-I's original two-way (lean/full) split.
+     * <ul>
+     *   <li>{@code :supplierCode} set - full (needs {@code latest_po});
+     *       minStock/maxStock/minSales/maxSales, if also set, are cheap
+     *       here too (confirmed via this remediation's own timed
+     *       decomposition against the Production Snapshot - a selective
+     *       Supplier filter already narrows the row set before those
+     *       predicates would ever cost anything).</li>
+     *   <li>{@code :supplierCode} not set, but a minStock/maxStock/
+     *       minSales/maxSales filter is - stock-range-only (needs the
+     *       correlated stock subqueries/{@code ms_stk agg}, but never
+     *       {@code latest_po}, which this remediation's own EXPLAIN
+     *       ANALYZE confirmed was previously computed unconditionally
+     *       here for no reason - the confirmed real, safe win).</li>
+     *   <li>Neither - lean, unchanged from RC-I.</li>
+     * </ul>
+     * brandCode/keyword/includeDeleted are supported identically by all
+     * three variants.
      */
-    private static boolean needsFullSkuIdsQuery(StockSalesListFilter filter) {
-        return filter.supplierCode() != null
-                || filter.minStock() != null || filter.maxStock() != null
+    private static String selectSkuIdsSql(StockSalesListFilter filter, String full, String stockRangeOnly, String lean) {
+        if (filter.supplierCode() != null) {
+            return full;
+        }
+        boolean hasStockRangeFilter = filter.minStock() != null || filter.maxStock() != null
                 || filter.minSales() != null || filter.maxSales() != null;
+        return hasStockRangeFilter ? stockRangeOnly : lean;
     }
 
     private static MapSqlParameterSource toSkuIdsParams(StockSalesListFilter f) {

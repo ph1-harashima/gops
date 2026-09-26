@@ -92,6 +92,33 @@ class StockSalesServiceIntegrationTest {
         assertTrue(zeroStock.content().stream().allMatch(r -> r.currentStock() != null && r.currentStock() == 0));
     }
 
+    /**
+     * RecommendedQty Production-scale performance remediation (see
+     * RecommendedQtySkuIdsStockRangeQuery.sql's own header comment): the
+     * Step 1 SKU-ID query is now chosen three ways instead of two
+     * (lean / stock-range-only / full). This is the branch that variant
+     * split makes newly load-bearing - when :supplierCode is set the FULL
+     * query must still be used even though a stock-range filter is also
+     * active, because only the full variant carries {@code latest_po} (and
+     * therefore the Supplier predicate at all). If the dispatch ever
+     * regressed to the stock-range-only variant here, the Supplier filter
+     * would silently be dropped and rows from other Suppliers would leak
+     * into the result - which is exactly what this asserts cannot happen.
+     */
+    @Test
+    void filterBySupplierCodeAndStockRangeTogetherStillAppliesBothPredicates() {
+        PageResponse<StockSalesSummaryResponse> page = stockSalesService.list(
+                null, null, "SUP_ALPHA", 0, null, null, null, 0, 200);
+        assertTrue(page.content().stream().allMatch(r -> "SUP_ALPHA".equals(r.supplierCode())),
+                "the Supplier predicate must survive being combined with a stock-range filter");
+        assertTrue(page.content().stream().allMatch(r -> r.currentStock() != null && r.currentStock() >= 0),
+                "the stock-range predicate must still apply too");
+        PageResponse<StockSalesSummaryResponse> supplierOnly = stockSalesService.list(
+                null, null, "SUP_ALPHA", null, null, null, null, 0, 200);
+        assertEquals(supplierOnly.totalElements(), page.totalElements(),
+                "minStock=0 matches every row, so it must not change this Supplier's own total");
+    }
+
     @Test
     void filterBySalesRangeIsAPlainNumericFilter() {
         // OD-TENT-001 sold_qty=42 (backend/demo-data/02-seed.sql).
