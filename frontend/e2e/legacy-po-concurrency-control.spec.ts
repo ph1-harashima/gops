@@ -40,9 +40,18 @@ async function logout(page: Page) {
   await expect(page.getByLabel('ユーザー名')).toBeVisible()
 }
 
+// E2E Portal DB Isolation Audit: these must target whichever Prototype/
+// Legacy database the running app is actually connected to (the E2E-only
+// databases under e2e-run.sh, the Demo databases for an ad-hoc manual run)
+// - a hardcoded db name here would silently write to the wrong database
+// regardless of the app's own SafetyGuard/profile isolation, since these
+// bypass the app entirely.
+const PROTOTYPE_DB_NAME = process.env.E2E_PROTOTYPE_DB || 'gsys_portal'
+const LEGACY_DB_NAME = process.env.E2E_LEGACY_DB || 'legacy_demo'
+
 function linkOrderToOfficialPoNo(orderId: string, officialPoNo: string) {
   execSync(
-    `docker exec gsys-prototype-postgres psql -U gsys_portal -d gsys_portal -c ` +
+    `docker exec gsys-prototype-postgres psql -U gsys_portal -d ${PROTOTYPE_DB_NAME} -c ` +
     `"UPDATE portal_order SET official_po_no=NULL WHERE official_po_no='${officialPoNo}'; ` +
     `UPDATE portal_order SET official_po_no='${officialPoNo}' WHERE id=${orderId};"`,
     { stdio: 'pipe' },
@@ -51,7 +60,7 @@ function linkOrderToOfficialPoNo(orderId: string, officialPoNo: string) {
 
 function execLegacyMysql(sql: string) {
   execSync(
-    `docker exec gsys-legacy-demo-mysql mysql -uroot -proot_demo_pw -h127.0.0.1 legacy_demo -e "${sql}"`,
+    `docker exec gsys-legacy-demo-mysql mysql -uroot -proot_demo_pw -h127.0.0.1 ${LEGACY_DB_NAME} -e "${sql}"`,
     { stdio: 'pipe' },
   )
 }

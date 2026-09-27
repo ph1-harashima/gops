@@ -1,0 +1,21 @@
+# E2E Portal DB Isolation (Option A - dedicated E2E-only databases):
+# overrides ONLY the two datasource JDBC URLs so Playwright Full E2E runs
+# never write to the shared gsys_portal/legacy_demo databases that Demo/
+# development work also uses. Everything else (username, password,
+# driver-class-name, pool size, read-only flag, all other app.* config) is
+# intentionally left untouched and inherited from application.yml - the
+# E2E-only databases live in the SAME containers/hosts/credentials as the
+# Demo databases (see backend/scripts/e2e-db-reset.sh), only the database
+# name differs.
+#
+# SafetyGuardEnvironmentPostProcessor separately allowlists both the "e2e"
+# profile itself and these two exact database names (gsys_portal_e2e,
+# legacy_demo_e2e) - this file alone does not grant access to arbitrary
+# database names.
+app:
+  legacy:
+    datasource:
+      jdbc-url: jdbc:mysql://localhost:33061/legacy_demo_e2e?useSSL=false&zeroDateTimeBehavior=convertToNull&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&allowPublicKeyRetrieval=true
+  prototype:
+    datasource:
+      jdbc-url: jdbc:postgresql://localhost:54321/gsys_portal_e2e

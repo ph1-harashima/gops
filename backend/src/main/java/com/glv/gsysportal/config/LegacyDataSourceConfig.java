@@ -2,6 +2,8 @@ package com.glv.gsysportal.config;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -12,6 +14,9 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
 
 /**
  * Legacy G-SYS Adapter datasource - READ ONLY, always.
@@ -28,6 +33,8 @@ import javax.sql.DataSource;
  */
 @Configuration
 public class LegacyDataSourceConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(LegacyDataSourceConfig.class);
 
     @Value("${app.legacy.datasource.jdbc-url}")
     private String jdbcUrl;
@@ -55,7 +62,29 @@ public class LegacyDataSourceConfig {
         config.setMaximumPoolSize(maximumPoolSize);
         // Layer 2 of the READ ONLY guarantee: the pool itself is read-only.
         config.setReadOnly(true);
-        return new HikariDataSource(config);
+        HikariDataSource dataSource = new HikariDataSource(config);
+        logConnectionTarget(dataSource);
+        return dataSource;
+    }
+
+    /**
+     * E2E Portal DB Isolation Audit (Phase 2): logs the actual connection
+     * target at INFO on every startup - JDBC URL, DB product, and catalog
+     * only, never credentials - so it can always be confirmed from the
+     * startup log alone which Legacy database (e.g. legacy_demo vs.
+     * legacy_demo_e2e) this run is actually connected to.
+     */
+    private void logConnectionTarget(DataSource dataSource) {
+        try (Connection connection = dataSource.getConnection()) {
+            DatabaseMetaData metaData = connection.getMetaData();
+            log.info("Legacy datasource connection target - JDBC URL: {}, DB Product: {} {}, Catalog: {}",
+                    metaData.getURL(),
+                    metaData.getDatabaseProductName(),
+                    metaData.getDatabaseProductVersion(),
+                    connection.getCatalog());
+        } catch (SQLException e) {
+            log.warn("Unable to log Legacy datasource connection target", e);
+        }
     }
 
     // Every consumer below is explicitly @Qualifier("legacyDataSource") rather than relying

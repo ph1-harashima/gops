@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * Integration Test exercises this Adapter for the success path end-to-end.
  */
 @Component
-@Profile({"local", "demo", "test"})
+@Profile({"local", "demo", "test", "e2e"})
 public class LoggingEmailSenderAdapter implements EmailSenderPort {
 
     private static final Logger log = LoggerFactory.getLogger(LoggingEmailSenderAdapter.class);

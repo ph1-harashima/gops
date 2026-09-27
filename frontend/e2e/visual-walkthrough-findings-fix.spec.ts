@@ -108,7 +108,7 @@ test.describe('Areas B/C (Finding #2): Reissue keeps the same 正式PO番号, in
     await page.getByTestId('official-po-request-button').click()
     await page.getByTestId('official-po-request-dialog-confirm').click()
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
-    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^#[A-Z]{3}-[A-Z]{3}\d{3,}$/)
     const rev1PoNo = await page.getByTestId('official-po-no').innerText()
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()

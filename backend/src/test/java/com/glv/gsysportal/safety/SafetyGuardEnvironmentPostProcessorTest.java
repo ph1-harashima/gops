@@ -53,7 +53,7 @@ class SafetyGuardEnvironmentPostProcessorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"local", "demo", "test", "snapshot-validation"})
+    @ValueSource(strings = {"local", "demo", "test", "snapshot-validation", "e2e"})
     void allowedProfile_passes(String profile) {
         List<String> violations = new ArrayList<>();
         SafetyGuardEnvironmentPostProcessor.validateProfiles(new String[]{profile}, violations);
@@ -103,6 +103,34 @@ class SafetyGuardEnvironmentPostProcessorTest {
                 "jdbc:mysql://legacy-demo-mysql:3306/goo",
                 SafetyGuardEnvironmentPostProcessor.ALLOWED_LEGACY_DB_NAMES,
                 "database name");
+    }
+
+    // ------------------------------------------------------------------
+    // E2E Portal DB Isolation Audit: legacy_demo_e2e/gsys_portal_e2e
+    // ------------------------------------------------------------------
+
+    @Test
+    void legacyLocalhostAndLegacyDemoE2eSchema_pass() throws URISyntaxException {
+        assertNoViolations("Legacy",
+                "jdbc:mysql://localhost:33061/legacy_demo_e2e?useSSL=false&characterEncoding=UTF-8",
+                SafetyGuardEnvironmentPostProcessor.ALLOWED_LEGACY_DB_NAMES);
+    }
+
+    @Test
+    void prototypeLocalhostAndGsysPortalE2eDb_pass() throws URISyntaxException {
+        assertNoViolations("Prototype",
+                "jdbc:postgresql://localhost:54321/gsys_portal_e2e",
+                SafetyGuardEnvironmentPostProcessor.ALLOWED_PROTOTYPE_DB_NAMES);
+    }
+
+    @Test
+    void legacyDemo_stillAllowed_alongsideLegacyDemoE2e() throws URISyntaxException {
+        // The base allowlist is additively expanded, never replaced - a
+        // plain demo/local run against legacy_demo itself must keep
+        // working unchanged now that legacy_demo_e2e is also allowed.
+        assertNoViolations("Legacy",
+                "jdbc:mysql://localhost:33061/legacy_demo",
+                SafetyGuardEnvironmentPostProcessor.ALLOWED_LEGACY_DB_NAMES);
     }
 
     @Test

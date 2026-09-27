@@ -25,7 +25,7 @@ import java.nio.file.Paths;
  * is never the real Production connection.
  */
 @Component
-@Profile({"local", "demo", "test"})
+@Profile({"local", "demo", "test", "e2e"})
 public class LocalFilesystemImportFolderAdapter implements OfficialPoImportFolderAdapter {
 
     private final Path uploadDir;

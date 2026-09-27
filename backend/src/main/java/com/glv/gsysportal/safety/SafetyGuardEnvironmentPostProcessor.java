@@ -72,7 +72,15 @@ public class SafetyGuardEnvironmentPostProcessor implements EnvironmentPostProce
     static final String SNAPSHOT_VALIDATION_PROFILE = "snapshot-validation";
     static final String SNAPSHOT_VALIDATION_DB_NAME_PROPERTY = "GOPS_SNAPSHOT_VALIDATION_ALLOWED_DB_NAME";
 
-    static final Set<String> ALLOWED_PROFILES = Set.of("local", "demo", "test", SNAPSHOT_VALIDATION_PROFILE);
+    // E2E Portal DB Isolation Audit: "e2e" is an ADDITIONAL profile always
+    // combined with one of local/demo/test (never alone) - exactly the same
+    // pattern SNAPSHOT_VALIDATION_PROFILE already established - so every
+    // existing @Profile({"local","demo","test"}) bean elsewhere in this
+    // codebase still activates normally; only application-e2e.yml's own 2
+    // datasource URL overrides differ from a plain demo run.
+    static final String E2E_PROFILE = "e2e";
+
+    static final Set<String> ALLOWED_PROFILES = Set.of("local", "demo", "test", SNAPSHOT_VALIDATION_PROFILE, E2E_PROFILE);
 
     // localhost/127.0.0.1 for host-run Application; service names match
     // docker-compose.yml (legacy-demo-mysql, prototype-postgres) for the case
@@ -84,8 +92,16 @@ public class SafetyGuardEnvironmentPostProcessor implements EnvironmentPostProce
             "localhost", "127.0.0.1", "legacy-demo-mysql", "prototype-postgres"
     );
 
-    static final Set<String> ALLOWED_LEGACY_DB_NAMES = Set.of("legacy_demo");
-    static final Set<String> ALLOWED_PROTOTYPE_DB_NAMES = Set.of("gsys_portal");
+    // E2E Portal DB Isolation Audit: legacy_demo_e2e/gsys_portal_e2e are a
+    // completely separate pair of databases (own schema/seed, created once,
+    // never touched by any migration/reset targeting the real legacy_demo/
+    // gsys_portal pair) - added here unconditionally (not via the narrower
+    // opt-in mechanism SNAPSHOT_VALIDATION_DB_NAME_PROPERTY uses) since this
+    // is a permanent, ongoing isolation feature, not a one-off validation
+    // session. HARD_DENIED_LEGACY_DB_NAMES ("goo") is still checked first
+    // and independently of this allowlist, per validateDataSource below.
+    static final Set<String> ALLOWED_LEGACY_DB_NAMES = Set.of("legacy_demo", "legacy_demo_e2e");
+    static final Set<String> ALLOWED_PROTOTYPE_DB_NAMES = Set.of("gsys_portal", "gsys_portal_e2e");
 
     // Permanent, unconditional deny list for the Legacy database name -
     // checked BEFORE, and independently of, any allowlist (base or

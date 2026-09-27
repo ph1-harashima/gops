@@ -77,7 +77,7 @@ async function issueOfficialPoNo(page: Page, draftId: string): Promise<string> {
   // (docs/gops-post-freeze-e2e-stability-audit.md): auto-retrying wait
   // FIRST, then capture - see the identical fix/comment in
   // official-po-integration.spec.ts.
-  await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
+  await expect(page.getByTestId('official-po-no')).toHaveText(/^#[A-Z]{3}-[A-Z]{3}\d{3,}$/)
   const officialPoNo = await page.getByTestId('official-po-no').innerText()
   return officialPoNo
 }

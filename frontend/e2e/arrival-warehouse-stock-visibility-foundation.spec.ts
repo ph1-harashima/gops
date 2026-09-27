@@ -39,9 +39,16 @@ async function logout(page: Page) {
  * exec` UPDATE against the local disposable Prototype Postgres is the
  * sanctioned E2E-layer equivalent of a Backend integration test's direct
  * Repository call - 7-C2B/officialPoNo assignment has no real Portal UI). */
+// E2E Portal DB Isolation Audit: this must target whichever Prototype
+// database the running app is actually connected to (gsys_portal_e2e under
+// e2e-run.sh, gsys_portal for an ad-hoc manual run) - a hardcoded db name
+// here would silently write to the wrong database regardless of the app's
+// own SafetyGuard/profile isolation, since this bypasses the app entirely.
+const PROTOTYPE_DB_NAME = process.env.E2E_PROTOTYPE_DB || 'gsys_portal'
+
 function linkOrderToOfficialPoNo(orderId: string, officialPoNo: string) {
   execSync(
-    `docker exec gsys-prototype-postgres psql -U gsys_portal -d gsys_portal -c ` +
+    `docker exec gsys-prototype-postgres psql -U gsys_portal -d ${PROTOTYPE_DB_NAME} -c ` +
     `"UPDATE portal_order SET official_po_no=NULL WHERE official_po_no='${officialPoNo}'; ` +
     `UPDATE portal_order SET official_po_no='${officialPoNo}' WHERE id=${orderId};"`,
     { stdio: 'pipe' },

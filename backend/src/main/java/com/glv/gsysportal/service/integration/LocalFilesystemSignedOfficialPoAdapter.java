@@ -23,7 +23,7 @@ import java.time.format.DateTimeFormatter;
  * why no Production implementation exists this Phase.
  */
 @Component
-@Profile({"local", "demo", "test"})
+@Profile({"local", "demo", "test", "e2e"})
 public class LocalFilesystemSignedOfficialPoAdapter implements SignedOfficialPoAdapter {
 
     private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");

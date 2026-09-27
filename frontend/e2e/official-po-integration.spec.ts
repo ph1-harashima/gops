@@ -115,7 +115,7 @@ test.describe('Phase 7-C2A: Official PO Integration Foundation', () => {
     await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
     // BR-08 (docs/gulliver-20260917-confirmed-business-rules.md): auto-numbered
     // immediately - no "unassigned" state exists anymore once a Request exists.
-    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^#[A-Z]{3}-[A-Z]{3}\d{3,}$/)
     await expect(page.getByTestId('official-po-no-unassigned-note')).toHaveCount(0)
     await expect(page.getByTestId('preflight-result')).toBeVisible()
     // Acceptance Fix (B-1): the live-state Chip now reads "問題なし" (natural
@@ -220,7 +220,7 @@ test.describe('Phase 7-C2A: Official PO Integration Foundation', () => {
     // scoped to the dedicated status label element, same disambiguation
     // idiom as Scenario A's own "PASS" collision above.
     await expect(page.getByTestId('official-po-status-label')).toHaveText('準備中') // statusLabel.PENDING
-    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^#[A-Z]{3}-[A-Z]{3}\d{3,}$/)
     await expect(page.getByText('G-SYSへ投入済み')).toHaveCount(0) // statusLabel.SUBMITTED
     await expect(page.getByText('G-SYS登録確認済み')).toHaveCount(0) // statusLabel.CONFIRMED
   })
@@ -247,7 +247,7 @@ test.describe('Phase 9-A: Official PO Number / Excel Generation', () => {
     // official-po-no element's own re-render lands). toHaveText() retries
     // until the DOM actually reflects the auto-numbered value (or times
     // out), so the later .innerText() capture is guaranteed fresh.
-    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^#[A-Z]{3}-[A-Z]{3}\d{3,}$/)
     const poNo = await page.getByTestId('official-po-no').innerText()
     await page.getByTestId('official-po-delivery-week-input').locator('input').fill('WK40')
     await page.getByTestId('official-po-delivery-date-input').locator('input').fill('2026-10-01')
@@ -402,7 +402,7 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     // official-po-no element's own re-render lands). toHaveText() retries
     // until the DOM actually reflects the auto-numbered value (or times
     // out), so the later .innerText() capture is guaranteed fresh.
-    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^#[A-Z]{3}-[A-Z]{3}\d{3,}$/)
     const poNo = await page.getByTestId('official-po-no').innerText()
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
@@ -505,7 +505,7 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     // official-po-no element's own re-render lands). toHaveText() retries
     // until the DOM actually reflects the auto-numbered value (or times
     // out), so the later .innerText() capture is guaranteed fresh.
-    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^#[A-Z]{3}-[A-Z]{3}\d{3,}$/)
     const poNo = await page.getByTestId('official-po-no').innerText()
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
@@ -642,7 +642,7 @@ test.describe('BR-03: Official PO Cancel Approval Workflow', () => {
     // official-po-no element's own re-render lands). toHaveText() retries
     // until the DOM actually reflects the auto-numbered value (or times
     // out), so the later .innerText() capture is guaranteed fresh.
-    await expect(page.getByTestId('official-po-no')).toHaveText(/^[A-Z]{3}[A-Z]{3}\d{3}$/)
+    await expect(page.getByTestId('official-po-no')).toHaveText(/^#[A-Z]{3}-[A-Z]{3}\d{3,}$/)
     const poNo = await page.getByTestId('official-po-no').innerText()
     await page.getByTestId('official-po-generate-button').click()
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()

@@ -51,9 +51,16 @@ async function logout(page: Page) {
  * Request officialPoNo (a distinct E2E-* value) - FulfillmentService reads
  * only portal_order.official_po_no, never the Integration Request's own
  * field, so the two can differ without conflict. */
+// E2E Portal DB Isolation Audit: this must target whichever Prototype
+// database the running app is actually connected to (gsys_portal_e2e under
+// e2e-run.sh, gsys_portal for an ad-hoc manual run) - a hardcoded db name
+// here would silently write to the wrong database regardless of the app's
+// own SafetyGuard/profile isolation, since this bypasses the app entirely.
+const PROTOTYPE_DB_NAME = process.env.E2E_PROTOTYPE_DB || 'gsys_portal'
+
 function linkOrderToFulfillmentFixture(orderId: string, officialPoNo: string) {
   execSync(
-    `docker exec gsys-prototype-postgres psql -U gsys_portal -d gsys_portal -c ` +
+    `docker exec gsys-prototype-postgres psql -U gsys_portal -d ${PROTOTYPE_DB_NAME} -c ` +
     `"UPDATE portal_order SET official_po_no=NULL WHERE official_po_no='${officialPoNo}'; ` +
     `UPDATE portal_order SET official_po_no='${officialPoNo}' WHERE id=${orderId};"`,
     { stdio: 'pipe' },
