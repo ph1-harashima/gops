@@ -6,6 +6,8 @@ import com.glv.gsysportal.domain.OrderEmail;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.dto.response.MailPreviewResponse;
 import com.glv.gsysportal.dto.response.OrderEmailResponse;
+import com.glv.gsysportal.exception.OfficialPoNotReadyToSendException;
+import com.glv.gsysportal.exception.SignedPdfMissingException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
 import com.glv.gsysportal.repository.prototype.OrderEmailRepository;
@@ -14,13 +16,16 @@ import com.glv.gsysportal.repository.prototype.PortalUserRepository;
 import com.glv.gsysportal.service.integration.EmailEnvelope;
 import com.glv.gsysportal.service.integration.EmailSendException;
 import com.glv.gsysportal.service.integration.EmailSenderPort;
+import com.glv.gsysportal.service.integration.SignedOfficialPoAdapter;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -51,6 +56,11 @@ class EmailSendServiceRetryTest {
         return order;
     }
 
+    /** Business Rule (confirmed): Send requires isReadyToSend() - SIGNED +
+     * ACTIVE (ACTIVE is this Entity's own default, never overridden here) -
+     * so every fixture below is signed by default, matching the "already
+     * satisfies today's real precondition" idiom the rest of this class's
+     * fixtures already follow. */
     private OfficialPoIntegrationRequest generatedRequest() {
         OfficialPoIntegrationRequest r = new OfficialPoIntegrationRequest();
         r.setPortalOrderId(ORDER_ID);
@@ -58,6 +68,8 @@ class EmailSendServiceRetryTest {
         r.setOfficialPoNo("SUPA-OUTD-TEST");
         r.setGeneratedFileKey("some-file-key.xlsx");
         r.setPdfFileKey("some-file-key.pdf");
+        r.setSignatureStatus(OfficialPoIntegrationRequest.SIGNATURE_SIGNED);
+        r.setSignedPdfFileKey("some-signed-file-key.pdf");
         return r;
     }
 
@@ -75,7 +87,7 @@ class EmailSendServiceRetryTest {
         ManufacturerChannelResolutionService channelResolutionService = mock(ManufacturerChannelResolutionService.class);
         MailPreviewService mailPreviewService = mock(MailPreviewService.class);
         OfficialPoExcelGenerationService excelGenerationService = mock(OfficialPoExcelGenerationService.class);
-        OfficialPoPdfGenerationService pdfGenerationService = mock(OfficialPoPdfGenerationService.class);
+        SignedOfficialPoAdapter signedOfficialPoAdapter = mock(SignedOfficialPoAdapter.class);
         EmailSenderPort emailSenderPort = mock(EmailSenderPort.class);
         IdempotencyService idempotencyService = mock(IdempotencyService.class);
         PortalUserRepository portalUserRepository = mock(PortalUserRepository.class);
@@ -88,7 +100,7 @@ class EmailSendServiceRetryTest {
                 .thenReturn(Optional.of(generatedRequest()));
         when(orderEmailRepository.findByPortalOrderIdAndRevisionNo(ORDER_ID, 1)).thenReturn(Optional.empty());
         when(excelGenerationService.load("some-file-key.xlsx")).thenReturn(new byte[]{1, 2, 3});
-        when(pdfGenerationService.load("some-file-key.pdf")).thenReturn(new byte[]{4, 5, 6});
+        when(signedOfficialPoAdapter.loadSignedPdf("some-signed-file-key.pdf")).thenReturn(new byte[]{4, 5, 6});
 
         IdempotentOperation op = new IdempotentOperation("EMAIL_SEND", ORDER_ID.toString(), ORDER_ID + "-1", OffsetDateTime.now());
         op.setId(999L);
@@ -102,7 +114,7 @@ class EmailSendServiceRetryTest {
 
         EmailSendService service = new EmailSendService(portalOrderRepository, orderEmailRepository,
                 integrationRequestRepository, auditEventRepository, channelResolutionService, mailPreviewService,
-                excelGenerationService, pdfGenerationService, emailSenderPort, idempotencyService, portalUserRepository);
+                excelGenerationService, signedOfficialPoAdapter, emailSenderPort, idempotencyService, portalUserRepository);
 
         OrderEmailResponse response = service.send(ORDER_ID, ADMIN);
 
@@ -124,7 +136,7 @@ class EmailSendServiceRetryTest {
         ManufacturerChannelResolutionService channelResolutionService = mock(ManufacturerChannelResolutionService.class);
         MailPreviewService mailPreviewService = mock(MailPreviewService.class);
         OfficialPoExcelGenerationService excelGenerationService = mock(OfficialPoExcelGenerationService.class);
-        OfficialPoPdfGenerationService pdfGenerationService = mock(OfficialPoPdfGenerationService.class);
+        SignedOfficialPoAdapter signedOfficialPoAdapter = mock(SignedOfficialPoAdapter.class);
         EmailSenderPort emailSenderPort = mock(EmailSenderPort.class);
         IdempotencyService idempotencyService = mock(IdempotencyService.class);
         PortalUserRepository portalUserRepository = mock(PortalUserRepository.class);
@@ -137,7 +149,7 @@ class EmailSendServiceRetryTest {
                 .thenReturn(Optional.of(generatedRequest()));
         when(orderEmailRepository.findByPortalOrderIdAndRevisionNo(ORDER_ID, 1)).thenReturn(Optional.empty());
         when(excelGenerationService.load("some-file-key.xlsx")).thenReturn(new byte[]{1, 2, 3});
-        when(pdfGenerationService.load("some-file-key.pdf")).thenReturn(new byte[]{4, 5, 6});
+        when(signedOfficialPoAdapter.loadSignedPdf("some-signed-file-key.pdf")).thenReturn(new byte[]{4, 5, 6});
         when(orderEmailRepository.save(any(OrderEmail.class))).thenAnswer(inv -> inv.getArgument(0));
 
         IdempotentOperation op = new IdempotentOperation("EMAIL_SEND", ORDER_ID.toString(), ORDER_ID + "-1", OffsetDateTime.now());
@@ -147,16 +159,95 @@ class EmailSendServiceRetryTest {
 
         EmailSendService service = new EmailSendService(portalOrderRepository, orderEmailRepository,
                 integrationRequestRepository, auditEventRepository, channelResolutionService, mailPreviewService,
-                excelGenerationService, pdfGenerationService, emailSenderPort, idempotencyService, portalUserRepository);
+                excelGenerationService, signedOfficialPoAdapter, emailSenderPort, idempotencyService, portalUserRepository);
 
         OrderEmailResponse response = service.send(ORDER_ID, ADMIN);
 
         assertEquals("SENT", response.status());
         org.mockito.ArgumentCaptor<EmailEnvelope> captor = org.mockito.ArgumentCaptor.forClass(EmailEnvelope.class);
         verify(emailSenderPort).send(captor.capture());
-        List<String> attachmentNames = captor.getValue().attachments().stream().map(EmailEnvelope.Attachment::fileName).toList();
+        List<EmailEnvelope.Attachment> attachments = captor.getValue().attachments();
+        List<String> attachmentNames = attachments.stream().map(EmailEnvelope.Attachment::fileName).toList();
         assertEquals(2, attachmentNames.size(), "must attach exactly Excel + PDF, never just one");
         assertEquals(List.of("SUPA-OUTD-TEST.xlsx", "SUPA-OUTD-TEST.pdf"), attachmentNames);
+
+        // Business Rule (confirmed): the PDF attachment must be exactly what
+        // was loaded via signedOfficialPoAdapter.loadSignedPdf (the SIGNED
+        // artifact) - never bytes from any unsigned pdfFileKey-based source
+        // (EmailSendService no longer even holds a dependency capable of
+        // loading one - this asserts the observable outcome of that removal).
+        byte[] pdfAttachmentBytes = attachments.get(1).bytes();
+        assertArrayEquals(new byte[]{4, 5, 6}, pdfAttachmentBytes, "the sent PDF must be the SIGNED PDF bytes, not any unsigned fallback");
+    }
+
+    /** Business Rule Send Guard defensive check: SIGNED status with a null
+     * signedPdfFileKey should not be reachable via the normal
+     * markSigned()/resetSignatureForNewPdf() state machine, but the Guard
+     * must still refuse Send rather than trust the status flag alone. */
+    @Test
+    void sendBlockedWhenSignedButSignedPdfFileKeyMissing() {
+        PortalOrderRepository portalOrderRepository = mock(PortalOrderRepository.class);
+        OrderEmailRepository orderEmailRepository = mock(OrderEmailRepository.class);
+        OfficialPoIntegrationRequestRepository integrationRequestRepository = mock(OfficialPoIntegrationRequestRepository.class);
+        AuditEventRepository auditEventRepository = mock(AuditEventRepository.class);
+        ManufacturerChannelResolutionService channelResolutionService = mock(ManufacturerChannelResolutionService.class);
+        MailPreviewService mailPreviewService = mock(MailPreviewService.class);
+        OfficialPoExcelGenerationService excelGenerationService = mock(OfficialPoExcelGenerationService.class);
+        SignedOfficialPoAdapter signedOfficialPoAdapter = mock(SignedOfficialPoAdapter.class);
+        EmailSenderPort emailSenderPort = mock(EmailSenderPort.class);
+        IdempotencyService idempotencyService = mock(IdempotencyService.class);
+        PortalUserRepository portalUserRepository = mock(PortalUserRepository.class);
+
+        PortalOrder order = order();
+        OfficialPoIntegrationRequest request = generatedRequest();
+        request.setSignedPdfFileKey(null); // inconsistent state - SIGNED but no signed file key on record
+        when(portalOrderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(channelResolutionService.resolve("SUP_ALPHA", "BR_OUTDOOR")).thenReturn("EMAIL");
+        when(mailPreviewService.preview(eq(ORDER_ID), anyString())).thenReturn(unblockedPreview());
+        when(integrationRequestRepository.findByPortalOrderIdAndRevisionNo(ORDER_ID, 1)).thenReturn(Optional.of(request));
+        when(orderEmailRepository.findByPortalOrderIdAndRevisionNo(ORDER_ID, 1)).thenReturn(Optional.empty());
+        when(excelGenerationService.load("some-file-key.xlsx")).thenReturn(new byte[]{1, 2, 3});
+
+        EmailSendService service = new EmailSendService(portalOrderRepository, orderEmailRepository,
+                integrationRequestRepository, auditEventRepository, channelResolutionService, mailPreviewService,
+                excelGenerationService, signedOfficialPoAdapter, emailSenderPort, idempotencyService, portalUserRepository);
+
+        assertThrows(SignedPdfMissingException.class, () -> service.send(ORDER_ID, ADMIN));
+    }
+
+    /** Business Rule Send Guard: PENDING must refuse Send even at this pure
+     * unit level (mirrors the real-Service-chain proof in
+     * {@code EmailSendServiceIntegrationTest#sendBlockedWhileSignaturePending}). */
+    @Test
+    void sendBlockedWhenSignatureStatusIsPending() {
+        PortalOrderRepository portalOrderRepository = mock(PortalOrderRepository.class);
+        OrderEmailRepository orderEmailRepository = mock(OrderEmailRepository.class);
+        OfficialPoIntegrationRequestRepository integrationRequestRepository = mock(OfficialPoIntegrationRequestRepository.class);
+        AuditEventRepository auditEventRepository = mock(AuditEventRepository.class);
+        ManufacturerChannelResolutionService channelResolutionService = mock(ManufacturerChannelResolutionService.class);
+        MailPreviewService mailPreviewService = mock(MailPreviewService.class);
+        OfficialPoExcelGenerationService excelGenerationService = mock(OfficialPoExcelGenerationService.class);
+        SignedOfficialPoAdapter signedOfficialPoAdapter = mock(SignedOfficialPoAdapter.class);
+        EmailSenderPort emailSenderPort = mock(EmailSenderPort.class);
+        IdempotencyService idempotencyService = mock(IdempotencyService.class);
+        PortalUserRepository portalUserRepository = mock(PortalUserRepository.class);
+
+        PortalOrder order = order();
+        OfficialPoIntegrationRequest request = generatedRequest();
+        request.setSignatureStatus(OfficialPoIntegrationRequest.SIGNATURE_PENDING);
+        request.setSignedPdfFileKey(null);
+        when(portalOrderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(channelResolutionService.resolve("SUP_ALPHA", "BR_OUTDOOR")).thenReturn("EMAIL");
+        when(mailPreviewService.preview(eq(ORDER_ID), anyString())).thenReturn(unblockedPreview());
+        when(integrationRequestRepository.findByPortalOrderIdAndRevisionNo(ORDER_ID, 1)).thenReturn(Optional.of(request));
+        when(orderEmailRepository.findByPortalOrderIdAndRevisionNo(ORDER_ID, 1)).thenReturn(Optional.empty());
+        when(excelGenerationService.load("some-file-key.xlsx")).thenReturn(new byte[]{1, 2, 3});
+
+        EmailSendService service = new EmailSendService(portalOrderRepository, orderEmailRepository,
+                integrationRequestRepository, auditEventRepository, channelResolutionService, mailPreviewService,
+                excelGenerationService, signedOfficialPoAdapter, emailSenderPort, idempotencyService, portalUserRepository);
+
+        assertThrows(OfficialPoNotReadyToSendException.class, () -> service.send(ORDER_ID, ADMIN));
     }
 
     // Local helper - avoids pulling in a full ArgumentMatcher import just for

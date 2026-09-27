@@ -27,6 +27,9 @@ import com.glv.gsysportal.exception.OfficialPoPreflightBlockedException;
 import com.glv.gsysportal.exception.OfficialPoReissueNotRequiredException;
 import com.glv.gsysportal.exception.OfficialPoSignaturePendingRequiredException;
 import com.glv.gsysportal.exception.SignedOfficialPoNotAvailableException;
+import com.glv.gsysportal.exception.SignedPdfEmptyException;
+import com.glv.gsysportal.exception.SignedPdfInvalidFormatException;
+import com.glv.gsysportal.exception.SignedPdfTooLargeException;
 import com.glv.gsysportal.exception.OrderNotApprovedException;
 import com.glv.gsysportal.repository.legacy.LegacyPoConcurrencyReadRepository;
 import com.glv.gsysportal.repository.legacy.row.LegacyPoConcurrencyHeaderRow;
@@ -44,6 +47,7 @@ import com.glv.gsysportal.service.excel.OfficialPoPdfDownload;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderAdapter;
 import com.glv.gsysportal.service.integration.OfficialPoImportFolderWriteException;
 import com.glv.gsysportal.service.integration.SignedOfficialPoAdapter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -84,6 +88,12 @@ public class OfficialPoIntegrationService {
     private final OfficialPoNumberGenerator officialPoNumberGenerator;
     private final OfficialPoCancelNotificationService cancelNotificationService;
     private final SignedOfficialPoAdapter signedOfficialPoAdapter;
+    /** Signed PDF Upload Security audit: no existing system requirement
+     * anywhere in docs/ specifies a size limit for this upload - see
+     * application.yml's app.official-po.signed-pdf.max-size-bytes for the
+     * chosen value and rationale. */
+    private final long maxSignedPdfSizeBytes;
+    private static final byte[] PDF_MAGIC_BYTES = "%PDF-".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
 
     public OfficialPoIntegrationService(PortalOrderRepository portalOrderRepository,
                                          OfficialPoIntegrationRequestRepository integrationRequestRepository,
@@ -99,7 +109,8 @@ public class OfficialPoIntegrationService {
                                          OrderEmailRepository orderEmailRepository,
                                          OfficialPoNumberGenerator officialPoNumberGenerator,
                                          OfficialPoCancelNotificationService cancelNotificationService,
-                                         SignedOfficialPoAdapter signedOfficialPoAdapter) {
+                                         SignedOfficialPoAdapter signedOfficialPoAdapter,
+                                         @Value("${app.official-po.signed-pdf.max-size-bytes}") long maxSignedPdfSizeBytes) {
         this.portalOrderRepository = portalOrderRepository;
         this.integrationRequestRepository = integrationRequestRepository;
         this.auditEventRepository = auditEventRepository;
@@ -115,6 +126,7 @@ public class OfficialPoIntegrationService {
         this.officialPoNumberGenerator = officialPoNumberGenerator;
         this.cancelNotificationService = cancelNotificationService;
         this.signedOfficialPoAdapter = signedOfficialPoAdapter;
+        this.maxSignedPdfSizeBytes = maxSignedPdfSizeBytes;
     }
 
     /**
@@ -589,13 +601,37 @@ public class OfficialPoIntegrationService {
      */
     @Transactional(transactionManager = "prototypeTransactionManager")
     public OfficialPoIntegrationResponse registerSignedPdf(Long orderId, byte[] signedPdfBytes, String performedBy) {
+        // Signed PDF Upload Security audit - file-content validation first
+        // (independent of any Order/Request state): empty upload, PDF magic
+        // bytes (never trusting the client-supplied Content-Type header
+        // alone - it is easily spoofed and Spring does not even surface it
+        // here), then the configured size ceiling.
+        if (signedPdfBytes.length == 0) {
+            throw new SignedPdfEmptyException(orderId);
+        }
+        if (signedPdfBytes.length > maxSignedPdfSizeBytes) {
+            throw new SignedPdfTooLargeException(orderId, signedPdfBytes.length, maxSignedPdfSizeBytes);
+        }
+        if (!startsWithPdfMagicBytes(signedPdfBytes)) {
+            throw new SignedPdfInvalidFormatException(orderId);
+        }
+
         PortalOrder order = portalOrderRepository.findById(orderId).orElseThrow(() -> new DraftNotFoundException(orderId));
+        // resolveCurrentRequest always targets the CURRENT (latest-Revision)
+        // Request - the same Source of Truth every other Official-PO-
+        // Document-scoped operation in this Service resolves through, so a
+        // signature can never be registered against a stale/superseded
+        // Revision by accident.
         OfficialPoIntegrationRequest request = resolveCurrentRequest(order);
 
         if (!OfficialPoIntegrationRequest.SIGNATURE_PENDING.equals(request.getSignatureStatus())) {
             throw new OfficialPoSignaturePendingRequiredException(orderId, request.getSignatureStatus());
         }
 
+        // Storage filename is entirely server-generated (order id/revision/
+        // timestamp) - the client-supplied original filename is never read
+        // or used anywhere in this path, so it cannot influence the storage
+        // path (no path traversal surface from the upload's filename).
         String fileKey = signedOfficialPoAdapter.storeSignedPdf(orderId, request.getRevisionNo(), signedPdfBytes);
         OffsetDateTime now = OffsetDateTime.now();
         request.markSigned(fileKey, performedBy, now);
@@ -792,6 +828,8 @@ public class OfficialPoIntegrationService {
                 : new OfficialPoPreflightResult(r.getPreflightResult(), readIssuesJson(r.getPreflightIssuesJson()));
         String requestedByDisplayName = r.getRequestedBy() == null ? null
                 : portalUserRepository.findByUsername(r.getRequestedBy()).map(PortalUser::getDisplayName).orElse(null);
+        String signedByDisplayName = r.getSignedBy() == null ? null
+                : portalUserRepository.findByUsername(r.getSignedBy()).map(PortalUser::getDisplayName).orElse(null);
         return new OfficialPoIntegrationResponse(
                 r.getPortalOrderId(), r.getRevisionNo(), r.getStatus(), r.getOfficialPoNo(),
                 r.getRequestedBy(), requestedByDisplayName, r.getRequestedAt(), preflight,
@@ -805,8 +843,27 @@ public class OfficialPoIntegrationService {
                 isReissueRequired(r),
                 r.getSignatureStatus(),
                 r.getSignedPdfFileKey() != null,
-                r.isReadyToSend()
+                r.isReadyToSend(),
+                r.getSignedAt(),
+                r.getSignedBy(),
+                signedByDisplayName
         );
+    }
+
+    /** Signed PDF Upload Security audit: checks the actual byte content for
+     * the standard PDF signature ("%PDF-") rather than trusting the
+     * client-supplied Content-Type/filename - a MIME type or extension is
+     * trivially spoofable, but the file's own leading bytes are not. */
+    private static boolean startsWithPdfMagicBytes(byte[] bytes) {
+        if (bytes.length < PDF_MAGIC_BYTES.length) {
+            return false;
+        }
+        for (int i = 0; i < PDF_MAGIC_BYTES.length; i++) {
+            if (bytes[i] != PDF_MAGIC_BYTES[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static String summarize(OfficialPoPreflightResult preflight) {

@@ -1,4 +1,12 @@
 import { test, expect, type Page } from '@playwright/test'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+// Business Rule (confirmed, Signed Official PO workflow): Manufacturer Send
+// requires a signed/stamped PDF (isReadyToSend()) - see official-po-integration
+// .spec.ts's own Scenario N for the dedicated Signed Workflow coverage.
+const SIGNED_PDF_FIXTURE = path.join(__dirname, 'fixtures', 'signed-official-po.pdf')
 
 /**
  * G-OPS Phase1 Mobile Responsive Audit (docs/gops-admin-mobile-responsive-audit.md).
@@ -398,6 +406,9 @@ test.describe('Mobile Scenarios (390x844)', () => {
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
     await page.getByTestId('official-po-pdf-generate-button').click()
     await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
+    // Business Rule (confirmed): only a signed/stamped PDF may be sent.
+    await page.getByTestId('official-po-signed-pdf-upload-button').locator('input[type="file"]').setInputFiles(SIGNED_PDF_FIXTURE)
+    await expect(page.getByText('署名・押印済みPDFを登録しました。')).toBeVisible()
 
     await page.getByTestId('mail-preview-button').click()
     await expect(page.getByTestId('mail-preview-result')).toBeVisible()

@@ -180,7 +180,7 @@ class DashboardKpiContractIntegrationTest {
         assertEquals(dashboardBefore, dashboardService.getDashboard().readyToSendCount(),
                 "still just PENDING signature - not yet ready to send");
 
-        integrationService.registerSignedPdf(order.id(), new byte[]{1, 2, 3}, ADMIN);
+        integrationService.registerSignedPdf(order.id(), "%PDF-1.4 test signed pdf".getBytes(), ADMIN);
 
         assertEquals(dashboardBefore + 1, dashboardService.getDashboard().readyToSendCount());
     }

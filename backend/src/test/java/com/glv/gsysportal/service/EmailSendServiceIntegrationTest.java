@@ -15,6 +15,7 @@ import com.glv.gsysportal.dto.response.OrderEmailResponse;
 import com.glv.gsysportal.exception.EmailAttachmentNotReadyException;
 import com.glv.gsysportal.exception.EmailChannelNotApplicableException;
 import com.glv.gsysportal.exception.EmailPreviewBlockedException;
+import com.glv.gsysportal.exception.OfficialPoNotReadyToSendException;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,6 +76,29 @@ class EmailSendServiceIntegrationTest {
         integrationService.generateExcel(order.getId(), ADMIN);
         // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
         integrationService.generatePdf(order.getId(), ADMIN);
+        // Business Rule (confirmed, Signed Official PO workflow): Send now
+        // additionally requires isReadyToSend() (SIGNATURE_SIGNED + ACTIVE) -
+        // generatePdf alone only reaches PENDING. A minimal byte array
+        // starting with the PDF magic bytes is sufficient - registerSignedPdf
+        // validates the signature, never re-parses the PDF itself.
+        integrationService.registerSignedPdf(order.getId(), "%PDF-1.4 test signed pdf".getBytes(), ADMIN);
+        return order;
+    }
+
+    /** Same shape as {@link #readyOrderWithExcelGenerated}, but stops one
+     * step short of {@code registerSignedPdf} - Signature axis stays PENDING
+     * (Excel/PDF themselves are otherwise fully ready), isolating the
+     * Business Rule's own Send Guard as the one remaining reason to refuse. */
+    private PortalOrder readyOrderWithExcelGeneratedButUnsigned() {
+        OrderDraftResponse draft = orderDraftService.createDraft(
+                new CreateDraftRequest(List.of(SKU_TENT_1), null, null, null), OPERATOR);
+        statusTransitionService.submitForApproval(draft.id(), OPERATOR, false);
+        PortalOrder order = statusTransitionService.approve(draft.id(), ADMIN);
+        integrationService.requestIntegration(order.getId(), ADMIN);
+        integrationService.confirmOfficialPoNumber(order.getId(),
+                new ConfirmOfficialPoNumberRequest("WK36", "2026-09-05", null, null, null), ADMIN);
+        integrationService.generateExcel(order.getId(), ADMIN);
+        integrationService.generatePdf(order.getId(), ADMIN);
         return order;
     }
 
@@ -113,10 +137,56 @@ class EmailSendServiceIntegrationTest {
         integrationService.requestIntegration(order.getId(), ADMIN);
         integrationService.confirmOfficialPoNumber(order.getId(),
                 new ConfirmOfficialPoNumberRequest("WK36", "2026-09-05", null, null, null), ADMIN);
-        // Excel never generated.
+        // Excel never generated. generatePdf has no Excel precondition of its
+        // own (confirmed by reading OfficialPoIntegrationService#generatePdf),
+        // so signing here isolates "Excel missing" as the one remaining
+        // reason Send refuses - otherwise, under the new Business Rule,
+        // MailPreviewService's own signature check would block first and
+        // this would never reach the Excel-specific check at all.
+        integrationService.generatePdf(order.getId(), ADMIN);
+        integrationService.registerSignedPdf(order.getId(), "%PDF-1.4 test signed pdf".getBytes(), ADMIN);
         configureEmailChannelContactAndTemplate();
 
         assertThrows(EmailAttachmentNotReadyException.class, () -> emailSendService.send(order.getId(), ADMIN));
+    }
+
+    /** Business Rule (confirmed): "未署名PDFのメーカー送付は禁止" - PENDING alone
+     * (Excel/PDF both otherwise ready) must refuse Send via the real Service
+     * chain. {@code send()} calls {@link MailPreviewService#preview} BEFORE
+     * its own {@code isReadyToSend()} Guard, and Phase 3's Mail Preview
+     * signature check (same underlying condition) fires first in practice -
+     * so end-to-end this surfaces as {@link EmailPreviewBlockedException},
+     * not {@link OfficialPoNotReadyToSendException}. The Guard itself is
+     * proven to fire standalone (Preview mocked as unblocked) by
+     * {@code EmailSendServiceRetryTest#sendBlockedWhenSignatureStatusIsPending} -
+     * both layers independently refuse Send for the same Business Rule,
+     * exactly the defense-in-depth intended by adding the check to both
+     * Services rather than only one. */
+    @Test
+    void sendBlockedWhileSignaturePending() {
+        PortalOrder order = readyOrderWithExcelGeneratedButUnsigned();
+        configureEmailChannelContactAndTemplate();
+
+        assertThrows(EmailPreviewBlockedException.class, () -> emailSendService.send(order.getId(), ADMIN));
+    }
+
+    /** Business Rule: isReadyToSend() requires BOTH SIGNATURE_SIGNED AND an
+     * ACTIVE lifecycle - a Document that was SIGNED but has since been
+     * Cancelled must still refuse Send (Admin approval/signature alone never
+     * implies Send readiness). See {@link #sendBlockedWhileSignaturePending}'s
+     * Javadoc for why this surfaces as EmailPreviewBlockedException (Preview
+     * runs first) rather than OfficialPoNotReadyToSendException here - the
+     * Guard's own standalone behavior for this exact condition is proven by
+     * {@code EmailSendServiceRetryTest#sendBlockedWhenSignedButSignedPdfFileKeyMissing}
+     * and the isReadyToSend() unit tests on the Domain entity itself. */
+    @Test
+    void sendBlockedWhenLifecycleNotActiveEvenIfSigned() {
+        PortalOrder order = readyOrderWithExcelGenerated();
+        configureEmailChannelContactAndTemplate();
+        integrationService.requestCancel(order.getId(), "no longer needed", ADMIN);
+        integrationService.approveCancel(order.getId(), ADMIN);
+
+        assertThrows(EmailPreviewBlockedException.class, () -> emailSendService.send(order.getId(), ADMIN));
     }
 
     @Test

@@ -71,7 +71,13 @@ public record OfficialPoIntegrationResponse(
         /** Critical Design Principle: Admin approval alone never implies
          * this is true - Supplier Send readiness requires SIGNATURE_SIGNED
          * on an ACTIVE (not Cancelled/Superseded) Document. */
-        boolean readyToSend
+        boolean readyToSend,
+        /** Signed Official PO Workflow (Frontend minimal UI): who registered
+         * the signed PDF and when - null until signatureStatus reaches
+         * SIGNED. Same requestedBy/requestedByDisplayName idiom as above. */
+        OffsetDateTime signedAt,
+        String signedBy,
+        String signedByDisplayName
 ) {
     public static final String STATUS_NOT_REQUESTED = "NOT_REQUESTED";
 
@@ -102,7 +108,10 @@ public record OfficialPoIntegrationResponse(
                 false, // reissueRequired
                 null, // signatureStatus
                 false, // signedPdfAvailable
-                false // readyToSend
+                false, // readyToSend
+                null, // signedAt
+                null, // signedBy
+                null // signedByDisplayName
         );
     }
 }

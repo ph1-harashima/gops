@@ -190,6 +190,21 @@
     "downloadPdfButton": "PDFをダウンロード",
     "errorNumberRequired": "先に正式PO番号を確定してください。",
     "errorPreflightBlocked": "最終チェック結果が「登録不可」です。問題を解消してから再度G-SYS連携準備を行ってください。",
+    "signatureSectionTitle": "署名・押印",
+    "signatureStatusLabel": {
+      "PENDING": "署名待ち",
+      "SIGNED": "署名・押印済み"
+    },
+    "signedAtLabel": "署名日時",
+    "signedByLabel": "署名者",
+    "uploadSignedPdfButton": "署名・押印済みPDFをアップロード",
+    "downloadSignedPdfButton": "署名・押印済みPDFをダウンロード",
+    "uploadSignedPdfSuccess": "署名・押印済みPDFを登録しました。",
+    "signatureRequiredNote": "署名・押印済みPDFを登録後、メーカー送付できます。",
+    "errorSignedPdfEmpty": "ファイルが空です。",
+    "errorSignedPdfInvalidFormat": "PDFファイルとして認識できません。",
+    "errorSignedPdfTooLarge": "ファイルサイズが上限を超えています。",
+    "errorSignaturePendingRequired": "現在は署名待ちの状態ではないため登録できません。",
     "placeSectionTitle": "G-SYS連携用ファイルの配置",
     "placeButton": "G-SYS連携用ファイルを配置",
     "retryPlaceButton": "再試行",
@@ -278,7 +293,9 @@
       "SUPPLIER_CONTACT_NOT_FOUND": "有効なTo担当者（メーカー担当者Master）が見つかりません。",
       "ADMIN_CC_NOT_FOUND": "CCに設定できる有効な管理者アカウントが見つかりません。",
       "MAIL_TEMPLATE_NOT_FOUND": "有効なメールテンプレートが見つかりません。",
-      "MAIL_TEMPLATE_AMBIGUOUS": "同一優先順位で複数の有効なテンプレートが該当し、自動選択できません。"
+      "MAIL_TEMPLATE_AMBIGUOUS": "同一優先順位で複数の有効なテンプレートが該当し、自動選択できません。",
+      "SIGNED_PDF_NOT_REGISTERED": "署名・押印済みPDFが登録されていません。",
+      "INTEGRATION_NOT_ACTIVE": "この正式POはキャンセル済みまたは差し替え済みのため送信できません。"
     },
     "errorForbidden": "この操作を行う権限がありません。",
     "errorGeneric": "処理に失敗しました。",
@@ -294,7 +311,8 @@
     "sendFailedNote": "送信に失敗しました。再送信できます",
     "errorPreviewBlocked": "メールプレビューに未確定の項目があります。上のプレビューで内容を確認してください。",
     "errorAttachmentNotReady": "先に正式PO Excelを生成してください。",
-    "errorChannelNotApplicable": "このメーカーの通信方法はEmailではありません。"
+    "errorChannelNotApplicable": "このメーカーの通信方法はEmailではありません。",
+    "errorNotReadyToSend": "署名・押印済みPDFを登録後、メーカー送付できます。"
   },
   "revisionHistory": {
     "title": "発注内容の履歴（Revision）",

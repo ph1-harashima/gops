@@ -41,6 +41,7 @@ import {
   usePlaceOfficialPoToImportFolder, useConfirmOfficialPoImport,
   useGenerateOfficialPoPdf, downloadOfficialPoPdf,
   useReissueOfficialPo, useOfficialPoRevisionHistory, useRequestCancelOfficialPo, useApproveCancelOfficialPo,
+  useRegisterSignedOfficialPo, downloadSignedOfficialPoPdf,
 } from './officialPoIntegrationApi'
 import { useLegacyPoConcurrency, useCaptureLegacyPoBaseline } from './legacyPoConcurrencyApi'
 import { useMailPreview } from './mailPreviewApi'
@@ -263,6 +264,7 @@ export function OrderHistoryDetailPage() {
   const confirmPoNumberMutation = useConfirmOfficialPoNumber(orderId)
   const generateExcelMutation = useGenerateOfficialPoExcel(orderId)
   const generatePdfMutation = useGenerateOfficialPoPdf(orderId)
+  const registerSignedPdfMutation = useRegisterSignedOfficialPo(orderId)
   const reissueMutation = useReissueOfficialPo(orderId)
   const cancelMutation = useRequestCancelOfficialPo(orderId)
   const approveCancelMutation = useApproveCancelOfficialPo(orderId)
@@ -414,6 +416,15 @@ export function OrderHistoryDetailPage() {
   function handleDownloadPdf() {
     setDownloadError(false)
     void downloadOfficialPoPdf(orderId).catch(() => setDownloadError(true))
+  }
+
+  function handleUploadSignedPdf(file: File) {
+    registerSignedPdfMutation.mutate(file)
+  }
+
+  function handleDownloadSignedPdf() {
+    setDownloadError(false)
+    void downloadSignedOfficialPoPdf(orderId).catch(() => setDownloadError(true))
   }
 
   function openFollowUpDialog(sku?: string) {
@@ -1295,6 +1306,97 @@ export function OrderHistoryDetailPage() {
                 )}
               </Stack>
 
+              {/* Signed Official PO Workflow (Frontend minimal UI): the
+                  signature itself happens entirely offline (never inside
+                  G-OPS) - this Section only tracks PENDING/SIGNED and lets
+                  the ADMIN upload the result / download either PDF. Only
+                  relevant once a PDF actually exists to be signed. */}
+              {integration.pdfGenerated && (
+                <Box sx={{ mt: 2 }}>
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography variant="subtitle2" gutterBottom>{t('officialPoIntegration.signatureSectionTitle')}</Typography>
+
+                  <Toast
+                    open={registerSignedPdfMutation.isSuccess}
+                    severity="success"
+                    message={t('officialPoIntegration.uploadSignedPdfSuccess')}
+                    onClose={() => registerSignedPdfMutation.reset()}
+                  />
+                  <Toast
+                    open={registerSignedPdfMutation.isError}
+                    severity="error"
+                    testId="official-po-signed-pdf-upload-error"
+                    message={
+                      errorCodeOf(registerSignedPdfMutation.error) === 'SIGNED_PDF_EMPTY' ? t('officialPoIntegration.errorSignedPdfEmpty') :
+                      errorCodeOf(registerSignedPdfMutation.error) === 'SIGNED_PDF_INVALID_FORMAT' ? t('officialPoIntegration.errorSignedPdfInvalidFormat') :
+                      errorCodeOf(registerSignedPdfMutation.error) === 'SIGNED_PDF_TOO_LARGE' ? t('officialPoIntegration.errorSignedPdfTooLarge') :
+                      errorCodeOf(registerSignedPdfMutation.error) === 'OFFICIAL_PO_SIGNATURE_PENDING_REQUIRED' ? t('officialPoIntegration.errorSignaturePendingRequired') :
+                      errorCodeOf(registerSignedPdfMutation.error) === 'FORBIDDEN' ? t('errorForbidden') :
+                      t('errorGeneric')
+                    }
+                    onClose={() => registerSignedPdfMutation.reset()}
+                  />
+
+                  {integration.signatureStatus === 'SIGNED' ? (
+                    <Stack spacing={1}>
+                      <Chip
+                        color="success"
+                        size="small"
+                        sx={{ alignSelf: 'flex-start' }}
+                        label={t('officialPoIntegration.signatureStatusLabel.SIGNED')}
+                        data-testid="official-po-signature-status-chip"
+                      />
+                      {integration.signedAt && (
+                        <Typography variant="caption" color="text.secondary">
+                          {t('officialPoIntegration.signedByLabel')}: {integration.signedByDisplayName ?? integration.signedBy} - {t('officialPoIntegration.signedAtLabel')}: {new Date(integration.signedAt).toLocaleString('ja-JP')}
+                        </Typography>
+                      )}
+                      {integration.signedPdfAvailable && (
+                        <Button
+                          variant="text"
+                          onClick={handleDownloadSignedPdf}
+                          sx={{ alignSelf: 'flex-start' }}
+                          data-testid="official-po-signed-pdf-download-button"
+                        >
+                          {t('officialPoIntegration.downloadSignedPdfButton')}
+                        </Button>
+                      )}
+                    </Stack>
+                  ) : (
+                    <Stack spacing={1}>
+                      <Chip
+                        size="small"
+                        sx={{ alignSelf: 'flex-start' }}
+                        label={t('officialPoIntegration.signatureStatusLabel.PENDING')}
+                        data-testid="official-po-signature-status-chip"
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {t('officialPoIntegration.signatureRequiredNote')}
+                      </Typography>
+                      <Button
+                        component="label"
+                        variant="outlined"
+                        disabled={registerSignedPdfMutation.isPending}
+                        sx={{ alignSelf: 'flex-start' }}
+                        data-testid="official-po-signed-pdf-upload-button"
+                      >
+                        {registerSignedPdfMutation.isPending ? <CircularProgress size={20} /> : t('officialPoIntegration.uploadSignedPdfButton')}
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          hidden
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) handleUploadSignedPdf(file)
+                            e.target.value = ''
+                          }}
+                        />
+                      </Button>
+                    </Stack>
+                  )}
+                </Box>
+              )}
+
               {/* Phase 9-B: Import Folder Integration - extends this same
                   Excel Section (design doc §7's "Fileを置くだけ"). */}
               {integration.excelGenerated && (
@@ -1786,6 +1888,7 @@ export function OrderHistoryDetailPage() {
                   errorCodeOf(sendEmailMutation.error) === 'EMAIL_PREVIEW_BLOCKED' ? t('mailPreview.errorPreviewBlocked') :
                   errorCodeOf(sendEmailMutation.error) === 'EMAIL_ATTACHMENT_NOT_READY' ? t('mailPreview.errorAttachmentNotReady') :
                   errorCodeOf(sendEmailMutation.error) === 'EMAIL_CHANNEL_NOT_APPLICABLE' ? t('mailPreview.errorChannelNotApplicable') :
+                  errorCodeOf(sendEmailMutation.error) === 'OFFICIAL_PO_NOT_READY_TO_SEND' ? t('mailPreview.errorNotReadyToSend') :
                   errorCodeOf(sendEmailMutation.error) === 'FORBIDDEN' ? t('mailPreview.errorForbidden') :
                   t('mailPreview.errorGeneric')
                 }
@@ -1816,11 +1919,23 @@ export function OrderHistoryDetailPage() {
                 </Alert>
               )}
 
+              {/* Business Rule (confirmed): unsigned PDFs can never be sent -
+                  the Backend Send Guard (isReadyToSend()) is the real
+                  enforcement; this is UX guidance only, shown specifically
+                  for the Signature blocker (attachment-not-ready etc. still
+                  surface only via the error Toast above on an actual Send
+                  attempt). */}
+              {integration?.signatureStatus === 'PENDING' && emailStatus?.status !== 'SENT' && (
+                <Alert severity="warning" sx={{ mb: 2 }} data-testid="email-send-blocked-signature-note">
+                  {t('officialPoIntegration.signatureRequiredNote')}
+                </Alert>
+              )}
+
               {emailStatus?.status !== 'SENT' && (
                 <Button
                   variant="contained"
                   onClick={() => setSendConfirmDialogOpen(true)}
-                  disabled={sendEmailMutation.isPending}
+                  disabled={sendEmailMutation.isPending || integration?.signatureStatus === 'PENDING'}
                   data-testid="email-send-button"
                 >
                   {sendEmailMutation.isPending ? <CircularProgress size={20} /> :

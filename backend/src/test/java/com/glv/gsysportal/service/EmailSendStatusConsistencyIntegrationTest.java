@@ -72,6 +72,9 @@ class EmailSendStatusConsistencyIntegrationTest {
         integrationService.generateExcel(order.getId(), ADMIN);
         // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
         integrationService.generatePdf(order.getId(), ADMIN);
+        // Business Rule (confirmed, Signed Official PO workflow): Send now
+        // additionally requires isReadyToSend() (SIGNATURE_SIGNED + ACTIVE).
+        integrationService.registerSignedPdf(order.getId(), "%PDF-1.4 test signed pdf".getBytes(), ADMIN);
         return order;
     }
 

@@ -2,6 +2,7 @@ package com.glv.gsysportal.service;
 
 import com.glv.gsysportal.domain.AuditEvent;
 import com.glv.gsysportal.domain.MailTemplate;
+import com.glv.gsysportal.domain.OfficialPoIntegrationRequest;
 import com.glv.gsysportal.domain.PortalOrder;
 import com.glv.gsysportal.domain.PortalUser;
 import com.glv.gsysportal.domain.SupplierContact;
@@ -35,6 +36,13 @@ public class MailPreviewService {
     static final String CODE_ADMIN_CC_NOT_FOUND = "ADMIN_CC_NOT_FOUND";
     static final String CODE_MAIL_TEMPLATE_NOT_FOUND = "MAIL_TEMPLATE_NOT_FOUND";
     static final String CODE_MAIL_TEMPLATE_AMBIGUOUS = "MAIL_TEMPLATE_AMBIGUOUS";
+    /** Business Rule (confirmed): only a signed/stamped PDF may be sent -
+     * these two codes surface the two DISTINCT axes {@code isReadyToSend()}
+     * actually checks (signature vs. lifecycle) as separate, specific
+     * issues, rather than one generic "not ready" message that would
+     * conflate two different root causes for the ADMIN reading this. */
+    static final String CODE_SIGNED_PDF_NOT_REGISTERED = "SIGNED_PDF_NOT_REGISTERED";
+    static final String CODE_INTEGRATION_NOT_ACTIVE = "INTEGRATION_NOT_ACTIVE";
 
     private final PortalOrderRepository portalOrderRepository;
     private final PortalUserRepository portalUserRepository;
@@ -83,6 +91,27 @@ public class MailPreviewService {
                             + "Body cannot embed a real PO No., so rendering is blocked rather than substituting "
                             + "the Portal-internal prototypePoNo."));
         }
+
+        // Business Rule (confirmed): only a signed/stamped PDF may be sent.
+        // Evaluated only once an Integration Request actually exists (no PO
+        // No. yet already means nothing to sign) - the two isReadyToSend()
+        // axes (signature, lifecycle) are surfaced as distinct issues, never
+        // one blanket "not ready" message, so an ADMIN reading this Preview
+        // can tell a missing signature apart from a Cancelled/Superseded
+        // Document without needing to re-derive isReadyToSend()'s own logic.
+        integrationRequestRepository.findFirstByPortalOrderIdOrderByRevisionNoDesc(orderId).ifPresent(current -> {
+            if (!OfficialPoIntegrationRequest.LIFECYCLE_ACTIVE.equals(current.getLifecycleStatus())) {
+                issues.add(new MailPreviewIssue(CODE_INTEGRATION_NOT_ACTIVE, MailPreviewIssue.SEVERITY_BLOCKED,
+                        "Order " + orderId + "'s current Official PO Document is lifecycleStatus="
+                                + current.getLifecycleStatus() + ", not ACTIVE - a Cancelled/Superseded Document "
+                                + "is never sendable regardless of its Signature axis."));
+            } else if (!OfficialPoIntegrationRequest.SIGNATURE_SIGNED.equals(current.getSignatureStatus())) {
+                issues.add(new MailPreviewIssue(CODE_SIGNED_PDF_NOT_REGISTERED, MailPreviewIssue.SEVERITY_BLOCKED,
+                        "Order " + orderId + "'s Official PO PDF has not been signed/stamped yet (signatureStatus="
+                                + current.getSignatureStatus() + ") - download the generated PDF, sign/stamp it "
+                                + "outside G-OPS, then upload the signed PDF before Send."));
+            }
+        });
 
         List<SupplierContact> toContacts = contactResolutionService.resolve(
                 order.getSupplierCode(), order.getBrandCode(), SupplierContact.CONTACT_TYPE_TO);

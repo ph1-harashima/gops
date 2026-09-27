@@ -58,6 +58,18 @@ export interface OfficialPoIntegration {
    * issued and an Order correction has happened since - drives the "Official
    * POの再発行が必要です" banner and enables the Reissue button. */
   reissueRequired: boolean
+  /** Signed Official PO Workflow: the Signature axis - NOT_REQUIRED | PENDING
+   * | SIGNED, independent of status/lifecycleStatus above. */
+  signatureStatus: string | null
+  /** Whether a signed PDF is currently available for download - mirrors
+   * pdfGenerated's idiom (never exposes the storage key itself). */
+  signedPdfAvailable: boolean
+  /** Manufacturer Send readiness: SIGNATURE_SIGNED on an ACTIVE Document.
+   * Admin approval alone never implies this is true. */
+  readyToSend: boolean
+  signedAt: string | null
+  signedBy: string | null
+  signedByDisplayName: string | null
 }
 
 /** Gap Analysis C-2 (docs/gulliver-20260917-phase1-gap-analysis.md 7章):

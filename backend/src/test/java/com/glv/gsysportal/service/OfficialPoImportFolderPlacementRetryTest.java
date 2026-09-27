@@ -105,7 +105,7 @@ class OfficialPoImportFolderPlacementRetryTest {
                 integrationRequestRepository, auditEventRepository, preflightService, excelGenerationService,
                 pdfGenerationService, importFolderAdapter, idempotencyService, legacyReadRepository, objectMapper,
                 portalUserRepository, orderEmailRepository, officialPoNumberGenerator, cancelNotificationService,
-                signedOfficialPoAdapter);
+                signedOfficialPoAdapter, 10_485_760L);
 
         // First attempt fails.
         doThrow(new OfficialPoImportFolderWriteException("disk full", new java.io.IOException("disk full")))

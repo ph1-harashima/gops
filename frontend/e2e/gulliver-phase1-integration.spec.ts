@@ -1,5 +1,13 @@
 import { test, expect, type Page } from '@playwright/test'
 import { execSync } from 'node:child_process'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+// Business Rule (confirmed, Signed Official PO workflow): Manufacturer Send
+// requires a signed/stamped PDF (isReadyToSend()) - see official-po-integration
+// .spec.ts's own Scenario N for the dedicated Signed Workflow coverage.
+const SIGNED_PDF_FIXTURE = path.join(__dirname, 'fixtures', 'signed-official-po.pdf')
 
 /**
  * Gap Analysis Implementation Instruction, End-to-End Scenario 1 (docs/
@@ -143,6 +151,10 @@ test.describe('Gap Analysis Implementation Instruction Scenario 1: full continuo
     await page.getByTestId('official-po-pdf-generate-button').click()
     await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
     await expect(page.getByTestId('official-po-pdf-download-button')).toBeVisible()
+
+    // Business Rule (confirmed): only a signed/stamped PDF may be sent.
+    await page.getByTestId('official-po-signed-pdf-upload-button').locator('input[type="file"]').setInputFiles(SIGNED_PDF_FIXTURE)
+    await expect(page.getByText('署名・押印済みPDFを登録しました。')).toBeVisible()
 
     // ---- G-SYS連携用ファイル配置 (Import Folder Sim) ----
     await page.getByTestId('official-po-place-button').click()

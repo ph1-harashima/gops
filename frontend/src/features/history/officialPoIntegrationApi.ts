@@ -300,3 +300,45 @@ export async function downloadOfficialPoPdf(orderId: number): Promise<void> {
   link.remove()
   window.URL.revokeObjectURL(url)
 }
+
+/** Signed Official PO Workflow (Frontend minimal UI): the ADMIN uploads the
+ * signed/stamped PDF they already have in hand - the signature itself
+ * happens entirely offline, never inside G-OPS. Refused (409) unless the
+ * current Request's Signature axis is actually PENDING. */
+async function registerSignedOfficialPo(orderId: number, file: File): Promise<OfficialPoIntegration> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await apiClient.post<OfficialPoIntegration>(`/orders/${orderId}/official-po/signed-pdf`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export function useRegisterSignedOfficialPo(orderId: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => registerSignedOfficialPo(orderId, file),
+    onSuccess: (data) => {
+      // See useRequestOfficialPoIntegration's comment (stability audit).
+      queryClient.setQueryData(['official-po-integration', orderId], data)
+      void queryClient.invalidateQueries({ queryKey: ['order-events', orderId] })
+      // Cache Consistency Fix: Revision History's own emailSendStatus/
+      // lifecycleStatus columns are unaffected, but keep the list fresh.
+      void queryClient.invalidateQueries({ queryKey: ['official-po-revisions', orderId] })
+    },
+  })
+}
+
+/** Downloads the registered signed Official PO PDF. ADMIN only. Mirrors
+ * {@link downloadOfficialPoPdf}. */
+export async function downloadSignedOfficialPoPdf(orderId: number): Promise<void> {
+  const response = await apiClient.get<Blob>(`/orders/${orderId}/official-po/signed-pdf`, { responseType: 'blob' })
+  const url = window.URL.createObjectURL(response.data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileNameFromContentDisposition(response.headers['content-disposition'], `official-po-signed-${orderId}.pdf`)
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}

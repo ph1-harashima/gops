@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -17,6 +18,7 @@ import java.util.Map;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -56,6 +58,19 @@ class OfficialPoIntegrationApiTest {
         Long id = createDraft(skus);
         mockMvc.perform(post("/api/orders/" + id + "/submit-for-approval")).andExpect(status().isOk());
         mockMvc.perform(post("/api/orders/" + id + "/approve").with(asAdmin())).andExpect(status().isOk());
+        return id;
+    }
+
+    /** Signed Official PO Workflow (Frontend minimal UI / Signed PDF Upload
+     * Security audit): an Order whose Signature axis has just reached
+     * PENDING - generatePdf() has no Excel precondition of its own (same
+     * fact {@code EmailSendServiceIntegrationTest#sendRequiresGeneratedExcel}
+     * relies on), so this is the minimal HTTP-level setup for every
+     * signed-pdf upload test below. */
+    private Long createOrderReadyForSignedPdfUpload(String... skus) throws Exception {
+        Long id = createApprovedOrder(skus);
+        mockMvc.perform(post("/api/orders/" + id + "/official-po/request").with(asAdmin())).andExpect(status().isOk());
+        mockMvc.perform(post("/api/orders/" + id + "/official-po/pdf/generate").with(asAdmin())).andExpect(status().isOk());
         return id;
     }
 
@@ -129,14 +144,20 @@ class OfficialPoIntegrationApiTest {
         mockMvc.perform(post("/api/orders/" + id + "/official-po/request").with(asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.officialPoNo").value(matchesPattern("^#[A-Z]{3}-[A-Z]{3}\\d{3}$")))
+                // Sequence width: OfficialPoNumberGenerator's own Javadoc
+                // documents "3-digit sequence" as the common case
+                // (String.format("%03d", seq) zero-pads UP TO 3 digits, never
+                // truncates) - a long-lived local dev DB's Supplier x Brand
+                // counter legitimately grows past 999 over many test runs, so
+                // this only asserts "at least 3 digits", never an exact width.
+                .andExpect(jsonPath("$.officialPoNo").value(matchesPattern("^#[A-Z]{3}-[A-Z]{3}\\d{3,}$")))
                 .andExpect(jsonPath("$.revisionNo").value(1))
                 .andExpect(jsonPath("$.preflight.result").value("PASS"));
 
         mockMvc.perform(get("/api/orders/" + id + "/official-po"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.officialPoNo").value(matchesPattern("^#[A-Z]{3}-[A-Z]{3}\\d{3}$")));
+                .andExpect(jsonPath("$.officialPoNo").value(matchesPattern("^#[A-Z]{3}-[A-Z]{3}\\d{3,}$")));
 
         // Scenario B: double Request does not create a second row - same
         // Revision, same shape, still 200 (not a Conflict), and the Official
@@ -174,5 +195,92 @@ class OfficialPoIntegrationApiTest {
         mockMvc.perform(post("/api/orders/999999/official-po/request").with(asAdmin()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.errorCode").value("DRAFT_NOT_FOUND"));
+    }
+
+    // ---- Signed PDF Upload Security audit (Business Rule, confirmed) -------
+
+    @Test
+    @WithUserDetails("purchase01")
+    void operatorCannotUploadSignedPdf() throws Exception {
+        Long id = createOrderReadyForSignedPdfUpload("OD-TENT-001");
+        MockMultipartFile file = new MockMultipartFile("file", "signed.pdf", "application/pdf", "%PDF-1.4 test signed content".getBytes());
+
+        mockMvc.perform(multipart("/api/orders/" + id + "/official-po/signed-pdf").file(file))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"));
+    }
+
+    @Test
+    @WithUserDetails("purchase01")
+    void signedPdfUploadSucceedsAndReturnsSignedStatus() throws Exception {
+        Long id = createOrderReadyForSignedPdfUpload("OD-TENT-001");
+        MockMultipartFile file = new MockMultipartFile("file", "signed.pdf", "application/pdf", "%PDF-1.4 valid signed content".getBytes());
+
+        mockMvc.perform(multipart("/api/orders/" + id + "/official-po/signed-pdf").file(file).with(asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.signatureStatus").value("SIGNED"))
+                .andExpect(jsonPath("$.signedPdfAvailable").value(true))
+                .andExpect(jsonPath("$.readyToSend").value(true));
+    }
+
+    @Test
+    @WithUserDetails("purchase01")
+    void signedPdfUploadRejectsEmptyFile() throws Exception {
+        Long id = createOrderReadyForSignedPdfUpload("OD-TENT-001");
+        MockMultipartFile file = new MockMultipartFile("file", "signed.pdf", "application/pdf", new byte[0]);
+
+        mockMvc.perform(multipart("/api/orders/" + id + "/official-po/signed-pdf").file(file).with(asAdmin()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("SIGNED_PDF_EMPTY"));
+    }
+
+    /** "Content-Typeだけを信用しない" requirement: this upload declares
+     * application/pdf (a spoofed/incorrect Content-Type for its actual
+     * content) but the body itself is plain text, not a real PDF - the
+     * magic-byte check (not the client-supplied header) is what must gate
+     * acceptance, covering the "text file" / "spoofed Content-Type" / "bad
+     * magic bytes" cases the audit named as one and the same underlying
+     * check. */
+    @Test
+    @WithUserDetails("purchase01")
+    void signedPdfUploadRejectsContentWithoutPdfMagicBytesEvenWithPdfContentType() throws Exception {
+        Long id = createOrderReadyForSignedPdfUpload("OD-TENT-001");
+        MockMultipartFile file = new MockMultipartFile("file", "signed.pdf", "application/pdf", "this is not a pdf, just plain text".getBytes());
+
+        mockMvc.perform(multipart("/api/orders/" + id + "/official-po/signed-pdf").file(file).with(asAdmin()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("SIGNED_PDF_INVALID_FORMAT"));
+    }
+
+    /** One byte over the business-level 10MB limit (app.official-po.signed-pdf.max-size-bytes)
+     * but still under Spring's own 11MB multipart ceiling - isolates the
+     * Service's own {@code SignedPdfTooLargeException} from
+     * {@code MaxUploadSizeExceededException} (both map to the same
+     * SIGNED_PDF_TOO_LARGE code, but this proves the business-level check
+     * itself fires, not just Spring's outer one). */
+    @Test
+    @WithUserDetails("purchase01")
+    void signedPdfUploadRejectsOversizedFile() throws Exception {
+        Long id = createOrderReadyForSignedPdfUpload("OD-TENT-001");
+        byte[] oversized = new byte[10 * 1024 * 1024 + 1];
+        MockMultipartFile file = new MockMultipartFile("file", "signed.pdf", "application/pdf", oversized);
+
+        mockMvc.perform(multipart("/api/orders/" + id + "/official-po/signed-pdf").file(file).with(asAdmin()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("SIGNED_PDF_TOO_LARGE"));
+    }
+
+    @Test
+    @WithUserDetails("purchase01")
+    void signedPdfUploadRejectsDoubleRegistration() throws Exception {
+        Long id = createOrderReadyForSignedPdfUpload("OD-TENT-001");
+        MockMultipartFile file = new MockMultipartFile("file", "signed.pdf", "application/pdf", "%PDF-1.4 valid signed content".getBytes());
+        mockMvc.perform(multipart("/api/orders/" + id + "/official-po/signed-pdf").file(file).with(asAdmin()))
+                .andExpect(status().isOk());
+
+        MockMultipartFile secondFile = new MockMultipartFile("file", "signed2.pdf", "application/pdf", "%PDF-1.4 second attempt".getBytes());
+        mockMvc.perform(multipart("/api/orders/" + id + "/official-po/signed-pdf").file(secondFile).with(asAdmin()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("OFFICIAL_PO_SIGNATURE_PENDING_REQUIRED"));
     }
 }

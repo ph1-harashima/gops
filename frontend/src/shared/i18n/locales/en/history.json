@@ -179,6 +179,21 @@
     "downloadPdfButton": "Download PDF",
     "errorNumberRequired": "Confirm the Official PO No. first.",
     "errorPreflightBlocked": "The latest Check result is Blocked - resolve the issues and re-request first.",
+    "signatureSectionTitle": "Signature",
+    "signatureStatusLabel": {
+      "PENDING": "Awaiting signature",
+      "SIGNED": "Signed"
+    },
+    "signedAtLabel": "Signed At",
+    "signedByLabel": "Signed By",
+    "uploadSignedPdfButton": "Upload Signed PDF",
+    "downloadSignedPdfButton": "Download Signed PDF",
+    "uploadSignedPdfSuccess": "Signed PDF registered.",
+    "signatureRequiredNote": "Register a signed/stamped PDF before you can send to the manufacturer.",
+    "errorSignedPdfEmpty": "The file is empty.",
+    "errorSignedPdfInvalidFormat": "The file could not be recognized as a PDF.",
+    "errorSignedPdfTooLarge": "The file exceeds the size limit.",
+    "errorSignaturePendingRequired": "Not currently awaiting a signature - cannot register.",
     "placeSectionTitle": "G-SYS Hand-off File Placement",
     "placeButton": "Place G-SYS Hand-off File",
     "retryPlaceButton": "Retry",
@@ -278,7 +293,9 @@
       "SUPPLIER_CONTACT_NOT_FOUND": "No active To Contact (Supplier Contact Master) was resolved.",
       "ADMIN_CC_NOT_FOUND": "No enabled ADMIN account is available to CC.",
       "MAIL_TEMPLATE_NOT_FOUND": "No active Mail Template was resolved.",
-      "MAIL_TEMPLATE_AMBIGUOUS": "Multiple active Templates matched at the same priority - cannot pick one automatically."
+      "MAIL_TEMPLATE_AMBIGUOUS": "Multiple active Templates matched at the same priority - cannot pick one automatically.",
+      "SIGNED_PDF_NOT_REGISTERED": "No signed/stamped PDF has been registered yet.",
+      "INTEGRATION_NOT_ACTIVE": "This Official PO has been cancelled or superseded and cannot be sent."
     },
     "errorForbidden": "You do not have permission to perform this action.",
     "errorGeneric": "The operation failed.",
@@ -294,7 +311,8 @@
     "sendFailedNote": "Send failed. You can resend",
     "errorPreviewBlocked": "Mail Preview has unresolved items - check the Preview above.",
     "errorAttachmentNotReady": "Generate the Official PO Excel first.",
-    "errorChannelNotApplicable": "This manufacturer's channel is not Email."
+    "errorChannelNotApplicable": "This manufacturer's channel is not Email.",
+    "errorNotReadyToSend": "Register a signed/stamped PDF before you can send to the manufacturer."
   },
   "revisionHistory": {
     "title": "Order Revision History",

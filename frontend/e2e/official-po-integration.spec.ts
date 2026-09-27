@@ -1,4 +1,9 @@
 import { test, expect, type Page } from '@playwright/test'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const SIGNED_PDF_FIXTURE = path.join(__dirname, 'fixtures', 'signed-official-po.pdf')
 
 /**
  * Phase 7-C2A 24章: the five Browser Acceptance Scenarios (A-E) for Official
@@ -547,6 +552,11 @@ test.describe('Gap Analysis C-2/C-3: Official PO Reissue', () => {
     // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
     await page.getByTestId('official-po-pdf-generate-button').click()
     await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
+    // Business Rule (confirmed, Signed Official PO workflow): the new
+    // Revision starts back at PENDING signature (never inherits Revision 1's
+    // SIGNED state) - only a signed/stamped PDF may be sent.
+    await page.getByTestId('official-po-signed-pdf-upload-button').locator('input[type="file"]').setInputFiles(SIGNED_PDF_FIXTURE)
+    await expect(page.getByText('署名・押印済みPDFを登録しました。')).toBeVisible()
 
     // Manufacturer Channel/Contact/Template for SUP_ALPHA/BR_OUTDOOR.
     await ensureManufacturerChannel(page, 'SUP_ALPHA', 'BR_OUTDOOR', 'EMAIL')
@@ -695,5 +705,128 @@ test.describe('BR-03: Official PO Cancel Approval Workflow', () => {
     // and Integration Status/PO No. remain exactly as they were set by the
     // Portal-only Actions above.
     await expect(page.getByTestId('official-po-no')).toHaveText(poNo)
+  })
+})
+
+/**
+ * Business Rule (confirmed): "メーカーへ正式POを送付する際は、「署名・押印済みPDF」を送付
+ * します。未署名PDFのメーカー送付は禁止" - the full Signed Official PO Workflow,
+ * driven through the real UI (E2E-only DB - never the Protected gsys_portal/
+ * legacy_demo Demo databases): Official PO発行 -> PDF生成 -> PENDING (署名待ち) ->
+ * Send blocked (both UI guidance AND a direct API attempt) -> 署名・押印済みPDF
+ * アップロード -> SIGNED -> Send unblocked -> Manufacturer Send succeeds.
+ */
+test.describe('Signed Official PO Workflow (Business Rule, confirmed)', () => {
+  test('Scenario N: an unsigned PDF cannot be sent - upload the signed PDF, then Send succeeds', async ({ page }) => {
+    const draftId = await createOrderableDraft(page)
+    await submitAndApprove(page, draftId)
+
+    await page.getByTestId('official-po-request-button').click()
+    await page.getByTestId('official-po-request-dialog-confirm').click()
+    await expect(page.getByText('G-SYS連携の準備が完了しました。')).toBeVisible()
+
+    await page.getByTestId('official-po-generate-button').click()
+    await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
+    await page.getByTestId('official-po-pdf-generate-button').click()
+    await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
+
+    // Signature axis starts PENDING as soon as the PDF is generated - the
+    // minimal UI must show this clearly and offer the upload action, never a
+    // download-only dead end.
+    await expect(page.getByTestId('official-po-signature-status-chip')).toHaveText('署名待ち')
+    await expect(page.getByTestId('official-po-signed-pdf-upload-button')).toBeVisible()
+    await expect(page.getByTestId('official-po-signed-pdf-download-button')).toHaveCount(0)
+
+    // Manufacturer Channel/Contact/Template for SUP_ALPHA/BR_OUTDOOR - same
+    // setup Scenario M already establishes for its own Manufacturer Send.
+    await ensureManufacturerChannel(page, 'SUP_ALPHA', 'BR_OUTDOOR', 'EMAIL')
+    await page.goto('/admin/supplier-contacts')
+    await page.getByTestId('supplier-contact-create-button').click()
+    await page.getByTestId('supplier-contact-supplierCode').locator('input').fill('SUP_ALPHA')
+    await page.getByTestId('supplier-contact-brandCode').locator('input').fill('BR_OUTDOOR')
+    await page.getByTestId('supplier-contact-contactName').locator('input').fill('Signed Workflow Tester')
+    await page.getByTestId('supplier-contact-email').locator('input').fill('signed-workflow@example.com')
+    await page.getByTestId('supplier-contact-save').click()
+    await expect(page.getByTestId('supplier-contact-table-container')).toContainText('signed-workflow@example.com')
+
+    await page.goto('/admin/mail-templates')
+    await page.getByTestId('mail-template-create-button').click()
+    await page.getByTestId('mail-template-templateName').locator('input').fill('Signed Workflow Template')
+    await page.getByTestId('mail-template-supplierCode').locator('input').fill('SUP_ALPHA')
+    await page.getByTestId('mail-template-brandCode').locator('input').fill('BR_OUTDOOR')
+    await page.getByTestId('mail-template-subjectTemplate').locator('input').fill('PO {{poNo}}')
+    await page.getByTestId('mail-template-bodyTemplate').locator('textarea').first().fill('Dear {{contactName}}, PO No: {{poNo}}')
+    await page.getByTestId('mail-template-save').click()
+    await expect(page.getByTestId('mail-template-table-container')).toContainText('Signed Workflow Template')
+
+    await page.goto(`/orders/${draftId}`)
+
+    // UAT #19 re-verification, proof #1 (UI): while PENDING, the Send
+    // Section clearly shows the block with guidance, and the Send button
+    // itself is disabled - never just a silent no-op.
+    await expect(page.getByTestId('email-send-blocked-signature-note')).toBeVisible()
+    await expect(page.getByTestId('email-send-blocked-signature-note')).toContainText('署名・押印済みPDFを登録後、メーカー送付できます。')
+    await expect(page.getByTestId('email-send-button')).toBeDisabled()
+
+    // UAT #19 re-verification, proof #2 (API): a direct call to the real
+    // Send endpoint, bypassing the disabled Frontend button entirely, is
+    // still refused by the Backend Send Guard - the Frontend disabling the
+    // button is UX only, never the actual security boundary.
+    const directSendAttempt = await page.request.post(`/api/orders/${draftId}/email/send`)
+    expect(directSendAttempt.status()).toBe(409)
+    const directSendBody = await directSendAttempt.json()
+    expect(['OFFICIAL_PO_NOT_READY_TO_SEND', 'EMAIL_PREVIEW_BLOCKED']).toContain(directSendBody.errorCode)
+
+    // Upload the signed/stamped PDF (a minimal valid PDF fixture standing in
+    // for the offline signature/stamp process, which happens entirely
+    // outside G-OPS).
+    await page.getByTestId('official-po-signed-pdf-upload-button').locator('input[type="file"]').setInputFiles(SIGNED_PDF_FIXTURE)
+    await expect(page.getByText('署名・押印済みPDFを登録しました。')).toBeVisible()
+
+    await expect(page.getByTestId('official-po-signature-status-chip')).toHaveText('署名・押印済み')
+    await expect(page.getByTestId('official-po-signed-pdf-download-button')).toBeVisible()
+    await expect(page.getByTestId('official-po-signed-pdf-upload-button')).toHaveCount(0)
+
+    // The Send block must clear now that the Document is SIGNED+ACTIVE.
+    await expect(page.getByTestId('email-send-blocked-signature-note')).toHaveCount(0)
+    await expect(page.getByTestId('email-send-button')).toBeEnabled()
+
+    // The Send Confirm Dialog renders from the resolved Mail Preview - must
+    // run Preview first (same established pattern every other Send in this
+    // suite follows).
+    await page.getByTestId('mail-preview-button').click()
+    await expect(page.getByTestId('mail-preview-result')).toBeVisible()
+
+    await page.getByTestId('email-send-button').click()
+    await page.getByTestId('email-send-confirm-dialog-confirm').click()
+    await expect(page.getByText('メールを送信しました。')).toBeVisible()
+
+    // UAT #19 re-verification, proof #3 (API, post-Send): the direct Send
+    // endpoint now reflects SENT - the same real endpoint proof #2 called.
+    const statusAfterSend = await page.request.get(`/api/orders/${draftId}/email`)
+    expect((await statusAfterSend.json()).status).toBe('SENT')
+
+    // Cleanup: this Master data is SUP_ALPHA/BR_OUTDOOR-wide (same rationale
+    // as Scenario M's own cleanup).
+    const channels = await (await page.request.get('/api/admin/manufacturer-channels')).json()
+    for (const c of channels) {
+      if (c.supplierCode === 'SUP_ALPHA' && c.brandCode === 'BR_OUTDOOR' && c.active) {
+        await page.request.put(`/api/admin/manufacturer-channels/${c.id}`, {
+          data: { supplierCode: c.supplierCode, brandCode: c.brandCode, channel: c.channel, active: false },
+        })
+      }
+    }
+    const contacts = await (await page.request.get('/api/admin/supplier-contacts')).json()
+    for (const c of contacts) {
+      if (c.email === 'signed-workflow@example.com' && c.active) {
+        await page.request.put(`/api/admin/supplier-contacts/${c.id}`, { data: { ...c, active: false } })
+      }
+    }
+    const templates = await (await page.request.get('/api/admin/mail-templates')).json()
+    for (const t of templates) {
+      if (t.templateName === 'Signed Workflow Template' && t.active) {
+        await page.request.put(`/api/admin/mail-templates/${t.id}`, { data: { ...t, active: false } })
+      }
+    }
   })
 })

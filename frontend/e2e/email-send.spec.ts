@@ -1,4 +1,13 @@
 import { test, expect, type Page } from '@playwright/test'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+// Business Rule (confirmed, Signed Official PO workflow): Manufacturer Send
+// requires a signed/stamped PDF (isReadyToSend()) - every Send in this file
+// must upload one via the minimal UI first, matching official-po-integration
+// .spec.ts's own Scenario N fixture.
+const SIGNED_PDF_FIXTURE = path.join(__dirname, 'fixtures', 'signed-official-po.pdf')
 
 /**
  * Phase 9-E: Real Email Send. Full chain: G-SYS連携準備 -> PO番号確定 ->
@@ -132,6 +141,10 @@ test.describe('Phase 9-E: Real Email Send', () => {
     // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
     await page.getByTestId('official-po-pdf-generate-button').click()
     await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
+    // Business Rule (confirmed): only a signed/stamped PDF may be sent -
+    // the Send button stays disabled until this is registered.
+    await page.getByTestId('official-po-signed-pdf-upload-button').locator('input[type="file"]').setInputFiles(SIGNED_PDF_FIXTURE)
+    await expect(page.getByText('署名・押印済みPDFを登録しました。')).toBeVisible()
     // Email Send only ever requires the Excel/PDF (never a completed Import
     // Folder Handoff) and is prioritized ahead of that step in the hint.
     await expect(page.getByTestId('next-action-hint')).toContainText('メーカーへメールを送信')
@@ -202,6 +215,9 @@ test.describe('Phase 9-E: Real Email Send', () => {
     // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
     await page.getByTestId('official-po-pdf-generate-button').click()
     await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
+    // Business Rule (confirmed): only a signed/stamped PDF may be sent.
+    await page.getByTestId('official-po-signed-pdf-upload-button').locator('input[type="file"]').setInputFiles(SIGNED_PDF_FIXTURE)
+    await expect(page.getByText('署名・押印済みPDFを登録しました。')).toBeVisible()
 
     await page.getByTestId('mail-preview-button').click()
     await expect(page.getByTestId('mail-preview-result')).toBeVisible()
@@ -277,6 +293,9 @@ test.describe('Phase 9-E: Real Email Send', () => {
     await expect(page.getByText('正式PO Excelを生成しました。')).toBeVisible()
     await page.getByTestId('official-po-pdf-generate-button').click()
     await expect(page.getByText('正式PO PDFを生成しました。')).toBeVisible()
+    // Business Rule (confirmed): only a signed/stamped PDF may be sent.
+    await page.getByTestId('official-po-signed-pdf-upload-button').locator('input[type="file"]').setInputFiles(SIGNED_PDF_FIXTURE)
+    await expect(page.getByText('署名・押印済みPDFを登録しました。')).toBeVisible()
 
     await page.getByTestId('mail-preview-button').click()
     await expect(page.getByTestId('mail-preview-result')).toBeVisible()

@@ -11,6 +11,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
@@ -435,6 +436,39 @@ public class GlobalExceptionHandler {
         return error(request, HttpStatus.NOT_FOUND, "SIGNED_OFFICIAL_PO_NOT_AVAILABLE");
     }
 
+    // --- Business Rule (confirmed): signed/stamped PDF only may be sent to
+    // the Supplier - Signed PDF Upload Security audit ---
+
+    @ExceptionHandler(SignedPdfEmptyException.class)
+    public ResponseEntity<Map<String, Object>> handleSignedPdfEmpty(SignedPdfEmptyException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.BAD_REQUEST, "SIGNED_PDF_EMPTY");
+    }
+
+    @ExceptionHandler(SignedPdfInvalidFormatException.class)
+    public ResponseEntity<Map<String, Object>> handleSignedPdfInvalidFormat(SignedPdfInvalidFormatException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.BAD_REQUEST, "SIGNED_PDF_INVALID_FORMAT");
+    }
+
+    @ExceptionHandler(SignedPdfTooLargeException.class)
+    public ResponseEntity<Map<String, Object>> handleSignedPdfTooLarge(SignedPdfTooLargeException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.BAD_REQUEST, "SIGNED_PDF_TOO_LARGE");
+    }
+
+    /** Spring's own multipart parser rejects an oversized file before our
+     * Controller/Service ever sees it (request body size, not our
+     * business-level {@link SignedPdfTooLargeException} check) - mapped to
+     * the SAME error code so the Frontend never needs to distinguish which
+     * layer actually caught it. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.BAD_REQUEST, "SIGNED_PDF_TOO_LARGE");
+    }
+
+    @ExceptionHandler(SignedPdfMissingException.class)
+    public ResponseEntity<Map<String, Object>> handleSignedPdfMissing(SignedPdfMissingException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "SIGNED_PDF_MISSING");
+    }
+
     // --- Gap Analysis C-2/C-3: Official PO Reissue ---
 
     @ExceptionHandler(OfficialPoReissueNotRequiredException.class)
@@ -534,5 +568,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmailAttachmentNotReadyException.class)
     public ResponseEntity<Map<String, Object>> handleEmailAttachmentNotReady(EmailAttachmentNotReadyException ex, HttpServletRequest request) {
         return error(request, HttpStatus.CONFLICT, "EMAIL_ATTACHMENT_NOT_READY");
+    }
+
+    /** Business Rule (confirmed): Send Guard - reuses {@code
+     * OfficialPoIntegrationRequest#isReadyToSend()} as the single source of
+     * truth, never a second, independently-implemented signature check. */
+    @ExceptionHandler(OfficialPoNotReadyToSendException.class)
+    public ResponseEntity<Map<String, Object>> handleOfficialPoNotReadyToSend(OfficialPoNotReadyToSendException ex, HttpServletRequest request) {
+        return error(request, HttpStatus.CONFLICT, "OFFICIAL_PO_NOT_READY_TO_SEND");
     }
 }

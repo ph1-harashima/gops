@@ -146,6 +146,9 @@ class OfficialPoRevisionConsistencyIntegrationTest {
     void scenarioB_manufacturerSendThenDownloads_staysOnRevision1() {
         PortalOrder order = issueRevision1();
         integrationService.generatePdf(order.getId(), ADMIN);
+        // Business Rule (confirmed, Signed Official PO workflow): Send now
+        // additionally requires isReadyToSend() (SIGNATURE_SIGNED + ACTIVE).
+        integrationService.registerSignedPdf(order.getId(), "%PDF-1.4 test signed pdf".getBytes(), ADMIN);
         configureEmailChannelContactAndTemplate();
 
         OrderEmailResponse sent = emailSendService.send(order.getId(), ADMIN);
@@ -226,6 +229,9 @@ class OfficialPoRevisionConsistencyIntegrationTest {
         integrationService.generateExcel(reapproved.getId(), ADMIN);
         // BR-01: Manufacturer Send now requires BOTH Excel and PDF.
         integrationService.generatePdf(reapproved.getId(), ADMIN);
+        // Business Rule (confirmed, Signed Official PO workflow): Send now
+        // additionally requires isReadyToSend() (SIGNATURE_SIGNED + ACTIVE).
+        integrationService.registerSignedPdf(reapproved.getId(), "%PDF-1.4 test signed pdf".getBytes(), ADMIN);
 
         OrderEmailResponse sent = emailSendService.send(reapproved.getId(), ADMIN);
 
@@ -282,5 +288,43 @@ class OfficialPoRevisionConsistencyIntegrationTest {
         // never a valid Cancel target to begin with.
         assertThrows(OfficialPoCancelNotAllowedException.class,
                 () -> integrationService.requestCancel(reapproved.getId(), "second attempt", ADMIN));
+    }
+
+    // --- Scenario G: Business Rule (confirmed, Signed Official PO workflow):
+    // Reissue creates a fresh Revision whose own Signature axis starts
+    // PENDING - Send must refuse until THAT Revision is (re-)signed, even
+    // though Revision 1 was already SIGNED before the correction. ---
+
+    @Test
+    void scenarioG_reissueRequiresItsOwnFreshSignatureBeforeSend() {
+        PortalOrder order = issueRevision1();
+        integrationService.generatePdf(order.getId(), ADMIN);
+        integrationService.registerSignedPdf(order.getId(), "%PDF-1.4 test signed pdf".getBytes(), ADMIN);
+        assertTrue(integrationService.getIntegration(order.getId()).readyToSend(),
+                "Revision 1 must be SIGNED+ACTIVE before the correction cycle begins");
+        configureEmailChannelContactAndTemplate();
+
+        PortalOrder reapproved = correctAndReissue(order.getId());
+        integrationService.generateExcel(reapproved.getId(), ADMIN);
+        integrationService.generatePdf(reapproved.getId(), ADMIN);
+
+        OfficialPoIntegrationResponse rev2BeforeSigning = integrationService.getIntegration(reapproved.getId());
+        assertEquals(2, rev2BeforeSigning.revisionNo());
+        assertEquals(OfficialPoIntegrationRequest.SIGNATURE_PENDING, rev2BeforeSigning.signatureStatus(),
+                "Revision 2 is a brand-new Document - it must not inherit Revision 1's SIGNED state");
+        // send() checks MailPreviewService's own Preview (which independently
+        // blocks on the same PENDING signature, Phase 3) before its own
+        // isReadyToSend() Guard - see EmailSendServiceIntegrationTest's
+        // sendBlockedWhileSignaturePending Javadoc for why this surfaces as
+        // EmailPreviewBlockedException end-to-end.
+        assertThrows(com.glv.gsysportal.exception.EmailPreviewBlockedException.class,
+                () -> emailSendService.send(reapproved.getId(), ADMIN),
+                "Send must refuse Revision 2 until it is signed, regardless of Revision 1's prior SIGNED state");
+
+        integrationService.registerSignedPdf(reapproved.getId(), "%PDF-1.4 re-signed for revision 2".getBytes(), ADMIN);
+        OrderEmailResponse sent = emailSendService.send(reapproved.getId(), ADMIN);
+
+        assertEquals("SENT", sent.status());
+        assertEquals(2, sent.revisionNo(), "re-sign after Reissue must allow Send again, targeting the new Revision");
     }
 }

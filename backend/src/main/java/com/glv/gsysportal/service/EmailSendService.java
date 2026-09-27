@@ -11,6 +11,8 @@ import com.glv.gsysportal.exception.DraftNotFoundException;
 import com.glv.gsysportal.exception.EmailAttachmentNotReadyException;
 import com.glv.gsysportal.exception.EmailChannelNotApplicableException;
 import com.glv.gsysportal.exception.EmailPreviewBlockedException;
+import com.glv.gsysportal.exception.OfficialPoNotReadyToSendException;
+import com.glv.gsysportal.exception.SignedPdfMissingException;
 import com.glv.gsysportal.domain.PortalUser;
 import com.glv.gsysportal.repository.prototype.AuditEventRepository;
 import com.glv.gsysportal.repository.prototype.OfficialPoIntegrationRequestRepository;
@@ -20,6 +22,7 @@ import com.glv.gsysportal.repository.prototype.PortalUserRepository;
 import com.glv.gsysportal.service.integration.EmailEnvelope;
 import com.glv.gsysportal.service.integration.EmailSendException;
 import com.glv.gsysportal.service.integration.EmailSenderPort;
+import com.glv.gsysportal.service.integration.SignedOfficialPoAdapter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +37,13 @@ import java.util.Optional;
  * (design decision documented in the Implementation Plan). Requires the
  * resolved Manufacturer Channel to be EMAIL (never callable for an
  * EDI-channel manufacturer, §6) and the Official PO Excel to already be
- * generated (the current, only supported Attachment type).
+ * generated (the current, only supported Excel Attachment type).
+ *
+ * <p>Business Rule (confirmed, Signed Official PO workflow): the PDF half
+ * of the attachment pair is always the signed/stamped PDF, gated by {@link
+ * OfficialPoIntegrationRequest#isReadyToSend()} - the single source of
+ * truth for "SIGNATURE_SIGNED + LIFECYCLE_ACTIVE", never re-derived here.
+ * There is no fallback to the unsigned/generated PDF for any reason.
  */
 @Service
 public class EmailSendService {
@@ -48,7 +57,7 @@ public class EmailSendService {
     private final ManufacturerChannelResolutionService channelResolutionService;
     private final MailPreviewService mailPreviewService;
     private final OfficialPoExcelGenerationService excelGenerationService;
-    private final OfficialPoPdfGenerationService pdfGenerationService;
+    private final SignedOfficialPoAdapter signedOfficialPoAdapter;
     private final EmailSenderPort emailSenderPort;
     private final IdempotencyService idempotencyService;
     private final PortalUserRepository portalUserRepository;
@@ -60,7 +69,7 @@ public class EmailSendService {
                              ManufacturerChannelResolutionService channelResolutionService,
                              MailPreviewService mailPreviewService,
                              OfficialPoExcelGenerationService excelGenerationService,
-                             OfficialPoPdfGenerationService pdfGenerationService,
+                             SignedOfficialPoAdapter signedOfficialPoAdapter,
                              EmailSenderPort emailSenderPort,
                              IdempotencyService idempotencyService,
                              PortalUserRepository portalUserRepository) {
@@ -71,7 +80,7 @@ public class EmailSendService {
         this.channelResolutionService = channelResolutionService;
         this.mailPreviewService = mailPreviewService;
         this.excelGenerationService = excelGenerationService;
-        this.pdfGenerationService = pdfGenerationService;
+        this.signedOfficialPoAdapter = signedOfficialPoAdapter;
         this.emailSenderPort = emailSenderPort;
         this.idempotencyService = idempotencyService;
         this.portalUserRepository = portalUserRepository;
@@ -185,8 +194,27 @@ public class EmailSendService {
         // PDF - Excel is the source Document, PDF is the same content as an
         // unmodifiable 発注書, so a Send may never go out with only one of
         // the two ready.
-        if (integrationRequest.getGeneratedFileKey() == null || integrationRequest.getPdfFileKey() == null) {
+        if (integrationRequest.getGeneratedFileKey() == null) {
             throw new EmailAttachmentNotReadyException(orderId);
+        }
+        // Business Rule (confirmed): only a signed/stamped PDF may be sent -
+        // Send Guard reuses isReadyToSend() as the single source of truth
+        // (SIGNATURE_SIGNED + LIFECYCLE_ACTIVE) rather than re-deriving
+        // signatureStatus/lifecycleStatus checks independently here, so this
+        // business rule is never implemented twice. No fallback to the
+        // unsigned/generated PDF exists for any reason, including a
+        // SIGNED-but-somehow-Cancelled Document (isReadyToSend()'s own
+        // second condition).
+        if (!integrationRequest.isReadyToSend()) {
+            throw new OfficialPoNotReadyToSendException(orderId, integrationRequest.getSignatureStatus(),
+                    integrationRequest.getLifecycleStatus());
+        }
+        // Defensive consistency guard - should be unreachable (markSigned
+        // always sets this together with signatureStatus=SIGNED), but Send
+        // must never silently fall back to the unsigned PDF if it somehow
+        // is not, so this is checked explicitly rather than trusted.
+        if (integrationRequest.getSignedPdfFileKey() == null) {
+            throw new SignedPdfMissingException(orderId);
         }
 
         String idempotencyKey = orderId + "-" + revisionNo;
@@ -230,7 +258,10 @@ public class EmailSendService {
 
         String poNo = integrationRequest.getOfficialPoNo() == null ? "official-po" : integrationRequest.getOfficialPoNo();
         byte[] excelBytes = excelGenerationService.load(integrationRequest.getGeneratedFileKey());
-        byte[] pdfBytes = pdfGenerationService.load(integrationRequest.getPdfFileKey());
+        // Business Rule (confirmed): the signed/stamped PDF, never the
+        // unsigned/generated one - guaranteed non-null by the isReadyToSend()
+        // + signedPdfFileKey guards immediately above.
+        byte[] pdfBytes = signedOfficialPoAdapter.loadSignedPdf(integrationRequest.getSignedPdfFileKey());
         EmailEnvelope envelope = new EmailEnvelope(
                 preview.from(), actualTo, actualCc, preview.subject(), preview.body(),
                 List.of(new EmailEnvelope.Attachment(poNo + ".xlsx", excelBytes),
