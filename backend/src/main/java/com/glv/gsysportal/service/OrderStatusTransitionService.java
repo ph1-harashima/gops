@@ -62,7 +62,12 @@ public class OrderStatusTransitionService {
      */
     @Transactional(transactionManager = "prototypeTransactionManager")
     public PortalOrder submitForApproval(Long id, String performedBy, boolean performerIsAdmin) {
-        PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
+        // Draft Lifecycle Cleanup Audit §5: findActiveById, not the plain
+        // findById - this is the one transition whose own precondition
+        // (status=DRAFT) a soft-deleted Draft can still satisfy, so a
+        // stale direct API call could otherwise resurrect it into
+        // PENDING_APPROVAL despite having been deleted.
+        PortalOrder order = portalOrderRepository.findActiveById(id).orElseThrow(() -> new DraftNotFoundException(id));
 
         if (!PortalOrder.STATUS_DRAFT.equals(order.getStatus())) {
             throw new InvalidStatusTransitionException(order.getStatus(), PortalOrder.STATUS_DRAFT);

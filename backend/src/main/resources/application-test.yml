@@ -8,3 +8,9 @@ app:
   dashboard:
     refresh:
       enabled: false
+  # Draft Lifecycle Cleanup Audit §12: the code default is already `false`,
+  # but this is set explicitly (same style as dashboard.refresh above) so a
+  # test run can never silently soft-delete Drafts even if the shared code
+  # default were ever changed.
+  draft-cleanup:
+    enabled: false

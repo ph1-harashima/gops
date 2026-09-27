@@ -231,7 +231,10 @@ public class OrderHistoryService {
 
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
     public OrderHistoryDetailResponse detail(Long id) {
-        PortalOrder order = portalOrderRepository.findById(id).orElseThrow(() -> new DraftNotFoundException(id));
+        // Draft Lifecycle Cleanup Audit §5: findActiveById, not the plain
+        // findById - Order Detail is reachable by direct URL for a DRAFT-
+        // status Order, which a soft-deleted Draft still is.
+        PortalOrder order = portalOrderRepository.findActiveById(id).orElseThrow(() -> new DraftNotFoundException(id));
 
         // Phase 7-C5 5章: an Order may now have multiple Responses (one per
         // Revision); Order Detail always shows the CURRENT one - the last row

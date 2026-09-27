@@ -52,7 +52,10 @@ public class PoPreviewService {
 
     @Transactional(readOnly = true, transactionManager = "prototypeTransactionManager")
     public PoPreviewResponse preview(Long draftId) {
-        PortalOrder order = portalOrderRepository.findById(draftId).orElseThrow(() -> new DraftNotFoundException(draftId));
+        // Draft Lifecycle Cleanup Audit §5: findActiveById, not the plain
+        // findById - Preview accepts DRAFT status (see this method's own
+        // Javadoc above), which a soft-deleted Draft still carries.
+        PortalOrder order = portalOrderRepository.findActiveById(draftId).orElseThrow(() -> new DraftNotFoundException(draftId));
 
         // Phase 7-C1: Preview is viewable across the whole pre-send span -
         // DRAFT (final check before requesting approval), PENDING_APPROVAL

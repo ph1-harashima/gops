@@ -108,6 +108,19 @@ app:
       # rows older than this are purged after each successful refresh -
       # the currently-active run is always excluded regardless of age.
       retention-days: 30
+  # Draft Lifecycle Cleanup Audit §1/§6/§8: soft-deletes a Draft only when
+  # it has NEVER been touched beyond its own creation (no Save, no Submit,
+  # no Revision, no Official PO, no Follow-up activity - see
+  # DraftCleanupService's own Javadoc for the full candidate condition) and
+  # is older than retention-days. Disabled by default, unlike Dashboard
+  # Refresh above - no environment may silently start deleting existing
+  # Drafts without an explicit opt-in.
+  draft-cleanup:
+    enabled: false
+    # Spring cron: second minute hour day month weekday. Once daily,
+    # low-traffic hour.
+    cron: "0 0 3 * * *"
+    retention-days: 7
 
 server:
   port: 8080
