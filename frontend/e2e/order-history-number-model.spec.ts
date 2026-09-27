@@ -90,6 +90,27 @@ async function openHistoryFilteredBy(page: Page, keyword: string) {
   await expect(page.getByTestId('order-history-table-container')).toBeVisible()
 }
 
+/** E2E DB Isolation Audit (B-1): the browser's own URLSearchParams
+ * serialization (OrderHistoryListPage.tsx's updateFilter, `new
+ * URLSearchParams(prev).set(...)`) percent-encodes a query value exactly
+ * like `encodeURIComponent` does for the character set an officialPoNo can
+ * ever contain (letters/digits/"-"/"#") - confirmed empirically, not
+ * assumed. Official PO Nos. always start with "#" (OfficialPoNumberGenerator),
+ * which URL-encodes to "%23" in the real, rendered address bar URL; a raw,
+ * un-encoded "#" can never appear in a query string at all (it is the
+ * fragment delimiter). This builds the matching pattern against the
+ * ENCODED value, and escapes any regex metacharacter the encoded string
+ * could still contain (encodeURIComponent leaves "-" untouched, which is
+ * not a regex metacharacter, but this stays correct regardless of future
+ * Official PO No. format changes). */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function orderNoKeywordUrlPattern(officialPoNo: string): RegExp {
+  return new RegExp(`orderNoKeyword=${escapeRegExp(encodeURIComponent(officialPoNo))}`)
+}
+
 test.describe('Phase 1 Final Cleanup: Order History Number Model', () => {
   test('OH-1: a Draft Order shows a Management No. in History, with Official PO No. explicitly not-yet-assigned', async ({ page }) => {
     const draftId = await createOrderableDraft(page)
@@ -157,13 +178,13 @@ test.describe('Phase 1 Final Cleanup: Order History Number Model', () => {
     const officialPoNo = await issueOfficialPoNo(page, draftId)
 
     await openHistoryFilteredBy(page, officialPoNo)
-    await expect(page).toHaveURL(new RegExp(`orderNoKeyword=${officialPoNo}`))
+    await expect(page).toHaveURL(orderNoKeywordUrlPattern(officialPoNo))
 
     await page.locator('tbody tr').first().click()
     await expect(page).toHaveURL(new RegExp(`/orders/${draftId}(\\?.*)?$`))
 
     await page.getByRole('button', { name: '発注一覧へ戻る' }).click()
-    await expect(page).toHaveURL(new RegExp(`orderNoKeyword=${officialPoNo}`))
+    await expect(page).toHaveURL(orderNoKeywordUrlPattern(officialPoNo))
     await expect(page.getByTestId('order-no-keyword-input').locator('input')).toHaveValue(officialPoNo)
     await expect(page.locator('tbody tr')).toHaveCount(1)
   })

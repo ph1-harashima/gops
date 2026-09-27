@@ -16,6 +16,11 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './e2e',
+  // Protected DB Guard (e2e/guard/global-setup.ts): runs before any test,
+  // regardless of invocation method - `npx playwright test` run directly,
+  // bypassing backend/e2e-run.sh entirely, is covered by this exactly the
+  // same as e2e-run.sh's own explicit call to the same guard module.
+  globalSetup: './e2e/guard/global-setup.ts',
   timeout: 60_000,
   fullyParallel: false,
   workers: 1,

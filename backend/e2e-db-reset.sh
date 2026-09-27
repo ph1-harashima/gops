@@ -19,7 +19,12 @@
 #                     sed-transformed temp copy, because both files contain
 #                     a hardcoded "USE legacy_demo;" that would otherwise
 #                     silently redirect execution back onto the real
-#                     legacy_demo database.
+#                     legacy_demo database. e2e-fixtures/*.sql (E2E-only,
+#                     deterministic additions no Demo environment should
+#                     show - see that directory's own file header) is then
+#                     layered on top; it targets legacy_demo_e2e via the
+#                     mysql command line's own db argument, not a "USE"
+#                     statement, and is never applied to legacy_demo.
 #
 # Absolute conditions (unchanged from the governing E2E DB Isolation
 # directive): this script NEVER touches legacy_demo or gsys_portal. It
@@ -70,6 +75,17 @@ sed "s/legacy_demo/${MYSQL_E2E_DB}/g" demo-data/02-seed.sql > "${TMP_SEED}"
 
 docker exec -i "${MYSQL_CONTAINER}" mysql -uroot -p"${MYSQL_ROOT_PW}" < "${TMP_SCHEMA}"
 docker exec -i "${MYSQL_CONTAINER}" mysql -uroot -p"${MYSQL_ROOT_PW}" < "${TMP_SEED}"
+
+# E2E-only deterministic fixtures (e2e-fixtures/*.sql) - layered on top of
+# the Demo base seed above, applied ONLY here, never to legacy_demo. Each
+# file targets legacy_demo_e2e via this command's own db argument (no "USE"
+# statement inside them), so no sed-transform is needed for these.
+if compgen -G "e2e-fixtures/*.sql" > /dev/null; then
+    for fixture in e2e-fixtures/*.sql; do
+        echo "Applying E2E-only fixture: ${fixture}"
+        docker exec -i "${MYSQL_CONTAINER}" mysql -uroot -p"${MYSQL_ROOT_PW}" "${MYSQL_E2E_DB}" < "${fixture}"
+    done
+fi
 
 # Re-issue the SELECT-only grant for the E2E database (idempotent - grants
 # are keyed by db name and are not implicitly revoked by DROP DATABASE, but

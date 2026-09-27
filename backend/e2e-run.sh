@@ -53,6 +53,15 @@ readonly FRONTEND_LOG="${LOG_DIR}/frontend.log"
 
 readonly EXPECTED_PROTOTYPE_CATALOG="gsys_portal_e2e"
 readonly EXPECTED_LEGACY_CATALOG="legacy_demo_e2e"
+
+echo "=== Phase 0: Protected DB Static Guard ==="
+# Single source of truth (frontend/e2e/guard/protected-db-guard.mjs) - the
+# exact same module Playwright's own globalSetup (e2e/guard/global-setup.ts)
+# calls, so a spec file that hardcodes gsys_portal/legacy_demo is caught
+# here BEFORE wasting time on a DB reset/backend boot, and is caught again
+# by Playwright itself if someone runs `npx playwright test` directly
+# without going through this script at all.
+node "${FRONTEND_DIR}/e2e/guard/protected-db-guard.mjs" "${FRONTEND_DIR}/e2e"
 readonly BACKEND_URL="http://localhost:8080"
 readonly FRONTEND_URL="http://localhost:5173"
 readonly STARTUP_TIMEOUT_SECS=90

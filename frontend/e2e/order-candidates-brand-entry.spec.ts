@@ -201,10 +201,23 @@ test.describe('Order Candidates Brand Entry', () => {
   /**
    * Candidate Brand List UX improvement: keyword search + the
    * "候補0件も表示" toggle both run server-side (GET
-   * /api/order-candidates/brands) - ACT/HNK (real Legacy Demo DB fixture
-   * Brands with candidateCount=0) are hidden by default and only appear
-   * once the toggle is checked, proving the filter is actually applied,
-   * not merely present in the UI.
+   * /api/order-candidates/brands) - a candidateCount=0 Brand is hidden by
+   * default and only appears once the toggle is checked, proving the
+   * filter is actually applied, not merely present in the UI.
+   *
+   * E2E DB Isolation Audit (Part 2/3): the zero-candidate Brand used below
+   * is BR_ZERO, a deterministic E2E-only fixture
+   * (backend/e2e-fixtures/01-zero-candidate-brand.sql) - NOT "ACT"/"HNK",
+   * which were never seed data at all but a one-off Production Snapshot
+   * import (docs/real-data-audit/gops-stage5b-production-like-snapshot-
+   * environment.md) that only ever existed in the shared Demo gsys_portal
+   * by historical accident and cannot exist in a freshly-reset database.
+   * BR_ZERO's candidateCount=0 is computed by the SAME production
+   * RecommendedQtyCalculator/DashboardRefreshService logic every other
+   * Brand goes through - it is a Brand Master entry with exactly one
+   * zero-stock/zero-standard Item, which that calculation always resolves
+   * to a non-positive recommended quantity for (verified empirically: see
+   * that fixture file's own header for the full trace).
    */
   test('Brand検索でBrand Code/Nameによる絞り込みができる', async ({ page }) => {
     await login(page)
@@ -224,13 +237,21 @@ test.describe('Order Candidates Brand Entry', () => {
     await page.getByTestId('nav-candidates').click()
     await expect(page.getByTestId('order-candidate-brand-row-BR_HOME')).toBeVisible()
 
-    // Default: candidateCount=0 Brands (ACT/HNK, real fixture) are hidden.
-    await expect(page.getByTestId('order-candidate-brand-row-ACT')).toHaveCount(0)
+    // Default: candidateCount=0 Brands (BR_ZERO, deterministic E2E-only
+    // fixture) are hidden.
+    await expect(page.getByTestId('order-candidate-brand-row-BR_ZERO')).toHaveCount(0)
 
     await page.getByTestId('candidate-brand-list-show-zero').click()
 
-    await expect(page.getByTestId('order-candidate-brand-row-ACT')).toBeVisible()
-    // Non-zero Brands remain visible alongside the newly-revealed zero ones.
+    await expect(page.getByTestId('order-candidate-brand-row-BR_ZERO')).toBeVisible()
+    // Non-zero Brands remain visible alongside the newly-revealed zero one.
     await expect(page.getByTestId('order-candidate-brand-row-BR_HOME')).toBeVisible()
+
+    // keyword and the zero-candidate toggle compose - searching narrows to
+    // just the target Brand even while includeZeroCandidates stays true.
+    await page.locator('[data-testid="candidate-brand-list-search"]').fill('BR_ZERO')
+    await page.locator('[data-testid="candidate-brand-list-search"]').blur()
+    await expect(page.getByTestId('order-candidate-brand-row-BR_ZERO')).toBeVisible()
+    await expect(page.getByTestId('order-candidate-brand-row-BR_HOME')).toHaveCount(0)
   })
 })
