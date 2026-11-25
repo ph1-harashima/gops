@@ -23,3 +23,38 @@ docs/real-data-audit/*.sql
 # entire directory ignored, not just specific extensions, since its whole
 # purpose is holding real Production data outside the tracked tree.
 .local/
+
+# ---- Added 2026-11-25: accidental-commit prevention (sensitive / real-data / scratch) ----
+# Real-data backups & DB dumps. NOTE: *.sql is deliberately NOT ignored wholesale
+# (Flyway migrations, demo-data/, e2e-fixtures/ are tracked .sql files).
+*.7z
+*.dmp
+*.dump
+*.bak
+*.sql.gz
+*.sql.zip
+_protected_db_snapshots/
+
+# Credentials / session artifacts
+cookies*.txt
+*.cookie
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa*
+.netrc
+.credentials.json
+credentials.json
+secrets/
+
+# Run logs and root-level scratch captures (API responses / curl logs)
+*.log
+/log[0-9]*.txt
+/pc[0-9]*.json
+/pd[0-9]*.json
+/psku[0-9]*.json
